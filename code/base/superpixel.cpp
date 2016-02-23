@@ -6,7 +6,7 @@ using namespace std;
 using namespace cv;
 using namespace Eigen;
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
 	void SuperPixelHelper::MatToImagebuffer(const Mat& image, vector<unsigned int>&imagebuffer){
 		if(!image.data){
 			cout << "invlid image"<<endl;

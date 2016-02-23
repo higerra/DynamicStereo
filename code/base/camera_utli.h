@@ -5,7 +5,7 @@
 #include <ceres/ceres.h>
 #include "camera.h"
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
     namespace camera_utility{
 	Eigen::Matrix4d inverseExtrinsic(const Eigen::Matrix4d& mat);
 

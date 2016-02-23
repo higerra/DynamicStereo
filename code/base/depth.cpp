@@ -10,7 +10,7 @@ using namespace std;
 using namespace cv;
 using namespace Eigen;
 
-namespace dynamic_rendering {
+namespace dynamic_stereo {
 
 	void Depth::initialize(int width, int height, const double v) {
 		depthwidth = width;

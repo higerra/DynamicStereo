@@ -6,12 +6,9 @@
 #include <Eigen/Core>
 #include "camera.h"
 #include "depth.h"
-namespace dynamic_rendering{
+namespace dynamic_stereo{
 
     class FileIO;
-    class Quad;
-
-
 
     class Frame{
     public:

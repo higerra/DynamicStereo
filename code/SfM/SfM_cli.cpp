@@ -39,11 +39,12 @@
 #include <chrono>  // NOLINT
 #include <string>
 #include <vector>
+#include <stlplus3/file_system.hpp>
+#include "base/file_io.h"
 
 #include "command_line_helpers.h"
 
 // Input/output files.
-DEFINE_string(images, "", "Wildcard of images to reconstruct.");
 DEFINE_string(matches_file, "", "Filename of the matches file.");
 DEFINE_string(calibration_file, "",
               "Calibration file containing image calibration data.");
@@ -52,30 +53,25 @@ DEFINE_string(
         "File to write the two-view matches to. This file can be used in "
                 "future iterations as input to the reconstruction builder. Leave empty if "
                 "you do not want to output matches.");
-DEFINE_string(
-        output_reconstruction, "",
-        "Filename to write reconstruction to. The filename will be appended with "
-                "the reconstruction number if multiple reconstructions are created.");
 
 // Multithreading.
-DEFINE_int32(num_threads, 1,
+DEFINE_int32(num_threads, 6,
              "Number of threads to use for feature extraction and matching.");
+
+DEFINE_int32(image_intervals, 1, "Use image every ${image_intervals}");
 
 // Feature and matching options.
 DEFINE_string(
         descriptor, "SIFT",
         "Type of feature descriptor to use. Must be one of the following: "
                 "SIFT");
-DEFINE_string(matching_strategy, "BRUTE_FORCE",
+DEFINE_string(matching_strategy, "CASCADE_HASHING",
               "Strategy used to match features. Must be BRUTE_FORCE "
                       " or CASCADE_HASHING");
 DEFINE_bool(match_out_of_core, true,
             "Perform matching out of core by saving features to disk and "
                     "reading them as needed. Set to false to perform matching all in "
                     "memory.");
-DEFINE_string(matching_working_directory, "",
-              "Directory used during matching to store features for "
-                      "out-of-core matching.");
 DEFINE_int32(matching_max_num_images_in_cache, 128,
              "Maximum number of images to store in the LRU cache during "
                      "feature matching. The higher this number is the more memory is "
@@ -96,16 +92,16 @@ DEFINE_bool(keep_only_symmetric_matches, true,
 // Reconstruction building options.
 DEFINE_string(reconstruction_estimator, "GLOBAL",
               "Type of SfM reconstruction estimation to use.");
-DEFINE_bool(reconstruct_largest_connected_component, false,
+DEFINE_bool(reconstruct_largest_connected_component, true,
             "If set to true, only the single largest connected component is "
                     "reconstructed. Otherwise, as many models as possible are "
                     "estimated.");
 DEFINE_bool(only_calibrated_views, false,
             "Set to true to only reconstruct the views where calibration is "
                     "provided or can be extracted from EXIF");
-DEFINE_int32(max_track_length, 20, "Maximum length of a track.");
+DEFINE_int32(max_track_length, 50, "Maximum length of a track.");
 DEFINE_string(intrinsics_to_optimize,
-              "FOCAL_LENGTH_PRINCIPAL_POINT_AND_RADIAL_DISTORTION",
+              "FOCAL_LENGTH_PRINCIPAL_POINTS_AND_RADIAL_DISTORTION",
               "Set to control which intrinsics parameters are optimized during "
                       "bundle adjustment.");
 DEFINE_double(max_reprojection_error_pixels, 4.0,
@@ -121,7 +117,7 @@ DEFINE_bool(refine_relative_translations_after_rotation_estimation, true,
             "Refine the relative translation estimation after computing the "
                     "absolute rotations. This can help improve the accuracy of the "
                     "position estimation.");
-DEFINE_double(post_rotation_filtering_degrees, 5.0,
+DEFINE_double(post_rotation_filtering_degrees, 15.0,
               "Max degrees difference in relative rotation and rotation "
                       "estimates for rotation filtering.");
 DEFINE_bool(extract_maximal_rigid_subgraph, false,
@@ -167,7 +163,7 @@ DEFINE_bool(bundle_adjust_tracks, true,
             "Set to true to optimize tracks immediately upon estimation.");
 
 // Bundle adjustment parameters.
-DEFINE_string(bundle_adjustment_robust_loss_function, "NONE",
+DEFINE_string(bundle_adjustment_robust_loss_function, "HUBER",
               "By setting this to an option other than NONE, a robust loss "
                       "function will be used during bundle adjustment which can "
                       "improve robustness to outliers. Options are NONE, HUBER, "
@@ -196,14 +192,14 @@ DEFINE_bool(root_sift, true, "Enables the usage of Root SIFT.");
 using theia::Reconstruction;
 using theia::ReconstructionBuilder;
 using theia::ReconstructionBuilderOptions;
-
+using namespace dynamic_stereo;
 // Sets the feature extraction, matching, and reconstruction options based on
 // the command line flags. There are many more options beside just these located
 // in //theia/vision/sfm/reconstruction_builder.h
-ReconstructionBuilderOptions SetReconstructionBuilderOptions() {
+ReconstructionBuilderOptions SetReconstructionBuilderOptions(const FileIO& file_io) {
     ReconstructionBuilderOptions options;
     options.num_threads = FLAGS_num_threads;
-    options.output_matches_file = FLAGS_output_matches_file;
+    options.output_matches_file = file_io.getSfMMatchFile();
 
     options.descriptor_type = StringToDescriptorExtractorType(FLAGS_descriptor);
     // Setting sift parameters.
@@ -220,7 +216,9 @@ ReconstructionBuilderOptions SetReconstructionBuilderOptions() {
 
     options.matching_options.match_out_of_core = FLAGS_match_out_of_core;
     options.matching_options.keypoints_and_descriptors_output_dir =
-            FLAGS_matching_working_directory;
+            file_io.getMvgDirectory();
+
+
     options.matching_options.cache_capacity =
             FLAGS_matching_max_num_images_in_cache;
     options.matching_strategy =
@@ -304,41 +302,14 @@ ReconstructionBuilderOptions SetReconstructionBuilderOptions() {
     return options;
 }
 
-void AddMatchesToReconstructionBuilder(
-        ReconstructionBuilder* reconstruction_builder) {
-    // Load matches from file.
+void AddImagesToReconstructionBuilder(const FileIO& file_io,
+                                      ReconstructionBuilder* reconstruction_builder) {
     std::vector<std::string> image_files;
-    std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
-    std::vector<theia::ImagePairMatch> image_matches;
+    CHECK_GT(FLAGS_image_intervals, 0);
+    for(auto i=0; i<file_io.getTotalNum(); i += FLAGS_image_intervals)
+        image_files.push_back(file_io.getImage(i));
 
-    // Read in match file.
-    theia::ReadMatchesAndGeometry(FLAGS_matches_file,
-                                  &image_files,
-                                  &camera_intrinsics_prior,
-                                  &image_matches);
-
-    // Add all the views.
-    for (int i = 0; i < image_files.size(); i++) {
-        reconstruction_builder->AddImageWithCameraIntrinsicsPrior(
-                image_files[i], camera_intrinsics_prior[i]);
-    }
-
-    // Add the matches.
-    for (const auto& match : image_matches) {
-        CHECK(reconstruction_builder->AddTwoViewMatch(match.image1,
-                                                      match.image2,
-                                                      match));
-    }
-}
-
-void AddImagesToReconstructionBuilder(
-        ReconstructionBuilder* reconstruction_builder) {
-    std::vector<std::string> image_files;
-    CHECK(theia::GetFilepathsFromWildcard(FLAGS_images, &image_files))
-    << "Could not find images that matched the filepath: " << FLAGS_images
-    << ". NOTE that the ~ filepath is not supported.";
-
-    CHECK_GT(image_files.size(), 0) << "No images found in: " << FLAGS_images;
+    CHECK_GT(image_files.size(), 0) << "No images found in: " << file_io.getImageDirectory();
 
     // Load calibration file if it is provided.
     std::unordered_map<std::string, theia::CameraIntrinsicsPrior>
@@ -369,36 +340,51 @@ void AddImagesToReconstructionBuilder(
 }
 
 int main(int argc, char *argv[]) {
+    if(argc < 2){
+        std::cerr << "Usage: SfM_cli <path-to-data>" << std::endl;
+        return 1;
+    }
     THEIA_GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
     google::InitGoogleLogging(argv[0]);
     FLAGS_logtostderr = true;
 
-    CHECK_GT(FLAGS_output_reconstruction.size(), 0)
-        << "Must specify a filepath to output the reconstruction.";
+    CHECK(stlplus::folder_exists(std::string(argv[1]))) << "Invalid path";
+    dynamic_stereo::FileIO file_io(argv[1]);
+    CHECK(stlplus::folder_exists(file_io.getImageDirectory())) << "Empty dataset";
 
-    const ReconstructionBuilderOptions options =
-            SetReconstructionBuilderOptions();
+    if(stlplus::folder_exists(file_io.getMvgDirectory()))
+        stlplus::folder_create(file_io.getMvgDirectory());
 
-    ReconstructionBuilder reconstruction_builder(options);
-    // If matches are provided, load matches otherwise load images.
-    if (FLAGS_matches_file.size() != 0) {
-        AddMatchesToReconstructionBuilder(&reconstruction_builder);
-    } else if (FLAGS_images.size() != 0) {
-        AddImagesToReconstructionBuilder(&reconstruction_builder);
-    } else {
-        LOG(FATAL)
-        << "You must specifiy either images to reconstruct or a match file.";
+    if(!stlplus::folder_exists(file_io.getDirectory() + "/sfm"))
+        stlplus::folder_create(file_io.getDirectory() + "/sfm");
+    std::string output_reconstruction = file_io.getDirectory() + "/sfm/reconstruction.recon";
+    std::string output_ply = file_io.getDirectory() + "/sfm/reconstruction.ply";
+
+    theia::Reconstruction *res;
+    if(!theia::ReadReconstruction(output_reconstruction, res)) {
+
+        const ReconstructionBuilderOptions options =
+                SetReconstructionBuilderOptions(file_io);
+        ReconstructionBuilder reconstruction_builder(options);
+
+        AddImagesToReconstructionBuilder(file_io, &reconstruction_builder);
+
+        std::vector<Reconstruction *> reconstructions;
+        CHECK(reconstruction_builder.BuildReconstruction(&reconstructions)) << "Could not create a reconstruction.";
+
+        //colorized and write ply file
+        CHECK(!reconstructions.empty());
+        res = reconstructions.front();
+        //colorize reconstruction
+        CHECK(theia::WriteReconstruction(*res, output_reconstruction)) << "Cannot write reconstruction file";
+    }
+    theia::ColorizeReconstruction(file_io.getImageDirectory(), FLAGS_num_threads, res);
+    CHECK(theia::WritePlyFile(output_ply, *(res), 3)) << "Cannot write ply file";
+
+    for(auto i=0; i<res->NumViews(); ++i){
+        const theia::View* v = res->View(i);
+        const theia::Camera cam = v->Camera();
     }
 
-    std::vector<Reconstruction*> reconstructions;
-    CHECK(reconstruction_builder.BuildReconstruction(&reconstructions))
-    << "Could not create a reconstruction.";
-
-    for (int i = 0; i < reconstructions.size(); i++) {
-        const std::string output_file =
-                theia::StringPrintf("%s-%d", FLAGS_output_reconstruction.c_str(), i);
-        LOG(INFO) << "Writing reconstruction " << i << " to " << output_file;
-        CHECK(theia::WriteReconstruction(*reconstructions[i], output_file))
-        << "Could not write reconstruction to file.";
-    }
+    return 0;
 }

@@ -1,6 +1,5 @@
 #include "frame.h"
 #include "file_io.h"
-#include "quad.h"
 #include <numeric>
 #include <assert.h>
 #include "utility.h"
@@ -9,7 +8,7 @@ using namespace std;
 using namespace cv;
 using namespace Eigen;
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
 	void Frame::initialize(const FileIO& file_io, int id, bool no_camera){
 		if(id > file_io.getTotalNum()){
 			cerr<<"Frame::initialize: invalid framenum!"<<endl;

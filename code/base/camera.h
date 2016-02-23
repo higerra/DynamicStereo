@@ -6,7 +6,7 @@
 #include <Eigen/Eigen>
 #include <vector>
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
 
     class FileIO;
 

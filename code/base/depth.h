@@ -6,7 +6,7 @@
 #include <fstream>
 #include <opencv2/opencv.hpp>
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
     class Depth{
     public:
         Depth(): depthwidth(0), depthheight(0), average_depth(0),median_depth(0), depth_var(0), statics_computed(false){}

@@ -3,7 +3,7 @@
 using namespace Eigen;
 using namespace std;
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
     Camera::Camera(const FileIO& file_io, int id){
         initialize(file_io, id);
     }

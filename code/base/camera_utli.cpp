@@ -3,7 +3,7 @@
 using namespace std;
 using namespace Eigen;
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
 
     namespace camera_utility{
 	Matrix4d inverseExtrinsic(const Matrix4d& mat){

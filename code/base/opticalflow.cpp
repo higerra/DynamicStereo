@@ -10,7 +10,7 @@
 using namespace std;
 using namespace Eigen;
 using namespace cv;
-namespace dynamic_rendering {
+namespace dynamic_stereo {
 
 	void FlowFrame::init(const cv::Mat &img_){
 		CHECK(!img_.empty()) << "Empty image!";

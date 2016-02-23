@@ -6,7 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
 
-namespace dynamic_rendering{
+namespace dynamic_stereo{
 
 	class Frame;
 	class Depth;

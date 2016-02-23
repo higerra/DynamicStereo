@@ -19,7 +19,7 @@
 #include <opencv2/cudaoptflow.hpp>
 #endif
 
-namespace dynamic_rendering {
+namespace dynamic_stereo {
     class FileIO;
 
 	struct FlowFrame{
