@@ -14,3 +14,4 @@ find_package(gflags REQUIRED)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/MRF2.2)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/SfM)
