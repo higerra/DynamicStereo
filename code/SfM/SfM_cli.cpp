@@ -163,7 +163,7 @@ DEFINE_bool(bundle_adjust_tracks, true,
             "Set to true to optimize tracks immediately upon estimation.");
 
 // Bundle adjustment parameters.
-DEFINE_string(bundle_adjustment_robust_loss_function, "HUBER",
+DEFINE_string(bundle_adjustment_robust_loss_function, "NONE",
               "By setting this to an option other than NONE, a robust loss "
                       "function will be used during bundle adjustment which can "
                       "improve robustness to outliers. Options are NONE, HUBER, "
@@ -355,13 +355,15 @@ int main(int argc, char *argv[]) {
     if(stlplus::folder_exists(file_io.getMvgDirectory()))
         stlplus::folder_create(file_io.getMvgDirectory());
 
-    if(!stlplus::folder_exists(file_io.getDirectory() + "/sfm"))
-        stlplus::folder_create(file_io.getDirectory() + "/sfm");
-    std::string output_reconstruction = file_io.getDirectory() + "/sfm/reconstruction.recon";
-    std::string output_ply = file_io.getDirectory() + "/sfm/reconstruction.ply";
+    if(!stlplus::folder_exists(file_io.getSfMDirectory()))
+        stlplus::folder_create(file_io.getSfMDirectory());
 
-    theia::Reconstruction *res;
-    if(!theia::ReadReconstruction(output_reconstruction, res)) {
+    std::string output_ply = file_io.getSfMDirectory() + "/reconstruction.ply";
+
+    char buffer[1024] = {};
+
+    theia::Reconstruction *res = new theia::Reconstruction();
+    if(!theia::ReadReconstruction(file_io.getReconstruction(), res)) {
 
         const ReconstructionBuilderOptions options =
                 SetReconstructionBuilderOptions(file_io);
@@ -376,14 +378,28 @@ int main(int argc, char *argv[]) {
         CHECK(!reconstructions.empty());
         res = reconstructions.front();
         //colorize reconstruction
-        CHECK(theia::WriteReconstruction(*res, output_reconstruction)) << "Cannot write reconstruction file";
+        CHECK(theia::WriteReconstruction(*res, file_io.getReconstruction())) << "Cannot write reconstruction file";
     }
     theia::ColorizeReconstruction(file_io.getImageDirectory(), FLAGS_num_threads, res);
     CHECK(theia::WritePlyFile(output_ply, *(res), 3)) << "Cannot write ply file";
 
+
+    //std::vector<theia::Matrix3x4d> pMatrix(file_io.getTotalNum());
+
+    CHECK_EQ(res->NumViews(), file_io.getTotalNum()) << "Some cameras are missing";
     for(auto i=0; i<res->NumViews(); ++i){
         const theia::View* v = res->View(i);
         const theia::Camera cam = v->Camera();
+        theia::Matrix3x4d p;
+        cam.GetProjectionMatrix(&p);
+        sprintf(buffer, "%s/%s.txt", file_io.getSfMDirectory().c_str(), v->Name().c_str());
+        std::ofstream fout(buffer);
+        CHECK(fout.is_open()) << "Can not open " << buffer << " to write";
+        for(auto y=0; y<3; ++y){
+            for(auto x=0; x<4; ++x)
+                fout << p(y,x) << ' ';
+            fout << std::endl;
+        }
     }
 
     return 0;

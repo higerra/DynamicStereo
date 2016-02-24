@@ -100,8 +100,14 @@ namespace dynamic_stereo{
             return getDirectory() + "/pose/";
         }
 
+        inline std::string getSfMDirectory() const{
+            return getDirectory() + "/sfm/";
+        }
         inline std::string getMvgDirectory() const{
             return getDirectory() + "/mvg/";
+        }
+        inline std::string getReconstruction() const{
+            return getSfMDirectory() + "reconstruction.recon";
         }
         inline std::string getOptimizedPose(const int id) const {
             CHECK_LT(id, getTotalNum());
