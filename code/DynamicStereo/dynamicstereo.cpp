@@ -11,7 +11,7 @@ namespace dynamic_stereo{
     DynamicStereo::DynamicStereo(const dynamic_stereo::FileIO &file_io_, const int anchor_,
                                  const int tWindow_, const int downsample_, const double weight_smooth_, const int dispResolution_):
             file_io(file_io_), anchor(anchor_), tWindow(tWindow_), downsample(downsample_), dispResolution(dispResolution_), pR(2),
-            weight_smooth(weight_smooth_), MRFRatio(10),
+            weight_smooth(weight_smooth_), MRFRatio(1000),
             min_disp(-1), max_disp(-1), dispScale(1000){
 
         cout << "Reading..." << endl;
@@ -109,10 +109,19 @@ namespace dynamic_stereo{
 
         refDepth.updateStatics();
         double max_depth = refDepth.getMaxDepth();
+	double min_depth = refDepth.getMinDepth();
         CHECK_GT(max_depth, 0);
-        double scale = 255.0 / max_depth;
+
+	Depth d2;
+	d2.initialize(width, height, 0.0);
+	for(auto x=0; x<width; ++x){
+	    for(auto y=0; y<height; ++y){
+		double curd = refDepth.getDepthAtInt(x,y);
+		d2.setDepthAtInt(x,y,(curd-min_depth) / (max_depth-min_depth) * 255.0);
+	    }
+	}
         char buffer[1024] = {};
         sprintf(buffer, "%s/temp/depth%05d.jpg", file_io.getDirectory().c_str(), anchor);
-        refDepth.saveImage(buffer, scale);
+        d2.saveImage(buffer);
     }
 }

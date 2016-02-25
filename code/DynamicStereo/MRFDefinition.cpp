@@ -22,12 +22,12 @@ namespace dynamic_stereo{
                         pix[index * 3] = -1;
                         pix[index * 3 + 1] = -1;
                         pix[index * 3 + 2] = -1;
-                        continue;
-                    }
-                    Vector3d pv = interpolation_util::bilinear<uchar, 3>(img.data, w, h, curloc);
-                    pix[index * 3] = pv[0];
-                    pix[index * 3 + 1] = pv[1];
-                    pix[index * 3 + 2] = pv[2];
+                    }else{
+			Vector3d pv = interpolation_util::bilinear<uchar, 3>(img.data, w, h, curloc);
+			pix[index * 3] = pv[0];
+			pix[index * 3 + 1] = pv[1];
+			pix[index * 3 + 2] = pv[2];
+		    }
                 }
             }
         }
@@ -72,16 +72,11 @@ namespace dynamic_stereo{
             if(curdepth > 0)
                 disps.push_back(1.0 / curdepth);
         }
-        cout << "compute min max depth:" << endl;
-        for(auto d: disps)
-            cout << d << ' ';
-        cout << endl;
         //ignore furthest 1% and nearest 1% points
         const double lowRatio = 0.01;
         const double highRatio = 0.09;
         const size_t lowKth = (size_t)(lowRatio * disps.size());
         const size_t highKth = (size_t)highRatio * disps.size();
-        printf("lowKth: %d, highKth: %d\n", (int)lowKth, (int)highKth);
         //min_disp should be correspond to high depth
         nth_element(disps.begin(), disps.begin() + lowKth, disps.end());
         min_disp = disps[lowKth];
@@ -124,7 +119,7 @@ namespace dynamic_stereo{
                     cout << '.' << flush;
                 Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
                 ray.normalize();
-//#pragma omp parallel for
+#pragma omp parallel for
                 for(int d=0; d<dispResolution; ++d){
                     //compute 3D point
                     double disp = min_disp + d * (max_disp - min_disp) / (double)dispResolution;
@@ -133,16 +128,12 @@ namespace dynamic_stereo{
 
                     //project onto other views and compute matching cost
                     vector<vector<double> > patches(images.size());
-                    int validCount = 0;
                     for(auto v=0; v<images.size(); ++v){
                         theia::Camera cam2 = reconstruction.View(v+offset)->Camera();
                         Vector2d imgpt;
                         cam2.ProjectPoint(spt_homo, &imgpt);
                         imgpt = imgpt / (double)downsample;
-                        if(imgpt[0] > 5 && imgpt[1] > 5 && imgpt[0] < width-5 && imgpt[1] < height-5)
-                            validCount++;
                         //TODO: shifting window
-
                         MRF_util::samplePatch(images[v], imgpt, pR, patches[v]);
                     }
 
@@ -177,8 +168,8 @@ namespace dynamic_stereo{
     void DynamicStereo::assignSmoothWeight() {
         //mean of the gaussian distribution of gradient for edge
         const double t = 0.3;
-        hCue.resize(width * height);
-        vCue.resize(width * height);
+        hCue.resize(width * height, 0);
+        vCue.resize(width * height, 0);
         const Mat& img = images[anchor-offset];
         for(auto y=0; y<height; ++y) {
             for (auto x = 0; x < width; ++x) {
@@ -190,13 +181,13 @@ namespace dynamic_stereo{
                     Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]) / 255.0;
                     double diff = (dpix1 - dpix2).norm();
                     if(diff > t)
-                        hCue[y*width+x] = 0;
+                        vCue[y*width+x] = 0;
                     else
-                        hCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t) * weight_smooth * MRFRatio);
+                        vCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t) * weight_smooth * MRFRatio);
                 }
                 if(x < width - 1){
                     Vec3b pix2 = img.at<Vec3b>(y,x+1);
-                    Vector3d dpix2(pix2[0], pix2[1], pix2[2]);
+                    Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]) / 255.0;
                     double diff = (dpix1 - dpix2).norm();
                     if(diff > t)
                         hCue[y*width+x] = 0;

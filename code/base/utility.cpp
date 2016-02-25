@@ -13,13 +13,15 @@ namespace math_util{
             double m2 = std::accumulate(a2.begin(), a2.end(), 0.0) / n;
             double var1 = math_util::variance(a1, m1);
             double var2 = math_util::variance(a2, m2);
-            CHECK_GT(var1 * var2, 0);
+	    if(var1 == 0 || var2 == 0 )
+		return 0;
+		
             double ncc = 0;
             for (size_t i = 0; i < a1.size(); ++i)
                     ncc += (a1[i] - m1) * (a2[i] - m2);
             ncc /= var1 * var2 * n;
-            CHECK_LE(ncc, 1);
-            CHECK_GE(ncc, -1);
+            CHECK_LE(ncc, 1.001);
+            CHECK_GE(ncc, -1.001);
             return ncc;
     }
 }
