@@ -139,15 +139,14 @@ namespace dynamic_stereo{
 
                     //project onto other views and compute matching cost
                     vector<vector<double> > patches(images.size());
+                    int validCount = 0;
                     for(auto v=0; v<images.size(); ++v){
                         theia::Camera cam2 = reconstruction.View(v+offset)->Camera();
                         Vector2d imgpt;
                         cam2.ProjectPoint(spt_homo, &imgpt);
                         imgpt = imgpt / (double)downsample;
-                        if(imgpt[0] > 5 && imgpt[1] > 5 && imgpt[0] < width-5 && imgpt[1] < height-5) {
-                            verbose = true;
-                            cout << "imgpt: " << imgpt[0] << ' ' << imgpt[1] << endl << flush;
-                        }
+                        if(imgpt[0] > 5 && imgpt[1] > 5 && imgpt[0] < width-5 && imgpt[1] < height-5)
+                            validCount++;
                         //TODO: shifting window
 
                         MRF_util::samplePatch(images[v], imgpt, pR, patches[v]);
@@ -161,7 +160,7 @@ namespace dynamic_stereo{
                     nth_element(mCostGroup.begin(), mCostGroup.begin()+kth, mCostGroup.end());
                     MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
 //#pragma omp critical
-                    if(verbose){
+                    if(validCount >= images.size() / 3){
                         cout << "Patch: " << endl;
                         for(const auto& pat: patches){
                             for(auto pv: pat)
