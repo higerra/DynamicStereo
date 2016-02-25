@@ -9,7 +9,7 @@
 namespace dynamic_stereo{
     class Depth{
     public:
-        Depth(): depthwidth(0), depthheight(0), average_depth(0),median_depth(0), depth_var(0), statics_computed(false){}
+        Depth(): depthwidth(0), depthheight(0), average_depth(0),median_depth(0), depth_var(0),max_depth(-1),min_depth(10000000), statics_computed(false){}
         void initialize(int width, int height, const double v = -1);
 
         inline int getWidth()const {return depthwidth;}
@@ -17,6 +17,8 @@ namespace dynamic_stereo{
         inline double getAverageDepth()const {return average_depth;}
         inline double getDepthVariance()const {return depth_var;}
         inline double getMedianDepth()const {return median_depth;}
+        inline double getMaxDepth() const {return max_depth;}
+        inline double getMinDepth() const {return min_depth;};
         inline std::vector<double>& getRawData(){return data;}
         inline const std::vector<double>& getRawData()const {return data;}
         inline void getRawData(std::vector<double>&array) const{
@@ -83,6 +85,9 @@ namespace dynamic_stereo{
         double average_depth;
         double median_depth;
         double depth_var;
+        double min_depth;
+        double max_depth;
+
         bool statics_computed;
         std::vector<double>data;
         std::vector<double>weight;

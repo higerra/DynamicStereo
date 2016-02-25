@@ -22,7 +22,8 @@
 namespace dynamic_stereo {
     class DynamicStereo {
     public:
-        DynamicStereo(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_);
+        DynamicStereo(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_, const double weight_smooth_,
+                      const int dispResolution_ = 64);
         void verifyEpipolarGeometry(const int id1, const int id2,
                                                    const Eigen::Vector2d& pt,
                                                    cv::Mat &imgL, cv::Mat &imgR);
@@ -35,6 +36,7 @@ namespace dynamic_stereo {
         void initMRF();
         void computeMinMaxDepth();
         void assignDataTerm();
+        void assignSmoothWeight();
         std::shared_ptr<MRF> createProblem();
 
         const FileIO& file_io;
@@ -46,7 +48,7 @@ namespace dynamic_stereo {
         int width;
         int height;
 
-        const int depthResolution;
+        const int dispResolution;
         const int pR; //radius of patch
         double min_disp;
         double max_disp;
@@ -59,6 +61,11 @@ namespace dynamic_stereo {
         //for MRF
         std::vector<MRF::CostVal> MRF_data;
         std::vector<MRF::CostVal> MRF_smooth;
+        std::vector<MRF::CostVal> hCue;
+        std::vector<MRF::CostVal> vCue;
+        const double weight_smooth;
+        const int MRFRatio;
+        const double dispScale;
     };
 }
 

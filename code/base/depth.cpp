@@ -132,6 +132,14 @@ namespace dynamic_stereo {
 		const size_t kth = data.size() / 2;
 		nth_element(data_dummy.begin(), data_dummy.begin() + kth, data_dummy.end());
 		median_depth = data_dummy[kth];
+
+		for(int i=0; i<data.size(); ++i){
+			if(data[i] >= 0){
+				min_depth = min(min_depth, data[i]);
+				max_depth = max(max_depth, data[i]);
+			}
+		}
+
 		statics_computed = true;
 	}
 
