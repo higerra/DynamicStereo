@@ -13,7 +13,7 @@ namespace dynamic_stereo{
         void samplePatch(const cv::Mat& img, const Vector2d& loc, const int pR, std::vector<double>& pix) {
             const int w = img.cols;
             const int h = img.rows;
-            pix.reserve((size_t) 3 * (2 * pR + 1) * (2 * pR + 1));
+            pix.resize((size_t) 3 * (2 * pR + 1) * (2 * pR + 1));
             int index = 0;
             for (int dx = -1 * pR; dx <= pR; ++dx) {
                 for (int dy = -1 * pR; dy <= pR; ++dy, ++index) {
@@ -127,14 +127,8 @@ namespace dynamic_stereo{
 //#pragma omp parallel for
                 for(int d=0; d<dispResolution; ++d){
                     //compute 3D point
-                    bool verbose = false;
-                    cout << "-----------------------" << endl << flush;
-                    printf("(%d,%d,%d)\n", x, y, d);
-                    printf("min_disp: %.2f, max_disp: %.2f\n", min_disp, max_disp);
                     double disp = min_disp + d * (max_disp - min_disp) / (double)dispResolution;
-                    cout << "Disparity:" << disp << endl << flush;
                     Vector3d spt = cam1.GetPosition() + ray * 1.0 / disp;
-                    printf("Space point: (%.2f,%.2f,%.2f)\n", spt[0], spt[1], spt[2]);
                     Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
 
                     //project onto other views and compute matching cost
@@ -160,20 +154,20 @@ namespace dynamic_stereo{
                     nth_element(mCostGroup.begin(), mCostGroup.begin()+kth, mCostGroup.end());
                     MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
 //#pragma omp critical
-                    if(validCount >= images.size() / 3){
-                        cout << "Patch: " << endl;
-                        for(const auto& pat: patches){
-                            for(auto pv: pat)
-                                cout << pv << ' ';
-                            cout << endl;
-                        }
-                        for(auto cv: mCostGroup)
-                            cout << cv << ' ';
-                        cout << endl;
-                        printf("mCostGroup:%.3f, dataCost:%d\n",mCostGroup[kth],
-                               MRF_data[dispResolution * (y * width + x) + d]);
-                        getchar();
-                    }
+//                    if(validCount >= images.size() / 3){
+//                        cout << "Patch: " << endl;
+//                        for(const auto& pat: patches){
+//                            for(auto pv: pat)
+//                                cout << pv << ' ';
+//                            cout << endl;
+//                        }
+//                        for(auto cv: mCostGroup)
+//                            cout << cv << ' ';
+//                        cout << endl;
+//                        printf("mCostGroup:%.3f, dataCost:%d\n",mCostGroup[kth],
+//                               MRF_data[dispResolution * (y * width + x) + d]);
+//                        getchar();
+//                    }
                 }
             }
         }
