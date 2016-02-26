@@ -32,6 +32,7 @@ namespace dynamic_stereo {
         inline int getAnchor()const{return anchor;}
         inline int gettWindow() const {return tWindow;}
         inline int getOffset() const {return offset;};
+        inline int getDownsample() const {return downsample; }
     private:
         void initMRF();
         void computeMinMaxDepth();
@@ -67,6 +68,11 @@ namespace dynamic_stereo {
         const int MRFRatio;
         const double dispScale;
     };
+
+    namespace MRF_util{
+        void samplePatch(const cv::Mat& img, const Eigen::Vector2d& loc, const int pR, std::vector<double>& pix);
+        double medianMatchingCost(const std::vector<std::vector<double> >& patches, const int refId);
+    }
 }
 
 #endif //DYNAMICSTEREO_DYNAMICSTEREO_H

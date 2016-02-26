@@ -23,11 +23,11 @@ namespace dynamic_stereo{
                         pix[index * 3 + 1] = -1;
                         pix[index * 3 + 2] = -1;
                     }else{
-			Vector3d pv = interpolation_util::bilinear<uchar, 3>(img.data, w, h, curloc);
-			pix[index * 3] = pv[0];
-			pix[index * 3 + 1] = pv[1];
-			pix[index * 3 + 2] = pv[2];
-		    }
+                        Vector3d pv = interpolation_util::bilinear<uchar, 3>(img.data, w, h, curloc);
+                        pix[index * 3] = pv[0];
+                        pix[index * 3 + 1] = pv[1];
+                        pix[index * 3 + 2] = pv[2];
+                    }
                 }
             }
         }
@@ -74,9 +74,9 @@ namespace dynamic_stereo{
         }
         //ignore furthest 1% and nearest 1% points
         const double lowRatio = 0.01;
-        const double highRatio = 0.09;
+        const double highRatio = 0.99;
         const size_t lowKth = (size_t)(lowRatio * disps.size());
-        const size_t highKth = (size_t)highRatio * disps.size();
+        const size_t highKth = (size_t)(highRatio * disps.size());
         //min_disp should be correspond to high depth
         nth_element(disps.begin(), disps.begin() + lowKth, disps.end());
         min_disp = disps[lowKth];
@@ -98,7 +98,6 @@ namespace dynamic_stereo{
 //                    MRF_smooth[i*dispResolution+j] = (MRF::CostVal)1;
 //            }
 //        }
-        computeMinMaxDepth();
         cout << "Assigning data term..." << endl << flush;
         assignDataTerm();
         cout << "Assigning smoothness weight..." << endl << flush;
@@ -138,27 +137,14 @@ namespace dynamic_stereo{
                     }
 
                     //compute the matching cost starting from each images
-                    vector<double> mCostGroup(images.size()); //matching cost
-                    for(auto v=0; v<patches.size(); ++v)
-                        mCostGroup.push_back(MRF_util::medianMatchingCost(patches, v));
-                    size_t kth = mCostGroup.size() / 2;
-                    nth_element(mCostGroup.begin(), mCostGroup.begin()+kth, mCostGroup.end());
-                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
-//#pragma omp critical
-//                    if(validCount >= images.size() / 3){
-//                        cout << "Patch: " << endl;
-//                        for(const auto& pat: patches){
-//                            for(auto pv: pat)
-//                                cout << pv << ' ';
-//                            cout << endl;
-//                        }
-//                        for(auto cv: mCostGroup)
-//                            cout << cv << ' ';
-//                        cout << endl;
-//                        printf("mCostGroup:%.3f, dataCost:%d\n",mCostGroup[kth],
-//                               MRF_data[dispResolution * (y * width + x) + d]);
-//                        getchar();
-//                    }
+//                    vector<double> mCostGroup(images.size()); //matching cost
+//                    for(auto v=0; v<patches.size(); ++v)
+//                        mCostGroup[v] = MRF_util::medianMatchingCost(patches, v);
+//                    size_t kth = mCostGroup.size() / 2;
+//                    nth_element(mCostGroup.begin(), mCostGroup.begin()+kth, mCostGroup.end());
+//                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
+                    double mCost = MRF_util::medianMatchingCost(patches, anchor-offset);
+                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCost-1)*(mCost-1)*MRFRatio);
                 }
             }
         }
@@ -183,7 +169,7 @@ namespace dynamic_stereo{
                     if(diff > t)
                         vCue[y*width+x] = 0;
                     else
-                        vCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t) * weight_smooth * MRFRatio);
+                        vCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t)  * MRFRatio);
                 }
                 if(x < width - 1){
                     Vec3b pix2 = img.at<Vec3b>(y,x+1);
@@ -192,7 +178,7 @@ namespace dynamic_stereo{
                     if(diff > t)
                         hCue[y*width+x] = 0;
                     else
-                        hCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t) * weight_smooth * MRFRatio);
+                        hCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t) * MRFRatio);
                 }
             }
         }
@@ -202,7 +188,7 @@ namespace dynamic_stereo{
 
         //use truncated linear cost for smoothness
         EnergyFunction *energy_function = new EnergyFunction(new DataCost(MRF_data.data()),
-                                                             new SmoothnessCost(1, 2, (MRF::CostVal)(weight_smooth * MRFRatio), hCue.data(), vCue.data()));
+                                                             new SmoothnessCost(1, 4, (MRF::CostVal)(weight_smooth * MRFRatio), hCue.data(), vCue.data()));
         shared_ptr<MRF> mrf(new Expansion(width, height, dispResolution, energy_function));
         mrf->initialize();
 
