@@ -97,13 +97,18 @@ namespace dynamic_stereo{
         initMRF();
         std::shared_ptr<MRF> mrf = createProblem();
         mrf->clearAnswer();
-        for (auto i = 0; i < width * height; ++i)
-            mrf->setLabel(i, 0);
+
+        //randomly initialize
+        srand(time(NULL));
+        for (auto i = 0; i < width * height; ++i) {
+            mrf->setLabel(rand() % dispResolution, 0);
+        }
+
         double initData = (double) mrf->dataEnergy() / MRFRatio;
         double initSmooth = (double) mrf->smoothnessEnergy() / MRFRatio;
         float t;
         cout << "Solving..." << endl << flush;
-        mrf->optimize(100, t);
+        mrf->optimize(10, t);
 
         double finalData = (double) mrf->dataEnergy() / MRFRatio;
         double finalSmooth = (double) mrf->smoothnessEnergy() / MRFRatio;
@@ -120,26 +125,26 @@ namespace dynamic_stereo{
                 if(disp < epsilon)
                     refDepth.setDepthAtInt(x, y, -1);
                 else
-                    refDepth.setDepthAtInt(x, y, 1.0 / disp);
+                    refDepth.setDepthAtInt(x, y, l);
             }
         }
 
         refDepth.updateStatics();
-        double max_depth = refDepth.getMaxDepth();
-        double min_depth = refDepth.getMinDepth();
-        CHECK_GT(max_depth, 0);
-
-        Depth d2;
-        d2.initialize(width, height, 0.0);
-        for(auto x=0; x<width; ++x){
-            for(auto y=0; y<height; ++y){
-                double curd = refDepth.getDepthAtInt(x,y);
-                d2.setDepthAtInt(x,y,(curd-min_depth) / (max_depth-min_depth) * 255.0);
-            }
-        }
+        double max_disp = refDepth.getMaxDepth();
+        double min_disp = refDepth.getMinDepth();
+//        CHECK_GT(max_depth, 0);
+//
+//        Depth d2;
+//        d2.initialize(width, height, 0.0);
+//        for(auto x=0; x<width; ++x){
+//            for(auto y=0; y<height; ++y){
+//                double curd = refDepth.getDepthAtInt(x,y);
+//                d2.setDepthAtInt(x,y,(curd-min_depth) / (max_depth-min_depth) * 255.0);
+//            }
+//        }
         char buffer[1024] = {};
         sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-        d2.saveImage(buffer);
+        refDepth.saveImage(buffer);
     }
 
 	void DynamicStereo::warpToAnchor() const{
@@ -156,7 +161,7 @@ namespace dynamic_stereo{
 
 		for(auto i=0; i<fullimages.size(); ++i){
 			cout << i+offset << ' ' << flush;
-			warpped[i] = fullimages[i].clone();
+			warpped[i] = fullimages[anchor-offset].clone();
 			if(i == anchor-offset)
 				continue;
 			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
@@ -169,7 +174,7 @@ namespace dynamic_stereo{
 					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
 					Vector2d imgpt;
 					cam2.ProjectPoint(spt_homo, &imgpt);
-					if(imgpt[0] > 0 && imgpt[1] > 0 && imgpt[0] < w && imgpt[1] < h){
+					if(imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w -1 && imgpt[1] < h - 1){
 						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
 						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
 					}

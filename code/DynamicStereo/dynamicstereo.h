@@ -12,6 +12,7 @@
 #include <Eigen/Eigen>
 #include <glog/logging.h>
 #include <theia/theia.h>
+#include <time.h>
 #include "base/utility.h"
 #include "base/configurator.h"
 #include "base/depth.h"

@@ -48,10 +48,13 @@ namespace dynamic_stereo{
                         p2.push_back(patches[i][j]);
                     }
                 }
-                if(p1.empty() || p2.empty())
+                if(p1.size() < pRef.size() / 2)
                     continue;
                 mCost.push_back(math_util::normalizedCrossCorrelation(p1,p2));
             }
+            //if the patch is not visible in >50% frames, assign large penalty.
+            if(mCost.size() < patches.size() / 2)
+                return -1;
             size_t kth = mCost.size() / 2;
             nth_element(mCost.begin(), mCost.begin() + kth, mCost.end());
             return mCost[kth];

@@ -32,21 +32,25 @@ int main(int argc, char **argv){
     if(!stlplus::folder_exists(file_io.getDirectory()+"temp"))
         stlplus::folder_create(file_io.getDirectory()+"temp");
 
-    DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_weight_smooth);
-    stereo.runStereo();
+    DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_weight_smooth, FLAGS_resolution);
 
-//    //test SfM
-//    Mat imgL, imgR;
-//    const int tf1 = FLAGS_testFrame;
-//    //In original scale
-//    Vector2d pt(912, 440);
-//    for(auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-//        stereo.verifyEpipolarGeometry(tf1, tf2, pt/(double)stereo.getDownsample(), imgL, imgR);
-//        CHECK_EQ(imgL.size(), imgR.size());
-//        Mat imgAll;
-//        cv::hconcat(imgL, imgR, imgAll);
-//        sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-//        imwrite(buffer, imgAll);
-//    }
+    //    //test SfM
+    Mat imgL, imgR;
+    const int tf1 = FLAGS_testFrame;
+    //In original scale
+    Vector2d pt(298, 181);
+    for(auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+        stereo.verifyEpipolarGeometry(tf1, tf2, pt/(double)stereo.getDownsample(), imgL, imgR);
+        CHECK_EQ(imgL.size(), imgR.size());
+        Mat imgAll;
+        cv::hconcat(imgL, imgR, imgAll);
+        sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+        imwrite(buffer, imgAll);
+    }
+
+    stereo.runStereo();
+    //stereo.warpToAnchor();
+
+
     return 0;
 }
