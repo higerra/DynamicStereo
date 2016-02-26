@@ -141,4 +141,47 @@ namespace dynamic_stereo{
         sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
         d2.saveImage(buffer);
     }
+
+	void DynamicStereo::warpToAnchor() const{
+		cout << "Warpping..." << endl;
+		vector<Mat> fullimages(images.size());
+		for(auto i=0; i<fullimages.size(); ++i)
+			fullimages[i] = imread(file_io.getImage(i+offset));
+		vector<Mat> warpped(fullimages.size());
+
+		const int w = fullimages[0].cols;
+		const int h = fullimages[0].rows;
+
+		const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
+
+		for(auto i=0; i<fullimages.size(); ++i){
+			cout << i+offset << ' ' << flush;
+			warpped[i] = fullimages[i].clone();
+			if(i == anchor-offset)
+				continue;
+			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
+			for(auto y=downsample; y<h-downsample; ++y){
+				for(auto x=downsample; x<w-downsample; ++x){
+					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
+					ray.normalize();
+					double depth = refDepth.getDepthAt(Vector2d(x/downsample, y/downsample));
+					Vector3d spt = cam1.GetPosition() + ray * depth;
+					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
+					Vector2d imgpt;
+					cam2.ProjectPoint(spt_homo, &imgpt);
+					if(imgpt[0] > 0 && imgpt[1] > 0 && imgpt[0] < w && imgpt[1] < h){
+						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
+						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
+					}
+				}
+			}
+		}
+
+		cout << endl << "Saving..." << endl;
+		char buffer[1024] = {};
+		for(auto i=0; i<warpped.size(); ++i){
+			sprintf(buffer, "%s/temp/warpped_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),  anchor, i+offset);
+			imwrite(buffer, warpped[i]);
+		}
+	}
 }

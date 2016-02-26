@@ -33,6 +33,7 @@ namespace dynamic_stereo {
         inline int gettWindow() const {return tWindow;}
         inline int getOffset() const {return offset;};
         inline int getDownsample() const {return downsample; }
+	    void warpToAnchor() const;
     private:
         void initMRF();
         void computeMinMaxDepth();
