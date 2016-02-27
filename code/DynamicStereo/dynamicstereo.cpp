@@ -95,43 +95,12 @@ namespace dynamic_stereo{
 //        cout << "Test ncc: " << testncc << endl;
 
         initMRF();
-        std::shared_ptr<MRF> mrf = createProblem();
-        mrf->clearAnswer();
+        cout << "Creating graphical model..." << endl;
 
-        //randomly initialize
-        srand(time(NULL));
-        for (auto i = 0; i < width * height; ++i) {
-            mrf->setLabel(rand() % dispResolution, 0);
-        }
 
-        double initData = (double) mrf->dataEnergy() / MRFRatio;
-        double initSmooth = (double) mrf->smoothnessEnergy() / MRFRatio;
-        float t;
-        cout << "Solving..." << endl << flush;
-        mrf->optimize(10, t);
+        std::shared_ptr<GraphicalModel> model = createGraphcialModel();
+        optimize(model);
 
-        double finalData = (double) mrf->dataEnergy() / MRFRatio;
-        double finalSmooth = (double) mrf->smoothnessEnergy() / MRFRatio;
-        printf("Done.\n Init energy:(%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time usage: %.2f\n", initData,
-               initSmooth, initData + initSmooth,
-               finalData, finalSmooth, finalData + finalSmooth, t);
-
-        //assign depth to depthmap
-        const double epsilon = 0.00001;
-        for(auto x=0; x<width; ++x) {
-            for (auto y = 0; y < height; ++y) {
-                double l = (double) mrf->getLabel(y * width + x);
-                double disp = min_disp + l * (max_disp - min_disp) / (double) dispResolution;
-                if(disp < epsilon)
-                    refDepth.setDepthAtInt(x, y, -1);
-                else
-                    refDepth.setDepthAtInt(x, y, l);
-            }
-        }
-
-        refDepth.updateStatics();
-        double max_disp = refDepth.getMaxDepth();
-        double min_disp = refDepth.getMinDepth();
 //        CHECK_GT(max_depth, 0);
 //
 //        Depth d2;
@@ -142,9 +111,10 @@ namespace dynamic_stereo{
 //                d2.setDepthAtInt(x,y,(curd-min_depth) / (max_depth-min_depth) * 255.0);
 //            }
 //        }
+        const double scale = 255.0 / (double)dispResolution;
         char buffer[1024] = {};
         sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-        refDepth.saveImage(buffer);
+        refDepth.saveImage(buffer, scale);
     }
 
 	void DynamicStereo::warpToAnchor() const{

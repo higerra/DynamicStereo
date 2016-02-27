@@ -17,8 +17,11 @@
 #include "base/configurator.h"
 #include "base/depth.h"
 #include "base/file_io.h"
-#include "MRF2.2/mrf.h"
-#include "MRF2.2/GCoptimization.h"
+//#include "MRF2.2/mrf.h"
+//#include "MRF2.2/GCoptimization.h"
+#include <opengm/graphicalmodel/graphicalmodel.hxx>
+#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
+#include <opengm/functions/truncated_absolute_difference.hxx>
 
 namespace dynamic_stereo {
     class DynamicStereo {
@@ -36,11 +39,20 @@ namespace dynamic_stereo {
         inline int getDownsample() const {return downsample; }
 	    void warpToAnchor() const;
     private:
+        typedef int EnergyType;
+        typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, opengm::SimpleDiscreteSpace<> > GraphicalModel;
+
         void initMRF();
         void computeMinMaxDepth();
         void assignDataTerm();
         void assignSmoothWeight();
-        std::shared_ptr<MRF> createProblem();
+
+        void optimize(std::shared_ptr<GraphicalModel> model);
+        //void optimize(std::shared_ptr<MRF> model);
+
+
+        //std::shared_ptr<MRF> createProblem();
+        std::shared_ptr<GraphicalModel> createGraphcialModel();
 
         const FileIO& file_io;
         const int anchor;
@@ -62,10 +74,10 @@ namespace dynamic_stereo {
         Depth refDepth;
 
         //for MRF
-        std::vector<MRF::CostVal> MRF_data;
-        std::vector<MRF::CostVal> MRF_smooth;
-        std::vector<MRF::CostVal> hCue;
-        std::vector<MRF::CostVal> vCue;
+        std::vector<EnergyType> MRF_data;
+        std::vector<EnergyType> MRF_smooth;
+        std::vector<EnergyType> hCue;
+        std::vector<EnergyType> vCue;
         const double weight_smooth;
         const int MRFRatio;
         const double dispScale;

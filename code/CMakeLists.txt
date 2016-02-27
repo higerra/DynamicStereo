@@ -12,7 +12,7 @@ find_package(Ceres REQUIRED)
 find_package(gflags REQUIRED)
 find_package(Theia REQUIRED)
 
-include_directories(/usr/local/include/eigen3 ${CMAKE_CURRENT_SOURCE_DIR} ${THEIA_INCLUDE_DIRS})
+include_directories(/usr/local/include/eigen3 ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/opengm_external  ${THEIA_INCLUDE_DIRS})
 
 unset(OPENMP_FOUND)
 unset(CUDA_FOUND)

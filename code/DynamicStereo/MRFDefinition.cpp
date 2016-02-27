@@ -3,6 +3,12 @@
 //
 
 #include "dynamicstereo.h"
+#include <opengm/operations/minimizer.hxx>
+#include <opengm/operations/adder.hxx>
+#include <opengm/inference/graphcut.hxx>
+#include <opengm/inference/alphaexpansion.hxx>
+#include <opengm/inference/auxiliary/minstcutkolmogorov.hxx>
+
 
 using namespace std;
 using namespace cv;
@@ -147,7 +153,7 @@ namespace dynamic_stereo{
 //                    nth_element(mCostGroup.begin(), mCostGroup.begin()+kth, mCostGroup.end());
 //                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
                     double mCost = MRF_util::medianMatchingCost(patches, anchor-offset);
-                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCost-1)*(mCost-1)*MRFRatio);
+                    MRF_data[dispResolution * (y*width+x) + d] = (EnergyType)((mCost-1)*(mCost-1)*MRFRatio);
                 }
             }
         }
@@ -172,7 +178,7 @@ namespace dynamic_stereo{
                     if(diff > t)
                         vCue[y*width+x] = 0;
                     else
-                        vCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t)  * MRFRatio);
+                        vCue[y*width+x] = (EnergyType) ((diff - t) * (diff - t)  * MRFRatio);
                 }
                 if(x < width - 1){
                     Vec3b pix2 = img.at<Vec3b>(y,x+1);
@@ -181,20 +187,122 @@ namespace dynamic_stereo{
                     if(diff > t)
                         hCue[y*width+x] = 0;
                     else
-                        hCue[y*width+x] = (MRF::CostVal) ((diff - t) * (diff - t) * MRFRatio);
+                        hCue[y*width+x] = (EnergyType) ((diff - t) * (diff - t) * MRFRatio);
                 }
             }
         }
     }
 
-    std::shared_ptr<MRF> DynamicStereo::createProblem() {
+//    std::shared_ptr<MRF> DynamicStereo::createProblem() {
+//
+//        //use truncated linear cost for smoothness
+//        EnergyFunction *energy_function = new EnergyFunction(new DataCost(MRF_data.data()),
+//                                                             new SmoothnessCost(1, 4, (MRF::CostVal)(weight_smooth * MRFRatio), hCue.data(), vCue.data()));
+//        shared_ptr<MRF> mrf(new Expansion(width, height, dispResolution, energy_function));
+//        mrf->initialize();
+//
+//        return mrf;
+//    }
 
-        //use truncated linear cost for smoothness
-        EnergyFunction *energy_function = new EnergyFunction(new DataCost(MRF_data.data()),
-                                                             new SmoothnessCost(1, 4, (MRF::CostVal)(weight_smooth * MRFRatio), hCue.data(), vCue.data()));
-        shared_ptr<MRF> mrf(new Expansion(width, height, dispResolution, energy_function));
-        mrf->initialize();
+    std::shared_ptr<DynamicStereo::GraphicalModel> DynamicStereo::createGraphcialModel() {
+        opengm::SimpleDiscreteSpace<> space((size_t)width * height, (size_t) dispResolution);
+        shared_ptr<GraphicalModel> model(new GraphicalModel(space));
 
-        return mrf;
+        size_t shape[] = {size_t(dispResolution), size_t(dispResolution)};
+        //unary term
+        for(auto vid=0; vid<width * height; ++vid){
+            opengm::ExplicitFunction<EnergyType> f(shape, shape+1);
+            for(auto l=0; l<dispResolution; ++l)
+                f(l) = MRF_data[vid*dispResolution+l];
+            GraphicalModel::FunctionIdentifier fid = model->addFunction(f);
+            size_t variableIndices[] = {(size_t)vid};
+            model->addFactor(fid, variableIndices, variableIndices+1);
+        }
+
+        //pairwise term: truncated absolute difference
+        vector<double> pairTable((size_t)(dispResolution * dispResolution));
+        const int max_diff = 4;
+        for(auto l1=0; l1<dispResolution; ++l1){
+            for(auto l2=0; l2<dispResolution; ++l2){
+                pairTable[l1*dispResolution + l2] = std::max(std::abs(l1-l2), max_diff);
+            }
+        }
+
+        for(auto y=0; y<height-1; ++y){
+            for(auto x=0; x<width-1; ++x) {
+                opengm::ExplicitFunction<EnergyType> fx(shape, shape + 2), fy(shape, shape+2);
+                size_t vIdxV[] = {(size_t)y * width + x, (size_t)(y + 1) * width + x};
+                size_t vIdxH[] = {(size_t)y * width + x, (size_t)y * width + x + 1};
+                for(size_t l1=0; l1 < dispResolution; ++l1){
+                    for(size_t l2=0; l2<dispResolution; ++l2) {
+                        fy(l1, l2) = (EnergyType) (weight_smooth * pairTable[l1 * dispResolution + l2] * vCue[vIdxV[0]] * MRFRatio);
+                        fx(l1, l2) = (EnergyType) (weight_smooth * pairTable[l1 * dispResolution + l2] * hCue[vIdxH[0]] * MRFRatio);
+                    }
+                }
+                GraphicalModel::FunctionIdentifier fidx = model->addFunction(fx);
+                GraphicalModel::FunctionIdentifier fidy = model->addFunction(fy);
+                model->addFactor(fidx, vIdxH, vIdxH+2);
+                model->addFactor(fidy, vIdxV, vIdxV+2);
+            }
+        }
+        return model;
     }
+
+    void DynamicStereo::optimize(std::shared_ptr<GraphicalModel> model) {
+        //solve with alpha-expansion
+        typedef opengm::external::MinSTCutKolmogorov<size_t, EnergyType> MinStCutType;
+        typedef opengm::GraphCut<GraphicalModel, opengm::Minimizer, MinStCutType> MinGraphCut;
+        typedef opengm::AlphaExpansion<GraphicalModel, MinGraphCut> MinAlphaExpansion;
+
+        float t = (float)getTickCount();
+
+        MinAlphaExpansion solver(*model.get());
+        cout << "Solving.." << endl;
+        solver.infer();
+        t = ((float)getTickCount() - t) / (float)getTickFrequency();
+        printf("Done. Final energy:%.2f, time usage:%.2fs\n", (double)solver.value() / MRFRatio, t);
+
+        //copy result into depth map
+        vector<GraphicalModel::LabelType> x;
+        solver.arg(x);
+        CHECK_EQ(x.size(), width * height);
+        for(auto i=0; i<x.size(); ++i)
+            refDepth.setDepthAtInd(i, (double)x[i]);
+        refDepth.updateStatics();
+    }
+
+//    void DynamicStereo::optimize(std::shared_ptr<MRF> model) {
+//        model->clearAnswer();
+//        //randomly initialize
+//        srand(time(NULL));
+//        for (auto i = 0; i < width * height; ++i) {
+//            model->setLabel(rand() % dispResolution, 0);
+//        }
+//
+//        double initData = (double) model->dataEnergy() / MRFRatio;
+//        double initSmooth = (double) model->smoothnessEnergy() / MRFRatio;
+//        float t;
+//        cout << "Solving..." << endl << flush;
+//        model->optimize(10, t);
+//
+//        double finalData = (double) model->dataEnergy() / MRFRatio;
+//        double finalSmooth = (double) model->smoothnessEnergy() / MRFRatio;
+//        printf("Done.\n Init energy:(%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time usage: %.2f\n", initData,
+//               initSmooth, initData + initSmooth,
+//               finalData, finalSmooth, finalData + finalSmooth, t);
+//
+//        //assign depth to depthmap
+//        const double epsilon = 0.00001;
+//        for(auto x=0; x<width; ++x) {
+//            for (auto y = 0; y < height; ++y) {
+//                double l = (double) model->getLabel(y * width + x);
+//                double disp = min_disp + l * (max_disp - min_disp) / (double) dispResolution;
+//                if(disp < epsilon)
+//                    refDepth.setDepthAtInt(x, y, -1);
+//                else
+//                    refDepth.setDepthAtInt(x, y, l);
+//            }
+//        }
+//        refDepth.updateStatics();
+//    }
 }//namespace dynamic_stereo
