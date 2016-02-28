@@ -98,9 +98,6 @@ namespace dynamic_stereo{
         cout << "Creating graphical model..." << endl;
 
 
-        std::shared_ptr<GraphicalModel> model = createGraphcialModel();
-        optimize(model);
-
 //        CHECK_GT(max_depth, 0);
 //
 //        Depth d2;

@@ -17,11 +17,13 @@
 #include "base/configurator.h"
 #include "base/depth.h"
 #include "base/file_io.h"
+//#include "QPBO1.4/QPBO.h"
+#include "QPBO1.4/ELC.h"
 //#include "MRF2.2/mrf.h"
 //#include "MRF2.2/GCoptimization.h"
-#include <opengm/graphicalmodel/graphicalmodel.hxx>
-#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
-#include <opengm/functions/truncated_absolute_difference.hxx>
+//#include <opengm/graphicalmodel/graphicalmodel.hxx>
+//#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
+//#include <opengm/functions/truncated_absolute_difference.hxx>
 
 namespace dynamic_stereo {
     class DynamicStereo {
@@ -40,19 +42,19 @@ namespace dynamic_stereo {
 	    void warpToAnchor() const;
     private:
         typedef int EnergyType;
-        typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, opengm::SimpleDiscreteSpace<> > GraphicalModel;
+        //typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, opengm::SimpleDiscreteSpace<> > GraphicalModel;
 
         void initMRF();
         void computeMinMaxDepth();
         void assignDataTerm();
         void assignSmoothWeight();
 
-        void optimize(std::shared_ptr<GraphicalModel> model);
+        //void optimize(std::shared_ptr<GraphicalModel> model);
         //void optimize(std::shared_ptr<MRF> model);
 
 
         //std::shared_ptr<MRF> createProblem();
-        std::shared_ptr<GraphicalModel> createGraphcialModel();
+        //std::shared_ptr<GraphicalModel> createGraphcialModel();
 
         const FileIO& file_io;
         const int anchor;
