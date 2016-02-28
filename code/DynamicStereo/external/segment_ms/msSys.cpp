@@ -44,15 +44,16 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 #include	<stdarg.h>
 #include	<stdlib.h>
 
+namespace meanshift {
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      PUBLIC METHODS     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 
-  /*/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
-  /*** Class Constructor and Destructor ***/
-  /*\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/*/
+	/*/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
+	/*** Class Constructor and Destructor ***/
+	/*\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/*/
 
 /*******************************************************/
 /*Class Constructor                                    */
@@ -64,15 +65,14 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 /*        ialized.                                     */
 /*******************************************************/
 
-msSystem::msSystem( void )
-{
+	msSystem::msSystem(void) {
 
-	//initialize currentTime
-	currentTime = clock();
+		//initialize currentTime
+		currentTime = clock();
 
-	//done.
+		//done.
 
-}
+	}
 
 /*******************************************************/
 /*Class Destructor                                     */
@@ -84,14 +84,13 @@ msSystem::msSystem( void )
 /*        royed.                                       */
 /*******************************************************/
 
-msSystem::~msSystem( void )
-{
-	/* do nothing */
-}
+	msSystem::~msSystem(void) {
+		/* do nothing */
+	}
 
- /*/\/\/\/\/\/\/\/\/\*/
- /*** System Timer ***/
- /*\/\/\/\/\/\/\/\/\/*/
+	/*/\/\/\/\/\/\/\/\/\*/
+	/*** System Timer ***/
+	/*\/\/\/\/\/\/\/\/\/*/
 
 /*******************************************************/
 /*Start Timer                                          */
@@ -104,16 +103,15 @@ msSystem::~msSystem( void )
 /*        the current system time.                     */
 /*******************************************************/
 
-void msSystem::StartTimer( void )
-{
+	void msSystem::StartTimer(void) {
 
-	//set msSystem time to system time
-	currentTime = clock();
+		//set msSystem time to system time
+		currentTime = clock();
 
-	//done.
-	return;
+		//done.
+		return;
 
-}
+	}
 
 /*******************************************************/
 /*Elapsed Time                                         */
@@ -126,18 +124,17 @@ void msSystem::StartTimer( void )
 /*        shift system time was last set is returned.  */
 /*******************************************************/
 
-double msSystem::ElapsedTime( void )
-{
+	double msSystem::ElapsedTime(void) {
 
-	//return the amount of time elapsed in seconds
-	//since the msSystem time was last set...
-	return ((double) (clock() - currentTime))/(CLOCKS_PER_SEC);
+		//return the amount of time elapsed in seconds
+		//since the msSystem time was last set...
+		return ((double) (clock() - currentTime)) / (CLOCKS_PER_SEC);
 
-}
+	}
 
- /*/\/\/\/\/\/\/\/\/\/\*/
- /***  System Output ***/
- /*\/\/\/\/\/\/\/\/\/\/*/
+	/*/\/\/\/\/\/\/\/\/\/\*/
+	/***  System Output ***/
+	/*\/\/\/\/\/\/\/\/\/\/*/
 
 /*******************************************************/
 /*Prompt                                               */
@@ -159,22 +156,21 @@ double msSystem::ElapsedTime( void )
 
 //extern void bgLogVar(const char *, va_list);
 
-void msSystem::Prompt(const char *PromptStr, ...)
-{
+	void msSystem::Prompt(const char *PromptStr, ...) {
 
-	//obtain argument list using ANSI standard...
-	va_list	argList;
-	va_start(argList, PromptStr);
+		//obtain argument list using ANSI standard...
+		va_list argList;
+		va_start(argList, PromptStr);
 
-	//print the output string to stderr using
-	//vfprintf
-	//bgLogVar(PromptStr, argList);
-	va_end(argList);
+		//print the output string to stderr using
+		//vfprintf
+		//bgLogVar(PromptStr, argList);
+		va_end(argList);
 
-	//done.
-	return;
+		//done.
+		return;
 
-}
+	}
 
 /*******************************************************/
 /*Progress                                             */
@@ -214,21 +210,21 @@ void msSystem::Prompt(const char *PromptStr, ...)
 //is used and checked in the method BgMdiSegmentChild::OnSegment.
 //extern int	percentDone;
 
-ErrorLevel msSystem::Progress(float percentComplete)
-{
-	//percentDone	= (int)(percentComplete*100);
+	ErrorLevel msSystem::Progress(float percentComplete) {
+		//percentDone	= (int)(percentComplete*100);
 
-	//check stop flag and return appropriate system state
-	ErrorLevel		myState = EL_OKAY;
-	//if(stop_flag)	myState	= EL_HALT;
+		//check stop flag and return appropriate system state
+		ErrorLevel myState = EL_OKAY;
+		//if(stop_flag)	myState	= EL_HALT;
 
-	//done.
-	return myState;
+		//done.
+		return myState;
 
-}
+	}
 
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ END OF CLASS DEFINITION @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+}

@@ -34,59 +34,59 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 
 #ifndef RALIST_H
 #define RALIST_H
-
+namespace meanshift {
 //define Region Adjacency List class prototype
-class RAList {
+	class RAList {
 
-public:
+	public:
 
-	//============================
-	// *** Public Data Members ***
-	//============================
+		//============================
+		// *** Public Data Members ***
+		//============================
 
-	////////////RAM Label//////////
-	int		label;
+		////////////RAM Label//////////
+		int label;
 
-	////////////RAM Weight/////////
-	float	edgeStrength;
-	int		edgePixelCount;
+		////////////RAM Weight/////////
+		float edgeStrength;
+		int edgePixelCount;
 
-	////////////RAM Link///////////
-	RAList	*next;
+		////////////RAM Link///////////
+		RAList *next;
 
-	//=======================
-	// *** Public Methods ***
-	//=======================
+		//=======================
+		// *** Public Methods ***
+		//=======================
 
-	/*/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
-	/* Class Constructor and Destructor */
-	/*\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/*/
+		/*/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
+		/* Class Constructor and Destructor */
+		/*\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/*/
 
-	//***Class Constrcutor***
-	RAList( void );
+		//***Class Constrcutor***
+		RAList(void);
 
-	//***Class Destructor***
-	~RAList( void );
+		//***Class Destructor***
+		~RAList(void);
 
-	/*/\/\/\/\/\/\/\/\/\/\/\/\*/
-	/*  RAM List Manipulation */
-	/*\/\/\/\/\/\/\/\/\/\/\/\/*/
+		/*/\/\/\/\/\/\/\/\/\/\/\/\*/
+		/*  RAM List Manipulation */
+		/*\/\/\/\/\/\/\/\/\/\/\/\/*/
 
-	//Usage: Insert(entry)
-	int Insert(RAList*);		//Insert a region node into the region adjecency list
+		//Usage: Insert(entry)
+		int Insert(RAList *);        //Insert a region node into the region adjecency list
 
-private:
+	private:
 
-	//=============================
-	// *** Private Data Members ***
-	//=============================
+		//=============================
+		// *** Private Data Members ***
+		//=============================
 
-	///////current and previous pointer/////
-	RAList	*cur, *prev;
+		///////current and previous pointer/////
+		RAList *cur, *prev;
 
-	////////flag///////////
-	unsigned char exists;
+		////////flag///////////
+		unsigned char exists;
 
-};
-
+	};
+}
 #endif

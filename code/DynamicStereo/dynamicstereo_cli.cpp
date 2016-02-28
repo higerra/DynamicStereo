@@ -34,21 +34,53 @@ int main(int argc, char **argv){
 
     DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_weight_smooth, FLAGS_resolution);
 
-    //    //test SfM
-    Mat imgL, imgR;
-    const int tf1 = FLAGS_testFrame;
-    //In original scale
-    Vector2d pt(298, 181);
-    for(auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-        stereo.verifyEpipolarGeometry(tf1, tf2, pt/(double)stereo.getDownsample(), imgL, imgR);
-        CHECK_EQ(imgL.size(), imgR.size());
-        Mat imgAll;
-        cv::hconcat(imgL, imgR, imgAll);
-        sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-        imwrite(buffer, imgAll);
+    {
+        //test mean shift segmentation
+        cout << "Test meanshift segmentation..." << endl;
+        Mat sgtest = imread(file_io.getImage(FLAGS_testFrame));
+        segment_ms::msImageProcessor ms_segmentator;
+        ms_segmentator.DefineImage(sgtest.data, segment_ms::COLOR, sgtest.rows, sgtest.cols);
+        float spTest[] = {1, 1.5, 10};
+        Vec3b colorTable[] = {Vec3b(255, 0, 0), Vec3b(0, 255, 0), Vec3b(0, 0, 255), Vec3b(255, 255, 0),
+                              Vec3b(255, 0, 255), Vec3b(0, 255, 255)};
+        for (auto cid = 1; cid <= 7; ++cid) {
+            cout << "Configuration: " << cid << endl << flush;
+            ms_segmentator.Segment((int) spTest[0] * cid, spTest[1] * (float) cid, (int) spTest[2] * cid,
+                                   meanshift::MED_SPEEDUP);
+
+            int* labels = NULL;
+            labels = ms_segmentator.GetLabels();
+            CHECK(labels);
+            const int w = sgtest.cols;
+            const int h = sgtest.rows;
+            Mat segTestRes(h, w, sgtest.type());
+            for (auto y = 0; y < h; ++y) {
+                for (auto x = 0; x < w; ++x) {
+                    int l = labels[y * w + x];
+                    segTestRes.at<Vec3b>(y,x) = colorTable[l%6];
+                }
+            }
+            sprintf(buffer, "%s/temp/meanshift%05d_%03d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, cid);
+            imwrite(buffer, segTestRes);
+        }
     }
 
-    stereo.runStereo();
+
+    //    //test SfM
+//    Mat imgL, imgR;
+//    const int tf1 = FLAGS_testFrame;
+//    //In original scale
+//    Vector2d pt(298, 181);
+//    for(auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+//        stereo.verifyEpipolarGeometry(tf1, tf2, pt/(double)stereo.getDownsample(), imgL, imgR);
+//        CHECK_EQ(imgL.size(), imgR.size());
+//        Mat imgAll;
+//        cv::hconcat(imgL, imgR, imgAll);
+//        sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+//        imwrite(buffer, imgAll);
+//    }
+//
+//    stereo.runStereo();
     //stereo.warpToAnchor();
 
 

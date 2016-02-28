@@ -94,8 +94,8 @@ namespace dynamic_stereo{
 //        double testncc = MRF_util::medianMatchingCost(testP, 0);
 //        cout << "Test ncc: " << testncc << endl;
 
-        initMRF();
-        cout << "Creating graphical model..." << endl;
+        //initMRF();
+        //cout << "Creating graphical model..." << endl;
 
 
 //        CHECK_GT(max_depth, 0);
@@ -108,10 +108,10 @@ namespace dynamic_stereo{
 //                d2.setDepthAtInt(x,y,(curd-min_depth) / (max_depth-min_depth) * 255.0);
 //            }
 //        }
-        const double scale = 255.0 / (double)dispResolution;
-        char buffer[1024] = {};
-        sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-        refDepth.saveImage(buffer, scale);
+//        const double scale = 255.0 / (double)dispResolution;
+//        char buffer[1024] = {};
+//        sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+//        refDepth.saveImage(buffer, scale);
     }
 
 	void DynamicStereo::warpToAnchor() const{

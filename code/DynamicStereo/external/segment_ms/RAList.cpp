@@ -39,6 +39,7 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 #include	<assert.h>
 #include	<stdlib.h>
 
+namespace meanshift {
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      PUBLIC METHODS     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
@@ -59,16 +60,15 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 /*        cted.                                        */
 /*******************************************************/
 
-RAList::RAList( void )
-{
-	//initialize label and link
-	label			= -1;
-	next			= NULL;
+	RAList::RAList(void) {
+		//initialize label and link
+		label = -1;
+		next = NULL;
 
-	//initialize edge strenght weight and count
-	edgeStrength	= 0;
-	edgePixelCount	= 0;
-}
+		//initialize edge strenght weight and count
+		edgeStrength = 0;
+		edgePixelCount = 0;
+	}
 
 /*******************************************************/
 /*Class Destructor                                     */
@@ -80,10 +80,9 @@ RAList::RAList( void )
 /*        ructed.                                      */
 /*******************************************************/
 
-RAList::~RAList( void )
-{
-	//do nothing
-}
+	RAList::~RAList(void) {
+		//do nothing
+	}
 
 /*******************************************************/
 /*Insert                                               */
@@ -102,67 +101,61 @@ RAList::~RAList( void )
 /*        returned.                                    */
 /*******************************************************/
 
-int RAList::Insert(RAList *entry)
-{
+	int RAList::Insert(RAList *entry) {
 
-	//if the list contains only one element
-	//then insert this element into next
-	if(!next)
-	{
-		//insert entry
-		next		= entry;
-		entry->next = NULL;
+		//if the list contains only one element
+		//then insert this element into next
+		if (!next) {
+			//insert entry
+			next = entry;
+			entry->next = NULL;
 
-		//done
-		return 0;
-	}
-
-	//traverse the list until either:
-
-	//(a) entry's label already exists - do nothing
-	//(b) the list ends or the current label is
-	//    greater than entry's label, thus insert the entry
-	//    at this location
-
-	//check first entry
-	if(next->label > entry->label)
-	{
-		//insert entry into the list at this location
-		entry->next	= next;
-		next		= entry;
-
-		//done
-		return 0;
-	}
-
-	//check the rest of the list...
-	exists	= 0;
-	cur		= next;
-	while(cur)
-	{
-		if(entry->label == cur->label)
-		{
-			//node already exists
-			exists = 1;
-			break;
+			//done
+			return 0;
 		}
-		else if((!(cur->next))||(cur->next->label > entry->label))
-		{
+
+		//traverse the list until either:
+
+		//(a) entry's label already exists - do nothing
+		//(b) the list ends or the current label is
+		//    greater than entry's label, thus insert the entry
+		//    at this location
+
+		//check first entry
+		if (next->label > entry->label) {
 			//insert entry into the list at this location
-			entry->next	= cur->next;
-			cur->next	= entry;
-			break;
+			entry->next = next;
+			next = entry;
+
+			//done
+			return 0;
 		}
 
-		//traverse the region adjacency list
-		cur = cur->next;
+		//check the rest of the list...
+		exists = 0;
+		cur = next;
+		while (cur) {
+			if (entry->label == cur->label) {
+				//node already exists
+				exists = 1;
+				break;
+			}
+			else if ((!(cur->next)) || (cur->next->label > entry->label)) {
+				//insert entry into the list at this location
+				entry->next = cur->next;
+				cur->next = entry;
+				break;
+			}
+
+			//traverse the region adjacency list
+			cur = cur->next;
+		}
+
+		//done. Return exists indicating whether or not a new node was
+		//      actually inserted into the region adjacency list.
+		return (int) (exists);
+
 	}
-
-	//done. Return exists indicating whether or not a new node was
-	//      actually inserted into the region adjacency list.
-	return (int)(exists);
-
-}
 
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
@@ -170,3 +163,4 @@ int RAList::Insert(RAList *entry)
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 
+}

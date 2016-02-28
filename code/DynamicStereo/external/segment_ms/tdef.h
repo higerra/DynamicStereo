@@ -31,21 +31,32 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 #ifndef TDEF_H
 #define TDEF_H
 
+namespace meanshift {
 /*/\/\/\/\/\/\/\/\/\/\/\*/
 /* Define Enumerations  */
 /*\/\/\/\/\/\/\/\/\/\/\/*/
 
 //Kernel
-enum kernelType		{Uniform, Gaussian, UserDefined};
+    enum kernelType {
+        Uniform, Gaussian, UserDefined
+    };
 
 // kd-Tree
-enum childType		{LEFT, RIGHT};
+    enum childType {
+        LEFT, RIGHT
+    };
 
 // Speed Up Level
-enum SpeedUpLevel	{NO_SPEEDUP, MED_SPEEDUP, HIGH_SPEEDUP};
+    enum SpeedUpLevel {
+        NO_SPEEDUP, MED_SPEEDUP, HIGH_SPEEDUP
+    };
 
 // Error Handler
-enum ErrorLevel		{EL_OKAY, EL_ERROR, EL_HALT};
-enum ErrorType		{NONFATAL, FATAL};
-
+    enum ErrorLevel {
+        EL_OKAY, EL_ERROR, EL_HALT
+    };
+    enum ErrorType {
+        NONFATAL, FATAL
+    };
+}//namespace meanshift
 #endif
