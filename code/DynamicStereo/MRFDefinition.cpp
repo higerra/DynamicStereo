@@ -32,11 +32,8 @@ namespace dynamic_stereo {
             }
         }
 
-        double medianMatchingCost(const vector<vector<double> > &patches, const int refId) {
-            CHECK_GE(refId, 0);
-            CHECK_LT(refId, patches.size());
+        void getNCCArray(const vector<vector<double> >& patches, const int refId, vector<double>& mCost){
             const vector<double> &pRef = patches[refId];
-            vector<double> mCost;
             mCost.reserve(patches.size() - 1);
             for (auto i = 0; i < patches.size(); ++i) {
                 if (i == refId)
@@ -52,6 +49,12 @@ namespace dynamic_stereo {
                     continue;
                 mCost.push_back(math_util::normalizedCrossCorrelation(p1, p2));
             }
+        }
+        double medianMatchingCost(const vector<vector<double> > &patches, const int refId) {
+            CHECK_GE(refId, 0);
+            CHECK_LT(refId, patches.size());
+            vector<double> mCost;
+            getNCCArray(patches, refId, mCost);
             //if the patch is not visible in >50% frames, assign large penalty.
             if (mCost.size() < patches.size() / 2)
                 return -1;
@@ -60,9 +63,25 @@ namespace dynamic_stereo {
             return mCost[kth];
         }
 
+        double sumMatchingCostHalf(const vector<vector<double> >& patches, const int refId){
+            CHECK_GE(refId, 0);
+            CHECK_LT(refId, patches.size());
+            vector<double> mCost;
+            getNCCArray(patches, refId, mCost);
+            //if the patch is not visible in >50% frames, assign large penalty.
+            if (mCost.size() < patches.size() / 2)
+                return -1;
+            if(mCost.size() == 2)
+                return std::min(mCost[0], mCost[1]);
+            //sum of best half
+            sort(mCost.begin(), mCost.end(), [](double x1, double x2){return x1 >= x2;});
+            const size_t kth = mCost.size() / 2;
+            return std::accumulate(mCost.begin(), mCost.begin()+kth, 0.0) / (double)kth;
+        }
+
     }//namespace MRF_util
 
-    void DynamicStereo::computeMinMaxDepth() {
+    void DynamicStereo::computeMinMaxDisparity(){
         const theia::View *anchorView = reconstruction.View(anchor);
         const theia::Camera cam = anchorView->Camera();
         vector<theia::TrackId> trackIds = anchorView->TrackIds();
@@ -146,9 +165,20 @@ namespace dynamic_stereo {
 //                    size_t kth = mCostGroup.size() / 2;
 //                    nth_element(mCostGroup.begin(), mCostGroup.begin()+kth, mCostGroup.end());
 //                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
-                    double mCost = MRF_util::medianMatchingCost(patches, anchor - offset);
+                    //double mCost = MRF_util::medianMatchingCost(patches, anchor - offset);
+                    double mCost = MRF_util::sumMatchingCostHalf(patches, anchor - offset);
                     MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((mCost - 1) * (mCost - 1) *
                                                                                    MRFRatio);
+
+                }
+
+                EnergyType min_energy = 9999999;
+                for (int d = 0; d < dispResolution; ++d) {
+                    const EnergyType curEnergy = MRF_data[dispResolution * (y * width + x) + d];
+                    if ((double)curEnergy < min_energy){
+                        dispUnary.setDepthAtInt(x, y, (double)d);
+                        min_energy = curEnergy;
+                    }
                 }
             }
         }

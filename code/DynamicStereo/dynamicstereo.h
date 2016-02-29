@@ -45,7 +45,7 @@ namespace dynamic_stereo {
         //typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, opengm::SimpleDiscreteSpace<> > GraphicalModel;
 
         void initMRF();
-        void computeMinMaxDepth();
+        void computeMinMaxDisparity();
         void assignDataTerm();
         void assignSmoothWeight();
 
@@ -73,7 +73,8 @@ namespace dynamic_stereo {
         //downsampled version
         std::vector<cv::Mat> images;
         theia::Reconstruction reconstruction;
-        Depth refDepth;
+        Depth refDisparity;
+        Depth dispUnary; //Noisy disparity map only based on unary term
 
         //for MRF
         std::vector<EnergyType> MRF_data;

@@ -3,6 +3,7 @@
 //
 
 #include "dynamicstereo.h"
+#include "proposal.h"
 
 using namespace std;
 using namespace cv;
@@ -35,8 +36,10 @@ namespace dynamic_stereo{
         width = images.front().cols;
         height = images.front().rows;
 
-        refDepth.initialize(width, height,0.0);
-        computeMinMaxDepth();
+        refDisparity.initialize(width, height,0.0);
+        dispUnary.initialize(width, height, 0.0);
+
+        computeMinMaxDisparity();
     }
 
     void DynamicStereo::verifyEpipolarGeometry(const int id1, const int id2,
@@ -83,7 +86,7 @@ namespace dynamic_stereo{
 
 
     void DynamicStereo::runStereo() {
-
+        char buffer[1024] = {};
         //debug for sample patch
 //        vector<vector<double> > testP(2);
 //        const int tf2 = 3;
@@ -94,7 +97,19 @@ namespace dynamic_stereo{
 //        double testncc = MRF_util::medianMatchingCost(testP, 0);
 //        cout << "Test ncc: " << testncc << endl;
 
-        //initMRF();
+        initMRF();
+        //generate proposal
+        sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
+        dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
+        cout << "Generating plane proposal" << endl;
+        ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution);
+        vector<Depth> proposals;
+        proposalFactory.genProposal(proposals);
+        for(auto i=0; i<proposals.size(); ++i){
+            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
+            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
+        }
+
         //cout << "Creating graphical model..." << endl;
 
 
@@ -109,9 +124,9 @@ namespace dynamic_stereo{
 //            }
 //        }
 //        const double scale = 255.0 / (double)dispResolution;
-//        char buffer[1024] = {};
+
 //        sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//        refDepth.saveImage(buffer, scale);
+//        refDisparity.saveImage(buffer, scale);
     }
 
 	void DynamicStereo::warpToAnchor() const{
@@ -136,7 +151,7 @@ namespace dynamic_stereo{
 				for(auto x=downsample; x<w-downsample; ++x){
 					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
 					ray.normalize();
-					double depth = refDepth.getDepthAt(Vector2d(x/downsample, y/downsample));
+					double depth = refDisparity.getDepthAt(Vector2d(x/downsample, y/downsample));
 					Vector3d spt = cam1.GetPosition() + ray * depth;
 					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
 					Vector2d imgpt;

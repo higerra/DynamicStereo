@@ -11,6 +11,7 @@
 #include <glog/logging.h>
 #include <opencv2/opencv.hpp>
 #include "base/depth.h"
+#include "base/file_io.h"
 namespace dynamic_stereo {
 
     //interface for proposal creator
@@ -25,7 +26,7 @@ namespace dynamic_stereo {
         //  images_: reference image
         //  noisyDisp_: disparity map from only unary term
         //  num_proposal: number of proposal to generate. NOTE: currently fixed to 7
-        ProposalSegPln(const cv::Mat& image_, const Depth& noisyDisp_, const int num_proposal_ = 7);
+        ProposalSegPln(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_, const int num_proposal_ = 7);
         virtual void genProposal(std::vector<Depth>& proposals);
     protected:
         void fitDisparityToPlane(const std::vector<std::vector<int> >& seg, Depth& planarDisp);
@@ -35,6 +36,7 @@ namespace dynamic_stereo {
         //  seg: stores the segmentation result. seg[i] stores pixel indices of region i
         virtual void segment(const int pid, std::vector<std::vector<int> >& seg)  = 0;
 
+        const FileIO& file_io;
         const Depth& noisyDisp;
         const cv::Mat& image;
         const int num_proposal;
@@ -43,11 +45,13 @@ namespace dynamic_stereo {
 
         const int w;
         const int h;
+
+        const int dispResolution;
     };
 
     class ProposalSegPlnMeanshift: public ProposalSegPln{
     public:
-        ProposalSegPlnMeanshift(const cv::Mat& image_, const Depth& noisyDisp_, const int num_proposal_ = 7);
+        ProposalSegPlnMeanshift(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_, const int num_proposal_ = 7);
     protected:
         virtual void segment(const int pid, std::vector<std::vector<int> >& seg);
     };

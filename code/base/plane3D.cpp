@@ -7,101 +7,127 @@
 //
 
 #include "plane3D.h"
+#include <time.h>
 
 using namespace std;
 using namespace Eigen;
 
-namespace dynamic_rendering{
-	Plane3D::Plane3D(const Vector3d& p0, const Vector3d& p1,const Vector3d& p2){
+namespace dynamic_stereo {
+	Plane3D::Plane3D(const Vector3d &p0, const Vector3d &p1, const Vector3d &p2) {
 		Vector3d v1 = p1 - p0;
 		Vector3d v2 = p2 - p0;
 
 		//check if collinear points
-		double cosinangle = v1.dot(v2)/(v1.norm()*v2.norm());
-		if(cosinangle > 0.95 || cosinangle < -0.95){
-			normal = Vector3d(0,0,0);
+		double cosinangle = v1.dot(v2) / (v1.norm() * v2.norm());
+		if (cosinangle > 0.995 || cosinangle < -0.995) {
+			normal = Vector3d(0, 0, 0);
 			offset = 0;
 			return;
 		}
 		normal = v1.cross(v2);
-		normal = normal/normal.norm();
-		offset = -1*(normal.dot(p0));
+		normal = normal / normal.norm();
+		offset = -1 * (normal.dot(p0));
 	}
 
-	void Plane3D::buildCoordinate(const Vector3d& xaxis_, double planesize,int width,int height){
-		xaxis = xaxis_;
-		xaxis = (Matrix3d::Identity()-normal*normal.transpose())*xaxis;
-		yaxis = normal.cross(xaxis);
-		xaxis = xaxis/xaxis.norm()*planesize/width;
-		yaxis = yaxis/yaxis.norm()*planesize/width;
-		planewidth = width;
-		planeheight = height;
-	}
-
-	double Plane3D::getDistance(const Vector3d& p) const{
+	double Plane3D::getDistance(const Vector3d &p) const {
 		double dis;
-		dis = p.dot(normal)+offset;
+		dis = p.dot(normal) + offset;
 		return dis;
 	}
 
-	Vector3d Plane3D::getWorldCoordinate(const Vector2i& planept) const{
-		Vector3d result = planecenter+xaxis*(planept[0]-planewidth/2)+yaxis*(planept[1]-planeheight/2);
-		return result;
-	}
-
-	Vector3d Plane3D::projectFromeWorldtoPlane(const Vector3d& pt) const{
+	Vector3d Plane3D::projectFromeWorldtoPlane(const Vector3d &pt) const {
 		double dis = getDistance(pt);
-		Vector3d newpt = pt - normal*dis;
+		Vector3d newpt = pt - normal * dis;
 		return newpt;
 	}
 
-	Vector2i Plane3D::getPlaneCoordinate(const Vector3d& pt) const{
-		Vector3d planept = projectFromeWorldtoPlane(pt);
-		Vector3d planevector = planept - planecenter;
-		double xlength = xaxis.dot(planevector)/xaxis.norm();
-		double ylength = yaxis.dot(planevector)/yaxis.norm();
-		Vector2i planecoord;
-		planecoord[0] = static_cast<int>(xlength / xaxis.norm() + planewidth/2);
-		planecoord[1] = static_cast<int>(ylength / yaxis.norm() + planeheight/2);
-		return planecoord;
-	}
+	namespace plane_util {
+		void planeIntersection(const Plane3D &plane1,
+							   const Plane3D &plane2,
+							   Vector3d &normal,
+							   Vector3d &pt) {
+			Vector3d n1 = plane1.getNormal();
+			Vector3d n2 = plane2.getNormal();
+			normal = n1.cross(n2);
+			CHECK_GT(normal.norm(), 0);
 
-	void Plane3D::rotation(double angle){
-		Matrix3d ncross;
-		ncross<<0,-1*normal[2],normal[1],normal[2],0,-1*normal[0],-1*normal[1],normal[0],0;
-		Matrix3d rotationmatrix = Matrix3d::Identity() + sinf(angle)*ncross + (1-cosf(angle))*ncross*ncross;
-		xaxis = rotationmatrix * xaxis;
-		yaxis = rotationmatrix * yaxis;
-	}
-
-	void planeIntersection(const Plane3D& plane1,
-						   const Plane3D& plane2,
-						   Vector3d& normal,
-						   Vector3d& pt){
-		Vector3d n1 = plane1.getNormal();
-		Vector3d n2 = plane2.getNormal();
-		normal = n1.cross(n2);
-		assert(normal.norm() != 0);
-
-		normal.normalize();
-		Matrix2d A;
-		Vector2d p(-1*plane1.getOffset(), -1*plane2.getOffset());
-		Vector2d xy;
-		if(normal[2] != 0){
-			A << n1[0],n1[1],n2[0],n2[1];
-			xy = A.inverse() * p;
-			pt[0] = xy[0]; pt[1] = xy[1]; pt[2] = 0.0;
-			return;
-		}else if(normal[0] != 0){
-			A << n1[1],n1[2],n2[1],n2[2];
-			xy = A.inverse() * p;
-			pt[0] = 0.0; pt[1] = xy[0]; pt[2] = xy[1];
-			return;
-		}else if(normal[1] != 0){
-			A << n1[0],n1[2],n2[0],n2[2];
-			xy = A.inverse() * p;
-			pt[0] = xy[0]; pt[1] = 0.0; pt[2] = xy[1];
-			return;
+			normal.normalize();
+			Matrix2d A;
+			Vector2d p(-1 * plane1.getOffset(), -1 * plane2.getOffset());
+			Vector2d xy;
+			if (normal[2] != 0) {
+				A << n1[0], n1[1], n2[0], n2[1];
+				xy = A.inverse() * p;
+				pt[0] = xy[0];
+				pt[1] = xy[1];
+				pt[2] = 0.0;
+				return;
+			} else if (normal[0] != 0) {
+				A << n1[1], n1[2], n2[1], n2[2];
+				xy = A.inverse() * p;
+				pt[0] = 0.0;
+				pt[1] = xy[0];
+				pt[2] = xy[1];
+				return;
+			} else if (normal[1] != 0) {
+				A << n1[0], n1[2], n2[0], n2[2];
+				xy = A.inverse() * p;
+				pt[0] = xy[0];
+				pt[1] = 0.0;
+				pt[2] = xy[1];
+				return;
+			}
 		}
-	}
-}
+
+		void planeFromPointsLeastSquare(const std::vector<Eigen::Vector3d> &pts, Plane3D &plane) {
+			MatrixXd A(pts.size(), 3);
+			VectorXd b(pts.size(), -1);
+			for (auto i = 0; i < pts.size(); ++i)
+				A.block<1, 3>(i, 0) = pts[i];
+			Vector3d n = A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b);
+			CHECK_GT(n.norm(), 0);
+			Vector3d pt(0, 0, 0);
+			if (n[0] != 0)
+				pt[0] = -1.0 / n[0];
+			else if (n[1] != 0)
+				pt[1] = -1.0 / n[1];
+			else
+				pt[2] = -1.0 / n[2];
+			plane = Plane3D(pt, n);
+		}
+
+
+		void planeFromPointsRANSAC(const std::vector<Eigen::Vector3d> &pts, Plane3D &plane, const double dis_thres,
+								   const int max_iter) {
+			int max_inlier = -1;
+			int N = (int)pts.size();
+			CHECK_GE(N, 3);
+			if(N == 3){
+				plane = Plane3D(pts[0], pts[1], pts[2]);
+				return;
+			}
+			for(int iter=0; iter < max_iter; ++iter){
+				//printf("======================\niter %d\n", iter);
+				srand(time(NULL));
+				int id1 = rand() % N;
+				int id2 = rand() % N;
+				int id3 = rand() % N;
+				//printf("id1:%d, id2:%d, id3:%d\n", id1, id2, id3);
+				Plane3D curplane(pts[id1], pts[id2], pts[id3]);
+				//printf("plane: (%.2f,%.2f,%.2f,%.2f)\n", curplane.getNormal()[0], curplane.getNormal()[1], curplane.getNormal()[2], curplane.getOffset());
+				vector<Vector3d> inliers;
+				inliers.reserve(pts.size());
+				for(int i=0; i<pts.size(); ++i){
+					double dis = curplane.getDistance(pts[i]);
+					if(dis < dis_thres)
+						inliers.push_back(pts[i]);
+				}
+				//printf("inlier size: %d\n", (int)inliers.size());
+				if(inliers.size() > max_inlier)
+					planeFromPointsLeastSquare(inliers, plane);
+				//printf("Current optimal plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
+			}
+		}
+
+	}//namespace plane_util
+}//namespace dynamic_stereo
