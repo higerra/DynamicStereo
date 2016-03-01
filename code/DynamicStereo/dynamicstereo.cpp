@@ -72,7 +72,7 @@ namespace dynamic_stereo{
         imgL = images[id1-offset].clone();
         imgR = images[id2-offset].clone();
 
-        cv::circle(imgL, cv::Point(pt[0], pt[1]), 3, cv::Scalar(0,0,255), 3);
+        cv::circle(imgL, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0,0,255), 2);
 
         const double min_depth = 1.0 / max_disp;
         const double max_depth = 1.0 / min_disp;
@@ -110,8 +110,8 @@ namespace dynamic_stereo{
 
 	    {
             //debug: inspect unary term
-            const int tx = 4/downsample;
-            const int ty = 272/downsample;
+            const int tx = 9/downsample;
+            const int ty = 8/downsample;
             printf("Unary term for (%d,%d)\n", tx, ty);
             for (auto d = 0; d < dispResolution; ++d) {
                 cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
@@ -124,14 +124,14 @@ namespace dynamic_stereo{
         sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
         dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
 
-        cout << "Generating plane proposal" << endl;
-        ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
-        vector<Depth> proposals;
-        proposalFactory.genProposal(proposals);
-//        for(auto i=0; i<proposals.size(); ++i){
-//            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
-//            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
-//        }
+         cout << "Generating plane proposal" << endl;
+         ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
+         vector<Depth> proposals;
+         proposalFactory.genProposal(proposals);
+        for(auto i=0; i<proposals.size(); ++i){
+            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
+            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
+        }
 
         //cout << "Creating graphical model..." << endl;
 //        shared_ptr<MRF> mrf = createProblem();

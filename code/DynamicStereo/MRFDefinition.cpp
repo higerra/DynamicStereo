@@ -70,7 +70,7 @@ namespace dynamic_stereo {
                 double ssd = 0.0;
                 for(auto j=0; j<p1.size(); ++j)
                     ssd += (p1[j]-p2[j]) * (p1[j]-p2[j]);
-                mCost.push_back(ssd);
+                mCost.push_back(ssd / (double)p1.size());
             }
         }
 
@@ -97,8 +97,8 @@ namespace dynamic_stereo {
             vector<double> mCost;
             getSSDArray(patches, refId, mCost);
             //if the patch is not visible in >50% frames, assign large penalty.
-            if (mCost.size() < patches.size() / 2)
-                return 0;
+            if (mCost.size() < patches.size() / 3)
+                return 1;
             if(mCost.size() == 2)
                 return std::min(phid(mCost[0]), phid(mCost[1]));
             //sum of best half
@@ -117,7 +117,7 @@ namespace dynamic_stereo {
 
     void DynamicStereo::computeMinMaxDisparity(){
         if(reconstruction.NumTracks() == 0){
-            min_disp = 0.0001;
+            min_disp = 0.01;
             max_disp = 1.0;
             return;
         }
