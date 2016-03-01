@@ -306,8 +306,10 @@ void AddImagesToReconstructionBuilder(const FileIO& file_io,
                                       ReconstructionBuilder* reconstruction_builder) {
     std::vector<std::string> image_files;
     CHECK_GT(FLAGS_image_intervals, 0);
-    for(auto i=0; i<file_io.getTotalNum(); i += FLAGS_image_intervals)
-        image_files.push_back(file_io.getImage(i));
+    for(auto i=0; i<file_io.getTotalNum(); i += FLAGS_image_intervals) {
+	    image_files.push_back(file_io.getImage(i));
+	    std::cout << file_io.getImage(i) << std::endl;
+    }
 
     CHECK_GT(image_files.size(), 0) << "No images found in: " << file_io.getImageDirectory();
 

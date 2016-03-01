@@ -71,7 +71,7 @@ int main(int argc, char **argv){
         Mat imgL, imgR;
         const int tf1 = FLAGS_testFrame;
         //In original scale
-        Vector2d pt(480, 549);
+        Vector2d pt(203, 93);
         for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
             stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
             CHECK_EQ(imgL.size(), imgR.size());
