@@ -54,7 +54,7 @@ namespace dynamic_stereo {
         void getSSDArray(const vector<vector<double> >& patches, const int refId, vector<double>& mCost){
             const vector<double> &pRef = patches[refId];
             mCost.reserve(patches.size() - 1);
-            const double theta = 90;
+
             for (auto i = 0; i < patches.size(); ++i) {
                 if (i == refId)
                     continue;
@@ -69,8 +69,8 @@ namespace dynamic_stereo {
                     continue;
                 double ssd = 0.0;
                 for(auto j=0; j<p1.size(); ++j)
-                    ssd = ssd - std::log(1 + std::exp(-1 * (p1[j]-p2[j]) * (p1[j]-p2[j]) / theta));
-                mCost.push_back(ssd / (double)p1.size());
+                    ssd += (p1[j]-p2[j]) * (p1[j]-p2[j]);
+                mCost.push_back(ssd);
             }
         }
 
@@ -90,17 +90,26 @@ namespace dynamic_stereo {
         double sumMatchingCostHalf(const vector<vector<double> >& patches, const int refId){
             CHECK_GE(refId, 0);
             CHECK_LT(refId, patches.size());
+            const double theta = 90;
+            auto phid = [theta](const double v){
+                return -1 * std::log2(1 + std::exp(-1 * v / theta));
+            };
             vector<double> mCost;
             getSSDArray(patches, refId, mCost);
             //if the patch is not visible in >50% frames, assign large penalty.
             if (mCost.size() < patches.size() / 2)
-                return -1;
+                return 0;
             if(mCost.size() == 2)
-                return std::min(mCost[0], mCost[1]);
+                return std::min(phid(mCost[0]), phid(mCost[1]));
             //sum of best half
-            sort(mCost.begin(), mCost.end(), [](double x1, double x2){return x1 >= x2;});
+            sort(mCost.begin(), mCost.end(), [](double x1, double x2){return x1 <= x2;});
             const size_t kth = mCost.size() / 2;
-            return std::accumulate(mCost.begin(), mCost.begin()+kth, 0.0) / (double)kth;
+            double res = 0.0;
+
+            for(auto i=0; i<kth; ++i){
+                res += phid(mCost[i]);
+            }
+            return res / (double)kth;
         }
 
     }//namespace MRF_util
@@ -109,7 +118,7 @@ namespace dynamic_stereo {
     void DynamicStereo::computeMinMaxDisparity(){
         if(reconstruction.NumTracks() == 0){
             min_disp = 0.0001;
-            max_disp = 1;
+            max_disp = 1.0;
             return;
         }
         const theia::View *anchorView = reconstruction.View(anchor);

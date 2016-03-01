@@ -33,6 +33,12 @@ namespace dynamic_stereo{
             for(auto k=1; k<nLevel; ++k)
                 pyrDown(pyramid[k-1], pyramid[k]);
             images[i] = pyramid.back().clone();
+
+            const theia::Camera cam = reconstruction.View(i+offset)->Camera();
+            cout << "Projection matrix for view " << i+offset<< endl;
+            theia::Matrix3x4d pm;
+            cam.GetProjectionMatrix(&pm);
+            cout << pm << endl;
         }
         CHECK_GT(images.size(), 2) << "Too few images";
         width = images.front().cols;
@@ -72,8 +78,8 @@ namespace dynamic_stereo{
         const double max_depth = 1.0 / min_disp;
         printf("min depth:%.3f, max depth:%.3f\n", min_depth, max_depth);
 
-        for(double i=min_depth; i<max_depth; i+=0.1){
-            Vector3d curpt = cam1.GetPosition() + ray1 * i;
+        for(double i=min_disp; i<max_disp; i+=0.001){
+            Vector3d curpt = cam1.GetPosition() + ray1 * 1.0 / i;
             Vector4d curpt_homo(curpt[0], curpt[1], curpt[2], 1.0);
             Vector2d imgpt;
             double depth = cam2.ProjectPoint(curpt_homo, &imgpt);
@@ -82,7 +88,7 @@ namespace dynamic_stereo{
             imgpt = imgpt / (double)downsample;
             //printf("curpt:(%.2f,%.2f,%.2f), Depth:%.3f, pt:(%.2f,%.2f)\n", curpt[0], curpt[1], curpt[2], depth, imgpt[0], imgpt[1]);
             cv::Point cvpt(((int)imgpt[0]), ((int)imgpt[1]));
-            cv::circle(imgR, cvpt, 2, cv::Scalar(0,0,255));
+            cv::circle(imgR, cvpt, 1, cv::Scalar(0,0,255));
         }
     }
 
@@ -104,8 +110,8 @@ namespace dynamic_stereo{
 
 	    {
             //debug: inspect unary term
-            const int tx = 514/downsample;
-            const int ty = 478/downsample;
+            const int tx = 4/downsample;
+            const int ty = 272/downsample;
             printf("Unary term for (%d,%d)\n", tx, ty);
             for (auto d = 0; d < dispResolution; ++d) {
                 cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';

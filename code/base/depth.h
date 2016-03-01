@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <opencv2/opencv.hpp>
+#include <glog/logging.h>
 
 namespace dynamic_stereo{
     class Depth{
@@ -40,17 +41,16 @@ namespace dynamic_stereo{
         double getDepthAt(const Eigen::Vector2d& loc)const;
 
         inline double getDepthAtInt(int x, int y) const{
-            if(!(x>=0 && x<getWidth() && y>=0 && y<getHeight())){
-                std::cout << "Depth::getDepthAtInt() out of bound!"<<std::endl;
-                exit(-1);
-            }
+            CHECK_GE(x,0);
+            CHECK_GE(y,0);
+            CHECK_LT(x, getWidth());
+            CHECK_LT(y, getHeight());
+
             return data[x + y*getWidth()];
         }
         inline double getDepthAtInd(int ind)const{
-            if(!(ind < data.size())){
-                std::cout<<"Depth::getDepthAtInd(); out of bound!" <<std::endl;
-                exit(-1);
-            }
+            CHECK_LT(ind, data.size());
+            CHECK_GE(ind, 0);
             return data[ind];
         }
 
@@ -63,11 +63,15 @@ namespace dynamic_stereo{
         }
 
         inline double getWeightAt(const int x, const int y)const{
-            assert(x >=0 && x<getWidth() && y>=0 && y<getHeight());
+            CHECK_GE(x,0);
+            CHECK_GE(y,0);
+            CHECK_LT(x, getWidth());
+            CHECK_LT(y, getHeight());
             return weight[x + y*getWidth()];
         }
         inline void setWeightAt(const int ind, const double v){
-            assert(ind < weight.size());
+            CHECK_LT(ind, weight.size());
+            CHECK_GE(ind, 0);
             weight[ind] = v;
         }
 

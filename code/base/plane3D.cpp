@@ -43,7 +43,9 @@ namespace dynamic_stereo {
 
 	double Plane3D::getDistance(const Vector3d &p) const {
 		double dis;
-		dis = p.dot(normal) + offset;
+		double nn = getNormal().norm();
+		CHECK_GE(nn, epsilon);
+		dis = std::abs((p.dot(normal) + offset) / nn);
 		return dis;
 	}
 
@@ -100,17 +102,18 @@ namespace dynamic_stereo {
 			}
 			Vector3d n = A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b);
 			const double epsilon = 1e-10;
-			if(n.norm() < epsilon)
+			const double nn = n.norm();
+			if(nn < epsilon)
 				return false;
+			n /= nn;
 			Vector3d pt(0, 0, 0);
 			if (n[0] != 0)
-				pt[0] = -1.0 / n[0];
+				pt[0] = (-1.0 / nn) / n[0];
 			else if (n[1] != 0)
-				pt[1] = -1.0 / n[1];
+				pt[1] = (-1.0 / nn) / n[1];
 			else
-				pt[2] = -1.0 / n[2];
+				pt[2] = (-1.0 / nn) / n[2];
 			plane = Plane3D(pt, n);
-
 			return true;
 		}
 
@@ -121,13 +124,13 @@ namespace dynamic_stereo {
 			const double epsilon = 1e-5;
 			int N = (int)pts.size();
 			CHECK_GE(N, 3);
-//			if(verbose){
-//				printf("=========================\n");
-//				cout << "Solving plane RANSAC:" << endl;
-//				for(int i=0; i<pts.size(); ++i)
-//					cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << endl;
-//
-//			}
+			if(verbose){
+				printf("=========================\n");
+				cout << "Solving plane RANSAC:" << endl;
+				for(int i=0; i<pts.size(); ++i)
+					cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << endl;
+
+			}
 			plane = Plane3D();
 			std::default_random_engine generator;
 			std::uniform_int_distribution<int> distribution(0, (int)pts.size()-1);
@@ -141,8 +144,13 @@ namespace dynamic_stereo {
 					iter--;
 					continue;
 				}
-//				printf("------------------\niter %d\n", iter);
-//				printf("id1:%d, id2:%d, id3:%d\n", id1, id2, id3);
+				if(verbose){
+					printf("------------------\niter %d\n", iter);
+					printf("id1:%d, id2:%d, id3:%d\n", id1, id2, id3);
+					printf("%.5f,%.5f,%.5f\n", pts[id1][0], pts[id1][1], pts[id1][2]);
+					printf("%.5f,%.5f,%.5f\n", pts[id2][0], pts[id2][1], pts[id2][2]);
+					printf("%.5f,%.5f,%.5f\n", pts[id3][0], pts[id3][1], pts[id3][2]);
+				}
 				Eigen::Matrix3d A;
 				A.block<1,3>(0,0) = pts[id1];
 				A.block<1,3>(1,0) = pts[id2];
@@ -159,16 +167,20 @@ namespace dynamic_stereo {
 				vector<Vector3d> inliers;
 				for(int i=0; i<pts.size(); ++i){
 					double dis = curplane.getDistance(pts[i]);
-					if(dis < dis_thres)
+					if(dis < dis_thres) {
+						//printf("inlier: (%.5f,%.5f,%.5f), dis:%.5f\n", pts[i][0], pts[i][1], pts[i][2], dis);
 						inliers.push_back(pts[i]);
+					}
 				}
 //				printf("inlier size: %lu, max_inlier:%lu\n", inliers.size(), max_inlier);
 				if(inliers.size() > max_inlier) {
 					if(!planeFromPointsLeastSquare(inliers, plane))
 						continue;
 					max_inlier = inliers.size();
-//					printf("new fitted plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
-//					printf("Max inlier: %lu\n", max_inlier);
+					if(verbose){
+						printf("new fitted plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
+						printf("Max inlier: %lu\n", max_inlier);
+					}
 				}
 //				printf("Current optimal plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
 			}

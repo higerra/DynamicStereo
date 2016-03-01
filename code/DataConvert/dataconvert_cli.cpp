@@ -36,6 +36,7 @@ int main(int argc, char** argv){
         view->SetEstimated(true);
         theia::Matrix3x4d pose;
         sprintf(buffer, "%s/pose/image%05d.jpg.txt", file_io.getDirectory().c_str(), i);
+        cout << buffer << endl;
         ifstream fin(buffer);
 
         CHECK(fin.is_open()) << "Can not open pose file " << buffer;
@@ -45,6 +46,8 @@ int main(int argc, char** argv){
             for(auto x=0; x<4; ++x)
                 fin >> pose(y,x);
         }
+        cout << "Camera matrix for view " << i << endl;
+        cout << pose << endl;
 
         theia::Camera* cam = view->MutableCamera();
         cam->InitializeFromProjectionMatrix(img.Cols(), img.Rows(), pose);

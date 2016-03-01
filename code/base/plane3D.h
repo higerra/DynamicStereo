@@ -14,6 +14,7 @@ namespace dynamic_stereo {
 		Plane3D(const Eigen::Vector3d &, const Eigen::Vector3d &, const Eigen::Vector3d &);
 
 		Plane3D(const Eigen::Vector3d &pt_, const Eigen::Vector3d &normal_) : normal(normal_) {
+			CHECK_LT(normal_.norm() - 1.0, epsilon);
 			offset = -1 * pt_.dot(normal);
 		}
 

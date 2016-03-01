@@ -15,6 +15,7 @@ DEFINE_int32(tWindow, 72, "tWindow");
 DEFINE_int32(downsample, 4, "downsample ratio");
 DEFINE_int32(resolution, 64, "disparity resolution");
 DEFINE_double(weight_smooth, 0.008, "smoothness weight for stereo");
+DEFINE_double(min_disp, 0.0, "minimum disparity");
 
 int main(int argc, char **argv){
     if(argc < 2){

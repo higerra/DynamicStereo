@@ -23,7 +23,7 @@ namespace dynamic_stereo{
         const int h = noisyDisp.getHeight();
         const int nPixels = w * h;
         const double epsilon = (double)1e-05;
-        const double dis_thres = 1;
+        const double dis_thres = 2;
 
         const double max_dim = 255.0;
         const double min_depth = 1.0 / max_disp;
@@ -48,13 +48,13 @@ namespace dynamic_stereo{
         for(auto i=0; i<planarDisp.getRawData().size(); ++i)
             planarDisp.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
 
-	    //debug for lambda function
+	    //unit testing for lambda function
 	    for(double testdisp = 0.0; testdisp<dispResolution; testdisp+=1.0) {
 		    double testdisp2 = depthToDisp(dispToDepth(testdisp));
 		    CHECK_LT(std::abs(testdisp2 - testdisp), epsilon);
 	    }
 
-	    int tx = 123, ty = 34;
+	    int tx = -1, ty = -1;
 
         for(const auto& idxs: seg){
 	        bool verbose = false;
@@ -97,11 +97,11 @@ namespace dynamic_stereo{
 
             double offset = segPln.getOffset();
             Eigen::Vector3d n = segPln.getNormal();
-	        if(verbose) {
-		        for(auto i=0; i<pts.size(); ++i)
-			        std::cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << std::endl;
-		        printf("Optimal plane: (%.5f,%.5f,%.5f), %.5f\n", n[0], n[1], n[2], offset);
-	        }
+//	        if(verbose) {
+//		        for(auto i=0; i<pts.size(); ++i)
+//			        std::cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << std::endl;
+//		        printf("Optimal plane: (%.5f,%.5f,%.5f), %.5f\n", n[0], n[1], n[2], offset);
+//	        }
 
 	        if(std::abs(n[2]) < epsilon){
 //		        for(int i=0; i<pts.size(); ++i)
@@ -117,14 +117,14 @@ namespace dynamic_stereo{
             for(const auto idx: idxs){
                 int x = idx % w;
                 int y = idx / w;
-                double d = std::max(std::min((-1 * offset - n[0] * x - n[1] * y) / n[2], (double)max_dim), 0.0);
+                double newdepth = (-1 * offset - n[0]*x - n[1] * y) / n[2];
+                double d = std::max(std::min(newdepth, (double)max_dim), 0.0);
 	            if(verbose) {
-		            double curdisp = noisyDisp.getDepthAtInd(idx);
-		            double rdepth = (-1 * offset - n[0]*x - n[1] * y) / n[2];
-		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, (-1 * offset - n[0] * x - n[1] * y) / n[2], curdisp, depthToDisp(rdepth));
+		            double oridepth = dispToDepth(noisyDisp.getDepthAtInd(idx));
+		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, oridepth, oridepth, newdepth);
 	            }
                 //planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution), 0.0));
-	            planarDisp.setDepthAtInd(idx, std::max(std::min(d, max_dim), 0.0));
+	            planarDisp.setDepthAtInd(idx, d);
             }
         }
 
@@ -141,7 +141,7 @@ namespace dynamic_stereo{
 
     void ProposalSegPln::genProposal(std::vector<Depth> &proposals) {
         proposals.resize((size_t)num_proposal);
-        for(auto i=0; i<1; ++i){
+        for(auto i=0; i<proposals.size(); ++i){
             printf("Proposal %d\n", i);
             std::vector<std::vector<int> > seg;
             printf("Segmenting...\n");
