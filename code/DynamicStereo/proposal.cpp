@@ -22,9 +22,12 @@ namespace dynamic_stereo{
         const int w = noisyDisp.getWidth();
         const int h = noisyDisp.getHeight();
         const int nPixels = w * h;
-        const double min_disp = (double)0.0;
-        const double dis_thres = 0.01;
+        const double min_disp = (double)0.00001;
+        const double dis_thres = 0.05;
         planarDisp = noisyDisp;
+        for(auto i=0; i<planarDisp.getRawData().size(); ++i)
+            planarDisp.getRawData()[i] = noisyDisp.getRawData()[i];
+
         for(const auto& idxs: seg){
             std::vector<Eigen::Vector3d> pts;
             for(const auto idx: idxs){
@@ -32,7 +35,7 @@ namespace dynamic_stereo{
                 double curdisp = noisyDisp.getDepthAtInd(idx);
                 if(curdisp < min_disp)
                     continue;
-                pts.push_back(Eigen::Vector3d(idx/w, idx%w, 1.0/curdisp));
+                pts.push_back(Eigen::Vector3d(idx%w, idx/w, 1.0/curdisp));
             }
             if(pts.size() < 3)
                 continue;
@@ -42,12 +45,13 @@ namespace dynamic_stereo{
             plane_util::planeFromPointsRANSAC(pts, segPln, dis_thres);
             double offset = segPln.getOffset();
             Eigen::Vector3d n = segPln.getNormal();
+            printf("Optimal plane: (%.2f,%.2f,%.2f), %.2f\n", n[0], n[1], n[2], offset);
             //modify disparity value according to plane
             for(const auto idx: idxs){
                 int x = idx % w;
                 int y = idx / w;
                 double d = (-1 * offset - n[0] * x - n[1] * y) / n[2];
-                planarDisp.setDepthAtInd(idx, std::min(1.0/d, (double)dispResolution));
+                planarDisp.setDepthAtInd(idx, std::max(std::min(1.0/d, (double)dispResolution), 0.0));
             }
         }
     }
@@ -68,7 +72,7 @@ namespace dynamic_stereo{
             ProposalSegPln(file_io_, image_, noisyDisp_, dispResolution, num_proposal_){
         mults.resize((size_t)num_proposal);
         for(auto i=0; i<mults.size(); ++i)
-            mults[i] = (double)i;
+            mults[i] = (double)i+1;
     }
 
     void ProposalSegPlnMeanshift::segment(const int pid, std::vector<std::vector<int> > &seg) {
@@ -82,6 +86,20 @@ namespace dynamic_stereo{
         labels = segmentor.GetLabels();
         CHECK(labels != NULL);
         seg.resize((size_t) segmentor.GetRegionCount());
+
+        cv::Vec3b colorTable[] = {cv::Vec3b(255, 0, 0), cv::Vec3b(0, 255, 0), cv::Vec3b(0, 0, 255), cv::Vec3b(255, 255, 0),
+                                  cv::Vec3b(255, 0, 255), cv::Vec3b(0, 255, 255), cv::Vec3b(128,128,0), cv::Vec3b(128,0,128), cv::Vec3b(0,128,128)};
+        cv::Mat segTestRes(h, w, image.type());
+        for (auto y = 0; y < h; ++y) {
+            for (auto x = 0; x < w; ++x) {
+                int l = labels[y * w + x];
+                segTestRes.at<cv::Vec3b>(y,x) = colorTable[l%9];
+            }
+        }
+        char buffer[1024] = {};
+        sprintf(buffer, "%s/temp/meanshift%03d.jpg", file_io.getDirectory().c_str(), pid);
+        imwrite(buffer, segTestRes);
+
         for(auto i=0; i<w*h; ++i){
             int l = labels[i];
             CHECK_LT(l, seg.size());

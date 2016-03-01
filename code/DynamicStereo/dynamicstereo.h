@@ -17,9 +17,9 @@
 #include "base/configurator.h"
 #include "base/depth.h"
 #include "base/file_io.h"
-#include "external/QPBO1.4/ELC.h"
+//#include "external/QPBO1.4/ELC.h"
 #include "external/segment_ms/msImageProcessor.h"
-//#include "MRF2.2/mrf.h"
+#include "external/MRF2.2/mrf.h"
 //#include "MRF2.2/GCoptimization.h"
 //#include <opengm/graphicalmodel/graphicalmodel.hxx>
 //#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
@@ -50,10 +50,10 @@ namespace dynamic_stereo {
         void assignSmoothWeight();
 
         //void optimize(std::shared_ptr<GraphicalModel> model);
-        //void optimize(std::shared_ptr<MRF> model);
+        void optimize(std::shared_ptr<MRF> model);
 
 
-        //std::shared_ptr<MRF> createProblem();
+        std::shared_ptr<MRF> createProblem();
         //std::shared_ptr<GraphicalModel> createGraphcialModel();
 
         const FileIO& file_io;
@@ -82,7 +82,7 @@ namespace dynamic_stereo {
         std::vector<EnergyType> hCue;
         std::vector<EnergyType> vCue;
         const double weight_smooth;
-        const int MRFRatio;
+        const EnergyType MRFRatio;
         const double dispScale;
     };
 

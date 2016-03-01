@@ -12,17 +12,19 @@ namespace dynamic_stereo{
     DynamicStereo::DynamicStereo(const dynamic_stereo::FileIO &file_io_, const int anchor_,
                                  const int tWindow_, const int downsample_, const double weight_smooth_, const int dispResolution_):
             file_io(file_io_), anchor(anchor_), tWindow(tWindow_), downsample(downsample_), dispResolution(dispResolution_), pR(3),
-            weight_smooth(weight_smooth_), MRFRatio(1000),
+            weight_smooth(weight_smooth_), MRFRatio(10000),
             min_disp(-1), max_disp(-1), dispScale(1000){
 
         cout << "Reading..." << endl;
         offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
-        CHECK_GT(file_io.getTotalNum(), offset + tWindow);
+        CHECK_GE(file_io.getTotalNum(), offset + tWindow);
+        cout << "Reading reconstruction" << endl;
         CHECK(theia::ReadReconstruction(file_io.getReconstruction(), &reconstruction)) << "Can not open reconstruction file";
         CHECK_EQ(reconstruction.NumViews(), file_io.getTotalNum());
         CHECK(downsample == 1 || downsample == 2 || downsample == 4 || downsample == 8) << "Invalid downsample ratio!";
         images.resize((size_t)tWindow);
 
+        cout << "Reading images" << endl;
         const int nLevel = (int)std::log2((double)downsample) + 1;
         for(auto i=0; i<tWindow; ++i){
             vector<Mat> pyramid(nLevel);
@@ -31,6 +33,12 @@ namespace dynamic_stereo{
             for(auto k=1; k<nLevel; ++k)
                 pyrDown(pyramid[k-1], pyramid[k]);
             images[i] = pyramid.back().clone();
+
+            const theia::Camera cam = reconstruction.View(i+offset)->Camera();
+            cout << "Projection matrix for view " << i+offset<< endl;
+            theia::Matrix3x4d pm;
+            cam.GetProjectionMatrix(&pm);
+            cout << pm << endl;
         }
         CHECK_GT(images.size(), 2) << "Too few images";
         width = images.front().cols;
@@ -39,6 +47,7 @@ namespace dynamic_stereo{
         refDisparity.initialize(width, height,0.0);
         dispUnary.initialize(width, height, 0.0);
 
+        cout << "Computing disparity range" << endl;
         computeMinMaxDisparity();
     }
 
@@ -98,20 +107,35 @@ namespace dynamic_stereo{
 //        cout << "Test ncc: " << testncc << endl;
 
         initMRF();
+
+        {
+            //debug: inspect unary term
+            const int tx = 514/downsample;
+            const int ty = 478/downsample;
+            printf("Unary term for (%d,%d)\n", tx, ty);
+            for (auto d = 0; d < dispResolution; ++d) {
+                cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
+            }
+            cout << endl;
+            printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+        }
+
         //generate proposal
         sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
         dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
-        cout << "Generating plane proposal" << endl;
-        ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution);
-        vector<Depth> proposals;
-        proposalFactory.genProposal(proposals);
-        for(auto i=0; i<proposals.size(); ++i){
-            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
-            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
-        }
+
+//        cout << "Generating plane proposal" << endl;
+//        ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution);
+//        vector<Depth> proposals;
+//        proposalFactory.genProposal(proposals);
+//        for(auto i=0; i<proposals.size(); ++i){
+//            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
+//            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
+//        }
 
         //cout << "Creating graphical model..." << endl;
-
+        shared_ptr<MRF> mrf = createProblem();
+        optimize(mrf);
 
 //        CHECK_GT(max_depth, 0);
 //
@@ -123,10 +147,10 @@ namespace dynamic_stereo{
 //                d2.setDepthAtInt(x,y,(curd-min_depth) / (max_depth-min_depth) * 255.0);
 //            }
 //        }
-//        const double scale = 255.0 / (double)dispResolution;
 
-//        sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//        refDisparity.saveImage(buffer, scale);
+        const double scale = 255.0 / (double)dispResolution;
+        sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+        refDisparity.saveImage(buffer, scale);
     }
 
 	void DynamicStereo::warpToAnchor() const{

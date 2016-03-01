@@ -66,20 +66,22 @@ int main(int argc, char **argv){
 //    }
 
 
-    //    //test SfM
-//    Mat imgL, imgR;
-//    const int tf1 = FLAGS_testFrame;
-//    //In original scale
-//    Vector2d pt(298, 181);
-//    for(auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-//        stereo.verifyEpipolarGeometry(tf1, tf2, pt/(double)stereo.getDownsample(), imgL, imgR);
-//        CHECK_EQ(imgL.size(), imgR.size());
-//        Mat imgAll;
-//        cv::hconcat(imgL, imgR, imgAll);
-//        sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-//        imwrite(buffer, imgAll);
-//    }
-//
+    {
+        //    //test SfM
+        Mat imgL, imgR;
+        const int tf1 = FLAGS_testFrame;
+        //In original scale
+        Vector2d pt(480, 549);
+        for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+            stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
+            CHECK_EQ(imgL.size(), imgR.size());
+            Mat imgAll;
+            cv::hconcat(imgL, imgR, imgAll);
+            sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+            imwrite(buffer, imgAll);
+        }
+    }
+
     stereo.runStereo();
     //stereo.warpToAnchor();
 

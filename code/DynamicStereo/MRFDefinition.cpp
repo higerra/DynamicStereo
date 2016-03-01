@@ -3,7 +3,7 @@
 //
 
 #include "dynamicstereo.h"
-
+#include "external/MRF2.2/GCoptimization.h"
 using namespace std;
 using namespace cv;
 using namespace Eigen;
@@ -50,11 +50,35 @@ namespace dynamic_stereo {
                 mCost.push_back(math_util::normalizedCrossCorrelation(p1, p2));
             }
         }
+
+        void getSSDArray(const vector<vector<double> >& patches, const int refId, vector<double>& mCost){
+            const vector<double> &pRef = patches[refId];
+            mCost.reserve(patches.size() - 1);
+            const double theta = 90;
+            for (auto i = 0; i < patches.size(); ++i) {
+                if (i == refId)
+                    continue;
+                vector<double> p1, p2;
+                for (auto j = 0; j < pRef.size(); ++j) {
+                    if (pRef[j] >= 0 && patches[i][j] >= 0) {
+                        p1.push_back(pRef[j]);
+                        p2.push_back(patches[i][j]);
+                    }
+                }
+                if (p1.size() < pRef.size() / 2)
+                    continue;
+                double ssd = 0.0;
+                for(auto j=0; j<p1.size(); ++j)
+                    ssd = ssd - std::log(1 + std::exp(-1 * (p1[j]-p2[j]) * (p1[j]-p2[j]) / theta));
+                mCost.push_back(ssd / (double)p1.size());
+            }
+        }
+
         double medianMatchingCost(const vector<vector<double> > &patches, const int refId) {
             CHECK_GE(refId, 0);
             CHECK_LT(refId, patches.size());
             vector<double> mCost;
-            getNCCArray(patches, refId, mCost);
+            getSSDArray(patches, refId, mCost);
             //if the patch is not visible in >50% frames, assign large penalty.
             if (mCost.size() < patches.size() / 2)
                 return -1;
@@ -67,7 +91,7 @@ namespace dynamic_stereo {
             CHECK_GE(refId, 0);
             CHECK_LT(refId, patches.size());
             vector<double> mCost;
-            getNCCArray(patches, refId, mCost);
+            getSSDArray(patches, refId, mCost);
             //if the patch is not visible in >50% frames, assign large penalty.
             if (mCost.size() < patches.size() / 2)
                 return -1;
@@ -81,7 +105,13 @@ namespace dynamic_stereo {
 
     }//namespace MRF_util
 
+
     void DynamicStereo::computeMinMaxDisparity(){
+        if(reconstruction.NumTracks() == 0){
+            min_disp = 0.0001;
+            max_disp = 1;
+            return;
+        }
         const theia::View *anchorView = reconstruction.View(anchor);
         const theia::Camera cam = anchorView->Camera();
         vector<theia::TrackId> trackIds = anchorView->TrackIds();
@@ -167,9 +197,9 @@ namespace dynamic_stereo {
 //                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
                     //double mCost = MRF_util::medianMatchingCost(patches, anchor - offset);
                     double mCost = MRF_util::sumMatchingCostHalf(patches, anchor - offset);
-                    MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((mCost - 1) * (mCost - 1) *
-                                                                                   MRFRatio);
-
+//                    MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((mCost - 1) * (mCost - 1) *
+//                                                                                   MRFRatio);
+                    MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((mCost + 1) * MRFRatio);
                 }
 
                 EnergyType min_energy = 9999999;
@@ -190,6 +220,7 @@ namespace dynamic_stereo {
         const double t = 0.3;
         hCue.resize(width * height, 0);
         vCue.resize(width * height, 0);
+        double ratio = 441.0;
         const Mat &img = images[anchor - offset];
         for (auto y = 0; y < height; ++y) {
             for (auto x = 0; x < width; ++x) {
@@ -203,7 +234,7 @@ namespace dynamic_stereo {
                     if (diff > t)
                         vCue[y * width + x] = 0;
                     else
-                        vCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * MRFRatio);
+                        vCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * ratio);
                 }
                 if (x < width - 1) {
                     Vec3b pix2 = img.at<Vec3b>(y, x + 1);
@@ -212,22 +243,22 @@ namespace dynamic_stereo {
                     if (diff > t)
                         hCue[y * width + x] = 0;
                     else
-                        hCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * MRFRatio);
+                        hCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * ratio);
                 }
             }
         }
     }
 
-//    std::shared_ptr<MRF> DynamicStereo::createProblem() {
-//
-//        //use truncated linear cost for smoothness
-//        EnergyFunction *energy_function = new EnergyFunction(new DataCost(MRF_data.data()),
-//                                                             new SmoothnessCost(1, 4, (MRF::CostVal)(weight_smooth * MRFRatio), hCue.data(), vCue.data()));
-//        shared_ptr<MRF> mrf(new Expansion(width, height, dispResolution, energy_function));
-//        mrf->initialize();
-//
-//        return mrf;
-//    }
+    std::shared_ptr<MRF> DynamicStereo::createProblem() {
+
+        //use truncated linear cost for smoothness
+        EnergyFunction *energy_function = new EnergyFunction(new DataCost(MRF_data.data()),
+                                                             new SmoothnessCost(1, 4, (MRF::CostVal)(weight_smooth * MRFRatio), hCue.data(), vCue.data()));
+        shared_ptr<MRF> mrf(new Expansion(width, height, dispResolution, energy_function));
+        mrf->initialize();
+
+        return mrf;
+    }
 
 //    std::shared_ptr<DynamicStereo::GraphicalModel> DynamicStereo::createGraphcialModel() {
 //        opengm::SimpleDiscreteSpace<> space((size_t)width * height, (size_t) dispResolution);
@@ -296,38 +327,38 @@ namespace dynamic_stereo {
 //        refDepth.updateStatics();
 //    }
 
-//    void DynamicStereo::optimize(std::shared_ptr<MRF> model) {
-//        model->clearAnswer();
-//        //randomly initialize
-//        srand(time(NULL));
-//        for (auto i = 0; i < width * height; ++i) {
-//            model->setLabel(rand() % dispResolution, 0);
-//        }
-//
-//        double initData = (double) model->dataEnergy() / MRFRatio;
-//        double initSmooth = (double) model->smoothnessEnergy() / MRFRatio;
-//        float t;
-//        cout << "Solving..." << endl << flush;
-//        model->optimize(10, t);
-//
-//        double finalData = (double) model->dataEnergy() / MRFRatio;
-//        double finalSmooth = (double) model->smoothnessEnergy() / MRFRatio;
-//        printf("Done.\n Init energy:(%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time usage: %.2f\n", initData,
-//               initSmooth, initData + initSmooth,
-//               finalData, finalSmooth, finalData + finalSmooth, t);
-//
-//        //assign depth to depthmap
-//        const double epsilon = 0.00001;
-//        for(auto x=0; x<width; ++x) {
-//            for (auto y = 0; y < height; ++y) {
-//                double l = (double) model->getLabel(y * width + x);
-//                double disp = min_disp + l * (max_disp - min_disp) / (double) dispResolution;
-//                if(disp < epsilon)
-//                    refDepth.setDepthAtInt(x, y, -1);
-//                else
-//                    refDepth.setDepthAtInt(x, y, l);
-//            }
-//        }
-//        refDepth.updateStatics();
-//    }
+    void DynamicStereo::optimize(std::shared_ptr<MRF> model) {
+        model->clearAnswer();
+        //randomly initialize
+        srand(time(NULL));
+        for (auto i = 0; i < width * height; ++i) {
+            model->setLabel(rand() % dispResolution, 0);
+        }
+
+        double initData = (double) model->dataEnergy() / MRFRatio;
+        double initSmooth = (double) model->smoothnessEnergy() / MRFRatio;
+        float t;
+        cout << "Solving..." << endl << flush;
+        model->optimize(10, t);
+
+        double finalData = (double) model->dataEnergy() / MRFRatio;
+        double finalSmooth = (double) model->smoothnessEnergy() / MRFRatio;
+        printf("Done.\n Init energy:(%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time usage: %.2f\n", initData,
+               initSmooth, initData + initSmooth,
+               finalData, finalSmooth, finalData + finalSmooth, t);
+
+        //assign depth to depthmap
+        const double epsilon = 0.00001;
+        for(auto x=0; x<width; ++x) {
+            for (auto y = 0; y < height; ++y) {
+                double l = (double) model->getLabel(y * width + x);
+                double disp = min_disp + l * (max_disp - min_disp) / (double) dispResolution;
+                if(disp < epsilon)
+                    refDisparity.setDepthAtInt(x, y, -1);
+                else
+                    refDisparity.setDepthAtInt(x, y, l);
+            }
+        }
+        refDisparity.updateStatics();
+    }
 }//namespace dynamic_stereo

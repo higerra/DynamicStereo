@@ -81,9 +81,11 @@ namespace dynamic_stereo {
 
 		void planeFromPointsLeastSquare(const std::vector<Eigen::Vector3d> &pts, Plane3D &plane) {
 			MatrixXd A(pts.size(), 3);
-			VectorXd b(pts.size(), -1);
-			for (auto i = 0; i < pts.size(); ++i)
+			VectorXd b(pts.size());
+			for (auto i = 0; i < pts.size(); ++i) {
 				A.block<1, 3>(i, 0) = pts[i];
+				b[i] = -1;
+			}
 			Vector3d n = A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b);
 			CHECK_GT(n.norm(), 0);
 			Vector3d pt(0, 0, 0);
@@ -99,34 +101,48 @@ namespace dynamic_stereo {
 
 		void planeFromPointsRANSAC(const std::vector<Eigen::Vector3d> &pts, Plane3D &plane, const double dis_thres,
 								   const int max_iter) {
-			int max_inlier = -1;
+			size_t max_inlier = 0;
 			int N = (int)pts.size();
 			CHECK_GE(N, 3);
+//			cout << "Solving plane RANSAC:" << endl;
+//			for(int i=0; i<pts.size(); ++i)
+//				cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << endl;
 			if(N == 3){
 				plane = Plane3D(pts[0], pts[1], pts[2]);
 				return;
 			}
+			unsigned int seed = 0;
 			for(int iter=0; iter < max_iter; ++iter){
-				//printf("======================\niter %d\n", iter);
-				srand(time(NULL));
+				srand(seed++);
 				int id1 = rand() % N;
+				srand(seed++);
 				int id2 = rand() % N;
+				srand(seed++);
 				int id3 = rand() % N;
-				//printf("id1:%d, id2:%d, id3:%d\n", id1, id2, id3);
+				if(id1 == id2 || id1 == id3 || id2 == id3) {
+					iter--;
+					continue;
+				}
+//				printf("======================\niter %d\n", iter);
+//				printf("id1:%d, id2:%d, id3:%d\n", id1, id2, id3);
 				Plane3D curplane(pts[id1], pts[id2], pts[id3]);
-				//printf("plane: (%.2f,%.2f,%.2f,%.2f)\n", curplane.getNormal()[0], curplane.getNormal()[1], curplane.getNormal()[2], curplane.getOffset());
+//				printf("plane: (%.2f,%.2f,%.2f,%.2f)\n", curplane.getNormal()[0], curplane.getNormal()[1], curplane.getNormal()[2], curplane.getOffset());
 				vector<Vector3d> inliers;
-				inliers.reserve(pts.size());
 				for(int i=0; i<pts.size(); ++i){
 					double dis = curplane.getDistance(pts[i]);
 					if(dis < dis_thres)
 						inliers.push_back(pts[i]);
 				}
-				//printf("inlier size: %d\n", (int)inliers.size());
-				if(inliers.size() > max_inlier)
+//				printf("inlier size: %lu, max_inlier:%lu\n", inliers.size(), max_inlier);
+				if(inliers.size() > max_inlier) {
 					planeFromPointsLeastSquare(inliers, plane);
-				//printf("Current optimal plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
+					max_inlier = inliers.size();
+//					printf("new fitted plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
+//					printf("Max inlier: %lu\n", max_inlier);
+				}
+//				printf("Current optimal plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
 			}
+//			printf("Optimal plane: (%.2f,%.2f,%.2f,%.2f)\n", plane.getNormal()[0], plane.getNormal()[1], plane.getNormal()[2], plane.getOffset());
 		}
 
 	}//namespace plane_util

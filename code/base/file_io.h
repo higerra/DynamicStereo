@@ -89,7 +89,7 @@ namespace dynamic_stereo{
         inline std::string getPose(const int id) const {
             CHECK_LT(id, getTotalNum());
             char buffer[1024] = {};
-            sprintf(buffer, "%s/pose/pose%05d.txt", directory.c_str(), id + startid);
+            sprintf(buffer, "%s/pose%05d.txt", getDirectory().c_str(), id);
             return std::string(buffer);
         }
 

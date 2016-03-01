@@ -31,6 +31,6 @@ endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/MRF2.2)
-add_subdirectory(DynamicStereo/external/QPBO1.4)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/SfM)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DynamicStereo)
