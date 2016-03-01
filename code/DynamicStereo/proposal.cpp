@@ -24,28 +24,29 @@ namespace dynamic_stereo{
         const int nPixels = w * h;
         const double epsilon = (double)1e-05;
         const double dis_thres = 1;
+
+        const double max_dim = 255.0;
+        const double min_depth = 1.0 / max_disp;
+        const double max_depth = 1.0 / min_disp;
+
+        //lambda functions to map between disparity and depth. Depth are rescaled to 0~max_dim for numerical stability
+        auto dispToDepth = [=](const double dispv){
+            double d2 = (dispv * (max_disp - min_disp) / dispResolution + min_disp);
+            CHECK_NE(d2, 0);
+            double d = 1.0 / d2;
+            return (d - min_depth)  / (max_depth - min_depth) * (double)max_dim;
+        };
+
+        auto depthToDisp = [=](const double depthv){
+            double d = depthv / (double)max_dim * (max_depth - min_depth) + min_depth;
+            CHECK_NE(d, 0);
+            return ((1.0 / d) - min_disp) * dispResolution / (max_disp - min_disp);
+        };
+
+
         planarDisp = noisyDisp;
         for(auto i=0; i<planarDisp.getRawData().size(); ++i)
-            planarDisp.getRawData()[i] = noisyDisp.getRawData()[i];
-
-
-	    const double max_dim = 255.0;
-	    const double min_depth = 1.0 / max_disp;
-	    const double max_depth = 1.0 / min_disp;
-
-	    //lambda functions to map between disparity and depth. Depth are rescaled to 0~max_dim for numerical stability
-	    auto dispToDepth = [=](const double dispv){
-		    double d2 = (dispv * (max_disp - min_disp) / dispResolution + min_disp);
-		    CHECK_NE(d2, 0);
-		    double d = 1.0 / d2;
-		    return (d - min_depth)  / (max_depth - min_depth) * (double)max_dim;
-	    };
-
-	    auto depthToDisp = [=](const double depthv){
-		    double d = depthv / (double)max_dim * (max_depth - min_depth) + min_depth;
-		    CHECK_NE(d, 0);
-		    return ((1.0 / d) - min_disp) * dispResolution / (max_disp - min_disp);
-	    };
+            planarDisp.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
 
 	    //debug for lambda function
 	    for(double testdisp = 0.0; testdisp<dispResolution; testdisp+=1.0) {
@@ -57,7 +58,6 @@ namespace dynamic_stereo{
 
         for(const auto& idxs: seg){
 	        bool verbose = false;
-
             std::vector<Eigen::Vector3d> pts;
             for(const auto idx: idxs){
                 CHECK_LT(idx, nPixels);
@@ -81,7 +81,7 @@ namespace dynamic_stereo{
 		        if(verbose){
 			        std::cout << "Points colinear" << std::endl;
 			        for(int i=0; i<pts.size(); ++i)
-				        std::cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << std::endl;
+				        printf("(%.2f,%.2f,%.2f), depth: %.2f)\n", pts[i][0], pts[i][1], pts[i][2], planarDisp.getDepthAtInt((int)pts[i][0], (int)pts[i][1]));
 			        std::cout << "Det: " << A2det << std::endl;
 		        }
 		        continue;
@@ -123,7 +123,7 @@ namespace dynamic_stereo{
 		            double rdepth = (-1 * offset - n[0]*x - n[1] * y) / n[2];
 		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, (-1 * offset - n[0] * x - n[1] * y) / n[2], curdisp, depthToDisp(rdepth));
 	            }
-                planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution), 0.0));
+                //planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution), 0.0));
 	            planarDisp.setDepthAtInd(idx, std::max(std::min(d, max_dim), 0.0));
             }
         }
