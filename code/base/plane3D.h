@@ -39,6 +39,7 @@ namespace dynamic_stereo {
 	private:
 		Eigen::Vector3d normal;
 		double offset;
+		static double epsilon;
 	};
 
 	namespace plane_util {
@@ -46,8 +47,8 @@ namespace dynamic_stereo {
 							   const Plane3D &plane2,
 							   Eigen::Vector3d &normal,
 							   Eigen::Vector3d &pt);
-		void PlaneFromPointsLeastSquare(const std::vector<Eigen::Vector3d>& pts, Plane3D& plane);
-		void planeFromPointsRANSAC(const std::vector<Eigen::Vector3d>& pts, Plane3D& plane, const double dis_thres, const int max_iter = 500);
+		bool PlaneFromPointsLeastSquare(const std::vector<Eigen::Vector3d>& pts, Plane3D& plane);
+		bool planeFromPointsRANSAC(const std::vector<Eigen::Vector3d>& pts, Plane3D& plane, const double dis_thres, const int max_iter = 500, bool verbose = false);
 	}
 
 }

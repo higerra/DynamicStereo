@@ -26,7 +26,8 @@ namespace dynamic_stereo {
         //  images_: reference image
         //  noisyDisp_: disparity map from only unary term
         //  num_proposal: number of proposal to generate. NOTE: currently fixed to 7
-        ProposalSegPln(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_, const int num_proposal_ = 7);
+        ProposalSegPln(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_,
+                       const double min_disp_, const double max_disp_, const int num_proposal_ = 7);
         virtual void genProposal(std::vector<Depth>& proposals);
     protected:
         void fitDisparityToPlane(const std::vector<std::vector<int> >& seg, Depth& planarDisp);
@@ -47,11 +48,14 @@ namespace dynamic_stereo {
         const int h;
 
         const int dispResolution;
+	    const double min_disp;
+	    const double max_disp;
     };
 
     class ProposalSegPlnMeanshift: public ProposalSegPln{
     public:
-        ProposalSegPlnMeanshift(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_, const int num_proposal_ = 7);
+	    ProposalSegPlnMeanshift(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_,
+	                   const double min_disp_, const double max_disp_, const int num_proposal_ = 7);
     protected:
         virtual void segment(const int pid, std::vector<std::vector<int> >& seg);
     };

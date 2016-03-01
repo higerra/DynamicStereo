@@ -33,12 +33,6 @@ namespace dynamic_stereo{
             for(auto k=1; k<nLevel; ++k)
                 pyrDown(pyramid[k-1], pyramid[k]);
             images[i] = pyramid.back().clone();
-
-            const theia::Camera cam = reconstruction.View(i+offset)->Camera();
-            cout << "Projection matrix for view " << i+offset<< endl;
-            theia::Matrix3x4d pm;
-            cam.GetProjectionMatrix(&pm);
-            cout << pm << endl;
         }
         CHECK_GT(images.size(), 2) << "Too few images";
         width = images.front().cols;
@@ -108,7 +102,7 @@ namespace dynamic_stereo{
 
         initMRF();
 
-        {
+	    {
             //debug: inspect unary term
             const int tx = 514/downsample;
             const int ty = 478/downsample;
@@ -124,18 +118,18 @@ namespace dynamic_stereo{
         sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
         dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
 
-//        cout << "Generating plane proposal" << endl;
-//        ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution);
-//        vector<Depth> proposals;
-//        proposalFactory.genProposal(proposals);
-//        for(auto i=0; i<proposals.size(); ++i){
-//            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
-//            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
-//        }
+        cout << "Generating plane proposal" << endl;
+        ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
+        vector<Depth> proposals;
+        proposalFactory.genProposal(proposals);
+        for(auto i=0; i<proposals.size(); ++i){
+            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
+            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
+        }
 
         //cout << "Creating graphical model..." << endl;
-        shared_ptr<MRF> mrf = createProblem();
-        optimize(mrf);
+//        shared_ptr<MRF> mrf = createProblem();
+//        optimize(mrf);
 
 //        CHECK_GT(max_depth, 0);
 //
