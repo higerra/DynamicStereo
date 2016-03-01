@@ -30,7 +30,7 @@ namespace dynamic_stereo {
                        const double min_disp_, const double max_disp_, const int num_proposal_ = 7);
         virtual void genProposal(std::vector<Depth>& proposals);
     protected:
-        void fitDisparityToPlane(const std::vector<std::vector<int> >& seg, Depth& planarDisp);
+        void fitDisparityToPlane(const std::vector<std::vector<int> >& seg, Depth& planarDisp, int id);
 
         //input:
         //  pid: id of parameter setting

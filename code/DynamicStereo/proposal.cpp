@@ -18,18 +18,18 @@ namespace dynamic_stereo{
 
     }
 
-    void ProposalSegPln::fitDisparityToPlane(const std::vector<std::vector<int> >& seg, Depth& planarDisp) {
+    void ProposalSegPln::fitDisparityToPlane(const std::vector<std::vector<int> >& seg, Depth& planarDisp, int id) {
         const int w = noisyDisp.getWidth();
         const int h = noisyDisp.getHeight();
         const int nPixels = w * h;
         const double epsilon = (double)1e-05;
-        const double dis_thres = 10000;
+        const double dis_thres = 1;
         planarDisp = noisyDisp;
         for(auto i=0; i<planarDisp.getRawData().size(); ++i)
             planarDisp.getRawData()[i] = noisyDisp.getRawData()[i];
 
 
-	    const double max_dim = 1.0;
+	    const double max_dim = 255.0;
 	    const double min_depth = 1.0 / max_disp;
 	    const double max_depth = 1.0 / min_disp;
 
@@ -53,7 +53,7 @@ namespace dynamic_stereo{
 		    CHECK_LT(std::abs(testdisp2 - testdisp), epsilon);
 	    }
 
-	    int tx = 300, ty = 30;
+	    int tx = 123, ty = 34;
 
         for(const auto& idxs: seg){
 	        bool verbose = false;
@@ -78,17 +78,22 @@ namespace dynamic_stereo{
 	        Eigen::Matrix3d A2 = A.transpose() * A;
 	        double A2det = A2.determinant();
 	        if(A2det < epsilon) {
-//		        std::cout << "Points colinear" << std::endl;
-//		        for(int i=0; i<pts.size(); ++i)
-//			        std::cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << std::endl;
-//		        std::cout << "Det: " << A2det << std::endl;
+		        if(verbose){
+			        std::cout << "Points colinear" << std::endl;
+			        for(int i=0; i<pts.size(); ++i)
+				        std::cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << std::endl;
+			        std::cout << "Det: " << A2det << std::endl;
+		        }
 		        continue;
 	        }
 
 	        //solve for plane
             Plane3D segPln;
-            if(!plane_util::planeFromPointsRANSAC(pts, segPln, dis_thres, 1000, verbose))
+            if(!plane_util::planeFromPointsRANSAC(pts, segPln, dis_thres, 1000, verbose)) {
+	            if(verbose)
+		            std::cout << "plane from points returns false" << std::endl;
 	            continue;
+            }
 
             double offset = segPln.getOffset();
             Eigen::Vector3d n = segPln.getNormal();
@@ -119,19 +124,30 @@ namespace dynamic_stereo{
 		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, (-1 * offset - n[0] * x - n[1] * y) / n[2], curdisp, depthToDisp(rdepth));
 	            }
                 planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution), 0.0));
+	            planarDisp.setDepthAtInd(idx, std::max(std::min(d, max_dim), 0.0));
             }
         }
+
+	    Depth tempd;
+	    tempd.initialize(w, h, 0.0);
+	    for(auto i=0; i<nPixels; ++i)
+		    tempd.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
+	    char buffer[1024] = {};
+	    sprintf(buffer, "%s/temp/tdepth%03d_1.jpg", file_io.getDirectory().c_str(), id);
+	    tempd.saveImage(std::string(buffer));
+	    sprintf(buffer, "%s/temp/tdepth%03d_2.jpg", file_io.getDirectory().c_str(), id);
+	    planarDisp.saveImage(std::string(buffer));
     }
 
     void ProposalSegPln::genProposal(std::vector<Depth> &proposals) {
         proposals.resize((size_t)num_proposal);
-        for(auto i=0; i<num_proposal; ++i){
+        for(auto i=0; i<1; ++i){
             printf("Proposal %d\n", i);
             std::vector<std::vector<int> > seg;
             printf("Segmenting...\n");
             segment(i, seg);
             printf("Fitting disparity to plane...\n");
-            fitDisparityToPlane(seg, proposals[i]);
+            fitDisparityToPlane(seg, proposals[i], i);
         }
     }
 

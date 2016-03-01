@@ -122,10 +122,10 @@ namespace dynamic_stereo{
         ProposalSegPlnMeanshift proposalFactory(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
         vector<Depth> proposals;
         proposalFactory.genProposal(proposals);
-        for(auto i=0; i<proposals.size(); ++i){
-            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
-            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
-        }
+//        for(auto i=0; i<proposals.size(); ++i){
+//            sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
+//            proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
+//        }
 
         //cout << "Creating graphical model..." << endl;
 //        shared_ptr<MRF> mrf = createProblem();
