@@ -27,10 +27,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 
 namespace segment_gb {
 
-	void makeMask(float sigma, std::vector<float>& mask);
-
-	void convolveMat(const cv::Mat& input, const cv::Mat& output, const std::vector<float>& mask);
-
 	//seg[i][j]: j's pixel id in ith segmentation
 	int segment_image(const cv::Mat& input, cv::Mat& output, std::vector<std::vector<int> >& seg,
 	                   float sigma, float c, int min_size);
