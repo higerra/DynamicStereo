@@ -24,26 +24,32 @@ namespace dynamic_stereo{
         const int h = noisyDisp.getHeight();
         const int nPixels = w * h;
         const double epsilon = (double)1e-05;
-        const double dis_thres = 5;
+        const double dis_thres = 0.3;
 
-        const double max_dim = 255.0;
-        const double min_depth = 1.0 / max_disp;
-        const double max_depth = 1.0 / min_disp;
+        const double max_depth = 255.0;
 
         //lambda functions to map between disparity and depth. Depth are rescaled to 0~max_dim for numerical stability
         auto dispToDepth = [=](const double dispv){
             double d2 = (dispv * (max_disp - min_disp) / dispResolution + min_disp);
             CHECK_NE(d2, 0);
             double d = 1.0 / d2;
-            return (d - min_depth)  / (max_depth - min_depth) * (double)max_dim;
+            return (d - 1.0/max_disp) / (1.0/min_disp - 1.0/max_disp) * max_depth;
+            //return dispv;
         };
 
         auto depthToDisp = [=](const double depthv){
-            double d = depthv / (double)max_dim * (max_depth - min_depth) + min_depth;
+            double d = depthv * (1.0/min_disp - 1.0/max_disp) / max_depth + 1.0 / max_disp;
             CHECK_NE(d, 0);
-            return ((1.0 / d) - min_disp) * dispResolution / (max_disp - min_disp);
+            return (1.0 / d - min_disp) * dispResolution / (max_disp - min_disp);
+            //return depthv;
         };
 
+        //unit testing for lambda function
+        for(double testdisp = 0.0; testdisp<dispResolution; testdisp+=1.0) {
+            double testdisp2 = depthToDisp(dispToDepth(testdisp));
+            //printf("%.5f, %.5f, %.5f\n", testdisp, dispToDepth(testdisp), testdisp2);
+            CHECK_LT(std::abs(testdisp2 - testdisp), epsilon);
+        }
 
         planarDisp = noisyDisp;
 	    Depth planarDepth;
@@ -51,13 +57,8 @@ namespace dynamic_stereo{
         for(auto i=0; i<planarDisp.getRawData().size(); ++i) {
 	        planarDisp.getRawData()[i] = noisyDisp.getRawData()[i];
 	        planarDepth.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
+            //printf("disp: %.5f, depth:%.5f\n", noisyDisp.getRawData()[i], planarDepth.getRawData()[i]);
         }
-
-	    //unit testing for lambda function
-	    for(double testdisp = 0.0; testdisp<dispResolution; testdisp+=1.0) {
-		    double testdisp2 = depthToDisp(dispToDepth(testdisp));
-		    CHECK_LT(std::abs(testdisp2 - testdisp), epsilon);
-	    }
 
 	    int tx = -1, ty = -1;
 
@@ -123,7 +124,7 @@ namespace dynamic_stereo{
                 int x = idx % w;
                 int y = idx / w;
                 double newdepth = (-1 * offset - n[0]*x - n[1] * y) / n[2];
-                double d = std::max(std::min(newdepth, (double)max_dim), 0.0);
+                double d = std::max(std::min(newdepth, max_depth), 0.0);
 	            if(verbose) {
 		            double oridepth = dispToDepth(noisyDisp.getDepthAtInd(idx));
 		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, oridepth, oridepth, newdepth);

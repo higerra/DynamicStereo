@@ -10,10 +10,11 @@ using namespace cv;
 using namespace Eigen;
 namespace dynamic_stereo{
     DynamicStereo::DynamicStereo(const dynamic_stereo::FileIO &file_io_, const int anchor_,
-                                 const int tWindow_, const int downsample_, const double weight_smooth_, const int dispResolution_):
+                                 const int tWindow_, const int downsample_, const double weight_smooth_, const int dispResolution_,
+                                 const double min_disp_, const double max_disp_):
             file_io(file_io_), anchor(anchor_), tWindow(tWindow_), downsample(downsample_), dispResolution(dispResolution_), pR(3),
             weight_smooth(weight_smooth_), MRFRatio(10000),
-            min_disp(-1), max_disp(-1), dispScale(1000){
+            min_disp(min_disp_), max_disp(max_disp_), dispScale(1000){
 
         cout << "Reading..." << endl;
         offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
@@ -48,7 +49,8 @@ namespace dynamic_stereo{
         dispUnary.initialize(width, height, 0.0);
 
         cout << "Computing disparity range" << endl;
-        computeMinMaxDisparity();
+        if(min_disp < 0 || max_disp < 0)
+            computeMinMaxDisparity();
     }
 
     void DynamicStereo::verifyEpipolarGeometry(const int id1, const int id2,
@@ -78,7 +80,9 @@ namespace dynamic_stereo{
         const double max_depth = 1.0 / min_disp;
         printf("min depth:%.3f, max depth:%.3f\n", min_depth, max_depth);
 
-        for(double i=min_disp; i<max_disp; i+=0.001){
+        double cindex = 0.0;
+        double steps = 1000;
+        for(double i=min_disp; i<max_disp; i+=(max_disp-min_disp)/steps){
             Vector3d curpt = cam1.GetPosition() + ray1 * 1.0 / i;
             Vector4d curpt_homo(curpt[0], curpt[1], curpt[2], 1.0);
             Vector2d imgpt;
@@ -88,7 +92,8 @@ namespace dynamic_stereo{
             imgpt = imgpt / (double)downsample;
             //printf("curpt:(%.2f,%.2f,%.2f), Depth:%.3f, pt:(%.2f,%.2f)\n", curpt[0], curpt[1], curpt[2], depth, imgpt[0], imgpt[1]);
             cv::Point cvpt(((int)imgpt[0]), ((int)imgpt[1]));
-            cv::circle(imgR, cvpt, 1, cv::Scalar(0,0,255));
+            cv::circle(imgR, cvpt, 1, cv::Scalar(255 - cindex * 255.0, 0 ,cindex * 255.0));
+            cindex += 1.0 / steps;
         }
     }
 
@@ -110,14 +115,14 @@ namespace dynamic_stereo{
 
 	    {
             //debug: inspect unary term
-//            const int tx = 259;
-//            const int ty = 79;
-//            printf("Unary term for (%d,%d)\n", tx, ty);
-//            for (auto d = 0; d < dispResolution; ++d) {
-//                cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
-//            }
-//            cout << endl;
-//            printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+            const int tx = 13;
+            const int ty = 30;
+            printf("Unary term for (%d,%d)\n", tx, ty);
+            for (auto d = 0; d < dispResolution; ++d) {
+                cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
+            }
+            cout << endl;
+            printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
         }
 
         //generate proposal
@@ -148,7 +153,7 @@ namespace dynamic_stereo{
 //            }
 //        }
 
-        const double scale = 255.0 / (double)dispResolution;
+        const double scale = 255.0 / (double)dispResolution * 2;
         sprintf(buffer, "%s/temp/depth%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
         refDisparity.saveImage(buffer, scale);
     }

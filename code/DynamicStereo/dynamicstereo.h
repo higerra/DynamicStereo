@@ -30,7 +30,7 @@ namespace dynamic_stereo {
     class DynamicStereo {
     public:
         DynamicStereo(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_, const double weight_smooth_,
-                      const int dispResolution_ = 64);
+                      const int dispResolution_ = 64, const double min_disp_ = -1, const double max_disp_ = -1);
         void verifyEpipolarGeometry(const int id1, const int id2,
                                                    const Eigen::Vector2d& pt,
                                                    cv::Mat &imgL, cv::Mat &imgR);

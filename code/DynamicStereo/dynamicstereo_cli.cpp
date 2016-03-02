@@ -15,7 +15,8 @@ DEFINE_int32(tWindow, 72, "tWindow");
 DEFINE_int32(downsample, 4, "downsample ratio");
 DEFINE_int32(resolution, 64, "disparity resolution");
 DEFINE_double(weight_smooth, 0.008, "smoothness weight for stereo");
-DEFINE_double(min_disp, 0.0, "minimum disparity");
+DEFINE_double(min_disp, -1, "minimum disparity");
+DEFINE_double(max_disp, -1, "maximum disparity");
 
 int main(int argc, char **argv) {
 	if (argc < 2) {
@@ -30,11 +31,11 @@ int main(int argc, char **argv) {
 	CHECK_GT(file_io.getTotalNum(), 0);
 	char buffer[1024] = {};
 
-	if (!stlplus::folder_exists(file_io.getDirectory() + "temp"))
-		stlplus::folder_create(file_io.getDirectory() + "temp");
+	if (!stlplus::folder_exists(file_io.getDirectory() + "/temp"))
+		stlplus::folder_create(file_io.getDirectory() + "/temp");
 
 	DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_weight_smooth,
-	                     FLAGS_resolution);
+	                     FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
 
 //    {
 //        //test mean shift segmentation
@@ -69,36 +70,36 @@ int main(int argc, char **argv) {
 
 	{
 		//test graph based segmentation
-		cout << "Test graph based segmentation" << endl;
-		Mat sgtest = imread(file_io.getImage(FLAGS_testFrame));
-		float spTest[] = {1, 1.5, 10};
-		float mults[] = {3,5,8,12,24,50,100};
-		for(auto cid=0; cid < 7; ++cid){
-			cout << "Configuration: " << cid << endl << flush;
-			Mat output;
-			vector<vector<int> > seg;
-			//int nLabel = segment_gb::segment_image(sgtest, output, seg, spTest[0] * mults[cid], spTest[1] * mults[cid], (int)spTest[1] * (int)mults[cid]);
-			int nLabel = segment_gb::segment_image(sgtest, output, seg, 0.8, 500, 30);
-			sprintf(buffer, "%s/temp/gbseg%05d_%03d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, cid);
-			imwrite(buffer, output);
-		}
+//		cout << "Test graph based segmentation" << endl;
+//		Mat sgtest = imread(file_io.getImage(FLAGS_testFrame));
+//		float spTest[] = {1, 1.5, 10};
+//		float mults[] = {3,5,8,12,24,50,100};
+//		for(auto cid=0; cid < 7; ++cid){
+//			cout << "Configuration: " << cid << endl << flush;
+//			Mat output;
+//			vector<vector<int> > seg;
+//			//int nLabel = segment_gb::segment_image(sgtest, output, seg, spTest[0] * mults[cid], spTest[1] * mults[cid], (int)spTest[1] * (int)mults[cid]);
+//			int nLabel = segment_gb::segment_image(sgtest, output, seg, 0.8, 500, 30);
+//			sprintf(buffer, "%s/temp/gbseg%05d_%03d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, cid);
+//			imwrite(buffer, output);
+//		}
 	}
 
 
     {
         //    //test SfM
-//        Mat imgL, imgR;
-//        const int tf1 = FLAGS_testFrame;
-//        //In original scale
-//        Vector2d pt(259 * 4,79 * 4);
-//        for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-//            stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
-//            CHECK_EQ(imgL.size(), imgR.size());
-//            Mat imgAll;
-//            cv::hconcat(imgL, imgR, imgAll);
-//            sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-//            imwrite(buffer, imgAll);
-//        }
+        Mat imgL, imgR;
+        const int tf1 = FLAGS_testFrame;
+        //In original scale
+        Vector2d pt(13, 30);
+        for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+            stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
+            CHECK_EQ(imgL.size(), imgR.size());
+            Mat imgAll;
+            cv::hconcat(imgL, imgR, imgAll);
+            sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+            imwrite(buffer, imgAll);
+        }
     }
 
     stereo.runStereo();
