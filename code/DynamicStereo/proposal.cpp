@@ -5,11 +5,12 @@
 #include "proposal.h"
 #include "base/plane3D.h"
 #include "external/segment_ms/msImageProcessor.h"
+#include "external/segment_gb/segment-image.h"
 
 namespace dynamic_stereo{
     ProposalSegPln::ProposalSegPln(const FileIO& file_io_, const cv::Mat &image_, const Depth &noisyDisp_, const int dispResolution_,
-                                   const double min_disp_, const double max_disp_, const int num_proposal_):file_io(file_io_), noisyDisp(noisyDisp_), image(image_),
-                                                            dispResolution(dispResolution_), min_disp(min_disp_), max_disp(max_disp_), num_proposal(num_proposal_),
+                                   const double min_disp_, const double max_disp_, const std::string& method_, const int num_proposal_):file_io(file_io_), noisyDisp(noisyDisp_), image(image_),
+                                                            dispResolution(dispResolution_), min_disp(min_disp_), max_disp(max_disp_), method(method_), num_proposal(num_proposal_),
                                                             w(image.cols), h(image.rows){
         CHECK_EQ(num_proposal, 7) << "num_proposal should be 7";
         params.resize(4);
@@ -137,13 +138,13 @@ namespace dynamic_stereo{
 	    for(auto i=0; i<nPixels; ++i)
 		    tempd.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
 	    char buffer[1024] = {};
-	    sprintf(buffer, "%s/temp/tdisp%03d_1.jpg", file_io.getDirectory().c_str(), id);
+	    sprintf(buffer, "%s/temp/tdisp_%s_%03d_1.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
 	    noisyDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
-	    sprintf(buffer, "%s/temp/tdisp%03d_2.jpg", file_io.getDirectory().c_str(), id);
+	    sprintf(buffer, "%s/temp/tdisp_%s_%03d_2.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
 	    planarDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
-	    sprintf(buffer, "%s/temp/tdepth%03d_1.jpg", file_io.getDirectory().c_str(), id);
+	    sprintf(buffer, "%s/temp/tdepth_%s_%03d_1.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
 	    tempd.saveImage(std::string(buffer));
-	    sprintf(buffer, "%s/temp/tdepth%03d_2.jpg", file_io.getDirectory().c_str(), id);
+	    sprintf(buffer, "%s/temp/tdepth_%s_%03d_2.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
 	    planarDepth.saveImage(std::string(buffer));
     }
 
@@ -161,11 +162,19 @@ namespace dynamic_stereo{
 
     ProposalSegPlnMeanshift::ProposalSegPlnMeanshift(const FileIO& file_io_, const cv::Mat &image_, const Depth& noisyDisp_,
                                                      const int dispResolution_, const double min_disp_, const double max_disp_,const int num_proposal_):
-            ProposalSegPln(file_io_, image_, noisyDisp_, dispResolution_, min_disp_, max_disp_, num_proposal_){
+            ProposalSegPln(file_io_, image_, noisyDisp_, dispResolution_, min_disp_, max_disp_, "meanshift", num_proposal_){
         mults.resize((size_t)num_proposal);
         for(auto i=0; i<mults.size(); ++i)
             mults[i] = (double)i+1;
     }
+
+	ProposalSegPlnGbSegment::ProposalSegPlnGbSegment(const FileIO& file_io_, const cv::Mat &image_, const Depth& noisyDisp_,
+	                                                 const int dispResolution_, const double min_disp_, const double max_disp_,const int num_proposal_):
+			ProposalSegPln(file_io_, image_, noisyDisp_, dispResolution_, min_disp_, max_disp_, "GbSegment", num_proposal_){
+		mults.resize((size_t)num_proposal);
+		for(auto i=0; i<mults.size(); ++i)
+			mults[i] = (double)i+1;
+	}
 
     void ProposalSegPlnMeanshift::segment(const int pid, std::vector<std::vector<int> > &seg) {
         CHECK_LT(pid, mults.size());
@@ -189,7 +198,7 @@ namespace dynamic_stereo{
             }
         }
         char buffer[1024] = {};
-        sprintf(buffer, "%s/temp/meanshift%03d.jpg", file_io.getDirectory().c_str(), pid);
+        sprintf(buffer, "%s/temp/%s%03d.jpg", file_io.getDirectory().c_str(), method.c_str(), pid);
         imwrite(buffer, segTestRes);
 
         for(auto i=0; i<w*h; ++i){
@@ -198,4 +207,13 @@ namespace dynamic_stereo{
             seg[l].push_back(i);
         }
     }
+
+	void ProposalSegPlnGbSegment::segment(const int pid, std::vector<std::vector<int> > &seg) {
+		cv::Mat output;
+		segment_gb::segment_image(image, output, seg, 0.8, 300, 50);
+
+		char buffer[1024] = {};
+		sprintf(buffer, "%s/temp/%s%03d.jpg", file_io.getDirectory().c_str(), method.c_str(), pid);
+		cv::imwrite(buffer, output);
+	}
 }
