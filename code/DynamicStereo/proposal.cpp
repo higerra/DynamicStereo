@@ -23,7 +23,7 @@ namespace dynamic_stereo{
         const int h = noisyDisp.getHeight();
         const int nPixels = w * h;
         const double epsilon = (double)1e-05;
-        const double dis_thres = 2;
+        const double dis_thres = 5;
 
         const double max_dim = 255.0;
         const double min_depth = 1.0 / max_disp;
@@ -45,8 +45,12 @@ namespace dynamic_stereo{
 
 
         planarDisp = noisyDisp;
-        for(auto i=0; i<planarDisp.getRawData().size(); ++i)
-            planarDisp.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
+	    Depth planarDepth;
+	    planarDepth.initialize(w, h, 0.0);
+        for(auto i=0; i<planarDisp.getRawData().size(); ++i) {
+	        planarDisp.getRawData()[i] = noisyDisp.getRawData()[i];
+	        planarDepth.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
+        }
 
 	    //unit testing for lambda function
 	    for(double testdisp = 0.0; testdisp<dispResolution; testdisp+=1.0) {
@@ -89,7 +93,7 @@ namespace dynamic_stereo{
 
 	        //solve for plane
             Plane3D segPln;
-            if(!plane_util::planeFromPointsRANSAC(pts, segPln, dis_thres, 1000, verbose)) {
+            if(!plane_util::planeFromPointsRANSAC(pts, segPln, dis_thres, 5000, verbose)) {
 	            if(verbose)
 		            std::cout << "plane from points returns false" << std::endl;
 	            continue;
@@ -123,8 +127,8 @@ namespace dynamic_stereo{
 		            double oridepth = dispToDepth(noisyDisp.getDepthAtInd(idx));
 		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, oridepth, oridepth, newdepth);
 	            }
-                //planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution), 0.0));
-	            planarDisp.setDepthAtInd(idx, d);
+                planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution), 0.0));
+	            planarDepth.setDepthAtInd(idx, d);
             }
         }
 
@@ -133,10 +137,14 @@ namespace dynamic_stereo{
 	    for(auto i=0; i<nPixels; ++i)
 		    tempd.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
 	    char buffer[1024] = {};
+	    sprintf(buffer, "%s/temp/tdisp%03d_1.jpg", file_io.getDirectory().c_str(), id);
+	    noisyDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
+	    sprintf(buffer, "%s/temp/tdisp%03d_2.jpg", file_io.getDirectory().c_str(), id);
+	    planarDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
 	    sprintf(buffer, "%s/temp/tdepth%03d_1.jpg", file_io.getDirectory().c_str(), id);
 	    tempd.saveImage(std::string(buffer));
 	    sprintf(buffer, "%s/temp/tdepth%03d_2.jpg", file_io.getDirectory().c_str(), id);
-	    planarDisp.saveImage(std::string(buffer));
+	    planarDepth.saveImage(std::string(buffer));
     }
 
     void ProposalSegPln::genProposal(std::vector<Depth> &proposals) {

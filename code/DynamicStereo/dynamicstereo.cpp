@@ -110,14 +110,14 @@ namespace dynamic_stereo{
 
 	    {
             //debug: inspect unary term
-            const int tx = 9/downsample;
-            const int ty = 8/downsample;
-            printf("Unary term for (%d,%d)\n", tx, ty);
-            for (auto d = 0; d < dispResolution; ++d) {
-                cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
-            }
-            cout << endl;
-            printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+//            const int tx = 259;
+//            const int ty = 79;
+//            printf("Unary term for (%d,%d)\n", tx, ty);
+//            for (auto d = 0; d < dispResolution; ++d) {
+//                cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
+//            }
+//            cout << endl;
+//            printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
         }
 
         //generate proposal

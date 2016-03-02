@@ -127,14 +127,14 @@ namespace dynamic_stereo {
 			if(verbose){
 				printf("=========================\n");
 				cout << "Solving plane RANSAC:" << endl;
-				for(int i=0; i<pts.size(); ++i)
-					cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << endl;
+//				for(int i=0; i<pts.size(); ++i)
+//					cout << pts[i][0] << ' ' << pts[i][1] << ' ' << pts[i][2] << endl;
 
 			}
 			plane = Plane3D();
 			std::default_random_engine generator;
-			std::uniform_int_distribution<int> distribution(0, (int)pts.size()-1);
-			for(int iter=0; iter < std::min(max_iter, N*(N-1)*(N-2)*2); ++iter){
+			std::uniform_int_distribution<int> distribution(0, (int) pts.size() - 1);
+			for(int iter=0; iter < max_iter; ++iter){
 				int id1 = distribution(generator);
 				int id2 = distribution(generator);
 				int id3 = distribution(generator);

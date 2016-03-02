@@ -19,6 +19,7 @@
 #include "base/file_io.h"
 //#include "external/QPBO1.4/ELC.h"
 #include "external/segment_ms/msImageProcessor.h"
+#include "external/segment_gb/segment-image.h"
 #include "external/MRF2.2/mrf.h"
 //#include "MRF2.2/GCoptimization.h"
 //#include <opengm/graphicalmodel/graphicalmodel.hxx>

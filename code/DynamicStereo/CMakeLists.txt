@@ -8,7 +8,8 @@ set(HEADER_FILES dynamicstereo.h proposal.h)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/DynamicStereo)
 
 add_subdirectory(external/segment_ms)
+add_subdirectory(external/segment_gb)
 add_subdirectory(external/MRF2.2)
 add_executable(DynamicStereo ${HEADER_FILES} ${SOURCE_FILES})
 
-target_link_libraries(DynamicStereo base gflags glog ${THEIA_LIBRARIES} segment_ms MRF)
+target_link_libraries(DynamicStereo base gflags glog ${THEIA_LIBRARIES} segment_ms segment_gb MRF)
