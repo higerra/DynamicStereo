@@ -3,7 +3,7 @@
 //
 
 #include "dynamicstereo.h"
-#include "proposal.h"
+#include "optimization.h"
 
 using namespace std;
 using namespace cv;
@@ -67,7 +67,6 @@ namespace dynamic_stereo{
 		width = images.front().cols;
 		height = images.front().rows;
 
-		refDisparity.initialize(width, height,0.0);
 		dispUnary.initialize(width, height, 0.0);
 
 		cout << "Computing disparity range" << endl;
@@ -151,111 +150,80 @@ namespace dynamic_stereo{
 		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
 
-		cout << "Generating plane proposal" << endl;
-		ProposalSegPlnMeanshift proposalFactoryMeanshift(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
-		vector<Depth> proposals;
-		proposalFactoryMeanshift.genProposal(proposals);
-
-//		vector<Depth> proposalsGb;
-//		ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
-//		proposalFactoryGbSegment.genProposal(proposalsGb);
-//		proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
-		for(auto i=0; i<proposals.size(); ++i){
-			sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
-			proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
-		}
-
-		//segment the reference image
-		segment_ms::msImageProcessor ms_segmentator;
-		ms_segmentator.DefineBgImage(images[anchor-offset].data, segment_ms::COLOR, height, width);
-		const int hs = 4;
-		const float hr = 5.0f;
-		const int min_a = 40;
-		ms_segmentator.Segment(hs, hr, min_a, meanshift::SpeedUpLevel::MED_SPEEDUP);
-		refSeg.resize((size_t)width * height);
-		const int * labels = ms_segmentator.GetLabels();
-		for(auto i=0; i<width * height; ++i)
-			refSeg[i] = labels[i];
-
-		{
-			//debug segmentation
-			Mat segOut;
-			segment_util::visualizeSegmentation(refSeg, width, height, segOut);
-			sprintf(buffer, "%s/temp/refSegCRF%05d.jpg", file_io.getDirectory().c_str(), anchor);
-			imwrite(buffer, segOut);
-		}
+//		cout << "Generating plane proposal" << endl;
+//		ProposalSegPlnMeanshift proposalFactoryMeanshift(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
+//		vector<Depth> proposals;
+//		proposalFactoryMeanshift.genProposal(proposals);
+//
+////		vector<Depth> proposalsGb;
+////		ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
+////		proposalFactoryGbSegment.genProposal(proposalsGb);
+////		proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
+//		for(auto i=0; i<proposals.size(); ++i){
+//			sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
+//			proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
+//		}
 
 		//fusion move
-		cout << "Solving with second order smoothness..." << endl;
-		Depth currentBest = dispUnary;
-		for(auto i=0; i<proposals.size(); ++i){
-			cout << "=======================" << endl;
-			cout << "Fusing current best and proposal " << i << endl;
-			fusionMove(currentBest, proposals[i]);
-		}
-		sprintf(buffer, "%s/temp/secondOrder%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		currentBest.saveImage(string(buffer), 255.0 / (double)dispResolution);
-
-
-		cout << "Solving with first order smoothness..." << endl;
-        shared_ptr<MRF> mrf = createProblem();
-        optimize(mrf);
-
-//        CHECK_GT(max_depth, 0);
+//		cout << "Solving with second order smoothness..." << endl;
+//		Depth currentBest = dispUnary;
+//		for(auto i=0; i<proposals.size(); ++i){
+//			cout << "=======================" << endl;
+//			cout << "Fusing current best and proposal " << i << endl;
+//			fusionMove(currentBest, proposals[i]);
+//		}
+//		sprintf(buffer, "%s/temp/secondOrder%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+//		currentBest.saveImage(string(buffer), 255.0 / (double)dispResolution);
 //
-//        Depth d2;
-//        d2.initialize(width, height, 0.0);
-//        for(auto x=0; x<width; ++x){
-//            for(auto y=0; y<height; ++y){
-//                double curd = refDepth.getDepthAtInt(x,y);
-//                d2.setDepthAtInt(x,y,(curd-min_depth) / (max_depth-min_depth) * 255.0);
-//            }
-//        }
-
+//
+		cout << "Solving with first order smoothness..." << endl;
+		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
+		Depth result_firstOrder;
+		optimizer_firstorder.optimize(result_firstOrder, 10);
 		sprintf(buffer, "%s/temp/firstOrder%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		refDisparity.saveImage(buffer, 255.0 / (double)dispResolution);
+		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 	}
 
 	void DynamicStereo::warpToAnchor() const{
-		cout << "Warpping..." << endl;
-		vector<Mat> fullimages(images.size());
-		for(auto i=0; i<fullimages.size(); ++i)
-			fullimages[i] = imread(file_io.getImage(i+offset));
-		vector<Mat> warpped(fullimages.size());
-
-		const int w = fullimages[0].cols;
-		const int h = fullimages[0].rows;
-
-		const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
-
-		for(auto i=0; i<fullimages.size(); ++i){
-			cout << i+offset << ' ' << flush;
-			warpped[i] = fullimages[anchor-offset].clone();
-			if(i == anchor-offset)
-				continue;
-			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
-			for(auto y=downsample; y<h-downsample; ++y){
-				for(auto x=downsample; x<w-downsample; ++x){
-					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
-					ray.normalize();
-					double depth = refDisparity.getDepthAt(Vector2d(x/downsample, y/downsample));
-					Vector3d spt = cam1.GetPosition() + ray * depth;
-					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
-					Vector2d imgpt;
-					cam2.ProjectPoint(spt_homo, &imgpt);
-					if(imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w -1 && imgpt[1] < h - 1){
-						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
-						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
-					}
-				}
-			}
-		}
-
-		cout << endl << "Saving..." << endl;
-		char buffer[1024] = {};
-		for(auto i=0; i<warpped.size(); ++i){
-			sprintf(buffer, "%s/temp/warpped_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),  anchor, i+offset);
-			imwrite(buffer, warpped[i]);
-		}
+//		cout << "Warpping..." << endl;
+//		vector<Mat> fullimages(images.size());
+//		for(auto i=0; i<fullimages.size(); ++i)
+//			fullimages[i] = imread(file_io.getImage(i+offset));
+//		vector<Mat> warpped(fullimages.size());
+//
+//		const int w = fullimages[0].cols;
+//		const int h = fullimages[0].rows;
+//
+//		const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
+//
+//		for(auto i=0; i<fullimages.size(); ++i){
+//			cout << i+offset << ' ' << flush;
+//			warpped[i] = fullimages[anchor-offset].clone();
+//			if(i == anchor-offset)
+//				continue;
+//			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
+//			for(auto y=downsample; y<h-downsample; ++y){
+//				for(auto x=downsample; x<w-downsample; ++x){
+//					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
+//					ray.normalize();
+//					double depth = refDisparity.getDepthAt(Vector2d(x/downsample, y/downsample));
+//					Vector3d spt = cam1.GetPosition() + ray * depth;
+//					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
+//					Vector2d imgpt;
+//					cam2.ProjectPoint(spt_homo, &imgpt);
+//					if(imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w -1 && imgpt[1] < h - 1){
+//						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
+//						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
+//					}
+//				}
+//			}
+//		}
+//
+//		cout << endl << "Saving..." << endl;
+//		char buffer[1024] = {};
+//		for(auto i=0; i<warpped.size(); ++i){
+//			sprintf(buffer, "%s/temp/warpped_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),  anchor, i+offset);
+//			imwrite(buffer, warpped[i]);
+//		}
 	}
 }

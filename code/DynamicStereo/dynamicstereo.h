@@ -48,16 +48,6 @@ namespace dynamic_stereo {
         void initMRF();
         void computeMinMaxDisparity();
         void assignDataTerm();
-        void assignSmoothWeight();
-	    void fusionMove(Depth& p1, const Depth& p2);
-	    void TRBP(Depth& result);
-
-        //void optimize(std::shared_ptr<GraphicalModel> model);
-        void optimize(std::shared_ptr<MRF> model);
-
-
-        std::shared_ptr<MRF> createProblem();
-        //std::shared_ptr<GraphicalModel> createGraphcialModel();
 
         const FileIO& file_io;
         const int anchor;
@@ -80,14 +70,11 @@ namespace dynamic_stereo {
 	    std::vector<int> refSeg;
 
         theia::Reconstruction reconstruction;
-        Depth refDisparity;
         Depth dispUnary; //Noisy disparity map only based on unary term
 
         //for MRF
         std::vector<EnergyType> MRF_data;
-        std::vector<EnergyType> MRF_smooth;
-        std::vector<EnergyType> hCue;
-        std::vector<EnergyType> vCue;
+
         const double weight_smooth;
         const EnergyType MRFRatio;
         const double dispScale;

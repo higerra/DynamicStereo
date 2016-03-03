@@ -32,26 +32,34 @@ namespace dynamic_stereo{
                 return;
             data[x+y*getWidth()] = v;
         }
+
+        inline double operator[] (int idx) const{
+            CHECK_GE(idx, 0);
+            CHECK_LT(idx, data.size());
+            return data[idx];
+        }
+        inline double operator() (int x, int y) const{
+            CHECK_GE(x, 0);
+            CHECK_GE(y, 0);
+            CHECK_LT(x, getWidth());
+            CHECK_LT(y, getHeight());
+            int idx = y * getWidth() + x;
+            return this->operator[](idx);
+        }
+
         inline void setDepthAtInd(const int ind, const double v){
-            if(!(ind < data.size()))
-                return;
+            CHECK_GE(ind, 0);
+            CHECK_LT(ind, data.size());
             data[ind] = v;
         }
 
         double getDepthAt(const Eigen::Vector2d& loc)const;
 
         inline double getDepthAtInt(int x, int y) const{
-            CHECK_GE(x,0);
-            CHECK_GE(y,0);
-            CHECK_LT(x, getWidth());
-            CHECK_LT(y, getHeight());
-
-            return data[x + y*getWidth()];
+            return this->operator()(x,y);
         }
         inline double getDepthAtInd(int ind)const{
-            CHECK_LT(ind, data.size());
-            CHECK_GE(ind, 0);
-            return data[ind];
+            return this->operator[](ind);
         }
 
         inline bool insideDepth(int x,int y)const{
