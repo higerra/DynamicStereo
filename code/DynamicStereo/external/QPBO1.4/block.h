@@ -98,199 +98,212 @@
 /***********************************************************************/
 /***********************************************************************/
 
-template <class Type> class Block
-{
-public:
-	/* Constructor. Arguments are the block size and
-	   (optionally) the pointer to the function which
-	   will be called if allocation failed; the message
-	   passed to this function is "Not enough memory!" */
-	Block(int size, void (*err_function)(const char *) = NULL) { first = last = NULL; block_size = size; error_function = err_function; }
+namespace kolmogorov {
+	namespace qpbo {
 
-	/* Destructor. Deallocates all items added so far */
-	~Block() { while (first) { block *next = first -> next; delete[] ((char*)first); first = next; } }
-
-	/* Allocates 'num' consecutive items; returns pointer
-	   to the first item. 'num' cannot be greater than the
-	   block size since items must fit in one block */
-	Type *New(int num = 1)
-	{
-		Type *t;
-
-		if (!last || last->current + num > last->last)
-		{
-			if (last && last->next) last = last -> next;
-			else
-			{
-				block *next = (block *) new char [sizeof(block) + (block_size-1)*sizeof(Type)];
-				if (!next) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
-				if (last) last -> next = next;
-				else first = next;
-				last = next;
-				last -> current = & ( last -> data[0] );
-				last -> last = last -> current + block_size;
-				last -> next = NULL;
+		template<class Type>
+		class Block {
+		public:
+			/* Constructor. Arguments are the block size and
+			   (optionally) the pointer to the function which
+			   will be called if allocation failed; the message
+			   passed to this function is "Not enough memory!" */
+			Block(int size, void (*err_function)(const char *) = NULL) {
+				first = last = NULL;
+				block_size = size;
+				error_function = err_function;
 			}
-		}
 
-		t = last -> current;
-		last -> current += num;
-		return t;
-	}
+			/* Destructor. Deallocates all items added so far */
+			~Block() {
+				while (first) {
+					block *next = first->next;
+					delete[] ((char *) first);
+					first = next;
+				}
+			}
 
-	/* Returns the first item (or NULL, if no items were added) */
-	Type *ScanFirst()
-	{
-		for (scan_current_block=first; scan_current_block; scan_current_block = scan_current_block->next)
-		{
-			scan_current_data = & ( scan_current_block -> data[0] );
-			if (scan_current_data < scan_current_block -> current) return scan_current_data ++;
-		}
-		return NULL;
-	}
+			/* Allocates 'num' consecutive items; returns pointer
+			   to the first item. 'num' cannot be greater than the
+			   block size since items must fit in one block */
+			Type *New(int num = 1) {
+				Type *t;
 
-	/* Returns the next item (or NULL, if all items have been read)
-	   Can be called only if previous ScanFirst() or ScanNext()
-	   call returned not NULL. */
-	Type *ScanNext()
-	{
-		while (scan_current_data >= scan_current_block -> current)
-		{
-			scan_current_block = scan_current_block -> next;
-			if (!scan_current_block) return NULL;
-			scan_current_data = & ( scan_current_block -> data[0] );
-		}
-		return scan_current_data ++;
-	}
+				if (!last || last->current + num > last->last) {
+					if (last && last->next) last = last->next;
+					else {
+						block *next = (block * )
+						new char[sizeof(block) + (block_size - 1) * sizeof(Type)];
+						if (!next) {
+							if (error_function) (*error_function)("Not enough memory!");
+							exit(1);
+						}
+						if (last) last->next = next;
+						else first = next;
+						last = next;
+						last->current = &(last->data[0]);
+						last->last = last->current + block_size;
+						last->next = NULL;
+					}
+				}
 
-	struct iterator; // for overlapping scans
-	Type *ScanFirst(iterator& i)
-	{
-		for (i.scan_current_block=first; i.scan_current_block; i.scan_current_block = i.scan_current_block->next)
-		{
-			i.scan_current_data = & ( i.scan_current_block -> data[0] );
-			if (i.scan_current_data < i.scan_current_block -> current) return i.scan_current_data ++;
-		}
-		return NULL;
-	}
-	Type *ScanNext(iterator& i)
-	{
-		while (i.scan_current_data >= i.scan_current_block -> current)
-		{
-			i.scan_current_block = i.scan_current_block -> next;
-			if (!i.scan_current_block) return NULL;
-			i.scan_current_data = & ( i.scan_current_block -> data[0] );
-		}
-		return i.scan_current_data ++;
-	}
+				t = last->current;
+				last->current += num;
+				return t;
+			}
 
-	/* Marks all elements as empty */
-	void Reset()
-	{
-		block *b;
-		if (!first) return;
-		for (b=first; ; b=b->next)
-		{
-			b -> current = & ( b -> data[0] );
-			if (b == last) break;
-		}
-		last = first;
-	}
+			/* Returns the first item (or NULL, if no items were added) */
+			Type *ScanFirst() {
+				for (scan_current_block = first; scan_current_block; scan_current_block = scan_current_block->next) {
+					scan_current_data = &(scan_current_block->data[0]);
+					if (scan_current_data < scan_current_block->current) return scan_current_data++;
+				}
+				return NULL;
+			}
 
-/***********************************************************************/
+			/* Returns the next item (or NULL, if all items have been read)
+			   Can be called only if previous ScanFirst() or ScanNext()
+			   call returned not NULL. */
+			Type *ScanNext() {
+				while (scan_current_data >= scan_current_block->current) {
+					scan_current_block = scan_current_block->next;
+					if (!scan_current_block) return NULL;
+					scan_current_data = &(scan_current_block->data[0]);
+				}
+				return scan_current_data++;
+			}
 
-private:
+			struct iterator; // for overlapping scans
+			Type *ScanFirst(iterator &i) {
+				for (i.scan_current_block = first; i.scan_current_block; i.scan_current_block = i.scan_current_block->next) {
+					i.scan_current_data = &(i.scan_current_block->data[0]);
+					if (i.scan_current_data < i.scan_current_block->current) return i.scan_current_data++;
+				}
+				return NULL;
+			}
 
-	typedef struct block_st
-	{
-		Type					*current, *last;
-		struct block_st			*next;
-		Type					data[1];
-	} block;
+			Type *ScanNext(iterator &i) {
+				while (i.scan_current_data >= i.scan_current_block->current) {
+					i.scan_current_block = i.scan_current_block->next;
+					if (!i.scan_current_block) return NULL;
+					i.scan_current_data = &(i.scan_current_block->data[0]);
+				}
+				return i.scan_current_data++;
+			}
 
-	int		block_size;
-	block	*first;
-	block	*last;
-public:
-	struct iterator
-	{
-		block	*scan_current_block;
-		Type	*scan_current_data;
-	};
-private:
-	block	*scan_current_block;
-	Type	*scan_current_data;
-
-	void	(*error_function)(const char *);
-};
-
-/***********************************************************************/
-/***********************************************************************/
-/***********************************************************************/
-
-template <class Type> class DBlock
-{
-public:
-	/* Constructor. Arguments are the block size and
-	   (optionally) the pointer to the function which
-	   will be called if allocation failed; the message
-	   passed to this function is "Not enough memory!" */
-	DBlock(int size, void (*err_function)(const char *) = NULL) { first = NULL; first_free = NULL; block_size = size; error_function = err_function; }
-
-	/* Destructor. Deallocates all items added so far */
-	~DBlock() { while (first) { block *next = first -> next; delete[] ((char*)first); first = next; } }
-
-	/* Allocates one item */
-	Type *New()
-	{
-		block_item *item;
-
-		if (!first_free)
-		{
-			block *next = first;
-			first = (block *) new char [sizeof(block) + (block_size-1)*sizeof(block_item)];
-			if (!first) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
-			first_free = & (first -> data[0] );
-			for (item=first_free; item<first_free+block_size-1; item++)
-				item -> next_free = item + 1;
-			item -> next_free = NULL;
-			first -> next = next;
-		}
-
-		item = first_free;
-		first_free = item -> next_free;
-		return (Type *) item;
-	}
-
-	/* Deletes an item allocated previously */
-	void Delete(Type *t)
-	{
-		((block_item *) t) -> next_free = first_free;
-		first_free = (block_item *) t;
-	}
+			/* Marks all elements as empty */
+			void Reset() {
+				block *b;
+				if (!first) return;
+				for (b = first; ; b = b->next) {
+					b->current = &(b->data[0]);
+					if (b == last) break;
+				}
+				last = first;
+			}
 
 /***********************************************************************/
 
-private:
+		private:
 
-	typedef union block_item_st
-	{
-		Type			t;
-		block_item_st	*next_free;
-	} block_item;
+			typedef struct block_st {
+				Type *current, *last;
+				struct block_st *next;
+				Type data[1];
+			} block;
 
-	typedef struct block_st
-	{
-		struct block_st			*next;
-		block_item				data[1];
-	} block;
+			int block_size;
+			block *first;
+			block *last;
+		public:
+			struct iterator {
+				block *scan_current_block;
+				Type *scan_current_data;
+			};
+		private:
+			block *scan_current_block;
+			Type *scan_current_data;
 
-	int			block_size;
-	block		*first;
-	block_item	*first_free;
+			void    (*error_function)(const char *);
+		};
 
-	void	(*error_function)(const char *);
-};
+/***********************************************************************/
+/***********************************************************************/
+/***********************************************************************/
+
+		template<class Type>
+		class DBlock {
+		public:
+			/* Constructor. Arguments are the block size and
+			   (optionally) the pointer to the function which
+			   will be called if allocation failed; the message
+			   passed to this function is "Not enough memory!" */
+			DBlock(int size, void (*err_function)(const char *) = NULL) {
+				first = NULL;
+				first_free = NULL;
+				block_size = size;
+				error_function = err_function;
+			}
+
+			/* Destructor. Deallocates all items added so far */
+			~DBlock() {
+				while (first) {
+					block *next = first->next;
+					delete[] ((char *) first);
+					first = next;
+				}
+			}
+
+			/* Allocates one item */
+			Type *New() {
+				block_item *item;
+
+				if (!first_free) {
+					block *next = first;
+					first = (block * )
+					new char[sizeof(block) + (block_size - 1) * sizeof(block_item)];
+					if (!first) {
+						if (error_function) (*error_function)("Not enough memory!");
+						exit(1);
+					}
+					first_free = &(first->data[0]);
+					for (item = first_free; item < first_free + block_size - 1; item++)
+						item->next_free = item + 1;
+					item->next_free = NULL;
+					first->next = next;
+				}
+
+				item = first_free;
+				first_free = item->next_free;
+				return (Type *) item;
+			}
+
+			/* Deletes an item allocated previously */
+			void Delete(Type *t) {
+				((block_item *) t)->next_free = first_free;
+				first_free = (block_item *) t;
+			}
+
+/***********************************************************************/
+
+		private:
+
+			typedef union block_item_st {
+				Type t;
+				block_item_st *next_free;
+			} block_item;
+
+			typedef struct block_st {
+				struct block_st *next;
+				block_item data[1];
+			} block;
+
+			int block_size;
+			block *first;
+			block_item *first_free;
+
+			void    (*error_function)(const char *);
+		};
 
 
 /***********************************************************************/
@@ -299,38 +312,44 @@ private:
 
 // there is no Free() function, just Alloc() that could return the same pointer.
 // The allocated space grows as needed.
-class ReusableBuffer
-{
-public:
-	/* Constructor. */
-	ReusableBuffer(void (*err_function)(const char *) = NULL) : size_max(0), buf(NULL), error_function(err_function) {}
-	~ReusableBuffer() { if (buf) free(buf); }
+		class ReusableBuffer {
+		public:
+			/* Constructor. */
+			ReusableBuffer(void (*err_function)(const char *) = NULL) : size_max(0), buf(NULL),
+			                                                            error_function(err_function) { }
 
-	void* Alloc(int size)
-	{
-		if (size <= size_max) return buf;
-		size_max = (int)(1.2*size_max) + size;
-		if (buf) free(buf);
-		buf = (char*)malloc(size_max);
-		if (!buf) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
-		return buf;
-	}
-	void* Realloc(int size)
-	{
-		if (size <= size_max) return buf;
-		size_max = (int)(1.2*size_max) + size;
-		if (buf) buf = (char*)realloc(buf, size_max);
-		else     buf = (char*)malloc(size_max);
-		if (!buf) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
-		return buf;
-	}
+			~ReusableBuffer() { if (buf) free(buf); }
 
-private:
-	char* buf;
-	int size_max;
+			void *Alloc(int size) {
+				if (size <= size_max) return buf;
+				size_max = (int) (1.2 * size_max) + size;
+				if (buf) free(buf);
+				buf = (char *) malloc(size_max);
+				if (!buf) {
+					if (error_function) (*error_function)("Not enough memory!");
+					exit(1);
+				}
+				return buf;
+			}
 
-	void	(*error_function)(const char *);
-};
+			void *Realloc(int size) {
+				if (size <= size_max) return buf;
+				size_max = (int) (1.2 * size_max) + size;
+				if (buf) buf = (char *) realloc(buf, size_max);
+				else buf = (char *) malloc(size_max);
+				if (!buf) {
+					if (error_function) (*error_function)("Not enough memory!");
+					exit(1);
+				}
+				return buf;
+			}
+
+		private:
+			char *buf;
+			int size_max;
+
+			void    (*error_function)(const char *);
+		};
 
 
 /***********************************************************************/
@@ -340,50 +359,50 @@ private:
 // Again, no Free() function but different calls to Alloc() return pointers
 // to disjoint chunks of memory (unlike ReusableBuffer). Convenient to avoid
 // explicit garbage collection.
-class Buffer
-{
-public:
-	Buffer(int _default_size, void (*err_function)(const char *) = NULL) 
-		: default_size(_default_size), buf_first(NULL), error_function(err_function) {}
-	~Buffer()
-	{
-		while (buf_first)
-		{
-			char* b = (char*) buf_first;
-			buf_first = buf_first->next;
-			delete [] b;
-		}
+		class Buffer {
+		public:
+			Buffer(int _default_size, void (*err_function)(const char *) = NULL)
+					: default_size(_default_size), buf_first(NULL), error_function(err_function) { }
+
+			~Buffer() {
+				while (buf_first) {
+					char *b = (char *) buf_first;
+					buf_first = buf_first->next;
+					delete[] b;
+				}
+			}
+
+			void *Alloc(int size) {
+				if (!buf_first || buf_first->size + size > buf_first->size_max) {
+					int size_max = 2 * size + default_size;
+					Buf *b = (Buf * )(new char[sizeof(Buf) + size_max]);
+					if (!b) {
+						if (error_function) (*error_function)("Not enough memory!");
+						exit(1);
+					}
+					b->next = buf_first;
+					buf_first = b;
+					b->size = 0;
+					b->size_max = size_max;
+					b->arr = (char *) (b + 1);
+				}
+				char *ptr = &buf_first->arr[buf_first->size];
+				buf_first->size += size;
+				return ptr;
+			}
+
+		private:
+			struct Buf {
+				int size, size_max;
+				char *arr;
+				Buf *next;
+			};
+			int default_size;
+			Buf *buf_first;
+
+			void    (*error_function)(const char *);
+		};
 	}
-
-	void* Alloc(int size)
-	{
-		if (!buf_first || buf_first->size+size>buf_first->size_max)
-		{
-			int size_max = 2*size + default_size;
-			Buf* b = (Buf*)(new char[sizeof(Buf)+size_max]);
-			if (!b) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
-			b->next = buf_first;
-			buf_first = b;
-			b->size = 0;
-			b->size_max = size_max;
-			b->arr = (char*)(b+1);
-		}
-		char* ptr = &buf_first->arr[buf_first->size];
-		buf_first->size += size;
-		return ptr;
-	}
-private:
-	struct Buf
-	{
-		int size, size_max;
-		char* arr;
-		Buf* next;
-	};
-	int default_size;
-	Buf* buf_first;
-
-	void	(*error_function)(const char *);
-};
-
+}
 #endif
 

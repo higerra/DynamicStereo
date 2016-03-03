@@ -129,7 +129,7 @@ namespace dynamic_stereo{
 		            double oridepth = dispToDepth(noisyDisp.getDepthAtInd(idx));
 		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, oridepth, oridepth, newdepth);
 	            }
-                planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution), 0.0));
+                planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution-1), 0.0));
 	            planarDepth.setDepthAtInd(idx, d);
             }
         }
@@ -152,7 +152,7 @@ namespace dynamic_stereo{
     void ProposalSegPln::genProposal(std::vector<Depth> &proposals) {
         proposals.resize((size_t)num_proposal);
         for(auto i=0; i<proposals.size(); ++i){
-            printf("Proposal %d\n", i);
+            printf("Proposal %d with %s\n", i, method.c_str());
             std::vector<std::vector<int> > seg;
             printf("Segmenting...\n");
             segment(i, seg);
@@ -173,8 +173,7 @@ namespace dynamic_stereo{
 	                                                 const int dispResolution_, const double min_disp_, const double max_disp_,const int num_proposal_):
 			ProposalSegPln(file_io_, image_, noisyDisp_, dispResolution_, min_disp_, max_disp_, "GbSegment", num_proposal_){
 		mults.resize((size_t)num_proposal);
-		for(auto i=0; i<mults.size(); ++i)
-			mults[i] = (double)i+1;
+		mults[0] = 3; mults[1] = 5; mults[2] = 8; mults[3] = 12; mults[4] = 24; mults[5] = 50; mults[6] = 100;
 	}
 
     void ProposalSegPlnMeanshift::segment(const int pid, std::vector<std::vector<int> > &seg) {
@@ -211,8 +210,9 @@ namespace dynamic_stereo{
 
 	void ProposalSegPlnGbSegment::segment(const int pid, std::vector<std::vector<int> > &seg) {
 		cv::Mat output;
-		segment_gb::segment_image(image, output, seg, 0.8, 300, 50);
-
+		printf("Paramater: 0.8, %.2f,%d\n",(float)(mults[pid] * params[3]), (int)(mults[pid] * params[2]));
+		segment_gb::segment_image(image, output, seg,
+		                          0.8f, (float)(mults[pid] * params[3]), (int)(mults[pid] * params[2]));
 		char buffer[1024] = {};
 		sprintf(buffer, "%s/temp/%s%03d.jpg", file_io.getDirectory().c_str(), method.c_str(), pid);
 		cv::imwrite(buffer, output);

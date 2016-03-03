@@ -46,12 +46,15 @@ namespace segment_gb{
 		const int height = input.rows;
 		cv::Mat temp, smooth;
 
+		std::cout << "c1" << std::endl << std::flush;
 		std::vector<float> mask;
 		makeMask(sigma, mask);
 
+		std::cout << "c2" << std::endl << std::flush;
 		convolveMat(input, temp, mask);
 		convolveMat(temp, smooth, mask);
 
+		std::cout << "c3" << std::endl << std::flush;
 		auto colorDiff = [](const cv::Mat& i1, const cv::Mat& i2, int x1, int y1, int x2, int y2){
 			CHECK_EQ(i1.size(), i2.size());
 			CHECK(x1 >= 0 && x1 <i1.cols);
@@ -100,8 +103,9 @@ namespace segment_gb{
 			}
 		}
 
-
+		std::cout << "c4" << std::endl << std::flush;
 		std::unique_ptr<universe> u(segment_graph(width * height, num, edges.data(), c));
+		std::cout << "c5" << std::endl << std::flush;
 
 		// post process small components
 		for (int i = 0; i < num; i++) {
@@ -110,19 +114,24 @@ namespace segment_gb{
 			if ((a != b) && ((u->size(a) < min_size) || (u->size(b) < min_size)))
 				u->join(a, b);
 		}
+		std::cout << "c6" << std::endl << std::flush;
 
 		output = cv::Mat(height, width, CV_8UC3);
 
 // pick random colors for each component
 		std::vector<cv::Vec3b> colorTable((size_t)width * height);
 
+		std::cout << "c61" << std::endl << std::flush;
+
 		std::default_random_engine generator;
 		std::uniform_int_distribution<int> distribution(0, 255);
 
+		std::cout << "c62" << std::endl << std::flush;
 		for (int i = 0; i < width * height; i++) {
 			for(int j=0; j<3; ++j)
 				colorTable[i][j] = (uchar)distribution(generator);
 		}
+		std::cout << "c63" << std::endl << std::flush;
 
 		int nLabels = -1;
 		std::vector<int> labels((size_t)width * height);
@@ -134,14 +143,15 @@ namespace segment_gb{
 				output.at<cv::Vec3b>(y,x) = colorTable[comp];
 			}
 		}
-
+		std::cout << "c64" << std::endl << std::flush;
 		seg.clear();
+		std::cout << "c65" << std::endl << std::flush;
 		seg.resize((size_t)nLabels);
+		std::cout << "c7" << std::endl << std::flush;
 		for(int i=0; i<width * height; ++i)
 			seg[labels[i]].push_back(i);
 
 		u.reset();
-
 		return nLabels;
 	}
 }

@@ -49,7 +49,7 @@ namespace dynamic_stereo {
         void computeMinMaxDisparity();
         void assignDataTerm();
         void assignSmoothWeight();
-	    void fusionProposal(Depth& current, Depth& newProposal);
+	    void fusionMove(Depth& p1, const Depth& p2);
 
         //void optimize(std::shared_ptr<GraphicalModel> model);
         void optimize(std::shared_ptr<MRF> model);
@@ -74,6 +74,10 @@ namespace dynamic_stereo {
 
         //downsampled version
         std::vector<cv::Mat> images;
+
+	    //segmentation from meanshift, used for space varying CRF weight
+	    std::vector<int> refSeg;
+
         theia::Reconstruction reconstruction;
         Depth refDisparity;
         Depth dispUnary; //Noisy disparity map only based on unary term
@@ -92,6 +96,10 @@ namespace dynamic_stereo {
         void samplePatch(const cv::Mat& img, const Eigen::Vector2d& loc, const int pR, std::vector<double>& pix);
         double medianMatchingCost(const std::vector<std::vector<double> >& patches, const int refId);
     }
+
+	namespace segment_uilt{
+		void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output);
+	}
 }
 
 #endif //DYNAMICSTEREO_DYNAMICSTEREO_H
