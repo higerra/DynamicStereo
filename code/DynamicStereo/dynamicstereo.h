@@ -49,6 +49,7 @@ namespace dynamic_stereo {
         void computeMinMaxDisparity();
         void assignDataTerm();
         void assignSmoothWeight();
+	    void fusionProposal(Depth& current, Depth& newProposal);
 
         //void optimize(std::shared_ptr<GraphicalModel> model);
         void optimize(std::shared_ptr<MRF> model);
