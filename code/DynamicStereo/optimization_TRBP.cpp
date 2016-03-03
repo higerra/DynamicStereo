@@ -41,14 +41,29 @@ namespace dynamic_stereo{
         char buffer[1024] = {};
         //formulate problem with OpenGM
         typedef opengm::SimpleDiscreteSpace<size_t, size_t> Space;
-        typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, Space> Model;
-        typedef opengm::TrbpUpdateRules<Model, opengm::Maximizer> UpdateRules;
-        typedef opengm::MessagePassing<Model, opengm::Maximizer, UpdateRules, opengm::MaxDistance> TRBP;
+        typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, Space> GraphicalModel;
+        typedef opengm::TrbpUpdateRules<GraphicalModel, opengm::Maximizer> UpdateRules;
+        typedef opengm::MessagePassing<GraphicalModel, opengm::Maximizer, UpdateRules, opengm::MaxDistance> TRBP;
 
         Space space(width * height, nLabel);
-        Model gm(space);
-	    //add unaryterms
-	    
+        GraphicalModel gm(space);
+	    //add unary terms
+        size_t shape[] = {(size_t)nLabel, (size_t)nLabel};
+        for(auto i=0; i<width * height; ++i){
+            opengm::ExplicitFunction<EnergyType> f(shape, shape+1);
+            for(auto l=0; l<nLabel; ++l)
+                f(l) = MRF_data[nLabel*i+l];
+            GraphicalModel::FunctionIdentifier fid = gm.addFunction(f);
+            size_t vid[] = {(size_t)i};
+            gm.addFactor(fid, vid, vid+1);
+        }
+
+        //add triple terms
+        for(auto y=1; y<height-1; ++y) {
+            for (auto x = 1; x < width - 1; ++x) {
+
+            }
+        }
     }
 
     double SecondOrderOptimizeTRBP::evaluateEnergy(const Depth& disp) const {
