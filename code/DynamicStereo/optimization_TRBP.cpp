@@ -41,14 +41,14 @@ namespace dynamic_stereo{
         char buffer[1024] = {};
         //formulate problem with OpenGM
         typedef opengm::SimpleDiscreteSpace<size_t, size_t> Space;
-        typedef opengm::GraphicalModel<EnergyType, opengm::Adder, OPENGM_TYPELIST_2(opengm::ExplicitFunction, opengm::PottsNFunction), Space> Model;
+        typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, Space> Model;
         typedef opengm::TrbpUpdateRules<Model, opengm::Maximizer> UpdateRules;
         typedef opengm::MessagePassing<Model, opengm::Maximizer, UpdateRules, opengm::MaxDistance> TRBP;
 
         Space space(width * height, nLabel);
-        Model gm;
-
-
+        Model gm(space);
+	    //add unaryterms
+	    
     }
 
     double SecondOrderOptimizeTRBP::evaluateEnergy(const Depth& disp) const {
