@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 project(DynamicStereo)
 
 
-set(SOURCE_FILES dynamicstereo.cpp dynamicstereo_cli.cpp MRFDefinition.cpp proposal.cpp fusion.cpp)
+set(SOURCE_FILES dynamicstereo.cpp dynamicstereo_cli.cpp MRFDefinition.cpp proposal.cpp fusion.cpp TRBPOptimize.cpp)
 set(HEADER_FILES dynamicstereo.h proposal.h)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/DynamicStereo)
 

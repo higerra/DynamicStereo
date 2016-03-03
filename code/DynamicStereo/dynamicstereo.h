@@ -50,6 +50,7 @@ namespace dynamic_stereo {
         void assignDataTerm();
         void assignSmoothWeight();
 	    void fusionMove(Depth& p1, const Depth& p2);
+	    void TRBP(Depth& result);
 
         //void optimize(std::shared_ptr<GraphicalModel> model);
         void optimize(std::shared_ptr<MRF> model);
