@@ -198,8 +198,8 @@ namespace dynamic_stereo {
                     if (index % unit == 0)
                         cout << '.' << flush;
 
-                    Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x * downsample, y * downsample));
-                    ray.normalize();
+//                    Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x * downsample, y * downsample));
+//                    ray.normalize();
 #pragma omp parallel for
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
