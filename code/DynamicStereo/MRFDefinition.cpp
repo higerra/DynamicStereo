@@ -53,7 +53,6 @@ namespace dynamic_stereo {
 
         void getSSDArray(const vector<vector<double> >& patches, const int refId, vector<double>& mCost){
             const vector<double> &pRef = patches[refId];
-            mCost.reserve(patches.size() - 1);
 
             for (auto i = 0; i < patches.size(); ++i) {
                 if (i == refId)
@@ -188,7 +187,7 @@ namespace dynamic_stereo {
             }
         }
         if(recompute) {
-            theia::Camera cam1 = reconstruction.View(anchor)->Camera();
+            const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
 
             int index = 0;
             int unit = width * height / 10;
@@ -225,8 +224,7 @@ namespace dynamic_stereo {
                         //project onto other views and compute matching cost
                         vector<vector<double> > patches(images.size());
                         for (auto v = 0; v < images.size(); ++v) {
-                            theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
-                            patches[v].reserve((size_t) 3 * (2 * pR + 1) * (2 * pR + 1));
+                            const theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
                             for (auto &spt: sptBase) {
                                 if (spt[3] == 0) {
                                     patches[v].push_back(-1);
