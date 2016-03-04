@@ -173,7 +173,9 @@ namespace dynamic_stereo{
 	                                                 const int dispResolution_, const double min_disp_, const double max_disp_,const int num_proposal_):
 			ProposalSegPln(file_io_, image_, noisyDisp_, dispResolution_, min_disp_, max_disp_, "GbSegment", num_proposal_){
 		mults.resize((size_t)num_proposal);
-		mults[0] = 3; mults[1] = 5; mults[2] = 8; mults[3] = 12; mults[4] = 24; mults[5] = 50; mults[6] = 100;
+        for(auto i=0; i<mults.size(); ++i)
+            mults[i] = (double)i+1;
+		//mults[0] = 3; mults[1] = 5; mults[2] = 8; mults[3] = 12; mults[4] = 24; mults[5] = 50; mults[6] = 100;
 	}
 
     void ProposalSegPlnMeanshift::segment(const int pid, std::vector<std::vector<int> > &seg) {

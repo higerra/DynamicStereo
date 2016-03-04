@@ -90,16 +90,19 @@ namespace dynamic_stereo {
         virtual double evaluateEnergy(const Depth &) const;
 
     private:
-        void genProposal(std::vector<Depth> &proposals);
+        void genProposal(std::vector<Depth> &proposals) const;
 
-        void fusionMove(Depth &p1, const Depth &p2);
+        void fusionMove(Depth &p1, const Depth &p2) const;
 
         const Depth &noisyDisp;
         const double min_disp;
         const double max_disp;
+        const double trun;
 
-        EnergyType laml;
-        EnergyType lamh;
+        const int average_over;
+
+        double laml;
+        double lamh;
         std::vector<int> refSeg;
     };
 

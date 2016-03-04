@@ -150,19 +150,6 @@ namespace dynamic_stereo{
 		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
 
-//		cout << "Generating plane proposal" << endl;
-//		ProposalSegPlnMeanshift proposalFactoryMeanshift(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
-//		vector<Depth> proposals;
-//		proposalFactoryMeanshift.genProposal(proposals);
-//
-////		vector<Depth> proposalsGb;
-////		ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, images[anchor-offset], dispUnary, dispResolution, min_disp, max_disp);
-////		proposalFactoryGbSegment.genProposal(proposalsGb);
-////		proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
-//		for(auto i=0; i<proposals.size(); ++i){
-//			sprintf(buffer, "%s/temp/proposalPln%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, i);
-//			proposals[i].saveImage(buffer, 255.0 / (double)dispResolution);
-//		}
 
 		//fusion move
 //		cout << "Solving with second order smoothness..." << endl;
@@ -176,12 +163,26 @@ namespace dynamic_stereo{
 //		currentBest.saveImage(string(buffer), 255.0 / (double)dispResolution);
 //
 //
-		cout << "Solving with first order smoothness..." << endl;
-		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
-		Depth result_firstOrder;
-		optimizer_firstorder.optimize(result_firstOrder, 10);
-		sprintf(buffer, "%s/temp/firstOrder%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+//		cout << "Solving with first order smoothness..." << endl;
+//		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
+//		Depth result_firstOrder;
+//		optimizer_firstorder.optimize(result_firstOrder, 10);
+//		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+//		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+
+//		cout << "Solving with second order smoothness (trbp)..." << endl;
+//		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);
+//		Depth result_trbp;
+//		optimizer_trbp.optimize(result_trbp, 10);
+//		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+//		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
+
+		cout << "Solving with second order smoothness (fusion move)..." << endl;
+		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
+		Depth result_fusion;
+		optimizer_fusion.optimize(result_fusion, 30);
+		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
 	}
 
 	void DynamicStereo::warpToAnchor() const{
