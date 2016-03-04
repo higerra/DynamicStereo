@@ -180,7 +180,7 @@ namespace dynamic_stereo{
 		cout << "Solving with second order smoothness (fusion move)..." << endl;
 		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
 		Depth result_fusion;
-		optimizer_fusion.optimize(result_fusion, 30);
+		optimizer_fusion.optimize(result_fusion, 1000);
 		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
 	}
