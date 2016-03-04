@@ -60,7 +60,7 @@ namespace dynamic_stereo {
         double initialEnergy = lastEnergy;
         int iter = 0;
 
-        const double termination = 10;
+        const double termination = 0.1;
         float timming = (float)getTickCount();
         while (true) {
             if(iter == max_iter)

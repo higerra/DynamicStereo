@@ -163,12 +163,14 @@ namespace dynamic_stereo{
 //		currentBest.saveImage(string(buffer), 255.0 / (double)dispResolution);
 //
 //
-//		cout << "Solving with first order smoothness..." << endl;
-//		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
-//		Depth result_firstOrder;
-//		optimizer_firstorder.optimize(result_firstOrder, 10);
-//		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+		cout << "Solving with first order smoothness..." << endl;
+		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
+		Depth result_firstOrder;
+		optimizer_firstorder.optimize(result_firstOrder, 10);
+		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		warpToAnchor(result_firstOrder, "firstorder");
+		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
 //		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);
@@ -183,48 +185,50 @@ namespace dynamic_stereo{
 		optimizer_fusion.optimize(result_fusion, 1000);
 		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
+
+		warpToAnchor(result_fusion, "fusion");
 	}
 
-	void DynamicStereo::warpToAnchor() const{
-//		cout << "Warpping..." << endl;
-//		vector<Mat> fullimages(images.size());
-//		for(auto i=0; i<fullimages.size(); ++i)
-//			fullimages[i] = imread(file_io.getImage(i+offset));
-//		vector<Mat> warpped(fullimages.size());
-//
-//		const int w = fullimages[0].cols;
-//		const int h = fullimages[0].rows;
-//
-//		const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
-//
-//		for(auto i=0; i<fullimages.size(); ++i){
-//			cout << i+offset << ' ' << flush;
-//			warpped[i] = fullimages[anchor-offset].clone();
-//			if(i == anchor-offset)
-//				continue;
-//			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
-//			for(auto y=downsample; y<h-downsample; ++y){
-//				for(auto x=downsample; x<w-downsample; ++x){
-//					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
-//					ray.normalize();
-//					double depth = refDisparity.getDepthAt(Vector2d(x/downsample, y/downsample));
-//					Vector3d spt = cam1.GetPosition() + ray * depth;
-//					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
-//					Vector2d imgpt;
-//					cam2.ProjectPoint(spt_homo, &imgpt);
-//					if(imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w -1 && imgpt[1] < h - 1){
-//						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
-//						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
-//					}
-//				}
-//			}
-//		}
-//
-//		cout << endl << "Saving..." << endl;
-//		char buffer[1024] = {};
-//		for(auto i=0; i<warpped.size(); ++i){
-//			sprintf(buffer, "%s/temp/warpped_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),  anchor, i+offset);
-//			imwrite(buffer, warpped[i]);
-//		}
+	void DynamicStereo::warpToAnchor(const Depth& refDisp, const std::string& prefix) const{
+		cout << "Warpping..." << endl;
+		vector<Mat> fullimages(images.size());
+		for(auto i=0; i<fullimages.size(); ++i)
+			fullimages[i] = imread(file_io.getImage(i+offset));
+		vector<Mat> warpped(fullimages.size());
+
+		const int w = fullimages[0].cols;
+		const int h = fullimages[0].rows;
+
+		const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
+
+		for(auto i=0; i<fullimages.size(); ++i){
+			cout << i+offset << ' ' << flush;
+			warpped[i] = fullimages[anchor-offset].clone();
+			if(i == anchor-offset)
+				continue;
+			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
+			for(auto y=downsample; y<h-downsample; ++y){
+				for(auto x=downsample; x<w-downsample; ++x){
+					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
+					ray.normalize();
+					double depth = refDisp.getDepthAt(Vector2d(x/downsample, y/downsample));
+					Vector3d spt = cam1.GetPosition() + ray * depth;
+					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
+					Vector2d imgpt;
+					cam2.ProjectPoint(spt_homo, &imgpt);
+					if(imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w -1 && imgpt[1] < h - 1){
+						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
+						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
+					}
+				}
+			}
+		}
+
+		cout << endl << "Saving..." << endl;
+		char buffer[1024] = {};
+		for(auto i=0; i<warpped.size(); ++i){
+			sprintf(buffer, "%s/temp/warpped_%s_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),prefix.c_str(),  anchor, i+offset);
+			imwrite(buffer, warpped[i]);
+		}
 	}
 }

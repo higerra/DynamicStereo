@@ -40,7 +40,7 @@ namespace dynamic_stereo {
         inline int gettWindow() const {return tWindow;}
         inline int getOffset() const {return offset;};
         inline int getDownsample() const {return downsample; }
-	    void warpToAnchor() const;
+	    void warpToAnchor(const Depth& refDisp, const std::string& prefix) const;
     private:
         typedef int EnergyType;
         //typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, opengm::SimpleDiscreteSpace<> > GraphicalModel;
