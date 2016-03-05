@@ -5,6 +5,9 @@
 #include "optimization.h"
 #include "external/segment_ms/msImageProcessor.h"
 #include <opengm/inference/messagepassing/messagepassing.hxx>
+#include <opengm/inference/alphaexpansion.hxx>
+#include <opengm/inference/graphcut.hxx>
+//#include <opengm/inference/auxiliary/minstcutkolmogorov.hxx>
 
 #include <opengm/functions/sparsemarray.hxx>
 
@@ -41,8 +44,9 @@ namespace dynamic_stereo{
         typedef opengm::SparseFunction<EnergyType, size_t, size_t> SparseFunction;
         typedef opengm::GraphicalModel<EnergyType, opengm::Adder,
                 opengm::ExplicitFunction<EnergyType>, Space> GraphicalModel;
-        typedef opengm::TrbpUpdateRules<GraphicalModel, opengm::Maximizer> UpdateRules;
-        typedef opengm::MessagePassing<GraphicalModel, opengm::Maximizer, UpdateRules, opengm::MaxDistance> TRBP;
+        typedef opengm::TrbpUpdateRules<GraphicalModel, opengm::Minimizer> UpdateRules;
+        typedef opengm::MessagePassing<GraphicalModel, opengm::Minimizer, UpdateRules, opengm::MaxDistance> TRBP;
+        //typedef opengm::GraphCut<GraphicalModel, opengm::Minimizer
 
         Space space((size_t)(width * height), (size_t)nLabel);
         GraphicalModel gm(space);
@@ -51,7 +55,7 @@ namespace dynamic_stereo{
         for (auto i = 0; i < width * height; ++i) {
             opengm::ExplicitFunction<EnergyType> f(shape, shape + 1);
             for (auto l = 0; l < nLabel; ++l)
-                f(l) = MRF_data[nLabel * i + l];
+                f(l) = (EnergyType)MRF_data[nLabel * i + l];
             GraphicalModel::FunctionIdentifier fid = gm.addFunction(f);
             size_t vid[] = {(size_t) i};
             gm.addFactor(fid, vid, vid + 1);
@@ -71,7 +75,7 @@ namespace dynamic_stereo{
                     size_t coord[] = {(size_t)l0, (size_t)l1, (size_t)l2};
                     if (abs(labelDiff) <= trun){
                         //fv.insert(coord, (EnergyType)(MRFRatio * labelDiff));
-                        fv((size_t)l0,(size_t)l1,(size_t)l2) = (int)(labelDiff * MRFRatio);
+                        fv((size_t)l0,(size_t)l1,(size_t)l2) = (EnergyType)(labelDiff * MRFRatio);
                         count++;
                     } else
                         fv((size_t)l0,(size_t)l1,(size_t)l2) = 0;
@@ -81,8 +85,8 @@ namespace dynamic_stereo{
         GraphicalModel::FunctionIdentifier fidtriple = gm.addFunction(fv);
         cout << "Non zero count: " << count << endl << flush;
 
-        for (size_t y = 1; y < 2; ++y) {
-            for (size_t x = 1; x < 3; ++x) {
+        for (size_t y = 1; y < 10; ++y) {
+            for (size_t x = 1; x < 10; ++x) {
 //                int lamH, lamV;
 //                if(refSeg[y*width+x] == refSeg[y*width+x+1] && refSeg[y*width+x] == refSeg[y*width+x-1])
 //                    lamH = lamh;

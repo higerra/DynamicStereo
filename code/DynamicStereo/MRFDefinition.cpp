@@ -101,7 +101,7 @@ namespace dynamic_stereo {
             if(mCost.size() == 2)
                 return std::min(phid(mCost[0]), phid(mCost[1]));
             //sum of best half
-            sort(mCost.begin(), mCost.end(), [](double x1, double x2){return x1 <= x2;});
+            sort(mCost.begin(), mCost.end());
             const size_t kth = mCost.size() / 2;
             double res = 0.0;
 
@@ -187,7 +187,7 @@ namespace dynamic_stereo {
             }
         }
         if(recompute) {
-            const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
+            const theia::Camera& cam1 = reconstruction.View(anchor)->Camera();
 
             int index = 0;
             int unit = width * height / 10;
@@ -224,8 +224,8 @@ namespace dynamic_stereo {
                         //project onto other views and compute matching cost
                         vector<vector<double> > patches(images.size());
                         for (auto v = 0; v < images.size(); ++v) {
-                            const theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
-                            for (auto &spt: sptBase) {
+                            const theia::Camera& cam2 = reconstruction.View(v + offset)->Camera();
+                            for (const auto &spt: sptBase) {
                                 if (spt[3] == 0) {
                                     patches[v].push_back(-1);
                                     patches[v].push_back(-1);

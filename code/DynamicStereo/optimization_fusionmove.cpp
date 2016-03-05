@@ -79,8 +79,8 @@ namespace dynamic_stereo {
             double average_diffe = std::accumulate(diffE.begin(), diffE.end(), 0.0) / (double)diffE.size();
             lastEnergy = e;
 
-//            sprintf(buffer, "%s/temp/fusionmove_iter%05d.jpg", file_io.getDirectory().c_str(), iter);
-//            result.saveImage(buffer, 255.0 / (double)nLabel);
+           sprintf(buffer, "%s/temp/fusionmove_iter%05d.jpg", file_io.getDirectory().c_str(), iter);
+           result.saveImage(buffer, 255.0 / (double)nLabel);
 
             if(average_diffe < termination) {
                 cout << "Converge!" << endl;

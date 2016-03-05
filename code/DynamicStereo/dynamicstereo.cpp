@@ -89,12 +89,10 @@ namespace dynamic_stereo{
 		theia::Camera cam1 = reconstruction.View(id1)->Camera();
 		theia::Camera cam2 = reconstruction.View(id2)->Camera();
 
-		Vector3d ray1 = cam1.PixelToUnitDepthRay(pt*downsample);
+		Vector3d ray1 = cam1.PixelToUnitDepthRay(pt*(double)downsample);
 		ray1.normalize();
-
 		imgL = images[id1-offset].clone();
 		imgR = images[id2-offset].clone();
-
 		cv::circle(imgL, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0,0,255), 2);
 
 		const double min_depth = 1.0 / max_disp;
@@ -103,7 +101,7 @@ namespace dynamic_stereo{
 
 		double cindex = 0.0;
 		double steps = 1000;
-		for(double i=min_disp; i<max_disp; i+=(max_disp-min_disp)/steps){
+		for(double i=min_disp; i<=max_disp; i+=(max_disp-min_disp)/steps){
 			Vector3d curpt = cam1.GetPosition() + ray1 * 1.0 / i;
 			Vector4d curpt_homo(curpt[0], curpt[1], curpt[2], 1.0);
 			Vector2d imgpt;
@@ -150,25 +148,12 @@ namespace dynamic_stereo{
 		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
 
-
-		//fusion move
-//		cout << "Solving with second order smoothness..." << endl;
-//		Depth currentBest = dispUnary;
-//		for(auto i=0; i<proposals.size(); ++i){
-//			cout << "=======================" << endl;
-//			cout << "Fusing current best and proposal " << i << endl;
-//			fusionMove(currentBest, proposals[i]);
-//		}
-//		sprintf(buffer, "%s/temp/secondOrder%05d_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		currentBest.saveImage(string(buffer), 255.0 / (double)dispResolution);
-//
-//
 		cout << "Solving with first order smoothness..." << endl;
 		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
 		Depth result_firstOrder;
 		optimizer_firstorder.optimize(result_firstOrder, 10);
 		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		warpToAnchor(result_firstOrder, "firstorder");
+//		warpToAnchor(result_firstOrder, "firstorder");
 		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 
 
@@ -179,14 +164,14 @@ namespace dynamic_stereo{
 //		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 //		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
 
-		cout << "Solving with second order smoothness (fusion move)..." << endl;
-		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
-		Depth result_fusion;
-		optimizer_fusion.optimize(result_fusion, 1000);
-		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
+//		cout << "Solving with second order smoothness (fusion move)..." << endl;
+//		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
+//		Depth result_fusion;
+//		optimizer_fusion.optimize(result_fusion, 200);
+//		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+//		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
 
-		warpToAnchor(result_fusion, "fusion");
+		//warpToAnchor(result_fusion, "fusion");
 	}
 
 	void DynamicStereo::warpToAnchor(const Depth& refDisp, const std::string& prefix) const{
@@ -211,7 +196,8 @@ namespace dynamic_stereo{
 				for(auto x=downsample; x<w-downsample; ++x){
 					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
 					ray.normalize();
-					double depth = refDisp.getDepthAt(Vector2d(x/downsample, y/downsample));
+					double disp = refDisp.getDepthAt(Vector2d(x/downsample, y/downsample));
+					double depth = 1.0 / (disp / dispResolution * (max_disp-min_disp) + min_disp);
 					Vector3d spt = cam1.GetPosition() + ray * depth;
 					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
 					Vector2d imgpt;
