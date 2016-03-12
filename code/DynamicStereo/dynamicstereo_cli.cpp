@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 	google::InitGoogleLogging(argv[0]);
 	google::ParseCommandLineFlags(&argc, &argv, true);
 
-	FileIO file_io(argv[1]);
+	FileIO file_io(argv[1], "", 0);
 	CHECK_GT(file_io.getTotalNum(), 0);
 	char buffer[1024] = {};
 

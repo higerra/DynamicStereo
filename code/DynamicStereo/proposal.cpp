@@ -30,18 +30,18 @@ namespace dynamic_stereo{
 
         //lambda functions to map between disparity and depth. Depth are rescaled to 0~max_dim for numerical stability
         auto dispToDepth = [=](const double dispv){
-            double d2 = (dispv * (max_disp - min_disp) / dispResolution + min_disp);
-            CHECK_NE(d2, 0);
-            double d = 1.0 / d2;
-            return (d - 1.0/max_disp) / (1.0/min_disp - 1.0/max_disp) * max_depth;
-            //return dispv;
+//            double d2 = (dispv * (max_disp - min_disp) / dispResolution + min_disp);
+//            CHECK_NE(d2, 0);
+//            double d = 1.0 / d2;
+//            return (d - 1.0/max_disp) / (1.0/min_disp - 1.0/max_disp) * max_depth;
+            return dispv;
         };
 
         auto depthToDisp = [=](const double depthv){
-            double d = depthv * (1.0/min_disp - 1.0/max_disp) / max_depth + 1.0 / max_disp;
-            CHECK_NE(d, 0);
-            return (1.0 / d - min_disp) * dispResolution / (max_disp - min_disp);
-            //return depthv;
+//            double d = depthv * (1.0/min_disp - 1.0/max_disp) / max_depth + 1.0 / max_disp;
+//            CHECK_NE(d, 0);
+//            return (1.0 / d - min_disp) * dispResolution / (max_disp - min_disp);
+            return depthv;
         };
 
         //unit testing for lambda function

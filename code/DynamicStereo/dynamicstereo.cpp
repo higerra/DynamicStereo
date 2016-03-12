@@ -164,12 +164,12 @@ namespace dynamic_stereo{
 //		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 //		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
 
-//		cout << "Solving with second order smoothness (fusion move)..." << endl;
-//		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
-//		Depth result_fusion;
-//		optimizer_fusion.optimize(result_fusion, 200);
-//		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
+		cout << "Solving with second order smoothness (fusion move)..." << endl;
+		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
+		Depth result_fusion;
+		optimizer_fusion.optimize(result_fusion, 200);
+		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
 
 		//warpToAnchor(result_fusion, "fusion");
 	}

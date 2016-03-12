@@ -14,15 +14,13 @@
 using namespace std;
 using namespace cv;
 namespace dynamic_stereo {
-
-    SecondOrderOptimizeFusionMove::SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_,
-                                                                 const cv::Mat &image_,
+    SecondOrderOptimizeFusionMove::SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
                                                                  const std::vector<EnergyType> &MRF_data_,
                                                                  const float MRFRatio_,
-                                                                 const int nLabel_, const Depth &noisyDisp_,
-                                                                 const double min_disp_, const double max_disp_) :
-            StereoOptimization(file_io_, kFrames_, image_, MRF_data_, MRFRatio_, nLabel_), noisyDisp(noisyDisp_),
-            min_disp(min_disp_), max_disp(max_disp_), trun(4.0), average_over(20) {
+                                                                 const int nLabel_,
+                                                                 const Depth &noisyDisp_,
+                                                                 const double min_disp_, const double max_disp_):
+            StereoOptimization(file_io_, kFrames_, image_, MRF_data_, MRFRatio_, nLabel_), noisyDisp(noisyDisp_), average_over(20), trun(4), min_disp(min_disp_), max_disp(max_disp_) {
         //segment ref image to get CRF weight
         segment_ms::msImageProcessor ms_segmentator;
         ms_segmentator.DefineBgImage(image.data, segment_ms::COLOR, image.rows, image.cols);
@@ -35,8 +33,8 @@ namespace dynamic_stereo {
         for (auto i = 0; i < image.cols * image.rows; ++i)
             refSeg[i] = labels[i];
 
-        laml = 9.0 * (double)kFrames / 255.0;
-        lamh = 108.0 * (double)kFrames / 255.5;
+        laml = 9.0 * (double) kFrames / 256;
+        lamh = 108.0 * (double) kFrames / 256;
     }
 
 
@@ -51,9 +49,13 @@ namespace dynamic_stereo {
         result.initialize(width, height, -1);
 
         std::default_random_engine generator;
-        std::uniform_int_distribution<int> distribution(0, nLabel-1);
-        for(auto i=0; i<width*height; ++i)
-            result.setDepthAtInd(i, (double)distribution(generator));
+        std::uniform_int_distribution<int> distribution(0, nLabel - 1);
+        for (auto i = 0; i < width * height; ++i) {
+            //result.setDepthAtInd(i, (double) distribution(generator));
+            result.setDepthAtInd(i, noisyDisp[i]);
+        }
+        sprintf(buffer, "%s/temp/init_result.jpg", file_io.getDirectory().c_str());
+        result.saveImage(buffer, 256.0 / (double)nLabel);
 
         list<double> diffE;
         double lastEnergy = evaluateEnergy(result);
@@ -61,77 +63,95 @@ namespace dynamic_stereo {
         int iter = 0;
 
         const double termination = 0.1;
-        float timming = (float)getTickCount();
+        float timming = (float) getTickCount();
+        const int smoothInterval = 5;
         while (true) {
-            if(iter == max_iter)
+            if (iter == max_iter)
                 break;
-            cout << "Iteration " << iter << " using proposal " << iter % (proposals.size()) << endl;
-            const Depth& proposal = proposals[iter % (proposals.size())];
-            cout << "Fusing..." << endl;
-            fusionMove(result, proposal);
+            cout << "======================" << endl;
+            Depth newProposal;
+
+            if (iter > 0 && iter % smoothInterval == 0) {
+                Depth orip1;
+                newProposal.initialize(width, height, -1);
+                orip1.initialize(width, height, -1);
+                for (auto i = 0; i < width * height; ++i) {
+                    orip1.setDepthAtInd(i, result[i]);
+                    newProposal.setDepthAtInd(i, result[i]);
+                }
+                int direction = iter / smoothInterval;
+                if (direction % 2 == 0) {
+                    //horizontally
+                    for (auto y = 0; y < height; ++y) {
+                        for (auto x = 1; x < width - 1; ++x)
+                            newProposal.setDepthAtInt(x, y, (orip1(x + 1, y) + orip1(x - 1, y)) / 2);
+                        newProposal.setDepthAtInt(width - 1, y, orip1(width - 1, y));
+                    }
+                } else {
+                    //vertically
+                    for (auto x = 0; x < width; ++x) {
+                        for (auto y = 1; y < height - 1; ++y)
+                            newProposal.setDepthAtInt(x, y, (orip1(x, y + 1) + orip1(x, y - 1)) / 2);
+                        newProposal.setDepthAtInt(x, height - 1, orip1(x, height - 1));
+                    }
+                }
+                cout << "Iteration " << iter << " using smoothing proposal " << endl;
+            } else {
+                newProposal = proposals[iter % (proposals.size())];
+                cout << "Iteration " << iter << " using proposal " << iter % (proposals.size()) << endl;
+            }
+            cout << "Initial energy: " << evaluateEnergy(result) << endl;
+            //after several iteration, smooth the dispartiy
+            fusionMove(result, newProposal);
             double e = evaluateEnergy(result);
-            cout << "Done, energy: " << e << endl;
+
             double energyDiff = lastEnergy - e;
 
-            if(diffE.size() >= average_over)
+            if (diffE.size() >= average_over)
                 diffE.pop_front();
             diffE.push_back(energyDiff);
-            double average_diffe = std::accumulate(diffE.begin(), diffE.end(), 0.0) / (double)diffE.size();
+            double average_diffe = std::accumulate(diffE.begin(), diffE.end(), 0.0) / (double) diffE.size();
+
+            printf("Done. Final energy: %.5f, energy decrease: %.5f average decrease: %.5f\n", e, energyDiff,
+                   average_diffe);
             lastEnergy = e;
 
-           sprintf(buffer, "%s/temp/fusionmove_iter%05d.jpg", file_io.getDirectory().c_str(), iter);
-           result.saveImage(buffer, 255.0 / (double)nLabel);
+            sprintf(buffer, "%s/temp/fusionmove_iter%05d.jpg", file_io.getDirectory().c_str(), iter);
+            result.saveImage(buffer, 256.0 / (double) nLabel);
 
-            if(average_diffe < termination) {
+            if (iter > proposals.size() * 2 && average_diffe < termination) {
                 cout << "Converge!" << endl;
                 break;
             }
 
             iter++;
         }
-        timming = ((float)getTickCount() - timming) / (float)getTickFrequency();
-        printf("All done. Initial energy: %.3f, final energy: %.3f, time usage: %.2fs\n", initialEnergy, lastEnergy, timming);
-
-
+        timming = ((float) getTickCount() - timming) / (float) getTickFrequency();
+        printf("All done. Initial energy: %.5f, final energy: %.5f, time usage: %.2fs\n", initialEnergy, lastEnergy,
+               timming);
     }
 
     double SecondOrderOptimizeFusionMove::evaluateEnergy(const Depth &disp) const {
         CHECK_EQ(disp.getWidth(), width);
         CHECK_EQ(disp.getHeight(), height);
         double e = 0.0;
-        for (auto i = 0; i < disp.getWidth() * disp.getHeight(); ++i) {
+        for (auto i = 0; i < width * height; ++i) {
             int l = (int) disp[i];
             e += (double)(MRF_data[nLabel * i + l]) / (double)(MRFRatio);
         }
+        auto tripleE = [&](int id1, int id2, int id3){
+            double lam;
+            if (refSeg[id1] == refSeg[id2] && refSeg[id1] == refSeg[id3])
+                lam = lamh;
+            else
+                lam = laml;
+            return lapE(disp[id1], disp[id1], disp[id3]) * lam;
+        };
 
         for (auto x = 1; x < width - 1; ++x) {
             for (auto y = 1; y < height - 1; ++y) {
-                int id1, id2, id3;
-                double d1, d2, d3;
-                double lam;
-                id1 = y * width + x - 1;
-                id2 = y * width + x;
-                id3 = y * width + x + 1;
-                if (refSeg[id1] == refSeg[id2] && refSeg[id1] == refSeg[id3])
-                    lam = lamh;
-                else
-                    lam = laml;
-                d1 = disp(x - 1, y);
-                d2 = disp(x, y);
-                d3 = disp(x + 1, y);
-                e += std::min(std::abs(d1 + d3 - 2 * d2), trun) * lam;
-
-                id1 = (y - 1) * width + x;
-                id2 = y * width + x;
-                id3 = (y - 1) * width + x;
-                if (refSeg[id1] == refSeg[id2] && refSeg[id1] == refSeg[id3])
-                    lam = lamh;
-                else
-                    lam = laml;
-                d1 = disp(x, y - 1);
-                d2 = disp(x, y);
-                d3 = disp(x, y + 1);
-                e += std::min(std::abs(d1 + d3 - 2 * d2), trun) * lam;
+                e += tripleE(y * width + x - 1, y * width + x, y * width + x + 1);
+                e += tripleE((y - 1) * width + x, y * width + x, (y + 1) * width + x);
             }
         }
         return e;
@@ -146,155 +166,112 @@ namespace dynamic_stereo {
         ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, image, noisyDisp, nLabel, min_disp, max_disp);
         proposalFactoryGbSegment.genProposal(proposalsGb);
         proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
-        for (auto i = 0; i < proposals.size(); ++i) {
-            sprintf(buffer, "%s/temp/proposalPln%03d.jpg", file_io.getDirectory().c_str(), i);
-            proposals[i].saveImage(buffer, 255.0 / (double) nLabel);
-        }
+
+        //Add fronto parallel plane
+//        const int num = nLabel;
+//        for(auto i=0; i<num; ++i){
+//            double disp = (double)nLabel / (double)num * i;
+//            Depth p;
+//            p.initialize(width, height, disp);
+//            proposals.push_back(p);
+//        }
     }
 
     void SecondOrderOptimizeFusionMove::fusionMove(Depth &p1, const Depth &p2) const {
         //create problem
-        ELCReduce::PBF<EnergyType> pbf;
-        const int &dispResolution = nLabel;
-        const int width = image.cols;
-        const int height = image.rows;
-        //formulate
-        //unary term
-        for (auto i = 0; i < width * height; ++i) {
-            int disp1 = (int) p1.getDepthAtInd(i);
-            int disp2 = (int) p2.getDepthAtInd(i);
-            CHECK_GE(disp1, 0);
-            CHECK_LT(disp1, dispResolution);
-            CHECK_GE(disp2, 0);
-            CHECK_LT(disp2, dispResolution);
-            EnergyType ue1 = MRF_data[dispResolution * i + disp1];
-            EnergyType ue2 = MRF_data[dispResolution * i + disp2];
-            pbf.AddUnaryTerm(i, ue1, ue2);
+        int nPix = width * height;
+        kolmogorov::qpbo::QPBO<EnergyType> qpbo(nPix*10, nPix*20);
+        //construct graph
+        auto addTripleToGraph = [&](int p, int q, int r) {
+            double vp1 = p1[p], vp2 = p2[p], vq1 = p1[q], vq2 = p2[q], vr1 = p1[r], vr2 = p2[r];
+            double lam;
+            if (refSeg[p] == refSeg[q] && refSeg[p] == refSeg[r])
+                lam = lamh;
+            else
+                lam = laml;
+            EnergyType A = (EnergyType)(lapE(vp1, vq1, vr1) * lam * MRFRatio);
+            EnergyType B = (EnergyType)(lapE(vp1, vq1, vr2) * lam * MRFRatio);
+            EnergyType C = (EnergyType)(lapE(vp1, vq2, vr1) * lam * MRFRatio);
+            EnergyType D = (EnergyType)(lapE(vp1, vq2, vr2) * lam * MRFRatio);
+            EnergyType E = (EnergyType)(lapE(vp2, vq1, vr1) * lam * MRFRatio);
+            EnergyType F = (EnergyType)(lapE(vp2, vq1, vr2) * lam * MRFRatio);
+            EnergyType G = (EnergyType)(lapE(vp2, vq2, vr1) * lam * MRFRatio);
+            EnergyType H = (EnergyType)(lapE(vp2, vq2, vr2) * lam * MRFRatio);
+
+            EnergyType pi = (A + D + F + G) - (B + C + E + H);
+            if(pi >= 0){
+                qpbo.AddPairwiseTerm(p,q,0,C-A,0,G-E);
+                qpbo.AddPairwiseTerm(p,r,0,0,E-A,F-B);
+                qpbo.AddPairwiseTerm(q,r,0,B-A,0,D-C);
+                if(pi > 0) {
+                    int w = qpbo.AddNode();
+                    qpbo.AddUnaryTerm(w, A, A - pi);
+                    qpbo.AddPairwiseTerm(p, w, 0, pi, 0, 0);
+                    qpbo.AddPairwiseTerm(q, w, 0, pi, 0, 0);
+                    qpbo.AddPairwiseTerm(r, w, 0, pi, 0, 0);
+                }
+            }else{
+                qpbo.AddPairwiseTerm(p,q,B-D,0,F-H,0);
+                qpbo.AddPairwiseTerm(p,r,C-G,D-H,0,0);
+                qpbo.AddPairwiseTerm(q,r,E-F,0,G-H,0);
+                int w = qpbo.AddNode();
+                qpbo.AddUnaryTerm(w,H+pi,H);
+                qpbo.AddPairwiseTerm(p, w, 0, 0, -pi, 0);
+                qpbo.AddPairwiseTerm(q, w, 0, 0, -pi, 0);
+                qpbo.AddPairwiseTerm(r, w, 0, 0, -pi, 0);
+            }
+        };
+
+        printf("Construcint graph...\n");
+        qpbo.AddNode(nPix);
+        for(auto i=0; i<nPix; ++i) {
+            qpbo.AddUnaryTerm(i, MRF_data[nLabel * i + (int) p1[i]], MRF_data[nLabel * i + (int) p2[i]]);
         }
 
-        vector<ELCReduce::VID> indices(3);
-        vector<EnergyType> SE(8);
-        for (auto x = 1; x < width - 1; ++x) {
-            for (auto y = 1; y < height - 1; ++y) {
-                //horizontal
-                int p = y * width + x - 1;
-                int q = y * width + x;
-                int r = y * width + x + 1;
-                EnergyType lam;
-                if (refSeg[p] == refSeg[q] && refSeg[p] == refSeg[r])
-                    lam = lamh;
-                else
-                    lam = laml;
-
-                SE[0] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[1] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[2] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[3] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[4] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[5] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[6] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[7] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                for (auto &S: SE)
-                    S = (EnergyType)((double)S * lam);
-
-                indices[0] = p;
-                indices[1] = q;
-                indices[2] = r;
-                pbf.AddHigherTerm(3, indices.data(), SE.data());
-
-                //vertical
-                p = (y - 1) * width + x;
-                r = (y + 1) * width + x;
-                if (refSeg[p] == refSeg[q] && refSeg[p] == refSeg[r])
-                    lam = lamh;
-                else
-                    lam = laml;
-                SE[0] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[1] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[2] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[3] = (EnergyType)(
-                        std::min(std::abs(p1.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[4] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[5] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p1.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[6] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p1.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                SE[7] = (EnergyType)(
-                        std::min(std::abs(p2.getDepthAtInd(p) + p2.getDepthAtInd(r) - 2 * p2.getDepthAtInd(q)), trun) *
-                        MRFRatio);
-                for (auto &S: SE)
-                    S = (EnergyType)((double)S * lam);
-
-                indices[0] = p;
-                indices[1] = q;
-                indices[2] = r;
-                pbf.AddHigherTerm(3, indices.data(), SE.data());
+        for(auto y=1; y<height-1; ++y){
+            for(auto x=1; x<width-1; ++x) {
+                addTripleToGraph(y * width + x - 1, y * width + x, y * width + x + 1);
+                addTripleToGraph((y - 1) * width + x, y * width + x, (y + 1) * width + x);
             }
         }
 
-        //reduce
-        cout << "Reducing with ELC..." << endl;
-        ELCReduce::PBF<EnergyType> qpbf;
-        pbf.reduceHigher();
-        pbf.toQuadratic(qpbf, width * height);
-        int numVar = qpbf.maxID();
-
-        kolmogorov::qpbo::QPBO<EnergyType> qpbo(numVar, numVar * 4);
-        qpbf.convert(qpbo, numVar);
         //solve
         cout << "Solving..." << endl << flush;
         float t = (float) getTickCount();
         qpbo.MergeParallelEdges();
         qpbo.Solve();
         qpbo.ComputeWeakPersistencies();
+
+        //qpbo.Improve();
         t = ((float) getTickCount() - t) / (float) getTickFrequency();
         printf("Done. Time usage:%.3f\n", t);
 
         //fusion
         float unlabeled = 0.0;
+        float changed = 0.0;
+        Depth orip1;
+        orip1.initialize(width, height, -1);
+        for(auto i=0; i<width * height; ++i)
+            orip1.setDepthAtInd(i, p1[i]);
         for (auto i = 0; i < width * height; ++i) {
             int l = qpbo.GetLabel(i);
-            int disp1 = (int) p1.getDepthAtInd(i);
-            int disp2 = (int) p2.getDepthAtInd(i);
+            double disp1 = orip1.getDepthAtInd(i);
+            double disp2 = p2.getDepthAtInd(i);
             if (l == 0)
                 p1.setDepthAtInd(i, disp1);
             else if (l < 0) {
                 p1.setDepthAtInd(i, disp1);
                 unlabeled += 1.0;
             }
-            else
+            else {
                 p1.setDepthAtInd(i, disp2);
+                changed += 1.0;
+            }
         }
 
-        printf("Unlabeled pixels: %.2f, Ratio: %.2f\n", unlabeled, unlabeled / (float) (width * height));
+        printf("Unlabeled pixels: %.2f, ratio: %.2f; label changed: %.2f, ratio: %.2f\n", unlabeled,
+               unlabeled / (float)nPix,
+               changed, changed / (float)nPix);
     }
-
 }//namespace dynamic_stereo
 

@@ -23,7 +23,6 @@ int main(int argc, char** argv){
 
     FileIO file_io(argv[1]);
 
-    int index = 0;
     char buffer[1024] = {};
     theia::Reconstruction reconstruction;
     string temp;
@@ -35,7 +34,7 @@ int main(int argc, char** argv){
         theia::View *view = reconstruction.MutableView(vid);
         view->SetEstimated(true);
         theia::Matrix3x4d pose;
-        sprintf(buffer, "%s/pose/image%05d.jpg.txt", file_io.getDirectory().c_str(), i);
+        sprintf(buffer, "%s/pose/%05d.jpg.txt", file_io.getDirectory().c_str(), i);
         cout << buffer << endl;
         ifstream fin(buffer);
 

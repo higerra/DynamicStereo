@@ -19,33 +19,36 @@ namespace dynamic_stereo{
     }
 
     void FirstOrderOptimize::optimize(Depth &result, const int max_iter) const {
-//        EnergyFunction *energy_function = new EnergyFunction(new DataCost(const_cast<EnergyType *>(MRF_data.data())),
-//                                                             new SmoothnessCost(1, 4, weight_smooth,
-//                                                                                const_cast<EnergyType *>(hCue.data()),
-//                                                                                const_cast<EnergyType *>(vCue.data())));
-//        shared_ptr<MRF> mrf(new Expansion(width, height, nLabel, energy_function));
-//        mrf->initialize();
-//
-//        //randomly initialize
-//        std::default_random_engine generator;
-//        std::uniform_int_distribution<int> distribution(0, nLabel - 1);
-//        for (auto i = 0; i < width * height; ++i)
-//            mrf->setLabel(i, distribution(generator));
-//
-//        float initDataEnergy = (float) mrf->dataEnergy() / MRFRatio;
-//        float initSmoothEnergy = (float) mrf->smoothnessEnergy() / MRFRatio;
-//        float t;
-//        mrf->optimize(max_iter, t);
-//        float finalDataEnergy = (float) mrf->dataEnergy() / MRFRatio;
-//        float finalSmoothEnergy = (float) mrf->smoothnessEnergy() / MRFRatio;
-//
-//        printf("Graph cut finished.\nInitial energy: (%.3f, %.3f, %.3f)\nFinal energy: (%.3f,%.3f,%.3f)\nTime usage: %.2fs\n",
-//               initDataEnergy, initSmoothEnergy, initDataEnergy + initSmoothEnergy,
-//               finalDataEnergy, finalSmoothEnergy, finalDataEnergy + finalSmoothEnergy, t);
-//
-//        result.initialize(width, height, -1);
-//        for(auto i=0; i<width * height; ++i)
-//            result.setDepthAtInd(i, mrf->getLabel(i));
+        DataCost* dataCost = new DataCost(const_cast<EnergyType *>(MRF_data.data()));
+        SmoothnessCost* smoothnessCost = new SmoothnessCost(1, 4, weight_smooth, const_cast<EnergyType *>(hCue.data()),const_cast<EnergyType *>(vCue.data()));
+        EnergyFunction *energy_function = new EnergyFunction(dataCost, smoothnessCost);
+        shared_ptr<MRF> mrf(new Expansion(width, height, nLabel, energy_function));
+        mrf->initialize();
+
+        //randomly initialize
+        std::default_random_engine generator;
+        std::uniform_int_distribution<int> distribution(0, nLabel - 1);
+        for (auto i = 0; i < width * height; ++i)
+            mrf->setLabel(i, distribution(generator));
+
+        float initDataEnergy = (float) mrf->dataEnergy() / MRFRatio;
+        float initSmoothEnergy = (float) mrf->smoothnessEnergy() / MRFRatio;
+        float t;
+        mrf->optimize(max_iter, t);
+        float finalDataEnergy = (float) mrf->dataEnergy() / MRFRatio;
+        float finalSmoothEnergy = (float) mrf->smoothnessEnergy() / MRFRatio;
+
+        printf("Graph cut finished.\nInitial energy: (%.3f, %.3f, %.3f)\nFinal energy: (%.3f,%.3f,%.3f)\nTime usage: %.2fs\n",
+               initDataEnergy, initSmoothEnergy, initDataEnergy + initSmoothEnergy,
+               finalDataEnergy, finalSmoothEnergy, finalDataEnergy + finalSmoothEnergy, t);
+
+        result.initialize(width, height, -1);
+        for(auto i=0; i<width * height; ++i)
+            result.setDepthAtInd(i, mrf->getLabel(i));
+
+        delete dataCost;
+        delete smoothnessCost;
+        delete energy_function;
     }
 
     double FirstOrderOptimize::evaluateEnergy(const Depth& disp) const {
