@@ -61,9 +61,9 @@ namespace dynamic_stereo {
         std::vector<EnergyType> vCue;
     };
 
-    class SecondOrderOptimizeTRBP : public StereoOptimization {
+    class SecondOrderOptimizeTRWS : public StereoOptimization {
     public:
-        SecondOrderOptimizeTRBP(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
+        SecondOrderOptimizeTRWS(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
                                 const std::vector<EnergyType> &MRF_data_, const float MRFRatio_, const int nLabel_);
 
         virtual void optimize(Depth &result, const int max_iter) const;

@@ -202,7 +202,7 @@ namespace dynamic_stereo {
 #pragma omp parallel for
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
-                        double disp = min_disp + d * (max_disp - min_disp) / (double) dispResolution;
+                        double depth = dispToDepth(d);
 
                         //sample in 3D space
                         vector<Vector4d> sptBase;
@@ -215,7 +215,7 @@ namespace dynamic_stereo {
                                 }
                                 Vector3d ray = cam1.PixelToUnitDepthRay(pt * downsample);
                                 ray.normalize();
-                                Vector3d spt = cam1.GetPosition() + ray * 1.0 / disp;
+                                Vector3d spt = cam1.GetPosition() + ray * depth;
                                 Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
                                 sptBase.push_back(spt_homo);
                             }

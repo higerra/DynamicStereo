@@ -11,11 +11,10 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(tWindow, 72, "tWindow");
+DEFINE_int32(tWindow, 30, "tWindow");
 DEFINE_int32(downsample, 4, "downsample ratio");
-DEFINE_int32(resolution, 64, "disparity resolution");
-DEFINE_double(weight_smooth, 0.008, "smoothness weight for stereo");
-DEFINE_bool(middlebury, true, "Middlebury benchmark");
+DEFINE_int32(resolution, 128, "disparity resolution");
+DEFINE_double(weight_smooth, 0.001, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
 
@@ -25,10 +24,11 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+
 	google::InitGoogleLogging(argv[0]);
 	google::ParseCommandLineFlags(&argc, &argv, true);
 
-	FileIO file_io(argv[1], "", 0);
+	FileIO file_io(argv[1]);
 	CHECK_GT(file_io.getTotalNum(), 0);
 	char buffer[1024] = {};
 
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
         Mat imgL, imgR;
         const int tf1 = FLAGS_testFrame;
         //In original scale
-        Vector2d pt(111, 97);
+        Vector2d pt(1122,426);
         for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
             stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
             CHECK_EQ(imgL.size(), imgR.size());

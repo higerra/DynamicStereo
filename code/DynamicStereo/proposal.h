@@ -57,7 +57,7 @@ namespace dynamic_stereo {
     class ProposalSegPlnMeanshift: public ProposalSegPln{
     public:
 	    ProposalSegPlnMeanshift(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_,
-	                   const double min_disp_, const double max_disp_, const int num_proposal_ = 7);
+	                   const double min_disp_, const double max_disp_, const int num_proposal_ = 8);
     protected:
         virtual void segment(const int pid, std::vector<std::vector<int> >& seg);
     };
@@ -65,7 +65,7 @@ namespace dynamic_stereo {
 	class ProposalSegPlnGbSegment: public ProposalSegPln{
 	public:
 		ProposalSegPlnGbSegment(const FileIO& file_io_, const cv::Mat& image_, const Depth& noisyDisp_, const int dispResolution_,
-		                        const double min_disp_, const double max_disp_, const int num_proposal_ = 7);
+		                        const double min_disp_, const double max_disp_, const int num_proposal_ = 8);
 	protected:
 		virtual void segment(const int pid, std::vector<std::vector<int> >& seg);
 	};

@@ -43,7 +43,10 @@ namespace dynamic_stereo {
 	    void warpToAnchor(const Depth& refDisp, const std::string& prefix) const;
     private:
         typedef int EnergyType;
-        //typedef opengm::GraphicalModel<EnergyType, opengm::Adder, opengm::ExplicitFunction<EnergyType>, opengm::SimpleDiscreteSpace<> > GraphicalModel;
+
+		inline double dispToDepth(const double d){
+			return 1.0/(min_disp + d * (max_disp - min_disp) / (double) dispResolution);
+		}
 
         void initMRF();
         void computeMinMaxDisparity();
