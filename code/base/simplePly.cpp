@@ -9,33 +9,6 @@
 namespace ply_util{
     using namespace std;
     bool SimplePly::read(const std::string &filename) {
-        bool hasColor = false;
-        bool hasNormal = false;
-        bool is_binary = false;
-        ifstream headerin(filename.c_str());
-        if(!headerin.is_open())
-            return false;
-        string temp, format;
-        int kVertex, kFace;
-        headerin >> temp >> temp;
-        headerin >> format;
-        if(format == "ascii")
-            is_binary = false;
-        if(format == "binary_little_endian")
-            is_binary = true;
-        else{
-            cerr << "Wrong format in the ply file " << filename << endl;
-            return false;
-        }
-        headerin >> temp >> temp >> kVertex;
-        std::getline(headerin, temp);
-        headerin >> temp;
-        if(temp == "property")
-            hasColor = true;
-        headerin >> temp >> temp >> temp >> temp >> temp >> temp >> temp >> temp;
-        headerin >> temp;
-        if(temp == "property")
-            hasNormal = true;
 
 
     }

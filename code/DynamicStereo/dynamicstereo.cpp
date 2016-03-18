@@ -4,7 +4,6 @@
 
 #include "dynamicstereo.h"
 #include "optimization.h"
-
 using namespace std;
 using namespace cv;
 using namespace Eigen;
