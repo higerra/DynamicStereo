@@ -146,49 +146,49 @@ namespace dynamic_stereo{
 
 		{
 			//plot the gray value
-//			Vector2d testPt(1579,345);
-//			const int testDisp = 3;
-//
-//			vector<vector<double> > gv(dispResolution); //gv[i][j]: pixel in jth view on disparity i
-//			const theia::Camera cam = reconstruction.View(anchor)->Camera();
-//			Vector3d ray = cam.PixelToUnitDepthRay(testPt);
-//			ray.normalize();
-//
-//			vector<Mat> grayImg(images.size());
-//			for(auto v=0; v<images.size(); ++v)
-//				cvtColor(images[v], grayImg[v], CV_RGB2GRAY);
-//			for(auto d=0; d<dispResolution; ++d){
-//				double depth = dispToDepth(d);
-//				Vector3d spt = cam.GetPosition() + ray * depth;
-//				for(auto v=0; v<images.size(); ++v){
-//					const theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
-//					Vector2d imgpt;
-//					cam2.ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-//					imgpt = imgpt / downsample;
-//					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width - 1 || imgpt[1] >= height - 1)
-//						gv[d].push_back(0.0);
-//					else {
-//						VectorXd pix = interpolation_util::bilinear<uchar, 1>(grayImg[v].data, width, height, imgpt);
-//						gv[d].push_back(pix[0]);
-//					}
-//
-//					if(d == testDisp){
-//						Mat outImg = grayImg[v].clone();
-//						cvtColor(outImg, outImg, CV_GRAY2RGB);
-//						circle(outImg, cv::Point(imgpt[0], imgpt[1]),1,cv::Scalar(0,0,255));
-//						sprintf(buffer, "%s/temp/pattern_d%03d_v%03d.jpg", file_io.getDirectory().c_str(), d, v+offset);
-//						imwrite(buffer, outImg);
-//					}
-//				}
-//			}
-//			sprintf(buffer, "%s/temp/pattern.txt", file_io.getDirectory().c_str());
-//			ofstream fout(buffer);
-//			CHECK(fout.is_open());
-//			for(auto d=0; d<gv.size(); ++d){
-//				for(auto v=0; v<gv[d].size(); ++v)
-//					fout << gv[d][v] << ' ';
-//				fout << endl;
-//			}
+			Vector2d testPt(1178,422);
+			const int testDisp = 3;
+
+			vector<vector<double> > gv(dispResolution); //gv[i][j]: pixel in jth view on disparity i
+			const theia::Camera cam = reconstruction.View(anchor)->Camera();
+			Vector3d ray = cam.PixelToUnitDepthRay(testPt);
+			ray.normalize();
+
+			vector<Mat> grayImg(images.size());
+			for(auto v=0; v<images.size(); ++v)
+				cvtColor(images[v], grayImg[v], CV_RGB2GRAY);
+			for(auto d=0; d<dispResolution; ++d){
+				double depth = dispToDepth(d);
+				Vector3d spt = cam.GetPosition() + ray * depth;
+				for(auto v=0; v<images.size(); ++v){
+					const theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
+					Vector2d imgpt;
+					cam2.ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+					imgpt = imgpt / downsample;
+					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width - 1 || imgpt[1] >= height - 1)
+						gv[d].push_back(0.0);
+					else {
+						VectorXd pix = interpolation_util::bilinear<uchar, 1>(grayImg[v].data, width, height, imgpt);
+						gv[d].push_back(pix[0]);
+					}
+
+					if(d == testDisp){
+						Mat outImg = grayImg[v].clone();
+						cvtColor(outImg, outImg, CV_GRAY2RGB);
+						circle(outImg, cv::Point(imgpt[0], imgpt[1]),1,cv::Scalar(0,0,255));
+						sprintf(buffer, "%s/temp/pattern_d%03d_v%03d.jpg", file_io.getDirectory().c_str(), d, v+offset);
+						imwrite(buffer, outImg);
+					}
+				}
+			}
+			sprintf(buffer, "%s/temp/pattern.txt", file_io.getDirectory().c_str());
+			ofstream fout(buffer);
+			CHECK(fout.is_open());
+			for(auto d=0; d<gv.size(); ++d){
+				for(auto v=0; v<gv[d].size(); ++v)
+					fout << gv[d][v] << ' ';
+				fout << endl;
+			}
 		}
 
 		//generate proposal
@@ -200,7 +200,7 @@ namespace dynamic_stereo{
 //		Depth result_firstOrder;
 //		optimizer_firstorder.optimize(result_firstOrder, 10);
 //		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-////		warpToAnchor(result_firstOrder, "firstorder");
+//		warpToAnchor(result_firstOrder, "firstorder");
 //		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 
 
@@ -223,6 +223,8 @@ namespace dynamic_stereo{
 
 	void DynamicStereo::warpToAnchor(const Depth& refDisp, const std::string& prefix) const{
 		cout << "Warpping..." << endl;
+		char buffer[1024] = {};
+
 		vector<Mat> fullimages(images.size());
 		for(auto i=0; i<fullimages.size(); ++i)
 			fullimages[i] = imread(file_io.getImage(i+offset));
@@ -233,6 +235,19 @@ namespace dynamic_stereo{
 
 		const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
 
+		//in full resolution
+		Mat warpMask;
+		sprintf(buffer, "%s/mask%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		warpMask = imread(buffer);
+		cvtColor(warpMask, warpMask, CV_RGB2GRAY);
+
+//		VideoWriter vwriter;
+//		sprintf(buffer, "%s/temp/cinemagraph%05d_twindow%03d.avi", file_io.getDirectory().c_str(), anchor, tWindow);
+//		vwriter.open(string(buffer), -1, 12, cv::Size(warpMask.cols, warpMask.rows));
+//		bool is_video_opened = vwriter.isOpened();
+//		if(!is_video_opened)
+//			printf("Video %s not opened\n", buffer);
+
 		for(auto i=0; i<fullimages.size(); ++i){
 			cout << i+offset << ' ' << flush;
 			warpped[i] = fullimages[anchor-offset].clone();
@@ -241,6 +256,8 @@ namespace dynamic_stereo{
 			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
 			for(auto y=downsample; y<h-downsample; ++y){
 				for(auto x=downsample; x<w-downsample; ++x){
+					if(warpMask.at<uchar>(y,x) < 200)
+						continue;
 					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
 					ray.normalize();
 					double disp = refDisp.getDepthAt(Vector2d(x/downsample, y/downsample));
@@ -255,11 +272,14 @@ namespace dynamic_stereo{
 					}
 				}
 			}
+
 		}
 
 		cout << endl << "Saving..." << endl;
-		char buffer[1024] = {};
+
 		for(auto i=0; i<warpped.size(); ++i){
+//			if(is_video_opened)
+//				vwriter << warpped[i];
 			sprintf(buffer, "%s/temp/warpped_%s_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),prefix.c_str(),  anchor, i+offset);
 			imwrite(buffer, warpped[i]);
 		}

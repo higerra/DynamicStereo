@@ -90,6 +90,11 @@ namespace interpolation_util {
 		CHECK_LT(min_dis, 1.0);
 		return res;
 	};
+
+
+#ifdef USE_CUDA
+
+#endif
 }//namespace interpolate_util
 
 

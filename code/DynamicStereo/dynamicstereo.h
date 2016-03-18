@@ -83,11 +83,6 @@ namespace dynamic_stereo {
         const double dispScale;
     };
 
-    namespace MRF_util{
-        void samplePatch(const cv::Mat& img, const Eigen::Vector2d& loc, const int pR, std::vector<double>& pix);
-        double medianMatchingCost(const std::vector<std::vector<double> >& patches, const int refId);
-    }
-
 	namespace segment_uilt{
 		void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output);
 	}

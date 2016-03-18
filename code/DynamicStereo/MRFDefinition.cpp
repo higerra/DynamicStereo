@@ -4,116 +4,12 @@
 
 #include "dynamicstereo.h"
 #include "external/MRF2.2/GCoptimization.h"
+#include "local_matcher.h"
 using namespace std;
 using namespace cv;
 using namespace Eigen;
 
 namespace dynamic_stereo {
-    namespace MRF_util {
-        void samplePatch(const cv::Mat &img, const Vector2d &loc, const int pR, std::vector<double> &pix) {
-            const int w = img.cols;
-            const int h = img.rows;
-            pix.resize((size_t) 3 * (2 * pR + 1) * (2 * pR + 1));
-            int index = 0;
-            for (int dx = -1 * pR; dx <= pR; ++dx) {
-                for (int dy = -1 * pR; dy <= pR; ++dy, ++index) {
-                    Vector2d curloc(loc[0] + dx, loc[1] + dy);
-                    if (curloc[0] < 0 || curloc[1] < 0 || curloc[0] >= w - 1 || curloc[1] >= h - 1) {
-                        pix[index * 3] = -1;
-                        pix[index * 3 + 1] = -1;
-                        pix[index * 3 + 2] = -1;
-                    } else {
-                        Vector3d pv = interpolation_util::bilinear<uchar, 3>(img.data, w, h, curloc);
-                        pix[index * 3] = pv[0];
-                        pix[index * 3 + 1] = pv[1];
-                        pix[index * 3 + 2] = pv[2];
-                    }
-                }
-            }
-        }
-
-        void getNCCArray(const vector<vector<double> >& patches, const int refId, vector<double>& mCost){
-            const vector<double> &pRef = patches[refId];
-            mCost.reserve(patches.size() - 1);
-            for (auto i = 0; i < patches.size(); ++i) {
-                if (i == refId)
-                    continue;
-                vector<double> p1, p2;
-                for (auto j = 0; j < pRef.size(); ++j) {
-                    if (pRef[j] >= 0 && patches[i][j] >= 0) {
-                        p1.push_back(pRef[j]);
-                        p2.push_back(patches[i][j]);
-                    }
-                }
-                if (p1.size() < pRef.size() / 2)
-                    continue;
-                mCost.push_back(math_util::normalizedCrossCorrelation(p1, p2));
-            }
-        }
-
-        void getSSDArray(const vector<vector<double> >& patches, const int refId, vector<double>& mCost){
-            const vector<double> &pRef = patches[refId];
-
-            for (auto i = 0; i < patches.size(); ++i) {
-                if (i == refId)
-                    continue;
-                vector<double> p1, p2;
-                for (auto j = 0; j < pRef.size(); ++j) {
-                    if (pRef[j] >= 0 && patches[i][j] >= 0) {
-                        p1.push_back(pRef[j]);
-                        p2.push_back(patches[i][j]);
-                    }
-                }
-                if (p1.size() < pRef.size() / 2)
-                    continue;
-                double ssd = 0.0;
-                for(auto j=0; j<p1.size(); ++j)
-                    ssd += (p1[j]-p2[j]) * (p1[j]-p2[j]);
-                mCost.push_back(ssd / (double)p1.size());
-            }
-        }
-
-        double medianMatchingCost(const vector<vector<double> > &patches, const int refId) {
-            CHECK_GE(refId, 0);
-            CHECK_LT(refId, patches.size());
-            vector<double> mCost;
-            getSSDArray(patches, refId, mCost);
-            //if the patch is not visible in >50% frames, assign large penalty.
-            if (mCost.size() < patches.size() / 2)
-                return -1;
-            size_t kth = mCost.size() / 2;
-            nth_element(mCost.begin(), mCost.begin() + kth, mCost.end());
-            return mCost[kth];
-        }
-
-        double sumMatchingCostHalf(const vector<vector<double> >& patches, const int refId){
-            CHECK_GE(refId, 0);
-            CHECK_LT(refId, patches.size());
-            const double theta = 90;
-            auto phid = [theta](const double v){
-                return -1 * std::log2(1 + std::exp(-1 * v / theta));
-            };
-            vector<double> mCost;
-            getSSDArray(patches, refId, mCost);
-            //if the patch is not visible in >50% frames, assign large penalty.
-            if (mCost.size() < 2)
-                return 1;
-            if(mCost.size() == 2)
-                return std::min(phid(mCost[0]), phid(mCost[1]));
-            //sum of best half
-            sort(mCost.begin(), mCost.end());
-            const size_t kth = mCost.size() / 2;
-            double res = 0.0;
-
-            for(auto i=0; i<kth; ++i){
-                res += phid(mCost[i]);
-            }
-            return res / (double)kth;
-        }
-
-    }//namespace MRF_util
-
-
     void DynamicStereo::computeMinMaxDisparity(){
         if(min_disp > 0 && max_disp > 0)
             return;
@@ -196,9 +92,6 @@ namespace dynamic_stereo {
                 for (int x = 0; x < width; ++x, ++index) {
                     if (index % unit == 0)
                         cout << '.' << flush;
-
-//                    Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x * downsample, y * downsample));
-//                    ray.normalize();
 #pragma omp parallel for
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
@@ -247,45 +140,10 @@ namespace dynamic_stereo {
                                     }
                                 }
                             }
-//                        Vector3d spt = cam1.GetPosition() + ray * 1.0 / disp;
-//                        Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
-//                        //project onto other views and compute matching cost
-//                        vector<vector<double> > patches(images.size());
-//                        for (auto v = 0; v < images.size(); ++v) {
-//                            theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
-//                            Vector2d imgpt;
-//                            cam2.ProjectPoint(spt_homo, &imgpt);
-//                            imgpt = imgpt / (double) downsample;
-//                            //TODO: shifting window
-//                            MRF_util::samplePatch(images[v], imgpt, pR, patches[v]);
-
                         }
-
-//                        if(x == tx && y == ty){
-//                            printf("----------------------\n");
-//                            printf("Debug for (%d,%d,%d)\n", x, y, d);
-//                            for(auto v=0; v<patches.size(); ++v){
-//                                printf("view %d: ", v);
-//                                for(auto p: patches[v])
-//                                    printf("%.3f ", p);
-//                                printf("\n");
-//                            }
-//                        }
-
-                        //compute the matching cost starting from each images
-//                    vector<double> mCostGroup(images.size()); //matching cost
-//                    for(auto v=0; v<patches.size(); ++v)
-//                        mCostGroup[v] = MRF_util::medianMatchingCost(patches, v);
-//                    size_t kth = mCostGroup.size() / 2;
-//                    nth_element(mCostGroup.begin(), mCostGroup.begin()+kth, mCostGroup.end());
-//                    MRF_data[dispResolution * (y*width+x) + d] = (int)((mCostGroup[kth] - 1) * (mCostGroup[kth] - 1) * MRFRatio);
-                        //double mCost = MRF_util::medianMatchingCost(patches, anchor - offset);
-                        double mCost = MRF_util::sumMatchingCostHalf(patches, anchor - offset);
-//                    MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((mCost - 1) * (mCost - 1) *
-//                                                                                   MRFRatio);
+                        double mCost = local_matcher::sumMatchingCost(patches, anchor - offset);
                         MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((mCost + 1) * MRFRatio);
                     }
-
                 }
             }
             cout << "done" << endl;

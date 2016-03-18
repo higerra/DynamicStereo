@@ -61,19 +61,27 @@ namespace dynamic_stereo {
 		}
 	}
 
-	void Depth::saveImage(const string &filename, const double amp) const {
+	void Depth::saveImage(const string &filename, double amp) const{
 		Mat outmat(getHeight(), getWidth(), CV_8UC3);
 		uchar* pData = outmat.data;
+
+		updateStatics();
+		double mind = 0;
+		double maxd = max_depth;
+		if(amp < 0){
+			mind = min_depth;
+			CHECK_NE(min_depth, max_depth);
+			amp = 255.0 / (maxd - mind);
+		}
 		for (int y = 0; y < getHeight(); y++) {
 			for (int x = 0; x < getWidth(); x++) {
 				const int idx = x + y * getWidth();
-				double curdepth = data[idx];
-				double dv = curdepth * amp;
-				if(dv > 255)
-					dv = 255;
+				double curdepth = (data[idx] - mind) * amp;
+				if(curdepth > 255)
+					curdepth = 255;
 				if (curdepth >= 0)
 					for(int i=0; i<3; ++i)
-						pData[3*idx+i] = (uchar)dv;
+						pData[3*idx+i] = (uchar)curdepth;
 				else{
 					pData[3*idx] = 255;
 					pData[3*idx+1] = 0;
@@ -109,7 +117,7 @@ namespace dynamic_stereo {
 		depthout.close();
 	}
 
-	void Depth::updateStatics() {
+	void Depth::updateStatics() const{
 		average_depth = 0;
 		depth_var = 0;
 		int count = 0;

@@ -38,6 +38,13 @@ namespace dynamic_stereo{
             CHECK_LT(idx, data.size());
             return data[idx];
         }
+
+        inline double& operator[] (int idx){
+            CHECK_GE(idx, 0);
+            CHECK_LT(idx, data.size());
+            return data[idx];
+        }
+
         inline double operator() (int x, int y) const{
             CHECK_GE(x, 0);
             CHECK_GE(y, 0);
@@ -46,13 +53,20 @@ namespace dynamic_stereo{
             int idx = y * getWidth() + x;
             return this->operator[](idx);
         }
+        inline double& operator()(int x, int y){
+            CHECK_GE(x, 0);
+            CHECK_GE(y, 0);
+            CHECK_LT(x, getWidth());
+            CHECK_LT(y, getHeight());
+            int idx = y * getWidth() + x;
+            return data[idx];
+        }
 
         inline void setDepthAtInd(const int ind, const double v){
             CHECK_GE(ind, 0);
             CHECK_LT(ind, data.size());
             data[ind] = v;
         }
-
         double getDepthAt(const Eigen::Vector2d& loc)const;
 
         inline double getDepthAtInt(int x, int y) const{
@@ -83,10 +97,12 @@ namespace dynamic_stereo{
             weight[ind] = v;
         }
 
-        void updateStatics();
+        void updateStatics() const;
         inline bool is_statics_computed()const {return statics_computed;}
         void fillhole();
         void fillholeAndSmooth();
+
+        //if amp == -1, the depth will be rescaled to 0~255
         void saveImage(const std::string& filename, const double amp = 1) const;
         void saveDepthFile(const std::string& filename) const;
         bool readDepthFromFile(const std::string& filename);
@@ -94,11 +110,11 @@ namespace dynamic_stereo{
     private:
         int depthwidth;
         int depthheight;
-        double average_depth;
-        double median_depth;
-        double depth_var;
-        double min_depth;
-        double max_depth;
+        mutable double average_depth;
+        mutable double median_depth;
+        mutable double depth_var;
+        mutable double min_depth;
+        mutable double max_depth;
 
         bool statics_computed;
         std::vector<double>data;
