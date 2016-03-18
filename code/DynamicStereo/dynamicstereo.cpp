@@ -146,62 +146,70 @@ namespace dynamic_stereo{
 
 		{
 			//plot the gray value
-			Vector2d testPt(1178,422);
-			const int testDisp = 3;
-
-			vector<vector<double> > gv(dispResolution); //gv[i][j]: pixel in jth view on disparity i
-			const theia::Camera cam = reconstruction.View(anchor)->Camera();
-			Vector3d ray = cam.PixelToUnitDepthRay(testPt);
-			ray.normalize();
-
-			vector<Mat> grayImg(images.size());
-			for(auto v=0; v<images.size(); ++v)
-				cvtColor(images[v], grayImg[v], CV_RGB2GRAY);
-			for(auto d=0; d<dispResolution; ++d){
-				double depth = dispToDepth(d);
-				Vector3d spt = cam.GetPosition() + ray * depth;
-				for(auto v=0; v<images.size(); ++v){
-					const theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
-					Vector2d imgpt;
-					cam2.ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-					imgpt = imgpt / downsample;
-					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width - 1 || imgpt[1] >= height - 1)
-						gv[d].push_back(0.0);
-					else {
-						VectorXd pix = interpolation_util::bilinear<uchar, 1>(grayImg[v].data, width, height, imgpt);
-						gv[d].push_back(pix[0]);
-					}
-
-					if(d == testDisp){
-						Mat outImg = grayImg[v].clone();
-						cvtColor(outImg, outImg, CV_GRAY2RGB);
-						circle(outImg, cv::Point(imgpt[0], imgpt[1]),1,cv::Scalar(0,0,255));
-						sprintf(buffer, "%s/temp/pattern_d%03d_v%03d.jpg", file_io.getDirectory().c_str(), d, v+offset);
-						imwrite(buffer, outImg);
-					}
-				}
-			}
-			sprintf(buffer, "%s/temp/pattern.txt", file_io.getDirectory().c_str());
-			ofstream fout(buffer);
-			CHECK(fout.is_open());
-			for(auto d=0; d<gv.size(); ++d){
-				for(auto v=0; v<gv[d].size(); ++v)
-					fout << gv[d][v] << ' ';
-				fout << endl;
-			}
+//			Vector2d testPt(1178,422);
+//			const int testDisp = 3;
+//
+//			vector<vector<double> > gv(dispResolution); //gv[i][j]: pixel in jth view on disparity i
+//			const theia::Camera cam = reconstruction.View(anchor)->Camera();
+//			Vector3d ray = cam.PixelToUnitDepthRay(testPt);
+//			ray.normalize();
+//
+//			vector<Mat> grayImg(images.size());
+//			for(auto v=0; v<images.size(); ++v)
+//				cvtColor(images[v], grayImg[v], CV_RGB2GRAY);
+//			for(auto d=0; d<dispResolution; ++d){
+//				double depth = dispToDepth(d);
+//				Vector3d spt = cam.GetPosition() + ray * depth;
+//				for(auto v=0; v<images.size(); ++v){
+//					const theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
+//					Vector2d imgpt;
+//					cam2.ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+//					imgpt = imgpt / downsample;
+//					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width - 1 || imgpt[1] >= height - 1)
+//						gv[d].push_back(0.0);
+//					else {
+//						VectorXd pix = interpolation_util::bilinear<uchar, 1>(grayImg[v].data, width, height, imgpt);
+//						gv[d].push_back(pix[0]);
+//					}
+//
+//					if(d == testDisp){
+//						Mat outImg = grayImg[v].clone();
+//						cvtColor(outImg, outImg, CV_GRAY2RGB);
+//						circle(outImg, cv::Point(imgpt[0], imgpt[1]),1,cv::Scalar(0,0,255));
+//						sprintf(buffer, "%s/temp/pattern_d%03d_v%03d.jpg", file_io.getDirectory().c_str(), d, v+offset);
+//						imwrite(buffer, outImg);
+//					}
+//				}
+//			}
+//			sprintf(buffer, "%s/temp/pattern.txt", file_io.getDirectory().c_str());
+//			ofstream fout(buffer);
+//			CHECK(fout.is_open());
+//			for(auto d=0; d<gv.size(); ++d){
+//				for(auto v=0; v<gv[d].size(); ++v)
+//					fout << gv[d][v] << ' ';
+//				fout << endl;
+//			}
 		}
 
 		//generate proposal
 		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
 
-//		cout << "Solving with first order smoothness..." << endl;
-//		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
-//		Depth result_firstOrder;
-//		optimizer_firstorder.optimize(result_firstOrder, 10);
-//		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		warpToAnchor(result_firstOrder, "firstorder");
-//		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+		Depth depthUnary;
+		depthUnary.initialize(width, height, -1);
+		for(auto i=0; i<width * height; ++i)
+			depthUnary[i] = dispToDepth(dispUnary[i]);
+		sprintf(buffer, "%s/temp/unaryDepth_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		depthUnary.saveImage(string(buffer), -1);
+
+
+		cout << "Solving with first order smoothness..." << endl;
+		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
+		Depth result_firstOrder;
+		optimizer_firstorder.optimize(result_firstOrder, 10);
+		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		warpToAnchor(result_firstOrder, "firstorder");
+		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
