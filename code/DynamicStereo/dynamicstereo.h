@@ -41,6 +41,7 @@ namespace dynamic_stereo {
         inline int getOffset() const {return offset;};
         inline int getDownsample() const {return downsample; }
 	    void warpToAnchor(const Depth& refDisp, const std::string& prefix) const;
+		void disparityToDepth(const Depth& disp, Depth& depth);
     private:
         typedef int EnergyType;
 
@@ -83,8 +84,11 @@ namespace dynamic_stereo {
         const double dispScale;
     };
 
-	namespace segment_uilt{
+	namespace utility{
 		void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output);
+
+		//depth, not dispartiy!
+		void saveDepthAsPly(const std::string& path, const Depth& depth, const cv::Mat& image, const theia::Camera& cam, const int downsample);
 	}
 }
 

@@ -116,7 +116,7 @@ namespace dynamic_stereo{
         mutable double min_depth;
         mutable double max_depth;
 
-        bool statics_computed;
+        mutable bool statics_computed;
         std::vector<double>data;
         std::vector<double>weight;
     };

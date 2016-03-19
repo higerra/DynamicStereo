@@ -40,6 +40,7 @@
 #include <string>
 #include <vector>
 #include <stlplus3/file_system.hpp>
+#include <opencv2/opencv.hpp>
 #include "base/file_io.h"
 
 #include "command_line_helpers.h"
@@ -306,9 +307,15 @@ void AddImagesToReconstructionBuilder(const FileIO& file_io,
                                       ReconstructionBuilder* reconstruction_builder) {
     std::vector<std::string> image_files;
     CHECK_GT(FLAGS_image_intervals, 0);
-    for(auto i=0; i<file_io.getTotalNum(); i += FLAGS_image_intervals) {
-	    image_files.push_back(file_io.getImage(i));
-	    std::cout << file_io.getImage(i) << std::endl;
+    char buffer[1024] = {};
+    int idx = 0;
+    while(true){
+        sprintf(buffer, "%s/images_input/image%05d.jpg", file_io.getDirectory().c_str(), idx);
+        if(!stlplus::file_exists(buffer))
+            break;
+	    image_files.push_back(std::string(buffer));
+	    std::cout << buffer << std::endl;
+        idx += FLAGS_image_intervals;
     }
 
     CHECK_GT(image_files.size(), 0) << "No images found in: " << file_io.getImageDirectory();
@@ -352,17 +359,32 @@ int main(int argc, char *argv[]) {
 
     CHECK(stlplus::folder_exists(std::string(argv[1]))) << "Invalid path";
     dynamic_stereo::FileIO file_io(argv[1]);
-    CHECK(stlplus::folder_exists(file_io.getImageDirectory())) << "Empty dataset";
 
-    if(stlplus::folder_exists(file_io.getMvgDirectory()))
+    char buffer[1024] = {};
+    sprintf(buffer, "%s/images_input", file_io.getDirectory().c_str());
+    CHECK(stlplus::folder_exists(buffer)) << "Please put all image inside images_input folder";
+
+    if(!stlplus::folder_exists(file_io.getMvgDirectory()))
         stlplus::folder_create(file_io.getMvgDirectory());
 
     if(!stlplus::folder_exists(file_io.getSfMDirectory()))
         stlplus::folder_create(file_io.getSfMDirectory());
 
+    if(!stlplus::folder_exists(file_io.getImageDirectory()))
+        stlplus::folder_create(file_io.getImageDirectory());
+
     std::string output_ply = file_io.getSfMDirectory() + "/reconstruction.ply";
 
-    char buffer[1024] = {};
+
+    int totalNum = 0;
+
+    //count totalNum of images
+    while(true){
+        sprintf(buffer, "%s/images_input/image%05d.jpg", file_io.getDirectory().c_str(), totalNum * FLAGS_image_intervals);
+        if(!stlplus::file_exists(buffer))
+            break;
+        totalNum++;
+    }
 
     theia::Reconstruction *res = new theia::Reconstruction();
     if(!theia::ReadReconstruction(file_io.getReconstruction(), res)) {
@@ -382,16 +404,28 @@ int main(int argc, char *argv[]) {
         //colorize reconstruction
         CHECK(theia::WriteReconstruction(*res, file_io.getReconstruction())) << "Cannot write reconstruction file";
     }
-    theia::ColorizeReconstruction(file_io.getImageDirectory(), FLAGS_num_threads, res);
+    theia::ColorizeReconstruction(file_io.getDirectory()+"/images_input/", FLAGS_num_threads, res);
     CHECK(theia::WritePlyFile(output_ply, *(res), 3)) << "Cannot write ply file";
 
 
     //std::vector<theia::Matrix3x4d> pMatrix(file_io.getTotalNum());
 
-    CHECK_EQ(res->NumViews(), file_io.getTotalNum()) << "Some cameras are missing";
+    printf("%d out of %d images are registered. Unregistered images are discarded\n", res->NumViews(), totalNum);
+    //re-index images, ignore un-registered images
     for(auto i=0; i<res->NumViews(); ++i){
         const theia::View* v = res->View(i);
+        CHECK(v) << "View " << i << " is null";
         const theia::Camera cam = v->Camera();
+
+        std::string nstr = v->Name().substr(5,5);
+        int idx = atoi(nstr.c_str());
+
+        sprintf(buffer, "%s/images_input/image%05d.jpg", file_io.getDirectory().c_str(), idx);
+        cv::Mat img = cv::imread(buffer);
+        sprintf(buffer, "%s/images/image%05d.jpg", file_io.getDirectory().c_str(), i);
+        printf("Saving %s\n", buffer);
+        cv::imwrite(buffer, img);
+
         theia::Matrix3x4d p;
         cam.GetProjectionMatrix(&p);
         sprintf(buffer, "%s/%s.txt", file_io.getSfMDirectory().c_str(), v->Name().c_str());

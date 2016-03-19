@@ -129,19 +129,11 @@ namespace dynamic_stereo{
             }
         }
 
-//	    Depth tempd;
-//	    tempd.initialize(w, h, 0.0);
-//	    for(auto i=0; i<nPixels; ++i)
-//		    tempd.getRawData()[i] = dispToDepth(noisyDisp.getRawData()[i]);
-//	    char buffer[1024] = {};
-//	    sprintf(buffer, "%s/temp/tdisp_%s_%03d_1.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
-//	    noisyDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
-//	    sprintf(buffer, "%s/temp/tdisp_%s_%03d_2.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
-//	    planarDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
-//	    sprintf(buffer, "%s/temp/tdepth_%s_%03d_1.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
-//	    tempd.saveImage(std::string(buffer));
-//	    sprintf(buffer, "%s/temp/tdepth_%s_%03d_2.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
-//	    planarDepth.saveImage(std::string(buffer));
+	    char buffer[1024] = {};
+	    sprintf(buffer, "%s/temp/tdisp_%s_%03d_1.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
+	    noisyDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
+	    sprintf(buffer, "%s/temp/tdisp_%s_%03d_2.jpg", file_io.getDirectory().c_str(), method.c_str(), id);
+	    planarDisp.saveImage(std::string(buffer), 255.0 / (double)dispResolution);
     }
 
     void ProposalSegPln::genProposal(std::vector<Depth> &proposals) {

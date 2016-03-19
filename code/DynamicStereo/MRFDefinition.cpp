@@ -142,7 +142,8 @@ namespace dynamic_stereo {
                             }
                         }
                         double mCost = local_matcher::sumMatchingCost(patches, anchor - offset);
-                        MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((mCost + 1) * MRFRatio);
+                        //double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
+                        MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 + mCost) * MRFRatio);
                     }
                 }
             }

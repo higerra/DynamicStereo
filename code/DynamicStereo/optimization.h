@@ -76,6 +76,21 @@ namespace dynamic_stereo {
         std::vector<int> refSeg;
     };
 
+    class SecondOrderOptimizeTRBP : public StereoOptimization {
+    public:
+        SecondOrderOptimizeTRBP(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
+                                const std::vector<EnergyType> &MRF_data_, const float MRFRatio_, const int nLabel_);
+
+        virtual void optimize(Depth &result, const int max_iter) const;
+
+        virtual double evaluateEnergy(const Depth &) const;
+
+    private:
+        EnergyType laml;
+        EnergyType lamh;
+        std::vector<int> refSeg;
+    };
+
     class SecondOrderOptimizeFusionMove : public StereoOptimization {
     public:
         SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,

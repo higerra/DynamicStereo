@@ -75,26 +75,25 @@ namespace local_matcher {
         CHECK_GE(refId, 0);
         CHECK_LT(refId, patches.size());
         const double theta = 90;
-        auto phid = [theta](const double v) {
+        auto phid = [theta](const double v){
             return -1 * std::log2(1 + std::exp(-1 * v / theta));
         };
         vector<double> mCost;
         getSSDArray(patches, refId, mCost);
         //if the patch is not visible in >50% frames, assign large penalty.
-        if(mCost.empty())
-            return 1;
         if (mCost.size() < 2)
-            return 1;
-        if (mCost.size() == 2)
+            return 0.0;
+        if(mCost.size() == 2)
             return std::min(phid(mCost[0]), phid(mCost[1]));
         //sum of best half
-        //sort(mCost.begin(), mCost.end());
-        const size_t kth = mCost.size();
+        sort(mCost.begin(), mCost.end());
+        const size_t kth = mCost.size() / 2;
         double res = 0.0;
-        for (auto i = 0; i < kth; ++i) {
+
+        for(auto i=0; i<kth; ++i){
             res += phid(mCost[i]);
         }
-        return res / (double) kth;
+        return res / (double)kth;
     }
 
     double medianMatchingCost(const vector<vector<double> > &patches, const int refId) {
