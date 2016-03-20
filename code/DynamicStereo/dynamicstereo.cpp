@@ -6,6 +6,8 @@
 #include "optimization.h"
 #include <OpenMesh/Core/IO/MeshIO.hh>
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
+#include "proposal.h"
+#include "local_matcher.h"
 
 using namespace std;
 using namespace cv;
@@ -156,48 +158,48 @@ namespace dynamic_stereo{
 
 	void DynamicStereo::runStereo() {
 		char buffer[1024] = {};
-		//debug for sample patch
+		//debug for NCC
 //        vector<vector<double> > testP(2);
-//        const int tf2 = 3;
-//        Vector2d tloc1 = Vector2d(680,387) / downsample;
-//        Vector2d tloc2 = Vector2d(100,100) / downsample;
-//        MRF_util::samplePatch(images[anchor-offset], tloc1, pR, testP[0]);
-//        MRF_util::samplePatch(images[tf2-offset], tloc2, pR, testP[1]);
-//        double testncc = MRF_util::medianMatchingCost(testP, 0);
+//        const int tf2 = anchor;
+//        Vector2d tloc1 = Vector2d(253,44) / downsample;
+//        Vector2d tloc2 = Vector2d(1070,457) / downsample;
+//        local_matcher::samplePatch(images[anchor-offset], tloc1, pR, testP[0]);
+//        local_matcher::samplePatch(images[tf2-offset], tloc2, pR, testP[1]);
+//        double testncc = math_util::normalizedCrossCorrelation(testP[0], testP[1]);
 //        cout << "Test ncc: " << testncc << endl;
 
 		initMRF();
 
 		{
 			//debug: inspect unary term
-			const int tx = 1091 / downsample;
-			const int ty = 231 / downsample;
-			printf("Unary term for (%d,%d)\n", tx, ty);
-			for (auto d = 0; d < dispResolution; ++d) {
-				cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
-			}
-			cout << endl;
-			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
-
-			const theia::Camera &cam = reconstruction.View(anchor)->Camera();
-			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
-			ray.normalize();
-
-			int tdisp = 83;
-			double td = dispToDepth(tdisp);
-			printf("Cost at d=%d: %d\n", tdisp, MRF_data[dispResolution * (ty * width + tx) + tdisp]);
-
-			Vector3d spt = cam.GetPosition() + ray * td;
-			for (auto v = 0; v < images.size(); ++v) {
-				Mat curimg = imread(file_io.getImage(v + offset));
-				Vector2d imgpt;
-				reconstruction.View(v + offset)->Camera().ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
-					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
-				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
-						v + offset);
-				imwrite(buffer, curimg);
-			}
+//			const int tx = 1091 / downsample;
+//			const int ty = 231 / downsample;
+//			printf("Unary term for (%d,%d)\n", tx, ty);
+//			for (auto d = 0; d < dispResolution; ++d) {
+//				cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
+//			}
+//			cout << endl;
+//			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+//
+//			const theia::Camera &cam = reconstruction.View(anchor)->Camera();
+//			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
+//			ray.normalize();
+//
+//			int tdisp = 83;
+//			double td = dispToDepth(tdisp);
+//			printf("Cost at d=%d: %d\n", tdisp, MRF_data[dispResolution * (ty * width + tx) + tdisp]);
+//
+//			Vector3d spt = cam.GetPosition() + ray * td;
+//			for (auto v = 0; v < images.size(); ++v) {
+//				Mat curimg = imread(file_io.getImage(v + offset));
+//				Vector2d imgpt;
+//				reconstruction.View(v + offset)->Camera().ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+//				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
+//					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
+//				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
+//						v + offset);
+//				imwrite(buffer, curimg);
+//			}
 		}
 
 		{
@@ -248,30 +250,36 @@ namespace dynamic_stereo{
 		}
 
 		//generate proposal
-		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
+//		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
+//
+//		Depth depthUnary;
+//		depthUnary.initialize(width, height, -1);
+//		for(auto i=0; i<width * height; ++i)
+//			depthUnary[i] = dispToDepth(dispUnary[i]);
+//		sprintf(buffer, "%s/temp/unaryDepth_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		depthUnary.saveImage(string(buffer), -1);
 
-		Depth depthUnary;
-		depthUnary.initialize(width, height, -1);
-		for(auto i=0; i<width * height; ++i)
-			depthUnary[i] = dispToDepth(dispUnary[i]);
-		sprintf(buffer, "%s/temp/unaryDepth_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		depthUnary.saveImage(string(buffer), -1);
+
+		//debug for SfM proposal
+//		vector<Depth> SfMProposals;
+//		ProposalSfM proposalSfM(file_io, images[anchor-offset], reconstruction, anchor, dispResolution, min_disp, max_disp, (double)downsample);
+//		proposalSfM.genProposal(SfMProposals);
 
 
-		cout << "Solving with first order smoothness..." << endl;
-		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
-		Depth result_firstOrder;
-		optimizer_firstorder.optimize(result_firstOrder, 10);
-		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		warpToAnchor(result_firstOrder, "firstorder");
-		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
-
-		printf("Saving depth to point cloud...\n");
-		Depth depth_firstOrder;
-		disparityToDepth(result_firstOrder, depth_firstOrder);
-		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthToPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+//		cout << "Solving with first order smoothness..." << endl;
+//		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
+//		Depth result_firstOrder;
+//		optimizer_firstorder.optimize(result_firstOrder, 10);
+//		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+////		warpToAnchor(result_firstOrder, "firstorder");
+//		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+//
+//		printf("Saving depth to point cloud...\n");
+//		Depth depth_firstOrder;
+//		disparityToDepth(result_firstOrder, depth_firstOrder);
+//		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+//		utility::saveDepthToPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
 //		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);
@@ -283,7 +291,7 @@ namespace dynamic_stereo{
 		cout << "Solving with second order smoothness (fusion move)..." << endl;
 		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
 		Depth result_fusion;
-		optimizer_fusion.optimize(result_fusion, 200);
+		optimizer_fusion.optimize(result_fusion, 1000);
 		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
 

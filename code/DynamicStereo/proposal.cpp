@@ -125,7 +125,7 @@ namespace dynamic_stereo{
 		            double oridepth = dispToDepth(noisyDisp.getDepthAtInd(idx));
 		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, oridepth, oridepth, newdepth);
 	            }
-                planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution-1), 0.0));
+                planarDisp.setDepthAtInd(idx, std::max(std::min(round(depthToDisp(d)+0.5), (double)dispResolution-1), 0.0));
             }
         }
 

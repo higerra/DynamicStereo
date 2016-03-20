@@ -100,7 +100,7 @@ namespace dynamic_stereo {
                 newProposal = proposals[iter % (proposals.size())];
                 cout << "Iteration " << iter << " using proposal " << iter % (proposals.size()) << endl;
             }
-            cout << "Initial energy: " << evaluateEnergy(result) << endl;
+            printf("Initial energy: %.3f", evaluateEnergy(result));
             //after several iteration, smooth the dispartiy
             fusionMove(result, newProposal);
             double e = evaluateEnergy(result);
@@ -145,7 +145,7 @@ namespace dynamic_stereo {
                 lam = lamh;
             else
                 lam = laml;
-            return lapE(disp[id1], disp[id1], disp[id3]) * lam;
+            return lapE(disp[id1], disp[id2], disp[id3]) * lam;
         };
 
         for (auto x = 1; x < width - 1; ++x) {
@@ -168,19 +168,19 @@ namespace dynamic_stereo {
         proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
 
         //Add fronto parallel plane
-//        const int num = nLabel;
-//        for(auto i=0; i<num; ++i){
-//            double disp = (double)nLabel / (double)num * i;
-//            Depth p;
-//            p.initialize(width, height, disp);
-//            proposals.push_back(p);
-//        }
+        const int num = nLabel;
+        for(auto i=0; i<num; ++i){
+            double disp = (double)nLabel / (double)num * i;
+            Depth p;
+            p.initialize(width, height, disp);
+            proposals.push_back(p);
+        }
     }
 
     void SecondOrderOptimizeFusionMove::fusionMove(Depth &p1, const Depth &p2) const {
         //create problem
         int nPix = width * height;
-        kolmogorov::qpbo::QPBO<EnergyType> qpbo(nPix*10, nPix*20);
+        kolmogorov::qpbo::QPBO<double> qpbo(nPix*10, nPix*20);
         //construct graph
         auto addTripleToGraph = [&](int p, int q, int r) {
             double vp1 = p1[p], vp2 = p2[p], vq1 = p1[q], vq2 = p2[q], vr1 = p1[r], vr2 = p2[r];
@@ -189,16 +189,26 @@ namespace dynamic_stereo {
                 lam = lamh;
             else
                 lam = laml;
-            EnergyType A = (EnergyType)(lapE(vp1, vq1, vr1) * lam * MRFRatio);
-            EnergyType B = (EnergyType)(lapE(vp1, vq1, vr2) * lam * MRFRatio);
-            EnergyType C = (EnergyType)(lapE(vp1, vq2, vr1) * lam * MRFRatio);
-            EnergyType D = (EnergyType)(lapE(vp1, vq2, vr2) * lam * MRFRatio);
-            EnergyType E = (EnergyType)(lapE(vp2, vq1, vr1) * lam * MRFRatio);
-            EnergyType F = (EnergyType)(lapE(vp2, vq1, vr2) * lam * MRFRatio);
-            EnergyType G = (EnergyType)(lapE(vp2, vq2, vr1) * lam * MRFRatio);
-            EnergyType H = (EnergyType)(lapE(vp2, vq2, vr2) * lam * MRFRatio);
+            double A = (lapE(vp1, vq1, vr1) * lam);
+            double B = (lapE(vp1, vq1, vr2) * lam);
+            double C = (lapE(vp1, vq2, vr1) * lam);
+            double D = (lapE(vp1, vq2, vr2) * lam);
+            double E = (lapE(vp2, vq1, vr1) * lam);
+            double F = (lapE(vp2, vq1, vr2) * lam);
+            double G = (lapE(vp2, vq2, vr1) * lam);
+            double H = (lapE(vp2, vq2, vr2) * lam);
+//            printf("=========================================================\n");
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp1,vq1,vr1,lam,lapE(vp1,vq1,vr1),A);
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp1,vq1,vr2,lam,lapE(vp1,vq1,vr2),B);
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp1,vq2,vr1,lam,lapE(vp1,vq2,vr1),C);
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp1,vq2,vr2,lam,lapE(vp1,vq2,vr2),D);
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp2,vq1,vr1,lam,lapE(vp2,vq1,vr1),E);
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp2,vq1,vr2,lam,lapE(vp2,vq1,vr2),F);
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp2,vq2,vr1,lam,lapE(vp2,vq2,vr1),G);
+//            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp2,vq2,vr2,lam,lapE(vp2,vq2,vr2),H);
 
-            EnergyType pi = (A + D + F + G) - (B + C + E + H);
+
+            double pi = (A + D + F + G) - (B + C + E + H);
             if(pi >= 0){
                 qpbo.AddPairwiseTerm(p,q,0,C-A,0,G-E);
                 qpbo.AddPairwiseTerm(p,r,0,0,E-A,F-B);
@@ -225,7 +235,7 @@ namespace dynamic_stereo {
         printf("Construcint graph...\n");
         qpbo.AddNode(nPix);
         for(auto i=0; i<nPix; ++i) {
-            qpbo.AddUnaryTerm(i, MRF_data[nLabel * i + (int) p1[i]], MRF_data[nLabel * i + (int) p2[i]]);
+            qpbo.AddUnaryTerm(i, (double)MRF_data[nLabel * i + (int) p1[i]] / MRFRatio, (double)MRF_data[nLabel * i + (int) p2[i]] / MRFRatio);
         }
 
         for(auto y=1; y<height-1; ++y){
@@ -242,9 +252,10 @@ namespace dynamic_stereo {
         qpbo.Solve();
         qpbo.ComputeWeakPersistencies();
 
+        double e = qpbo.ComputeTwiceEnergy() / 2;
         //qpbo.Improve();
         t = ((float) getTickCount() - t) / (float) getTickFrequency();
-        printf("Done. Time usage:%.3f\n", t);
+        printf("Done. Final energy:%.3f, Time usage:%.3f\n", e, t);
 
         //fusion
         float unlabeled = 0.0;

@@ -13,7 +13,7 @@ using namespace dynamic_stereo;
 DEFINE_int32(testFrame, 60, "anchor frame");
 DEFINE_int32(tWindow, 60, "tWindow");
 DEFINE_int32(downsample, 4, "downsample ratio");
-DEFINE_int32(resolution, 128, "disparity resolution");
+DEFINE_int32(resolution, 64, "disparity resolution");
 DEFINE_double(weight_smooth, 0.001, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
@@ -89,18 +89,18 @@ int main(int argc, char **argv) {
 
     {
         //    //test SfM
-        Mat imgL, imgR;
-        const int tf1 = FLAGS_testFrame;
-        //In original scale
-        Vector2d pt(1178,422);
-        for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-            stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
-            CHECK_EQ(imgL.size(), imgR.size());
-            Mat imgAll;
-            cv::hconcat(imgL, imgR, imgAll);
-            sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-            imwrite(buffer, imgAll);
-        }
+//        Mat imgL, imgR;
+//        const int tf1 = FLAGS_testFrame;
+//        //In original scale
+//        Vector2d pt(1178,422);
+//        for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+//            stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
+//            CHECK_EQ(imgL.size(), imgR.size());
+//            Mat imgAll;
+//            cv::hconcat(imgL, imgR, imgAll);
+//            sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+//            imwrite(buffer, imgAll);
+//        }
     }
 
     stereo.runStereo();

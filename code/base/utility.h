@@ -100,11 +100,11 @@ namespace interpolation_util {
 
 namespace math_util {
 	inline double variance(const std::vector<double> &a, const double mean) {
-		CHECK(!a.empty());
+		CHECK_GT(a.size(),1);
 		const double n = (double) a.size();
 		std::vector<double> diff(a.size());
 		std::transform(a.begin(), a.end(), diff.begin(), std::bind2nd(std::minus<double>(), mean));
-		return std::sqrt(std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0) / n);
+		return std::sqrt(std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0) / (n-1));
 	}
 
 	inline double variance(const std::vector<double> &a) {

@@ -77,12 +77,14 @@ namespace local_matcher {
         const double theta = 90;
         auto phid = [theta](const double v){
             return -1 * std::log2(1 + std::exp(-1 * v / theta));
+//            return v;
         };
         vector<double> mCost;
         getSSDArray(patches, refId, mCost);
+        //getNCCArray(patches, refId, mCost);
         //if the patch is not visible in >50% frames, assign large penalty.
         if (mCost.size() < 2)
-            return 0.0;
+            return -1;
         if(mCost.size() == 2)
             return std::min(phid(mCost[0]), phid(mCost[1]));
         //sum of best half
