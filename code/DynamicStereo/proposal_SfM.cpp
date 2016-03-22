@@ -107,7 +107,7 @@ namespace dynamic_stereo{
                     const int y = idx / w;
                     if (zBuffer[idx] > 0) {
                         Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(x * downsample, y * downsample));
-                        ray.normalize();
+                        //ray.normalize();
                         Vector3d spt = cam.GetPosition() + zBuffer[idx] * ray;
                         pts.push_back(spt);
                     }

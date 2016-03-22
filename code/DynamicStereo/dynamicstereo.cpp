@@ -38,7 +38,7 @@ namespace dynamic_stereo{
 
 
 
-		void saveDepthToPly(const string& path, const Depth& depth, const cv::Mat& image, const theia::Camera& cam, const int downsample){
+		void saveDepthAsPly(const string& path, const Depth& depth, const cv::Mat& image, const theia::Camera& cam, const int downsample){
 			CHECK_EQ(depth.getWidth(), image.cols);
 			CHECK_EQ(depth.getHeight(), image.rows);
 			TriMesh mesh;
@@ -56,7 +56,7 @@ namespace dynamic_stereo{
 				for(auto x=0; x<w; ++x, ++vid){
 					cv::Vec3b pix = image.at<Vec3b>(y,x);
 					Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
-					ray.normalize();
+					//ray.normalize();
 					Vector3d spt = cam.GetPosition() + ray * depth(x,y);
 					vhandle[vid] = mesh.add_vertex(TriMesh::Point(spt[0], spt[1], spt[2]));
 					mesh.set_color(vhandle[vid], TriMesh::Color(pix[2], pix[1], pix[0]));
@@ -96,10 +96,13 @@ namespace dynamic_stereo{
 			images[i] = pyramid.back().clone();
 
 			const theia::Camera cam = reconstruction.View(i+offset)->Camera();
-//			cout << "Projection matrix for view " << i+offset<< endl;
-//			theia::Matrix3x4d pm;
-//			cam.GetProjectionMatrix(&pm);
-//			cout << pm << endl;
+			cout << "Projection matrix for view " << i+offset<< endl;
+			theia::Matrix3x4d pm;
+			cam.GetProjectionMatrix(&pm);
+			cout << pm << endl;
+			double dis1 = cam.RadialDistortion1();
+			double dis2 = cam.RadialDistortion2();
+			printf("Radio distortion:(%.5ff,%.5f)\n", dis1, dis2);
 		}
 		CHECK_GT(images.size(), 2) << "Too few images";
 		width = images.front().cols;
@@ -128,7 +131,7 @@ namespace dynamic_stereo{
 		theia::Camera cam2 = reconstruction.View(id2)->Camera();
 
 		Vector3d ray1 = cam1.PixelToUnitDepthRay(pt*(double)downsample);
-		ray1.normalize();
+		//ray1.normalize();
 		imgL = images[id1-offset].clone();
 		imgR = images[id2-offset].clone();
 		cv::circle(imgL, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0,0,255), 2);
@@ -168,38 +171,73 @@ namespace dynamic_stereo{
 //        double testncc = math_util::normalizedCrossCorrelation(testP[0], testP[1]);
 //        cout << "Test ncc: " << testncc << endl;
 
+//		//debug for undistortion
+//		for(auto i=0; i<images.size(); ++i){
+//			const theia::Camera& cam = reconstruction.View(i+offset)->Camera();
+//			Matrix3d K;
+//			cam.GetCalibrationMatrix(&K);
+//			double d1 = cam.RadialDistortion1();
+//			double d2 = cam.RadialDistortion2();
+//			cout <<"================================" << endl;
+//			cout << "Frame " << i + offset << endl;
+//			cout << "K matrix:" << endl << K << endl;
+//			printf("Radial distortio (%.5f, %.5f)\n", d1, d2);
+//			Mat oriImage = imread(file_io.getImage(i+offset));
+//			Mat undistored(oriImage.size(), CV_8UC3);
+//			for(auto y=0; y<oriImage.rows; ++y){
+//				for(auto x=0; x<oriImage.cols; ++x){
+//					Vector3d imgptH(x,y,1.0);
+//					Vector3d camptH = K.inverse() * imgptH;
+//					Vector2d campt(camptH[0]/camptH[2], camptH[1]/camptH[2]);
+//					double disx, disy;
+//					theia::RadialDistortPoint<double>(campt[0], campt[1], d1,d2,&disx,&disy);
+//					imgptH = K * Vector3d(disx,disy,1.0);
+//					Vector2d imgpt(imgptH[0]/imgptH[2], imgptH[1]/imgptH[2]);
+//					//printf("(%d,%d), (%.3f,%.3f)\n", x, y, imgpt[0], imgpt[1]);
+//					if(imgpt[0] > 0 && imgpt[1] > 0 && imgpt[0] < oriImage.cols -1 && imgpt[1] < oriImage.rows - 1) {
+//						Vector3d pix = interpolation_util::bilinear<uchar, 3>(oriImage.data, oriImage.cols,
+//																			  oriImage.rows, imgpt);
+//						undistored.at<Vec3b>(y,x) = Vec3b((uchar)pix[0], (uchar)pix[1], (uchar)pix[2]);
+//					}
+//				}
+//			}
+//			sprintf(buffer, "%s/temp/undistored%05d.jpg", file_io.getDirectory().c_str(), i+offset);
+//			imwrite(buffer, undistored);
+//		}
+
 		initMRF();
 
 		{
 			//debug: inspect unary term
-//			const int tx = 1091 / downsample;
-//			const int ty = 231 / downsample;
-//			printf("Unary term for (%d,%d)\n", tx, ty);
-//			for (auto d = 0; d < dispResolution; ++d) {
-//				cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
-//			}
-//			cout << endl;
-//			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
-//
-//			const theia::Camera &cam = reconstruction.View(anchor)->Camera();
-//			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
-//			ray.normalize();
-//
-//			int tdisp = 83;
-//			double td = dispToDepth(tdisp);
-//			printf("Cost at d=%d: %d\n", tdisp, MRF_data[dispResolution * (ty * width + tx) + tdisp]);
-//
-//			Vector3d spt = cam.GetPosition() + ray * td;
-//			for (auto v = 0; v < images.size(); ++v) {
-//				Mat curimg = imread(file_io.getImage(v + offset));
-//				Vector2d imgpt;
-//				reconstruction.View(v + offset)->Camera().ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-//				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
-//					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
-//				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
-//						v + offset);
-//				imwrite(buffer, curimg);
-//			}
+			const int tx = 714 / downsample;
+			const int ty = 144 / downsample;
+			printf("Unary term for (%d,%d)\n", tx, ty);
+			for (auto d = 0; d < dispResolution; ++d) {
+				cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
+			}
+			cout << endl;
+			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+
+			const theia::Camera &cam = reconstruction.View(anchor)->Camera();
+			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
+			//ray.normalize();
+
+			//int tdisp = (int)dispUnary(tx,ty);
+			int tdisp = 30;
+			double td = dispToDepth(tdisp);
+			printf("Cost at d=%d: %d\n", tdisp, MRF_data[dispResolution * (ty * width + tx) + tdisp]);
+
+			Vector3d spt = cam.GetPosition() + ray * td;
+			for (auto v = 0; v < images.size(); ++v) {
+				Mat curimg = imread(file_io.getImage(v + offset));
+				Vector2d imgpt;
+				reconstruction.View(v + offset)->Camera().ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
+					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
+				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
+						v + offset);
+				imwrite(buffer, curimg);
+			}
 		}
 
 		{
@@ -250,15 +288,18 @@ namespace dynamic_stereo{
 		}
 
 		//generate proposal
-//		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
+		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
+
+
+
 //
-//		Depth depthUnary;
-//		depthUnary.initialize(width, height, -1);
-//		for(auto i=0; i<width * height; ++i)
-//			depthUnary[i] = dispToDepth(dispUnary[i]);
-//		sprintf(buffer, "%s/temp/unaryDepth_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//		depthUnary.saveImage(string(buffer), -1);
+		Depth depthUnary;
+		depthUnary.initialize(width, height, -1);
+		for(auto i=0; i<width * height; ++i)
+			depthUnary[i] = dispToDepth(dispUnary[i]);
+		sprintf(buffer, "%s/temp/unaryDepth_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+		utility::saveDepthAsPly(string(buffer), depthUnary, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
 
 
 		//debug for SfM proposal
@@ -272,14 +313,14 @@ namespace dynamic_stereo{
 //		Depth result_firstOrder;
 //		optimizer_firstorder.optimize(result_firstOrder, 10);
 //		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-////		warpToAnchor(result_firstOrder, "firstorder");
+//		warpToAnchor(result_firstOrder, "firstorder");
 //		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 //
 //		printf("Saving depth to point cloud...\n");
 //		Depth depth_firstOrder;
 //		disparityToDepth(result_firstOrder, depth_firstOrder);
 //		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-//		utility::saveDepthToPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+//		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
 //		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);
@@ -290,8 +331,14 @@ namespace dynamic_stereo{
 
 		cout << "Solving with second order smoothness (fusion move)..." << endl;
 		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
+		const vector<int>& refSeg = optimizer_fusion.getRefSeg();
+		Mat segImg;
+		utility::visualizeSegmentation(refSeg, width, height, segImg);
+		sprintf(buffer, "%s/temp/refSeg%.5d.jpg", file_io.getDirectory().c_str(), anchor);
+		imwrite(buffer, segImg);
 		Depth result_fusion;
-		optimizer_fusion.optimize(result_fusion, 1000);
+		optimizer_fusion.optimize(result_fusion, 300);
+
 		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
 
@@ -299,9 +346,9 @@ namespace dynamic_stereo{
 		Depth depth_fusion;
 		disparityToDepth(result_fusion, depth_fusion);
 		sprintf(buffer, "%s/temp/mesh_fusion_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthToPly(string(buffer), depth_fusion, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+		utility::saveDepthAsPly(string(buffer), depth_fusion, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
 
-//		warpToAnchor(result_fusion, "fusion");
+		warpToAnchor(result_fusion, "fusion");
 	}
 
 	void DynamicStereo::warpToAnchor(const Depth& refDisp, const std::string& prefix) const{
@@ -327,36 +374,86 @@ namespace dynamic_stereo{
 
 		cvtColor(warpMask, warpMask, CV_RGB2GRAY);
 
+		int startid = anchor - offset;
+		int endid = anchor - offset;
+
 		for(auto i=0; i<fullimages.size(); ++i){
 			cout << i+offset << ' ' << flush;
 			warpped[i] = fullimages[anchor-offset].clone();
 			if(i == anchor-offset)
 				continue;
+			bool invalid = false;
 			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
 			for(auto y=downsample; y<h-downsample; ++y){
 				for(auto x=downsample; x<w-downsample; ++x){
 					if(warpMask.at<uchar>(y,x) < 200)
 						continue;
 					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
-					ray.normalize();
+					//ray.normalize();
 					double disp = refDisp.getDepthAt(Vector2d(x/downsample, y/downsample));
-					double depth = 1.0 / (disp / dispResolution * (max_disp-min_disp) + min_disp);
-					Vector3d spt = cam1.GetPosition() + ray * depth;
+					Vector3d spt = cam1.GetPosition() + ray * dispToDepth(disp);
 					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
 					Vector2d imgpt;
 					cam2.ProjectPoint(spt_homo, &imgpt);
 					if(imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w -1 && imgpt[1] < h - 1){
 						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
 						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
+					}else{
+						invalid = true;
+						break;
 					}
 				}
+				if(invalid) {
+					break;
+				}
 			}
+			if(!invalid){
+				endid = std::max(endid, i);
+				startid = std::min(startid, i);
+			}
+		}
+		cout << endl;
 
+		//applying a median filter
+		vector<Mat> oriWarpped(warpped.size());
+		for(auto i=startid; i<=endid; ++i)
+			oriWarpped[i] = warpped[i].clone();
+		const int r = 2;
+		printf("Applying median filter, r = %d\n", r);
+		for(auto i=startid; i<=endid; ++i) {
+			int s, e;
+			if (i - r < startid) {
+				s = startid;
+				e = startid + 2 * r + 1;
+			}
+			else if (i + r > endid) {
+				s = endid - 2 * r - 1;
+				e = endid;
+			} else {
+				s = i - r;
+				e = i + r;
+			}
+			for(auto y=0; y<h; ++y){
+				for(auto x=0; x<w; ++x){
+					if(warpMask.at<uchar>(y,x) < 200)
+						continue;
+					vector<int> rc,gc,bc;
+					for(auto t = s; t <= e; ++t){
+						Vec3b pix = oriWarpped[t].at<Vec3b>(y,x);
+						rc.push_back(pix[0]);
+						gc.push_back(pix[1]);
+						bc.push_back(pix[2]);
+					}
+					nth_element(rc.begin(), rc.begin()+r, rc.end());
+					nth_element(gc.begin(), gc.begin()+r, gc.end());
+					nth_element(bc.begin(), bc.begin()+r, bc.end());
+					warpped[i].at<Vec3b>(y,x) = Vec3b((uchar)rc[r], (uchar)gc[r], (uchar)bc[r]);
+				}
+			}
 		}
 
-		cout << endl << "Saving..." << endl;
-
-		for(auto i=0; i<warpped.size(); ++i){
+		printf("Saving: start: %d, end:%d\n", startid, endid);
+		for(auto i=startid; i<=endid; ++i){
 			sprintf(buffer, "%s/temp/warpped_%s_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),prefix.c_str(),  anchor, i+offset);
 			imwrite(buffer, warpped[i]);
 		}

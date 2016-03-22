@@ -37,9 +37,9 @@ namespace dynamic_stereo {
         const size_t highKth = (size_t) (highRatio * disps.size());
         //min_disp should be correspond to high depth
         nth_element(disps.begin(), disps.begin() + lowKth, disps.end());
-        min_disp = disps[lowKth];
+        min_disp = disps[lowKth] * 0.6;
         nth_element(disps.begin(), disps.begin() + highKth, disps.end());
-        max_disp = disps[highKth];
+        max_disp = disps[highKth] * 1.5;
     }
 
     void DynamicStereo::initMRF() {
@@ -107,7 +107,7 @@ namespace dynamic_stereo {
                                     continue;
                                 }
                                 Vector3d ray = cam1.PixelToUnitDepthRay(pt * downsample);
-                                ray.normalize();
+                                //ray.normalize();
                                 Vector3d spt = cam1.GetPosition() + ray * depth;
                                 Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
                                 sptBase.push_back(spt_homo);
@@ -141,8 +141,8 @@ namespace dynamic_stereo {
                                 }
                             }
                         }
-                        //double mCost = local_matcher::sumMatchingCost(patches, anchor - offset);
-                        double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
+                        double mCost = local_matcher::sumMatchingCost(patches, anchor - offset);
+                        //double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
                         MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 + mCost) * MRFRatio);
                         //MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 - mCost) * MRFRatio);
                     }

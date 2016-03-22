@@ -14,8 +14,10 @@
 using namespace std;
 using namespace cv;
 namespace dynamic_stereo {
+    typedef double EnergyTypeT;
+
     SecondOrderOptimizeFusionMove::SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                                                                 const std::vector<EnergyType> &MRF_data_,
+                                                                 const std::vector<int> &MRF_data_,
                                                                  const float MRFRatio_,
                                                                  const int nLabel_,
                                                                  const Depth &noisyDisp_,
@@ -24,17 +26,17 @@ namespace dynamic_stereo {
         //segment ref image to get CRF weight
         segment_ms::msImageProcessor ms_segmentator;
         ms_segmentator.DefineBgImage(image.data, segment_ms::COLOR, image.rows, image.cols);
-        const int hs = 4;
-        const float hr = 5.0f;
-        const int min_a = 40;
+        const int hs = 7;
+        const float hr = 10.5f;
+        const int min_a = 70;
         ms_segmentator.Segment(hs, hr, min_a, meanshift::SpeedUpLevel::MED_SPEEDUP);
         refSeg.resize((size_t) image.cols * image.rows);
         const int *labels = ms_segmentator.GetLabels();
         for (auto i = 0; i < image.cols * image.rows; ++i)
             refSeg[i] = labels[i];
 
-        laml = 9.0 * (double) kFrames / 256;
-        lamh = 108.0 * (double) kFrames / 256;
+        laml = 1.0;
+        lamh = 15.0;
     }
 
 
@@ -71,35 +73,35 @@ namespace dynamic_stereo {
             cout << "======================" << endl;
             Depth newProposal;
 
-            if (iter > 0 && iter % smoothInterval == 0) {
-                Depth orip1;
-                newProposal.initialize(width, height, -1);
-                orip1.initialize(width, height, -1);
-                for (auto i = 0; i < width * height; ++i) {
-                    orip1.setDepthAtInd(i, result[i]);
-                    newProposal.setDepthAtInd(i, result[i]);
-                }
-                int direction = iter / smoothInterval;
-                if (direction % 2 == 0) {
-                    //horizontally
-                    for (auto y = 0; y < height; ++y) {
-                        for (auto x = 1; x < width - 1; ++x)
-                            newProposal.setDepthAtInt(x, y, (orip1(x + 1, y) + orip1(x - 1, y)) / 2);
-                        newProposal.setDepthAtInt(width - 1, y, orip1(width - 1, y));
-                    }
-                } else {
-                    //vertically
-                    for (auto x = 0; x < width; ++x) {
-                        for (auto y = 1; y < height - 1; ++y)
-                            newProposal.setDepthAtInt(x, y, (orip1(x, y + 1) + orip1(x, y - 1)) / 2);
-                        newProposal.setDepthAtInt(x, height - 1, orip1(x, height - 1));
-                    }
-                }
-                cout << "Iteration " << iter << " using smoothing proposal " << endl;
-            } else {
-                newProposal = proposals[iter % (proposals.size())];
-                cout << "Iteration " << iter << " using proposal " << iter % (proposals.size()) << endl;
-            }
+//            if (iter > 0 && iter % smoothInterval == 0) {
+//                Depth orip1;
+//                newProposal.initialize(width, height, -1);
+//                orip1.initialize(width, height, -1);
+//                for (auto i = 0; i < width * height; ++i) {
+//                    orip1.setDepthAtInd(i, result[i]);
+//                    newProposal.setDepthAtInd(i, result[i]);
+//                }
+//                int direction = iter / smoothInterval;
+//                if (direction % 2 == 0) {
+//                    //horizontally
+//                    for (auto y = 0; y < height; ++y) {
+//                        for (auto x = 1; x < width - 1; ++x)
+//                            newProposal.setDepthAtInt(x, y, (orip1(x + 1, y) + orip1(x - 1, y)) / 2);
+//                        newProposal.setDepthAtInt(width - 1, y, orip1(width - 1, y));
+//                    }
+//                } else {
+//                    //vertically
+//                    for (auto x = 0; x < width; ++x) {
+//                        for (auto y = 1; y < height - 1; ++y)
+//                            newProposal.setDepthAtInt(x, y, (orip1(x, y + 1) + orip1(x, y - 1)) / 2);
+//                        newProposal.setDepthAtInt(x, height - 1, orip1(x, height - 1));
+//                    }
+//                }
+//                cout << "Iteration " << iter << " using smoothing proposal " << endl;
+//            } else {
+//          }
+            newProposal = proposals[iter % (proposals.size())];
+            cout << "Iteration " << iter << " using proposal " << iter % (proposals.size()) << endl;
             printf("Initial energy: %.3f", evaluateEnergy(result));
             //after several iteration, smooth the dispartiy
             fusionMove(result, newProposal);
@@ -168,19 +170,19 @@ namespace dynamic_stereo {
         proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
 
         //Add fronto parallel plane
-        const int num = nLabel;
-        for(auto i=0; i<num; ++i){
-            double disp = (double)nLabel / (double)num * i;
-            Depth p;
-            p.initialize(width, height, disp);
-            proposals.push_back(p);
-        }
+//        const int num = nLabel;
+//        for(auto i=0; i<num; ++i){
+//            double disp = (double)nLabel / (double)num * i;
+//            Depth p;
+//            p.initialize(width, height, disp);
+//            proposals.push_back(p);
+//        }
     }
 
     void SecondOrderOptimizeFusionMove::fusionMove(Depth &p1, const Depth &p2) const {
         //create problem
         int nPix = width * height;
-        kolmogorov::qpbo::QPBO<double> qpbo(nPix*10, nPix*20);
+        kolmogorov::qpbo::QPBO<EnergyTypeT> qpbo(nPix*10, nPix*20);
         //construct graph
         auto addTripleToGraph = [&](int p, int q, int r) {
             double vp1 = p1[p], vp2 = p2[p], vq1 = p1[q], vq2 = p2[q], vr1 = p1[r], vr2 = p2[r];
@@ -189,14 +191,14 @@ namespace dynamic_stereo {
                 lam = lamh;
             else
                 lam = laml;
-            double A = (lapE(vp1, vq1, vr1) * lam);
-            double B = (lapE(vp1, vq1, vr2) * lam);
-            double C = (lapE(vp1, vq2, vr1) * lam);
-            double D = (lapE(vp1, vq2, vr2) * lam);
-            double E = (lapE(vp2, vq1, vr1) * lam);
-            double F = (lapE(vp2, vq1, vr2) * lam);
-            double G = (lapE(vp2, vq2, vr1) * lam);
-            double H = (lapE(vp2, vq2, vr2) * lam);
+            EnergyTypeT A = (EnergyTypeT)(lapE(vp1, vq1, vr1) * lam * MRFRatio);
+            EnergyTypeT B = (EnergyTypeT)(lapE(vp1, vq1, vr2) * lam * MRFRatio);
+            EnergyTypeT C = (EnergyTypeT)(lapE(vp1, vq2, vr1) * lam * MRFRatio);
+            EnergyTypeT D = (EnergyTypeT)(lapE(vp1, vq2, vr2) * lam * MRFRatio);
+            EnergyTypeT E = (EnergyTypeT)(lapE(vp2, vq1, vr1) * lam * MRFRatio);
+            EnergyTypeT F = (EnergyTypeT)(lapE(vp2, vq1, vr2) * lam * MRFRatio);
+            EnergyTypeT G = (EnergyTypeT)(lapE(vp2, vq2, vr1) * lam * MRFRatio);
+            EnergyTypeT H = (EnergyTypeT)(lapE(vp2, vq2, vr2) * lam * MRFRatio);
 //            printf("=========================================================\n");
 //            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp1,vq1,vr1,lam,lapE(vp1,vq1,vr1),A);
 //            printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", vp1,vq1,vr2,lam,lapE(vp1,vq1,vr2),B);
@@ -215,27 +217,27 @@ namespace dynamic_stereo {
                 qpbo.AddPairwiseTerm(q,r,0,B-A,0,D-C);
                 if(pi > 0) {
                     int w = qpbo.AddNode();
-                    qpbo.AddUnaryTerm(w, A, A - pi);
-                    qpbo.AddPairwiseTerm(p, w, 0, pi, 0, 0);
-                    qpbo.AddPairwiseTerm(q, w, 0, pi, 0, 0);
-                    qpbo.AddPairwiseTerm(r, w, 0, pi, 0, 0);
+                    qpbo.AddUnaryTerm(w, A, A - (EnergyTypeT)pi);
+                    qpbo.AddPairwiseTerm(p, w, 0, (EnergyTypeT)pi, 0, 0);
+                    qpbo.AddPairwiseTerm(q, w, 0, (EnergyTypeT)pi, 0, 0);
+                    qpbo.AddPairwiseTerm(r, w, 0, (EnergyTypeT)pi, 0, 0);
                 }
             }else{
                 qpbo.AddPairwiseTerm(p,q,B-D,0,F-H,0);
                 qpbo.AddPairwiseTerm(p,r,C-G,D-H,0,0);
                 qpbo.AddPairwiseTerm(q,r,E-F,0,G-H,0);
                 int w = qpbo.AddNode();
-                qpbo.AddUnaryTerm(w,H+pi,H);
-                qpbo.AddPairwiseTerm(p, w, 0, 0, -pi, 0);
-                qpbo.AddPairwiseTerm(q, w, 0, 0, -pi, 0);
-                qpbo.AddPairwiseTerm(r, w, 0, 0, -pi, 0);
+                qpbo.AddUnaryTerm(w,H+(EnergyTypeT)pi,H);
+                qpbo.AddPairwiseTerm(p, w, 0, 0, -1 * (EnergyTypeT)pi, 0);
+                qpbo.AddPairwiseTerm(q, w, 0, 0, -1 * (EnergyTypeT)pi, 0);
+                qpbo.AddPairwiseTerm(r, w, 0, 0, -1 * (EnergyTypeT)pi, 0);
             }
         };
 
         printf("Construcint graph...\n");
         qpbo.AddNode(nPix);
         for(auto i=0; i<nPix; ++i) {
-            qpbo.AddUnaryTerm(i, (double)MRF_data[nLabel * i + (int) p1[i]] / MRFRatio, (double)MRF_data[nLabel * i + (int) p2[i]] / MRFRatio);
+            qpbo.AddUnaryTerm(i, (EnergyTypeT)MRF_data[nLabel * i + (int) p1[i]], (EnergyTypeT)MRF_data[nLabel * i + (int) p2[i]]);
         }
 
         for(auto y=1; y<height-1; ++y){
@@ -252,7 +254,7 @@ namespace dynamic_stereo {
         qpbo.Solve();
         qpbo.ComputeWeakPersistencies();
 
-        double e = qpbo.ComputeTwiceEnergy() / 2;
+        double e = (double)qpbo.ComputeTwiceEnergy() / 2 / MRFRatio;
         //qpbo.Improve();
         t = ((float) getTickCount() - t) / (float) getTickFrequency();
         printf("Done. Final energy:%.3f, Time usage:%.3f\n", e, t);

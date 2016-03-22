@@ -17,6 +17,9 @@
 #include "base/file_io.h"
 
 namespace dynamic_stereo {
+
+
+
     class StereoOptimization {
     public:
         typedef int EnergyType;
@@ -94,7 +97,7 @@ namespace dynamic_stereo {
     class SecondOrderOptimizeFusionMove : public StereoOptimization {
     public:
         SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                                      const std::vector<EnergyType> &MRF_data_,
+                                      const std::vector<int> &MRF_data_,
                                       const float MRFRatio_,
                                       const int nLabel_,
                                       const Depth &noisyDisp_,
@@ -104,6 +107,9 @@ namespace dynamic_stereo {
 
         virtual double evaluateEnergy(const Depth &) const;
 
+        const std::vector<int>& getRefSeg() const{
+            return refSeg;
+        }
     private:
         inline double lapE(const double x0, const double x1, const double x2) const{
             return std::min(std::abs(x0 + x2 - 2 * x1), trun);

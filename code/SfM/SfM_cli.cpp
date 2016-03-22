@@ -243,6 +243,7 @@ ReconstructionBuilderOptions SetReconstructionBuilderOptions(const FileIO& file_
     reconstruction_estimator_options.num_threads = FLAGS_num_threads;
     reconstruction_estimator_options.intrinsics_to_optimize =
             StringToOptimizeIntrinsicsType(FLAGS_intrinsics_to_optimize);
+
     options.reconstruct_largest_connected_component =
             FLAGS_reconstruct_largest_connected_component;
     options.only_calibrated_views = FLAGS_only_calibrated_views;

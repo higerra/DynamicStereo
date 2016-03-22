@@ -23,9 +23,9 @@ namespace dynamic_stereo{
         const int h = noisyDisp.getHeight();
         const int nPixels = w * h;
         const double epsilon = (double)1e-05;
-        const double dis_thres = 0.3;
+        const double dis_thres = dispResolution * 0.01;
+        printf("dis_thres: %.3f\n", dis_thres);
 
-        const double max_depth = 255.0;
 
         //lambda functions to map between disparity and depth. Depth are rescaled to 0~max_dim for numerical stability
         auto dispToDepth = [=](const double dispv){
@@ -119,13 +119,13 @@ namespace dynamic_stereo{
             for(const auto idx: idxs){
                 int x = idx % w;
                 int y = idx / w;
-                double newdepth = (-1 * offset - n[0]*x - n[1] * y) / n[2];
-                double d = std::max(std::min(newdepth, max_depth), 0.0);
+                double newdisp = (-1 * offset - n[0]*x - n[1] * y) / n[2];
+                double d = std::max(newdisp, epsilon);
 	            if(verbose) {
 		            double oridepth = dispToDepth(noisyDisp.getDepthAtInd(idx));
-		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, oridepth, oridepth, newdepth);
+		            printf("inter: (%d,%d,%.5f), ori disp: %.5f, new disp: %.5f\n", x, y, oridepth, oridepth, newdisp);
 	            }
-                planarDisp.setDepthAtInd(idx, std::max(std::min(round(depthToDisp(d)+0.5), (double)dispResolution-1), 0.0));
+                planarDisp.setDepthAtInd(idx, std::max(std::min(depthToDisp(d), (double)dispResolution-1), 0.0));
             }
         }
 

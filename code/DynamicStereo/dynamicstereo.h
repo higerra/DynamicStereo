@@ -45,7 +45,7 @@ namespace dynamic_stereo {
     private:
         typedef int EnergyType;
 
-		inline double dispToDepth(const double d){
+		inline double dispToDepth(const double d) const{
 			return 1.0/(min_disp + d * (max_disp - min_disp) / (double) dispResolution);
 		}
 
