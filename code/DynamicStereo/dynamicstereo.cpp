@@ -341,14 +341,21 @@ namespace dynamic_stereo{
 
 		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
-
 		printf("Saving depth to point cloud...\n");
 		Depth depth_fusion;
 		disparityToDepth(result_fusion, depth_fusion);
 		sprintf(buffer, "%s/temp/mesh_fusion_b%05d.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depth_fusion, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
-
 		warpToAnchor(result_fusion, "fusion");
+
+		cout << "Solving with second order smoothness (TRWS)..." << endl;
+		SecondOrderOptimizeTRWS optimizer_TRWS(file_io, (int)images.size(), images[anchor-offset], MRF_data, MRFRatio, dispResolution);
+		Depth result_TRWS;
+		optimizer_TRWS.optimize(result_TRWS, 1);
+
+		sprintf(buffer, "%s/temp/result%05d_TRWS_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		result_TRWS.saveImage(buffer, 255.0 / (double)dispResolution);
+		warpToAnchor(result_TRWS, "TRWS");
 	}
 
 	void DynamicStereo::warpToAnchor(const Depth& refDisp, const std::string& prefix) const{
@@ -415,42 +422,42 @@ namespace dynamic_stereo{
 		cout << endl;
 
 		//applying a median filter
-		vector<Mat> oriWarpped(warpped.size());
-		for(auto i=startid; i<=endid; ++i)
-			oriWarpped[i] = warpped[i].clone();
-		const int r = 2;
-		printf("Applying median filter, r = %d\n", r);
-		for(auto i=startid; i<=endid; ++i) {
-			int s, e;
-			if (i - r < startid) {
-				s = startid;
-				e = startid + 2 * r + 1;
-			}
-			else if (i + r > endid) {
-				s = endid - 2 * r - 1;
-				e = endid;
-			} else {
-				s = i - r;
-				e = i + r;
-			}
-			for(auto y=0; y<h; ++y){
-				for(auto x=0; x<w; ++x){
-					if(warpMask.at<uchar>(y,x) < 200)
-						continue;
-					vector<int> rc,gc,bc;
-					for(auto t = s; t <= e; ++t){
-						Vec3b pix = oriWarpped[t].at<Vec3b>(y,x);
-						rc.push_back(pix[0]);
-						gc.push_back(pix[1]);
-						bc.push_back(pix[2]);
-					}
-					nth_element(rc.begin(), rc.begin()+r, rc.end());
-					nth_element(gc.begin(), gc.begin()+r, gc.end());
-					nth_element(bc.begin(), bc.begin()+r, bc.end());
-					warpped[i].at<Vec3b>(y,x) = Vec3b((uchar)rc[r], (uchar)gc[r], (uchar)bc[r]);
-				}
-			}
-		}
+//		vector<Mat> oriWarpped(warpped.size());
+//		for(auto i=startid; i<=endid; ++i)
+//			oriWarpped[i] = warpped[i].clone();
+//		const int r = 2;
+//		printf("Applying median filter, r = %d\n", r);
+//		for(auto i=startid; i<=endid; ++i) {
+//			int s, e;
+//			if (i - r < startid) {
+//				s = startid;
+//				e = startid + 2 * r + 1;
+//			}
+//			else if (i + r > endid) {
+//				s = endid - 2 * r - 1;
+//				e = endid;
+//			} else {
+//				s = i - r;
+//				e = i + r;
+//			}
+//			for(auto y=0; y<h; ++y){
+//				for(auto x=0; x<w; ++x){
+//					if(warpMask.at<uchar>(y,x) < 200)
+//						continue;
+//					vector<int> rc,gc,bc;
+//					for(auto t = s; t <= e; ++t){
+//						Vec3b pix = oriWarpped[t].at<Vec3b>(y,x);
+//						rc.push_back(pix[0]);
+//						gc.push_back(pix[1]);
+//						bc.push_back(pix[2]);
+//					}
+//					nth_element(rc.begin(), rc.begin()+r, rc.end());
+//					nth_element(gc.begin(), gc.begin()+r, gc.end());
+//					nth_element(bc.begin(), bc.begin()+r, bc.end());
+//					warpped[i].at<Vec3b>(y,x) = Vec3b((uchar)rc[r], (uchar)gc[r], (uchar)bc[r]);
+//				}
+//			}
+//		}
 
 		printf("Saving: start: %d, end:%d\n", startid, endid);
 		for(auto i=startid; i<=endid; ++i){

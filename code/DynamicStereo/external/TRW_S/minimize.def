@@ -137,7 +137,7 @@ template <class T> int MRFEnergy<T>::Minimize_TRW_S(Options& options, REAL& lowe
 		)
 		{
 			energy = ComputeSolutionAndEnergy();
-			printf("iter %d: lower bound = %f, energy = %f\n", iter, lowerBound, energy);
+			//printf("iter %d: lower bound = %f, energy = %f\n", iter, lowerBound, energy);
 		}
 
 		if (lastIter) break;

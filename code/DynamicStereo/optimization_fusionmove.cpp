@@ -35,15 +35,16 @@ namespace dynamic_stereo {
         for (auto i = 0; i < image.cols * image.rows; ++i)
             refSeg[i] = labels[i];
 
-        laml = 1.0;
-        lamh = 15.0;
+        laml = 0.02;
+        lamh = 0.2;
+
     }
 
 
     void SecondOrderOptimizeFusionMove::optimize(Depth &result, const int max_iter) const {
         vector<Depth> proposals;
         genProposal(proposals);
-        proposals.push_back(noisyDisp);
+        //proposals.push_back(noisyDisp);
 
         char buffer[1024] = {};
 
@@ -54,7 +55,8 @@ namespace dynamic_stereo {
         std::uniform_int_distribution<int> distribution(0, nLabel - 1);
         for (auto i = 0; i < width * height; ++i) {
             //result.setDepthAtInd(i, (double) distribution(generator));
-            result.setDepthAtInd(i, noisyDisp[i]);
+            //result.setDepthAtInd(i, noisyDisp[i]);
+            result[i] = 0;
         }
         sprintf(buffer, "%s/temp/init_result.jpg", file_io.getDirectory().c_str());
         result.saveImage(buffer, 256.0 / (double)nLabel);
@@ -71,6 +73,7 @@ namespace dynamic_stereo {
             if (iter == max_iter)
                 break;
             cout << "======================" << endl;
+
             Depth newProposal;
 
 //            if (iter > 0 && iter % smoothInterval == 0) {
@@ -101,8 +104,7 @@ namespace dynamic_stereo {
 //            } else {
 //          }
             newProposal = proposals[iter % (proposals.size())];
-            cout << "Iteration " << iter << " using proposal " << iter % (proposals.size()) << endl;
-            printf("Initial energy: %.3f", evaluateEnergy(result));
+            printf("Fusing with proposal %d\n", (int)(iter % proposals.size()));
             //after several iteration, smooth the dispartiy
             fusionMove(result, newProposal);
             double e = evaluateEnergy(result);
@@ -161,22 +163,22 @@ namespace dynamic_stereo {
 
     void SecondOrderOptimizeFusionMove::genProposal(std::vector<Depth> &proposals) const {
         char buffer[1024] = {};
-        cout << "Generating plane proposal" << endl;
-        ProposalSegPlnMeanshift proposalFactoryMeanshift(file_io, image, noisyDisp, nLabel, min_disp, max_disp);
-        proposalFactoryMeanshift.genProposal(proposals);
-        vector<Depth> proposalsGb;
-        ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, image, noisyDisp, nLabel, min_disp, max_disp);
-        proposalFactoryGbSegment.genProposal(proposalsGb);
-        proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
+//        cout << "Generating plane proposal" << endl;
+//        ProposalSegPlnMeanshift proposalFactoryMeanshift(file_io, image, noisyDisp, nLabel, min_disp, max_disp);
+//        proposalFactoryMeanshift.genProposal(proposals);
+//        vector<Depth> proposalsGb;
+//        ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, image, noisyDisp, nLabel, min_disp, max_disp);
+//        proposalFactoryGbSegment.genProposal(proposalsGb);
+//        proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
 
         //Add fronto parallel plane
-//        const int num = nLabel;
-//        for(auto i=0; i<num; ++i){
-//            double disp = (double)nLabel / (double)num * i;
-//            Depth p;
-//            p.initialize(width, height, disp);
-//            proposals.push_back(p);
-//        }
+        const int num = nLabel;
+        for(auto i=0; i<num; ++i){
+            double disp = (double)nLabel / (double)num * i;
+            Depth p;
+            p.initialize(width, height, disp);
+            proposals.push_back(p);
+        }
     }
 
     void SecondOrderOptimizeFusionMove::fusionMove(Depth &p1, const Depth &p2) const {
@@ -234,7 +236,6 @@ namespace dynamic_stereo {
             }
         };
 
-        printf("Construcint graph...\n");
         qpbo.AddNode(nPix);
         for(auto i=0; i<nPix; ++i) {
             qpbo.AddUnaryTerm(i, (EnergyTypeT)MRF_data[nLabel * i + (int) p1[i]], (EnergyTypeT)MRF_data[nLabel * i + (int) p2[i]]);
@@ -248,16 +249,12 @@ namespace dynamic_stereo {
         }
 
         //solve
-        cout << "Solving..." << endl << flush;
         float t = (float) getTickCount();
         qpbo.MergeParallelEdges();
         qpbo.Solve();
         qpbo.ComputeWeakPersistencies();
 
-        double e = (double)qpbo.ComputeTwiceEnergy() / 2 / MRFRatio;
         //qpbo.Improve();
-        t = ((float) getTickCount() - t) / (float) getTickFrequency();
-        printf("Done. Final energy:%.3f, Time usage:%.3f\n", e, t);
 
         //fusion
         float unlabeled = 0.0;
