@@ -154,7 +154,7 @@ namespace dynamic_stereo{
                    energy / MRFRatio, lowerBound/MRFRatio,
                    ((float) getTickCount() - start_t) / (float) getTickFrequency());
 
-            sprintf(buffer, "%s/temp/TRWS_label%d.jpg", file_io.getDirectory().c_str(), l);
+            sprintf(buffer, "%s/temp/TRWS_label%05d.jpg", file_io.getDirectory().c_str(), l);
             result.saveImage(buffer, 256.0 / (double) nLabel);
         }
 
