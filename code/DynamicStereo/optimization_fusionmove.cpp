@@ -16,23 +16,20 @@ using namespace cv;
 namespace dynamic_stereo {
     typedef double EnergyTypeT;
 
-    SecondOrderOptimizeFusionMove::SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                                                                 const std::vector<int> &MRF_data_,
-                                                                 const float MRFRatio_,
-                                                                 const int nLabel_,
-                                                                 const Depth &noisyDisp_,
-                                                                 const double min_disp_, const double max_disp_):
-            StereoOptimization(file_io_, kFrames_, image_, MRF_data_, MRFRatio_, nLabel_), noisyDisp(noisyDisp_), average_over(20), trun(4), min_disp(min_disp_), max_disp(max_disp_) {
+    SecondOrderOptimizeFusionMove::SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_,
+                                                                 shared_ptr<StereoModel<EnergyType> > model_,
+                                                                 const Depth &noisyDisp_):
+            StereoOptimization(file_io_, kFrames_, model_), noisyDisp(noisyDisp_), average_over(20), trun(4){
         //segment ref image to get CRF weight
         segment_ms::msImageProcessor ms_segmentator;
-        ms_segmentator.DefineBgImage(image.data, segment_ms::COLOR, image.rows, image.cols);
+        ms_segmentator.DefineBgImage(model->image.data, segment_ms::COLOR, model->image.rows, model->image.cols);
         const int hs = 7;
         const float hr = 10.5f;
         const int min_a = 70;
         ms_segmentator.Segment(hs, hr, min_a, meanshift::SpeedUpLevel::MED_SPEEDUP);
-        refSeg.resize((size_t) image.cols * image.rows);
+        refSeg.resize((size_t) model->image.cols * model->image.rows);
         const int *labels = ms_segmentator.GetLabels();
-        for (auto i = 0; i < image.cols * image.rows; ++i)
+        for (auto i = 0; i < model->image.cols * model->image.rows; ++i)
             refSeg[i] = labels[i];
 
         laml = 0.02;
@@ -50,6 +47,7 @@ namespace dynamic_stereo {
 
         //initialize by random
         result.initialize(width, height, -1);
+	    const int nLabel = model->nLabel;
 
         std::default_random_engine generator;
         std::uniform_int_distribution<int> distribution(0, nLabel - 1);
@@ -141,7 +139,7 @@ namespace dynamic_stereo {
         double e = 0.0;
         for (auto i = 0; i < width * height; ++i) {
             int l = (int) disp[i];
-            e += (double)(MRF_data[nLabel * i + l]) / (double)(MRFRatio);
+	        e += (model->operator()(i, l) / model->MRFRatio);
         }
         auto tripleE = [&](int id1, int id2, int id3){
             double lam;
@@ -163,28 +161,29 @@ namespace dynamic_stereo {
 
     void SecondOrderOptimizeFusionMove::genProposal(std::vector<Depth> &proposals) const {
         char buffer[1024] = {};
-//        cout << "Generating plane proposal" << endl;
-//        ProposalSegPlnMeanshift proposalFactoryMeanshift(file_io, image, noisyDisp, nLabel, min_disp, max_disp);
-//        proposalFactoryMeanshift.genProposal(proposals);
-//        vector<Depth> proposalsGb;
-//        ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, image, noisyDisp, nLabel, min_disp, max_disp);
-//        proposalFactoryGbSegment.genProposal(proposalsGb);
-//        proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
+        cout << "Generating plane proposal" << endl;
+        ProposalSegPlnMeanshift proposalFactoryMeanshift(file_io, model, noisyDisp);
+        proposalFactoryMeanshift.genProposal(proposals);
+        vector<Depth> proposalsGb;
+        ProposalSegPlnGbSegment proposalFactoryGbSegment(file_io, model, noisyDisp);
+        proposalFactoryGbSegment.genProposal(proposalsGb);
+        proposals.insert(proposals.end(), proposalsGb.begin(), proposalsGb.end());
 
         //Add fronto parallel plane
-        const int num = nLabel;
-        for(auto i=0; i<num; ++i){
-            double disp = (double)nLabel / (double)num * i;
-            Depth p;
-            p.initialize(width, height, disp);
-            proposals.push_back(p);
-        }
+//        const int num = model->nLabel;
+//        for(auto i=0; i<num; ++i){
+//            double disp = (double)model->nLabel / (double)num * i;
+//            Depth p;
+//            p.initialize(width, height, disp);
+//            proposals.push_back(p);
+//        }
     }
 
     void SecondOrderOptimizeFusionMove::fusionMove(Depth &p1, const Depth &p2) const {
         //create problem
         int nPix = width * height;
         kolmogorov::qpbo::QPBO<EnergyTypeT> qpbo(nPix*10, nPix*20);
+	    const double& MRFRatio = model->MRFRatio;
         //construct graph
         auto addTripleToGraph = [&](int p, int q, int r) {
             double vp1 = p1[p], vp2 = p2[p], vq1 = p1[q], vq2 = p2[q], vr1 = p1[r], vr2 = p2[r];
@@ -238,7 +237,7 @@ namespace dynamic_stereo {
 
         qpbo.AddNode(nPix);
         for(auto i=0; i<nPix; ++i) {
-            qpbo.AddUnaryTerm(i, (EnergyTypeT)MRF_data[nLabel * i + (int) p1[i]], (EnergyTypeT)MRF_data[nLabel * i + (int) p2[i]]);
+	        qpbo.AddUnaryTerm(i, (EnergyTypeT)model->operator()(i, (int)p1[i]), (EnergyTypeT)model->operator()(i, (int)p2[i]));
         }
 
         for(auto y=1; y<height-1; ++y){

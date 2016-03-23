@@ -15,6 +15,7 @@
 
 #include "base/depth.h"
 #include "base/file_io.h"
+#include "model.h"
 
 namespace dynamic_stereo {
 
@@ -24,10 +25,8 @@ namespace dynamic_stereo {
     public:
         typedef int EnergyType;
 
-        StereoOptimization(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                           const std::vector<EnergyType> &MRF_data_, const float MRFRatio_, const int nLabel_) :
-                file_io(file_io_), kFrames(kFrames_), image(image_), MRF_data(MRF_data_), MRFRatio(MRFRatio_),
-                nLabel(nLabel_), width(image_.cols), height(image_.rows) { }
+        StereoOptimization(const FileIO &file_io_, const int kFrames_, std::shared_ptr<StereoModel<EnergyType> > model_) :
+                file_io(file_io_), kFrames(kFrames_), model(model_), width(model_->width), height(model_->height){ }
 
         virtual void optimize(Depth &result, const int max_iter) const = 0;
 
@@ -36,38 +35,23 @@ namespace dynamic_stereo {
     protected:
         const FileIO &file_io;
         const int kFrames;
-        const cv::Mat &image;
-        const std::vector<EnergyType> &MRF_data;
-        const int nLabel;
-
-        const float MRFRatio;
-
-        const int width;
-        const int height;
+	    const int width;
+	    const int height;
+        std::shared_ptr<StereoModel<EnergyType> > model;
     };
 
     class FirstOrderOptimize : public StereoOptimization {
     public:
-        FirstOrderOptimize(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                           const std::vector<EnergyType> &MRF_data_, const float MRFRatio_, const int nLabel_,
-                           const EnergyType &weight_smooth_);
+        FirstOrderOptimize(const FileIO &file_io_, const int kFrames_, std::shared_ptr<StereoModel<EnergyType> > model_);
 
         virtual void optimize(Depth &result, const int max_iter) const;
 
         virtual double evaluateEnergy(const Depth &) const;
-
-    private:
-        void assignSmoothWeight();
-
-        const EnergyType weight_smooth;
-        std::vector<EnergyType> hCue;
-        std::vector<EnergyType> vCue;
     };
 
     class SecondOrderOptimizeTRWS : public StereoOptimization {
     public:
-        SecondOrderOptimizeTRWS(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                                const std::vector<EnergyType> &MRF_data_, const float MRFRatio_, const int nLabel_);
+        SecondOrderOptimizeTRWS(const FileIO &file_io_, const int kFrames_, std::shared_ptr<StereoModel<EnergyType> > model_);
 
         virtual void optimize(Depth &result, const int max_iter) const;
 
@@ -86,8 +70,7 @@ namespace dynamic_stereo {
 
     class SecondOrderOptimizeTRBP : public StereoOptimization {
     public:
-        SecondOrderOptimizeTRBP(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                                const std::vector<EnergyType> &MRF_data_, const float MRFRatio_, const int nLabel_);
+        SecondOrderOptimizeTRBP(const FileIO &file_io_, const int kFrames_, std::shared_ptr<StereoModel<EnergyType> > model_);
 
         virtual void optimize(Depth &result, const int max_iter) const;
 
@@ -101,12 +84,8 @@ namespace dynamic_stereo {
 
     class SecondOrderOptimizeFusionMove : public StereoOptimization {
     public:
-        SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_, const cv::Mat &image_,
-                                      const std::vector<int> &MRF_data_,
-                                      const float MRFRatio_,
-                                      const int nLabel_,
-                                      const Depth &noisyDisp_,
-                                      const double min_disp_, const double max_disp_);
+        SecondOrderOptimizeFusionMove(const FileIO &file_io_, const int kFrames_, std::shared_ptr<StereoModel<EnergyType> > model_,
+                                      const Depth &noisyDisp_);
 
         virtual void optimize(Depth &result, const int max_iter) const;
 
@@ -125,8 +104,6 @@ namespace dynamic_stereo {
         void fusionMove(Depth &p1, const Depth &p2) const;
 
         const Depth &noisyDisp;
-        const double min_disp;
-        const double max_disp;
         const double trun;
 
         const int average_over;

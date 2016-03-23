@@ -73,8 +73,7 @@ namespace dynamic_stereo{
 	                             const int tWindow_, const int downsample_, const double weight_smooth_, const int dispResolution_,
 	                             const double min_disp_, const double max_disp_):
 			file_io(file_io_), anchor(anchor_), tWindow(tWindow_), downsample(downsample_), dispResolution(dispResolution_), pR(3),
-			weight_smooth(weight_smooth_), MRFRatio(10000),
-			min_disp(min_disp_), max_disp(max_disp_), dispScale(1000){
+			min_disp(min_disp_), max_disp(max_disp_){
 
 		cout << "Reading..." << endl;
 		offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
@@ -107,9 +106,9 @@ namespace dynamic_stereo{
 		CHECK_GT(images.size(), 2) << "Too few images";
 		width = images.front().cols;
 		height = images.front().rows;
-
 		dispUnary.initialize(width, height, 0.0);
 
+		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], dispResolution, 10000, weight_smooth_));
 		cout << "Computing disparity range" << endl;
 		if(min_disp < 0 || max_disp < 0)
 			computeMinMaxDisparity();
@@ -213,7 +212,7 @@ namespace dynamic_stereo{
 			const int ty = 144 / downsample;
 			printf("Unary term for (%d,%d)\n", tx, ty);
 			for (auto d = 0; d < dispResolution; ++d) {
-				cout << MRF_data[dispResolution * (ty * width + tx) + d] << ' ';
+				cout << model->operator()(ty * width + tx, d) << ' ';
 			}
 			cout << endl;
 			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
@@ -224,8 +223,8 @@ namespace dynamic_stereo{
 
 			//int tdisp = (int)dispUnary(tx,ty);
 			int tdisp = 30;
-			double td = dispToDepth(tdisp);
-			printf("Cost at d=%d: %d\n", tdisp, MRF_data[dispResolution * (ty * width + tx) + tdisp]);
+			double td = model->dispToDepth(tdisp);
+			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty*width+tx, tdisp));
 
 			Vector3d spt = cam.GetPosition() + ray * td;
 			for (auto v = 0; v < images.size(); ++v) {
@@ -297,7 +296,7 @@ namespace dynamic_stereo{
 		Depth depthUnary;
 		depthUnary.initialize(width, height, -1);
 		for(auto i=0; i<width * height; ++i)
-			depthUnary[i] = dispToDepth(dispUnary[i]);
+			depthUnary[i] = model->dispToDepth(dispUnary[i]);
 		sprintf(buffer, "%s/temp/unaryDepth_b%05d.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depthUnary, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
 
@@ -308,19 +307,19 @@ namespace dynamic_stereo{
 //		proposalSfM.genProposal(SfMProposals);
 
 
-//		cout << "Solving with first order smoothness..." << endl;
-//		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, (EnergyType)(MRFRatio * weight_smooth));
-//		Depth result_firstOrder;
-//		optimizer_firstorder.optimize(result_firstOrder, 10);
-//		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		warpToAnchor(result_firstOrder, "firstorder");
-//		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
-//
-//		printf("Saving depth to point cloud...\n");
-//		Depth depth_firstOrder;
-//		disparityToDepth(result_firstOrder, depth_firstOrder);
-//		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-//		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+		cout << "Solving with first order smoothness..." << endl;
+		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
+		Depth result_firstOrder;
+		optimizer_firstorder.optimize(result_firstOrder, 10);
+		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		warpToAnchor(result_firstOrder, "firstorder");
+		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+
+		printf("Saving depth to point cloud...\n");
+		Depth depth_firstOrder;
+		disparityToDepth(result_firstOrder, depth_firstOrder);
+		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
 //		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);
@@ -330,7 +329,7 @@ namespace dynamic_stereo{
 //		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
 
 		cout << "Solving with second order smoothness (fusion move)..." << endl;
-		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution, dispUnary, min_disp, max_disp);
+		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, images.size(), model, dispUnary);
 		const vector<int>& refSeg = optimizer_fusion.getRefSeg();
 		Mat segImg;
 		utility::visualizeSegmentation(refSeg, width, height, segImg);
@@ -349,7 +348,7 @@ namespace dynamic_stereo{
 		warpToAnchor(result_fusion, "fusion");
 
 		cout << "Solving with second order smoothness (TRWS)..." << endl;
-		SecondOrderOptimizeTRWS optimizer_TRWS(file_io, (int)images.size(), images[anchor-offset], MRF_data, MRFRatio, dispResolution);
+		SecondOrderOptimizeTRWS optimizer_TRWS(file_io, (int)images.size(), model);
 		Depth result_TRWS;
 		optimizer_TRWS.optimize(result_TRWS, 1);
 
@@ -398,7 +397,7 @@ namespace dynamic_stereo{
 					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x,y));
 					//ray.normalize();
 					double disp = refDisp.getDepthAt(Vector2d(x/downsample, y/downsample));
-					Vector3d spt = cam1.GetPosition() + ray * dispToDepth(disp);
+					Vector3d spt = cam1.GetPosition() + ray * model->dispToDepth(disp);
 					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
 					Vector2d imgpt;
 					cam2.ProjectPoint(spt_homo, &imgpt);
@@ -469,6 +468,6 @@ namespace dynamic_stereo{
 	void DynamicStereo::disparityToDepth(const Depth& disp, Depth& depth){
 		depth.initialize(disp.getWidth(), disp.getHeight());
 		for(auto i=0; i<disp.getWidth() * disp.getHeight(); ++i)
-			depth[i] = dispToDepth(disp[i]);
+			depth[i] = model->dispToDepth(disp[i]);
 	}
 }

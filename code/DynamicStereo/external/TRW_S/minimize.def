@@ -24,7 +24,7 @@ template <class T> int MRFEnergy<T>::Minimize_TRW_S(Options& options, REAL& lowe
 		CompleteGraphConstruction();
 	}
 
-	printf("TRW_S algorithm\n");
+	//printf("TRW_S algorithm\n");
 
 	SetMonotonicTrees();
 

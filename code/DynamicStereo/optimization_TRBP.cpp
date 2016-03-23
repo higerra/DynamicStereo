@@ -19,10 +19,10 @@ using namespace cv;
 
 namespace dynamic_stereo{
 
-    SecondOrderOptimizeTRBP::SecondOrderOptimizeTRBP(const FileIO& file_io_, const int kFrames_,const cv::Mat& image_, const std::vector<EnergyType> &MRF_data_,
-                                                     const float MRFRatio_, const int nLabel_):
-            StereoOptimization(file_io_, kFrames_, image_, MRF_data_, MRFRatio_, nLabel_){
+    SecondOrderOptimizeTRBP::SecondOrderOptimizeTRBP(const FileIO& file_io_, const int kFrames_, shared_ptr<StereoModel<EnergyType> > model_):
+            StereoOptimization(file_io_, kFrames_, model_){
         segment_ms::msImageProcessor ms_segmentator;
+	    const Mat& image = model->image;
         ms_segmentator.DefineBgImage(image.data, segment_ms::COLOR, image.rows, image.cols);
         const int hs = 4;
         const float hr = 5.0f;
@@ -47,7 +47,7 @@ namespace dynamic_stereo{
         typedef opengm::TrbpUpdateRules<GraphicalModel, opengm::Minimizer> UpdateRules;
         typedef opengm::MessagePassing<GraphicalModel, opengm::Minimizer, UpdateRules, opengm::MaxDistance> TRBP;
         //typedef opengm::GraphCut<GraphicalModel, opengm::Minimizer
-
+	    const int& nLabel = model->nLabel;
         Space space((size_t)(width * height), (size_t)nLabel);
         GraphicalModel gm(space);
         //add unary terms
@@ -55,7 +55,7 @@ namespace dynamic_stereo{
         for (auto i = 0; i < width * height; ++i) {
             opengm::ExplicitFunction<EnergyType> f(shape, shape + 1);
             for (auto l = 0; l < nLabel; ++l)
-                f(l) = (EnergyType)MRF_data[nLabel * i + l];
+	            f(l) = (EnergyType)model->operator()(i, l);
             GraphicalModel::FunctionIdentifier fid = gm.addFunction(f);
             size_t vid[] = {(size_t) i};
             gm.addFactor(fid, vid, vid + 1);
@@ -75,7 +75,7 @@ namespace dynamic_stereo{
                     size_t coord[] = {(size_t)l0, (size_t)l1, (size_t)l2};
                     if (abs(labelDiff) <= trun){
                         //fv.insert(coord, (EnergyType)(MRFRatio * labelDiff));
-                        fv((size_t)l0,(size_t)l1,(size_t)l2) = (EnergyType)(labelDiff * MRFRatio);
+                        fv((size_t)l0,(size_t)l1,(size_t)l2) = (EnergyType)(labelDiff * model->MRFRatio);
                         count++;
                     } else
                         fv((size_t)l0,(size_t)l1,(size_t)l2) = 0;
@@ -133,7 +133,7 @@ namespace dynamic_stereo{
         trbp.infer();
         t = ((float)getTickCount() - t) / (float)getTickFrequency();
         EnergyType finalEnergy = trbp.value();
-        printf("Done. Final energy: %.3f, Time usage: %.2fs\n", (float)finalEnergy / MRFRatio, t);
+        printf("Done. Final energy: %.3f, Time usage: %.2fs\n", (float)finalEnergy / model->MRFRatio, t);
 
         vector<size_t> labels;
         trbp.arg(labels);

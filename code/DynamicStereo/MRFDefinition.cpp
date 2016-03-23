@@ -40,12 +40,14 @@ namespace dynamic_stereo {
         min_disp = disps[lowKth] * 0.6;
         nth_element(disps.begin(), disps.begin() + highKth, disps.end());
         max_disp = disps[highKth] * 1.5;
+
+	    model->min_disp = min_disp;
+	    model->max_disp = max_disp;
     }
 
     void DynamicStereo::initMRF() {
-        MRF_data.resize((size_t) width * height * dispResolution);
-        CHECK(!MRF_data.empty()) << "Can not allocate memory for MRF";
-
+	    CHECK(model.get());
+	    model->allocate();
         cout << "Assigning data term..." << endl << flush;
         assignDataTerm();
     }
@@ -53,10 +55,6 @@ namespace dynamic_stereo {
     void DynamicStereo::assignDataTerm() {
 	    CHECK_GT(min_disp, 0);
 	    CHECK_GT(max_disp, 0);
-
-        const int tx = 195 / downsample;
-        const int ty = 127 / downsample;
-
 	    //read from cache
 	    char buffer[1024] = {};
 	    sprintf(buffer, "%s/temp/cacheMRFdata", file_io.getDirectory().c_str());
@@ -78,7 +76,7 @@ namespace dynamic_stereo {
             if (frame == anchor && resolution == dispResolution && tw == tWindow &&
                 type == sizeof(EnergyType) && ds == downsample && min_disp == mindisp && max_disp == maxdisp) {
                 printf("Reading unary term from cache...\n");
-                fin.read((char *) MRF_data.data(), MRF_data.size() * sizeof(EnergyType));
+                fin.read((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
                 recompute = false;
             }
         }
@@ -95,7 +93,7 @@ namespace dynamic_stereo {
 #pragma omp parallel for
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
-                        double depth = dispToDepth(d);
+                        double depth = model->dispToDepth(d);
 
                         //sample in 3D space
                         vector<Vector4d> sptBase;
@@ -143,7 +141,7 @@ namespace dynamic_stereo {
                         }
                         double mCost = local_matcher::sumMatchingCost(patches, anchor - offset);
                         //double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
-                        MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 + mCost) * MRFRatio);
+	                    model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
                         //MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 - mCost) * MRFRatio);
                     }
                 }
@@ -164,7 +162,7 @@ namespace dynamic_stereo {
             fout.write((char *) &sz, sizeof(int));
             fout.write((char *) &min_disp, sizeof(double));
             fout.write((char *) &max_disp, sizeof(double));
-            fout.write((char *) MRF_data.data(), MRF_data.size() * sizeof(EnergyType));
+            fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
 
             fout.close();
         }
@@ -173,7 +171,7 @@ namespace dynamic_stereo {
 		    for(auto x=0; x<width; ++x){
 			    EnergyType min_energy = numeric_limits<EnergyType>::max();
 			    for (int d = 0; d < dispResolution; ++d) {
-				    const EnergyType curEnergy = MRF_data[dispResolution * (y * width + x) + d];
+				    const EnergyType curEnergy = model->operator()(y*width+x, d);
 				    if ((double) curEnergy < min_energy) {
 					    dispUnary.setDepthAtInt(x, y, (double) d);
 					    min_energy = curEnergy;
@@ -184,4 +182,36 @@ namespace dynamic_stereo {
 
     }
 
+	void DynamicStereo::assignSmoothWeight() {
+		const double t = 0.3;
+		double ratio = 441.0;
+		vector<EnergyType> &vCue = model->vCue;
+		vector<EnergyType> &hCue = model->hCue;
+		const Mat &img = model->image;
+		for (auto y = 0; y < height; ++y) {
+			for (auto x = 0; x < width; ++x) {
+				Vec3b pix1 = img.at<Vec3b>(y, x);
+				//pixel value range from 0 to 1, not 255!
+				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]) / 255.0;
+				if (y < height - 1) {
+					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]) / 255.0;
+					double diff = (dpix1 - dpix2).norm();
+					if (diff > t)
+						vCue[y * width + x] = 0;
+					else
+						vCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * ratio);
+				}
+				if (x < width - 1) {
+					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]) / 255.0;
+					double diff = (dpix1 - dpix2).norm();
+					if (diff > t)
+						hCue[y * width + x] = 0;
+					else
+						hCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * ratio);
+				}
+			}
+		}
+	}
 }//namespace dynamic_stereo

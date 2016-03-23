@@ -25,7 +25,7 @@
 //#include <opengm/graphicalmodel/graphicalmodel.hxx>
 //#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
 //#include <opengm/functions/truncated_absolute_difference.hxx>
-
+#include "model.h"
 namespace dynamic_stereo {
     class DynamicStereo {
     public:
@@ -45,19 +45,18 @@ namespace dynamic_stereo {
     private:
         typedef int EnergyType;
 
-		inline double dispToDepth(const double d) const{
-			return 1.0/(min_disp + d * (max_disp - min_disp) / (double) dispResolution);
-		}
-
         void initMRF();
         void computeMinMaxDisparity();
         void assignDataTerm();
+	    void assignSmoothWeight();
 
         const FileIO& file_io;
         const int anchor;
         const int tWindow;
         const int downsample;
         int offset;
+
+	    std::shared_ptr<StereoModel<EnergyType> > model;
 
         int width;
         int height;
@@ -75,13 +74,6 @@ namespace dynamic_stereo {
 
         theia::Reconstruction reconstruction;
         Depth dispUnary; //Noisy disparity map only based on unary term
-
-        //for MRF
-        std::vector<EnergyType> MRF_data;
-
-        const double weight_smooth;
-        const EnergyType MRFRatio;
-        const double dispScale;
     };
 
 	namespace utility{

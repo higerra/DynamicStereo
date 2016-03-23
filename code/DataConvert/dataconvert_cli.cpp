@@ -42,8 +42,9 @@ int main(int argc, char** argv){
         if(FLAGS_pmvsFormat)
             fin >> temp;
         for(auto y=0; y<3; ++y){
-            for(auto x=0; x<4; ++x)
-                fin >> pose(y,x);
+            for(auto x=0; x<4; ++x){
+	            fin >> pose(y,x);
+            }
         }
         cout << "Camera matrix for view " << i << endl;
         cout << pose << endl;

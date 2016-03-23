@@ -12,10 +12,10 @@ using namespace cv;
 
 namespace dynamic_stereo{
 
-    SecondOrderOptimizeTRWS::SecondOrderOptimizeTRWS(const FileIO& file_io_, const int kFrames_,const cv::Mat& image_, const std::vector<EnergyType> &MRF_data_,
-                                                     const float MRFRatio_, const int nLabel_):
-            StereoOptimization(file_io_, kFrames_, image_, MRF_data_, MRFRatio_, nLabel_), trun(4){
+    SecondOrderOptimizeTRWS::SecondOrderOptimizeTRWS(const FileIO& file_io_, const int kFrames_, shared_ptr<StereoModel<EnergyType> > model_):
+            StereoOptimization(file_io_, kFrames_, model_), trun(4){
         segment_ms::msImageProcessor ms_segmentator;
+	    const Mat& image = model->image;
         ms_segmentator.DefineBgImage(image.data, segment_ms::COLOR, image.rows, image.cols);
         const int hs = 4;
         const float hr = 5.0f;
@@ -36,7 +36,7 @@ namespace dynamic_stereo{
         double e = 0.0;
         for (auto i = 0; i < width * height; ++i) {
             int l = (int) disp[i];
-            e += (double)(MRF_data[nLabel * i + l]) / (double)(MRFRatio);
+	        e += model->operator()(i, l) / model->MRFRatio;
         }
         auto tripleE = [&](int id1, int id2, int id3){
             double lam;
@@ -63,6 +63,9 @@ namespace dynamic_stereo{
         typedef TypeBinary SmoothT;
         typedef MRFEnergy<SmoothT> TRWS;
         typedef double EnergyTypeT;
+
+	    const int& nLabel = model->nLabel;
+	    const double& MRFRatio = model->MRFRatio;
 
         vector<int> labels((size_t) nLabel);
         for (auto i = 0; i < nLabel; ++i)
@@ -125,8 +128,8 @@ namespace dynamic_stereo{
             //unary term
             int nodeIdx = 0;
             for (auto i = 0; i < kPix; ++i, ++nodeIdx) {
-                EnergyTypeT e1 = (EnergyTypeT) MRF_data[nLabel * i + (int) result[i]];
-                EnergyTypeT e2 = (EnergyTypeT) MRF_data[nLabel * i + l];
+                EnergyTypeT e1 = (EnergyTypeT) model->operator()(i, (int) result[i]);
+	            EnergyTypeT e2 = (EnergyTypeT) model->operator()(i, l);
                 nodes.get()[nodeIdx] = mrf->AddNode(SmoothT::LocalSize(), SmoothT::NodeData(e1, e2));
             }
 

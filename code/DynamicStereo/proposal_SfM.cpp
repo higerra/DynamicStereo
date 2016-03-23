@@ -11,11 +11,9 @@ using namespace cv;
 using namespace Eigen;
 
 namespace dynamic_stereo{
-    ProposalSfM::ProposalSfM(const FileIO& file_io_, const cv::Mat& img_, const theia::Reconstruction& r_,
-                             const int anchor_, const int nLabel_, const double min_disp_, const double max_disp_,
-                             const double downsample_, const int segNum_):
-            file_io(file_io_), image(img_), anchor(anchor_), nLabel(nLabel_), min_disp(min_disp_), max_disp(max_disp_),
-            downsample(downsample_), w(img_.cols), h(img_.rows), reconstruction(r_), segNum(segNum_), method("SfMMeanshift"){
+	ProposalSfM::ProposalSfM(const FileIO& file_io_, std::shared_ptr<StereoModel<EnergyType> > model_, const theia::Reconstruction& r_, const int anchor_, const double downsample_, const int segNum_):
+            Proposal(file_io_, model_), anchor(anchor_),
+            downsample(downsample_), reconstruction(r_), segNum(segNum_), method("SfMMeanshift"){
         mults = vector<double>{1,2,3,4,5,6,7};
         params = vector<double>{1,1.5,10,100};
     }
@@ -25,7 +23,7 @@ namespace dynamic_stereo{
         for(auto pid=0; pid < segNum; ++pid){
             vector<vector<int> > curseg;
             segment_ms::msImageProcessor segmentor;
-            segmentor.DefineImage(image.data, segment_ms::COLOR, image.rows, image.cols);
+            segmentor.DefineImage(model->image.data, segment_ms::COLOR, model->image.rows, model->image.cols);
             segmentor.Segment((int)(params[0]*mults[pid]), (float)(params[1]*mults[pid]), (int)(params[2]*mults[pid]), meanshift::MED_SPEEDUP);
 
             int* labels = NULL;
@@ -35,7 +33,7 @@ namespace dynamic_stereo{
 
             cv::Vec3b colorTable[] = {cv::Vec3b(255, 0, 0), cv::Vec3b(0, 255, 0), cv::Vec3b(0, 0, 255), cv::Vec3b(255, 255, 0),
                                       cv::Vec3b(255, 0, 255), cv::Vec3b(0, 255, 255), cv::Vec3b(128,128,0), cv::Vec3b(128,0,128), cv::Vec3b(0,128,128)};
-            cv::Mat segTestRes(h, w, image.type());
+            cv::Mat segTestRes(h, w, model->image.type());
             for (auto y = 0; y < h; ++y) {
                 for (auto x = 0; x < w; ++x) {
                     int l = labels[y * w + x];
@@ -59,8 +57,8 @@ namespace dynamic_stereo{
         char buffer[1024] = {};
         const int nPixels = w * h;
         const double epsilon = (double)1e-05;
-        const double min_depth = 1.0 / max_disp;
-        const double max_depth = 1.0 / min_disp;
+        const double min_depth = 1.0 / model->max_disp;
+        const double max_depth = 1.0 / model->min_disp;
         const double dis_thres = 0.3 * (max_depth - min_depth);
         printf("dis_thres: %.3f\n", dis_thres);
         //if one segmentation contains less than min_track_num points, invalidate this segment
