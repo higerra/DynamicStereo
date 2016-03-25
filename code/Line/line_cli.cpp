@@ -16,7 +16,10 @@ int main(int argc, char** argv){
     }
 
     FileIO file_io(argv[1]);
-    CHECK_LT(file_io.getTotalNum(), 0) << "Empty dataset";
+    CHECK_GT(file_io.getTotalNum(), 0) << "Empty dataset";
+
+    LineSeg lineseg(file_io);
+    lineseg.runLSD();
     return 0;
 }
 
