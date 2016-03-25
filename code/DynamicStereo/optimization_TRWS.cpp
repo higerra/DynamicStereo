@@ -36,21 +36,21 @@ namespace dynamic_stereo{
         double e = 0.0;
         for (auto i = 0; i < width * height; ++i) {
             int l = (int) disp[i];
-	        e += model->operator()(i, l) / model->MRFRatio;
+            e += ((double)model->operator()(i, l) / model->MRFRatio);
         }
-        auto tripleE = [&](int id1, int id2, int id3){
-            double lam;
-            if (refSeg[id1] == refSeg[id2] && refSeg[id1] == refSeg[id3])
-                lam = lamh;
-            else
-                lam = laml;
+        auto tripleE = [&](int id1, int id2, int id3, double w){
+            double lam = w * model->weight_smooth;
+//            if (refSeg[id1] == refSeg[id2] && refSeg[id1] == refSeg[id3])
+//                lam = lamh;
+//            else
+//                lam = laml;
             return lapE(disp[id1], disp[id2], disp[id3]) * lam;
         };
 
         for (auto x = 1; x < width - 1; ++x) {
             for (auto y = 1; y < height - 1; ++y) {
-                e += tripleE(y * width + x - 1, y * width + x, y * width + x + 1);
-                e += tripleE((y - 1) * width + x, y * width + x, (y + 1) * width + x);
+                e += tripleE(y * width + x - 1, y * width + x, y * width + x + 1, model->hCue[y*width+x]);
+                e += tripleE((y - 1) * width + x, y * width + x, (y + 1) * width + x, model->vCue[y*width+x]);
             }
         }
         return e;
@@ -65,35 +65,35 @@ namespace dynamic_stereo{
         typedef double EnergyTypeT;
 
 	    const int& nLabel = model->nLabel;
-	    const double& MRFRatio = model->MRFRatio;
+	    //const double& MRFRatio = model->MRFRatio;
 
-        vector<int> labels((size_t) nLabel);
+        vector<double> labels((size_t) nLabel);
         for (auto i = 0; i < nLabel; ++i)
             labels[i] = i;
-        //random_shuffle(labels.begin(), labels.end());
+//        random_shuffle(labels.begin(), labels.end());
 
         result.initialize(width, height, labels[0]);
 
         double initE = evaluateEnergy(result);
         float start_time = (float) getTickCount();
         //lambda function to add triple term
-        auto addTripleToGraph = [&](int p, int q, int r, int l, shared_ptr<TRWS> mrf, shared_ptr<TRWS::NodeId> nodes) {
+        auto addTripleToGraph = [&](int p, int q, int r, double l, double w, shared_ptr<TRWS> mrf, shared_ptr<TRWS::NodeId> nodes) {
             double vp1 = result[p], vq1 = result[q], vr1 = result[r];
-            double lam;
-            if (refSeg[p] == refSeg[q] && refSeg[p] == refSeg[r])
-                lam = lamh;
-            else
-                lam = laml;
-            EnergyTypeT A = (EnergyTypeT)(lapE(vp1, vq1, vr1) * lam * MRFRatio);
-            EnergyTypeT B = (EnergyTypeT)(lapE(vp1, vq1, l) * lam * MRFRatio);
-            EnergyTypeT C = (EnergyTypeT)(lapE(vp1, l, vr1) * lam * MRFRatio);
-            EnergyTypeT D = (EnergyTypeT)(lapE(vp1, l, l) * lam * MRFRatio);
-            EnergyTypeT E = (EnergyTypeT)(lapE(l, vq1, vr1) * lam * MRFRatio);
-            EnergyTypeT F = (EnergyTypeT)(lapE(l, vq1, l) * lam * MRFRatio);
-            EnergyTypeT G = (EnergyTypeT)(lapE(l, l, vr1) * lam * MRFRatio);
-            EnergyTypeT H = (EnergyTypeT)(lapE(l, l, l) * lam * MRFRatio);
+            double lam = w * model->weight_smooth;
+//            if (refSeg[p] == refSeg[q] && refSeg[p] == refSeg[r])
+//                lam = lamh;
+//            else
+//                lam = laml;
+            EnergyTypeT A = (EnergyTypeT)(lapE(vp1, vq1, vr1) * lam);
+            EnergyTypeT B = (EnergyTypeT)(lapE(vp1, vq1, l) * lam);
+            EnergyTypeT C = (EnergyTypeT)(lapE(vp1, l, vr1) * lam);
+            EnergyTypeT D = (EnergyTypeT)(lapE(vp1, l, l) * lam);
+            EnergyTypeT E = (EnergyTypeT)(lapE(l, vq1, vr1) * lam);
+            EnergyTypeT F = (EnergyTypeT)(lapE(l, vq1, l) * lam);
+            EnergyTypeT G = (EnergyTypeT)(lapE(l, l, vr1) * lam);
+            EnergyTypeT H = (EnergyTypeT)(lapE(l, l, l) * lam);
 
-            EnergyTypeT pi = (EnergyTypeT)((A + D + F + G) - (B + C + E + H));
+            EnergyTypeT pi = (A + D + F + G) - (B + C + E + H);
 
             if (pi >= 0) {
                 mrf->AddEdge(nodes.get()[p], nodes.get()[q], SmoothT::EdgeData(0, C - A, 0, G - E));
@@ -118,9 +118,9 @@ namespace dynamic_stereo{
 
         for (auto lid = 1; lid < labels.size(); ++lid) {
             //solve nonsubmodular expansion with TRWS
-            const int l = labels[lid];
+            const double l = labels[lid];
             printf("================================\n");
-            printf("Expanding label %d (%d/%d) with TRWS\n", l, lid, nLabel);
+            printf("Expanding label %d (%d/%d) with TRWS\n", (int)l, lid, nLabel);
             float start_t = (float) getTickCount();
             double inite = evaluateEnergy(result);
             std::shared_ptr<TRWS> mrf(new TRWS(SmoothT::GlobalSize()));
@@ -128,37 +128,40 @@ namespace dynamic_stereo{
             //unary term
             int nodeIdx = 0;
             for (auto i = 0; i < kPix; ++i, ++nodeIdx) {
-                EnergyTypeT e1 = (EnergyTypeT) model->operator()(i, (int) result[i]);
-	            EnergyTypeT e2 = (EnergyTypeT) model->operator()(i, l);
+                EnergyTypeT e1 = (EnergyTypeT) model->operator()(i, (int) result[i]) / model->MRFRatio;
+	            EnergyTypeT e2 = (EnergyTypeT) model->operator()(i, (int)l) / model->MRFRatio;
                 nodes.get()[nodeIdx] = mrf->AddNode(SmoothT::LocalSize(), SmoothT::NodeData(e1, e2));
             }
 
             //add triple term
             for (auto x = 1; x < width - 1; ++x) {
                 for (auto y = 1; y < height - 1; ++y) {
-                    addTripleToGraph(y * width + x - 1, y * width + x, y * width + x + 1, l, mrf, nodes);
-                    addTripleToGraph((y - 1) * width + x, y * width + x, (y + 1) * width + x, l, mrf, nodes);
+                    addTripleToGraph(y * width + x - 1, y * width + x, y * width + x + 1, l, model->hCue[y*width+x], mrf, nodes);
+                    addTripleToGraph((y - 1) * width + x, y * width + x, (y + 1) * width + x, l, model->vCue[y*width+x], mrf, nodes);
                 }
             }
 
             TypeBinary::REAL energy, lowerBound;
             TRWS::Options option;
-            option.m_iterMax = 2000;
+            option.m_iterMax = 500;
             mrf->Minimize_TRW_S(option, lowerBound, energy);
 
             for (auto i = 0; i < kPix; ++i) {
-                if (mrf->GetSolution(nodes.get()[i]) == 1)
+                if (mrf->GetSolution(nodes.get()[i]) > 0)
                     result[i] = l;
             }
             cout << endl;
 
             double e = evaluateEnergy(result);
             printf("Done, initial energy: %.3f, final energy: %.3f(%.3f by TRWS), lower bound: %.3f, time usage:%.2fs\n", inite, e,
-                   energy / MRFRatio, lowerBound/MRFRatio,
+                   energy, lowerBound,
                    ((float) getTickCount() - start_t) / (float) getTickFrequency());
 
-            sprintf(buffer, "%s/temp/TRWS_label%05d.jpg", file_io.getDirectory().c_str(), l);
+            sprintf(buffer, "%s/temp/TRWS_label%05d.jpg", file_io.getDirectory().c_str(), (int)l);
             result.saveImage(buffer, 256.0 / (double) nLabel);
+
+            mrf.reset();
+            nodes.reset();
         }
 
         printf("All done. Initial energy: %.3f, final energy: %.3f, time usage: %.2fs\n", initE, evaluateEnergy(result),

@@ -32,8 +32,8 @@ namespace dynamic_stereo {
         for (auto i = 0; i < model->image.cols * model->image.rows; ++i)
             refSeg[i] = labels[i];
 
-        laml = 0.02;
-        lamh = 0.2;
+        laml = 0.002;
+        lamh = 0.02;
 
     }
 
@@ -141,19 +141,19 @@ namespace dynamic_stereo {
             int l = (int) disp[i];
 	        e += (model->operator()(i, l) / model->MRFRatio);
         }
-        auto tripleE = [&](int id1, int id2, int id3){
-            double lam;
-            if (refSeg[id1] == refSeg[id2] && refSeg[id1] == refSeg[id3])
-                lam = lamh;
-            else
-                lam = laml;
+        auto tripleE = [&](int id1, int id2, int id3, double w){
+            double lam = w * model->weight_smooth;
+//            if (refSeg[id1] == refSeg[id2] && refSeg[id1] == refSeg[id3])
+//                lam = lamh;
+//            else
+//                lam = laml;
             return lapE(disp[id1], disp[id2], disp[id3]) * lam;
         };
 
         for (auto x = 1; x < width - 1; ++x) {
             for (auto y = 1; y < height - 1; ++y) {
-                e += tripleE(y * width + x - 1, y * width + x, y * width + x + 1);
-                e += tripleE((y - 1) * width + x, y * width + x, (y + 1) * width + x);
+                e += tripleE(y * width + x - 1, y * width + x, y * width + x + 1, model->hCue[y*width+x]);
+                e += tripleE((y - 1) * width + x, y * width + x, (y + 1) * width + x, model->vCue[y*width+x]);
             }
         }
         return e;
@@ -185,13 +185,13 @@ namespace dynamic_stereo {
         kolmogorov::qpbo::QPBO<EnergyTypeT> qpbo(nPix*10, nPix*20);
 	    const double& MRFRatio = model->MRFRatio;
         //construct graph
-        auto addTripleToGraph = [&](int p, int q, int r) {
+        auto addTripleToGraph = [&](int p, int q, int r, double w) {
             double vp1 = p1[p], vp2 = p2[p], vq1 = p1[q], vq2 = p2[q], vr1 = p1[r], vr2 = p2[r];
-            double lam;
-            if (refSeg[p] == refSeg[q] && refSeg[p] == refSeg[r])
-                lam = lamh;
-            else
-                lam = laml;
+            double lam = w * model->weight_smooth;
+//            if (refSeg[p] == refSeg[q] && refSeg[p] == refSeg[r])
+//                lam = lamh;
+//            else
+//                lam = laml;
             EnergyTypeT A = (EnergyTypeT)(lapE(vp1, vq1, vr1) * lam * MRFRatio);
             EnergyTypeT B = (EnergyTypeT)(lapE(vp1, vq1, vr2) * lam * MRFRatio);
             EnergyTypeT C = (EnergyTypeT)(lapE(vp1, vq2, vr1) * lam * MRFRatio);
@@ -242,8 +242,8 @@ namespace dynamic_stereo {
 
         for(auto y=1; y<height-1; ++y){
             for(auto x=1; x<width-1; ++x) {
-                addTripleToGraph(y * width + x - 1, y * width + x, y * width + x + 1);
-                addTripleToGraph((y - 1) * width + x, y * width + x, (y + 1) * width + x);
+                addTripleToGraph(y * width + x - 1, y * width + x, y * width + x + 1, model->hCue[y*width+x]);
+                addTripleToGraph((y - 1) * width + x, y * width + x, (y + 1) * width + x, model->vCue[y*width+x]);
             }
         }
 

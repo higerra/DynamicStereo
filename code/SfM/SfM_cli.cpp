@@ -413,23 +413,23 @@ int main(int argc, char *argv[]) {
 
     printf("%d out of %d images are registered. Unregistered images are discarded\n", res->NumViews(), totalNum);
     //re-index images, ignore un-registered images
-    for(auto i=0; i<res->NumViews(); ++i){
-        const theia::View* v = res->View(i);
-        CHECK(v) << "View " << i << " is null";
+    std::vector<theia::ViewId> viewIds = res->ViewIds();
+    int index = 0;
+    for(auto vid: viewIds){
+        const theia::View* v = res->View(vid);
+        CHECK(v) << "View " << vid << " is Null";
         const theia::Camera cam = v->Camera();
 
         std::string nstr = v->Name().substr(5,5);
         int idx = atoi(nstr.c_str());
-
         sprintf(buffer, "%s/images_input/image%05d.jpg", file_io.getDirectory().c_str(), idx);
         cv::Mat img = cv::imread(buffer);
-        sprintf(buffer, "%s/images/image%05d.jpg", file_io.getDirectory().c_str(), i);
+        sprintf(buffer, "%s/images/image%05d.jpg", file_io.getDirectory().c_str(), index);
         printf("Saving %s\n", buffer);
         cv::imwrite(buffer, img);
-
         theia::Matrix3x4d p;
         cam.GetProjectionMatrix(&p);
-        sprintf(buffer, "%s/%s.txt", file_io.getSfMDirectory().c_str(), v->Name().c_str());
+        sprintf(buffer, "%s/pose%05d.txt", file_io.getSfMDirectory().c_str(), index);
         std::ofstream fout(buffer);
         CHECK(fout.is_open()) << "Can not open " << buffer << " to write";
         for(auto y=0; y<3; ++y){
@@ -437,6 +437,7 @@ int main(int argc, char *argv[]) {
                 fout << p(y,x) << ' ';
             fout << std::endl;
         }
+        index++;
     }
 
     return 0;

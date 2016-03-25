@@ -60,6 +60,7 @@ namespace dynamic_stereo {
     private:
 
         inline double lapE(const double x0, const double x1, const double x2) const{
+            //return std::min((x0 + x2 - 2 * x1) * (x0 + x2 - 2 * x1), trun * trun);
             return std::min(std::abs(x0 + x2 - 2 * x1), trun);
         }
         double laml;
@@ -96,6 +97,7 @@ namespace dynamic_stereo {
         }
     private:
         inline double lapE(const double x0, const double x1, const double x2) const{
+            //return std::min((x0 + x2 - 2 * x1) * (x0 + x2 - 2 * x1), trun * trun);
             return std::min(std::abs(x0 + x2 - 2 * x1), trun);
         }
 

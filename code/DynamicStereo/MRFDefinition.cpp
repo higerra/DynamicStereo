@@ -50,6 +50,7 @@ namespace dynamic_stereo {
 	    model->allocate();
         cout << "Assigning data term..." << endl << flush;
         assignDataTerm();
+        assignSmoothWeight();
     }
 
     void DynamicStereo::assignDataTerm() {

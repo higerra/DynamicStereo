@@ -11,7 +11,7 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(tWindow, 60, "tWindow");
+DEFINE_int32(tWindow, 30, "tWindow");
 DEFINE_int32(downsample, 4, "downsample ratio");
 DEFINE_int32(resolution, 64, "disparity resolution");
 DEFINE_double(weight_smooth, 0.001, "smoothness weight for stereo");
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
         Mat imgL, imgR;
         const int tf1 = FLAGS_testFrame;
         //In original scale
-        Vector2d pt(419*4,102*4);
+        Vector2d pt(1534,380);
         for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
             stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
             CHECK_EQ(imgL.size(), imgR.size());
