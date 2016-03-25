@@ -516,7 +516,7 @@ namespace dynamic_stereo{
 //				for(auto j=0; j<dispResolution; ++j)
 //					cout << model->operator()(i,j) << ' ' << unary[j]<<endl;
 //				CHECK_GT(minu, 0);
-				wunary[i] = 0;
+				wunary[i] = 0.001;
 				continue;
 			}
 			*min_pos = std::numeric_limits<double>::max();
