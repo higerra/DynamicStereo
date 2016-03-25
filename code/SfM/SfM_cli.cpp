@@ -36,6 +36,7 @@
 #include <gflags/gflags.h>
 #include <time.h>
 #include <theia/theia.h>
+#include <algorithm>
 #include <chrono>  // NOLINT
 #include <string>
 #include <vector>
@@ -413,30 +414,44 @@ int main(int argc, char *argv[]) {
 
     printf("%d out of %d images are registered. Unregistered images are discarded\n", res->NumViews(), totalNum);
     //re-index images, ignore un-registered images
+    //view ids returned by theia might be unordered
     std::vector<theia::ViewId> viewIds = res->ViewIds();
+    std::vector<std::pair<int, theia::ViewId> > orderedId(viewIds.size());
     int index = 0;
     for(auto vid: viewIds){
         const theia::View* v = res->View(vid);
+        std::string nstr = v->Name().substr(5,5);
+        int idx = atoi(nstr.c_str());
+        orderedId[index].first = idx;
+        orderedId[index].second = vid;
+        index++;
+    }
+    std::sort(orderedId.begin(), orderedId.end(),
+              [](const std::pair<int, theia::ViewId>& v1, const std::pair<int, theia::ViewId>& v2){return v1.first < v2.first;});
+
+    index = 0;
+    for(auto vpair: orderedId){
+        const theia::ViewId& vid = vpair.second;
+        const theia::View* v = res->View(vid);
         CHECK(v) << "View " << vid << " is Null";
         const theia::Camera cam = v->Camera();
-
         std::string nstr = v->Name().substr(5,5);
         int idx = atoi(nstr.c_str());
         sprintf(buffer, "%s/images_input/image%05d.jpg", file_io.getDirectory().c_str(), idx);
         cv::Mat img = cv::imread(buffer);
         sprintf(buffer, "%s/images/image%05d.jpg", file_io.getDirectory().c_str(), index);
-        printf("Saving %s\n", buffer);
+        printf("Saving %s as %d\n", nstr.c_str(), index);
         cv::imwrite(buffer, img);
-        theia::Matrix3x4d p;
-        cam.GetProjectionMatrix(&p);
-        sprintf(buffer, "%s/pose%05d.txt", file_io.getSfMDirectory().c_str(), index);
-        std::ofstream fout(buffer);
-        CHECK(fout.is_open()) << "Can not open " << buffer << " to write";
-        for(auto y=0; y<3; ++y){
-            for(auto x=0; x<4; ++x)
-                fout << p(y,x) << ' ';
-            fout << std::endl;
-        }
+//        theia::Matrix3x4d p;
+//        cam.GetProjectionMatrix(&p);
+//        sprintf(buffer, "%s/pose%05d.txt", file_io.getSfMDirectory().c_str(), index);
+//        std::ofstream fout(buffer);
+//        CHECK(fout.is_open()) << "Can not open " << buffer << " to write";
+//        for(auto y=0; y<3; ++y){
+//            for(auto x=0; x<4; ++x)
+//                fout << p(y,x) << ' ';
+//            fout << std::endl;
+//        }
         index++;
     }
 
