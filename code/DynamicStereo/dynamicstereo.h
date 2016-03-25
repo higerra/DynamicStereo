@@ -42,6 +42,8 @@ namespace dynamic_stereo {
         inline int getDownsample() const {return downsample; }
 	    void warpToAnchor(const Depth& refDisp, const std::string& prefix) const;
 		void disparityToDepth(const Depth& disp, Depth& depth);
+		void bilateralFilter(const Depth& input, const cv::Mat& inputImg, Depth& output,
+							 const int size, const double sigmas, const double sigmar, const double sigmau);
     private:
         typedef int EnergyType;
 
@@ -79,8 +81,12 @@ namespace dynamic_stereo {
 	namespace utility{
 		void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output);
 
+		//test opencv built-in stereo matching
+		void stereoSGBM(const cv::Mat& img1, const cv::Mat& img2, cv::Mat& output);
+
 		//depth, not dispartiy!
 		void saveDepthAsPly(const std::string& path, const Depth& depth, const cv::Mat& image, const theia::Camera& cam, const int downsample);
+
 	}
 }
 

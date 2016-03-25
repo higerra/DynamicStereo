@@ -97,6 +97,9 @@ namespace interpolation_util {
 #endif
 }//namespace interpolate_util
 
+namespace imgproc_util{
+
+}
 
 namespace math_util {
 	inline double variance(const std::vector<double> &a, const double mean) {
@@ -119,6 +122,7 @@ namespace math_util {
 		CHECK_GT(sigma, 0);
 		return std::exp(-1 * (v-m)*(v-m) / (2 * sigma * sigma));
 	}
+
 }//namespace_math_util
 
 

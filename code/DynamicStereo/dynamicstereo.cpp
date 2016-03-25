@@ -8,6 +8,7 @@
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
 #include "proposal.h"
 #include "local_matcher.h"
+#include <opencv2/ximgproc/disparity_filter.hpp>
 
 using namespace std;
 using namespace cv;
@@ -16,48 +17,48 @@ namespace dynamic_stereo{
 
 	typedef OpenMesh::TriMesh_ArrayKernelT<> TriMesh;
 
-	namespace utility{
-		void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output){
+	namespace utility {
+		void visualizeSegmentation(const std::vector<int> &labels, const int width, const int height, cv::Mat &output) {
 			CHECK_EQ(width * height, labels.size());
 			output = Mat(height, width, CV_8UC3);
 
-			std::vector<cv::Vec3b> colorTable((size_t)width * height);
+			std::vector<cv::Vec3b> colorTable((size_t) width * height);
 			std::default_random_engine generator;
 			std::uniform_int_distribution<int> distribution(0, 255);
 
 			for (int i = 0; i < width * height; i++) {
-				for(int j=0; j<3; ++j)
-					colorTable[i][j] = (uchar)distribution(generator);
+				for (int j = 0; j < 3; ++j)
+					colorTable[i][j] = (uchar) distribution(generator);
 			}
 
 			for (int y = 0; y < height; y++) {
 				for (int x = 0; x < width; x++)
-					output.at<cv::Vec3b>(y,x) = colorTable[labels[y*width + x]];
+					output.at<cv::Vec3b>(y, x) = colorTable[labels[y * width + x]];
 			}
 		}
 
 
-
-		void saveDepthAsPly(const string& path, const Depth& depth, const cv::Mat& image, const theia::Camera& cam, const int downsample){
+		void saveDepthAsPly(const string &path, const Depth &depth, const cv::Mat &image, const theia::Camera &cam,
+							const int downsample) {
 			CHECK_EQ(depth.getWidth(), image.cols);
 			CHECK_EQ(depth.getHeight(), image.rows);
 			TriMesh mesh;
 			mesh.request_vertex_colors();
-			const int& w = depth.getWidth();
-			const int& h = depth.getHeight();
+			const int &w = depth.getWidth();
+			const int &h = depth.getHeight();
 
-			vector<TriMesh::VertexHandle> vhandle((size_t)(w * h));
+			vector<TriMesh::VertexHandle> vhandle((size_t) (w * h));
 			Vector3d camcenter = cam.GetPosition();
 			TriMesh::VertexHandle ch = mesh.add_vertex(TriMesh::Point(camcenter[0], camcenter[1], camcenter[2]));
-			mesh.set_color(ch, TriMesh::Color(255,0,0));
+			mesh.set_color(ch, TriMesh::Color(255, 0, 0));
 
 			int vid = 0;
-			for(auto y=0; y<h; ++y){
-				for(auto x=0; x<w; ++x, ++vid){
-					cv::Vec3b pix = image.at<Vec3b>(y,x);
-					Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
+			for (auto y = 0; y < h; ++y) {
+				for (auto x = 0; x < w; ++x, ++vid) {
+					cv::Vec3b pix = image.at<Vec3b>(y, x);
+					Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(x * downsample, y * downsample));
 					//ray.normalize();
-					Vector3d spt = cam.GetPosition() + ray * depth(x,y);
+					Vector3d spt = cam.GetPosition() + ray * depth(x, y);
 					vhandle[vid] = mesh.add_vertex(TriMesh::Point(spt[0], spt[1], spt[2]));
 					mesh.set_color(vhandle[vid], TriMesh::Color(pix[2], pix[1], pix[0]));
 				}
@@ -67,6 +68,10 @@ namespace dynamic_stereo{
 			wopt += OpenMesh::IO::Options::VertexColor;
 			CHECK(OpenMesh::IO::write_mesh(mesh, path, wopt)) << "Can not write ply file " << path;
 		}
+
+		void stereoSGBM(const cv::Mat &img1, const cv::Mat &img2) {
+		}
+
 	}
 
 	DynamicStereo::DynamicStereo(const dynamic_stereo::FileIO &file_io_, const int anchor_,
@@ -208,8 +213,8 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-			const int tx = 1534 / downsample;
-			const int ty = 380 / downsample;
+			const int tx = 0 / downsample;
+			const int ty = 0 / downsample;
 			printf("Unary term for (%d,%d)\n", tx, ty);
 			for (auto d = 0; d < dispResolution; ++d) {
 				cout << model->operator()(ty * width + tx, d) << ' ';
@@ -312,14 +317,23 @@ namespace dynamic_stereo{
 		Depth result_firstOrder;
 		optimizer_firstorder.optimize(result_firstOrder, 10);
 		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		warpToAnchor(result_firstOrder, "firstorder");
+		//warpToAnchor(result_firstOrder, "firstorder");
 		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 
 		printf("Saving depth to point cloud...\n");
 		Depth depth_firstOrder;
 		disparityToDepth(result_firstOrder, depth_firstOrder);
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+
 		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
+		printf("Applying bilateral filter to depth:\n");
+		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 10, 100, 3);
+		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
+		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
+		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
+
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
 //		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);
@@ -328,24 +342,24 @@ namespace dynamic_stereo{
 //		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 //		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
 
-		cout << "Solving with second order smoothness (fusion move)..." << endl;
-		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, images.size(), model, dispUnary);
-		const vector<int>& refSeg = optimizer_fusion.getRefSeg();
-		Mat segImg;
-		utility::visualizeSegmentation(refSeg, width, height, segImg);
-		sprintf(buffer, "%s/temp/refSeg%.5d.jpg", file_io.getDirectory().c_str(), anchor);
-		imwrite(buffer, segImg);
-		Depth result_fusion;
-		optimizer_fusion.optimize(result_fusion, 300);
-
-		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
-		printf("Saving depth to point cloud...\n");
-		Depth depth_fusion;
-		disparityToDepth(result_fusion, depth_fusion);
-		sprintf(buffer, "%s/temp/mesh_fusion_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), depth_fusion, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
-		warpToAnchor(result_fusion, "fusion");
+//		cout << "Solving with second order smoothness (fusion move)..." << endl;
+//		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, images.size(), model, dispUnary);
+//		const vector<int>& refSeg = optimizer_fusion.getRefSeg();
+//		Mat segImg;
+//		utility::visualizeSegmentation(refSeg, width, height, segImg);
+//		sprintf(buffer, "%s/temp/refSeg%.5d.jpg", file_io.getDirectory().c_str(), anchor);
+//		imwrite(buffer, segImg);
+//		Depth result_fusion;
+//		optimizer_fusion.optimize(result_fusion, 300);
+//
+//		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+//		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
+//		printf("Saving depth to point cloud...\n");
+//		Depth depth_fusion;
+//		disparityToDepth(result_fusion, depth_fusion);
+//		sprintf(buffer, "%s/temp/mesh_fusion_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+//		utility::saveDepthAsPly(string(buffer), depth_fusion, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+//		warpToAnchor(result_fusion, "fusion");
 
 //		cout << "Solving with second order smoothness (TRWS)..." << endl;
 //		SecondOrderOptimizeTRWS optimizer_TRWS(file_io, (int)images.size(), model);
@@ -470,4 +484,78 @@ namespace dynamic_stereo{
 		for(auto i=0; i<disp.getWidth() * disp.getHeight(); ++i)
 			depth[i] = model->dispToDepth(disp[i]);
 	}
+
+	void DynamicStereo::bilateralFilter(const Depth &input, const cv::Mat &inputImg, Depth &output,
+						 const int size, const double sigmas, const double sigmar, const double sigmau) {
+		CHECK_EQ(input.getWidth(), inputImg.cols);
+		CHECK_EQ(input.getHeight(), inputImg.rows);
+		CHECK_EQ(size % 2, 1);
+		CHECK_GT(size, 2);
+		CHECK_EQ(inputImg.type(), CV_8UC3) << "Guided image should be 3 channel uchar type.";
+		const int R = (size - 1) / 2;
+		const int width = input.getWidth();
+		const int height = input.getHeight();
+		output.initialize(width, height, -1);
+		const uchar *pImg = inputImg.data;
+
+		//kerner weight the computed from:
+		//1. distance
+		//2. color consistancy
+		//3. unary confidence
+
+		double conf_thres = 10;
+		vector<double> wunary((size_t)width * height);
+		for(auto i=0; i<width * height; ++i){
+			vector<double> unary(dispResolution);
+			for(auto j=0; j<dispResolution; ++j)
+				unary[j] = model->operator()(i,j);
+			auto min_pos = min_element(unary.begin(), unary.end());
+			double minu = *min_pos;
+			if(minu == 0){
+//				printf("(%d,%d)\n", i/width, i%width);
+//				for(auto j=0; j<dispResolution; ++j)
+//					cout << model->operator()(i,j) << ' ' << unary[j]<<endl;
+//				CHECK_GT(minu, 0);
+				wunary[i] = 0;
+				continue;
+			}
+			*min_pos = std::numeric_limits<double>::max();
+			double seminu = *max_element(unary.begin(), unary.end());
+			double conf = seminu / minu;
+			if(conf > conf_thres)
+				conf = conf_thres;
+			wunary[i] = math_util::gaussian(conf_thres, sigmau, conf);
+		}
+
+
+		//apply bilateral filter
+		for (auto y = 0; y < height; ++y) {
+#pragma omp parallel for
+			for (auto x = 0; x < width; ++x) {
+				int cidx = y * width + x;
+				double m = 0.0;
+				double acc = 0.0;
+				Vector3d pc(pImg[3 * cidx], pImg[3 * cidx + 1], pImg[3 * cidx + 2]);
+				for (auto dx = -1 * R; dx <= R; ++dx) {
+					for (auto dy = -1 * R; dy <= R; ++dy) {
+						int curx = x + dx;
+						int cury = y + dy;
+						const int kid = (dy + R) * size + dx + R;
+						if (curx < 0 || cury < 0 || curx >= width - 1 || cury >= height - 1)
+							continue;
+						int idx = cury * width + curx;
+						Vector3d p2(pImg[3 * idx], pImg[3 * idx + 1], pImg[3 * idx + 2]);
+						double wcolor = (p2 - pc).squaredNorm() / (sigmar * sigmar);
+						double wdis = (dx * dx + dy * dy) / (sigmas * sigmas);
+						double w = std::exp(-1 * (wcolor + wdis)) * wunary[idx];
+						m += w;
+						acc += input(curx, cury) * w;
+					}
+				}
+				CHECK_GT(m, 0);
+				output(x, y) = acc / m;
+			}
+		}
+	}
+
 }
