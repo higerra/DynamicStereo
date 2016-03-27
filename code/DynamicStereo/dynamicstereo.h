@@ -58,6 +58,9 @@ namespace dynamic_stereo {
         const int downsample;
         int offset;
 
+		typedef std::pair<int, theia::ViewId> IdPair;
+		std::vector<IdPair> orderedId;
+
 	    std::shared_ptr<StereoModel<EnergyType> > model;
 
         int width;

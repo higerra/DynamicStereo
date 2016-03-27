@@ -18,7 +18,7 @@ namespace dynamic_stereo {
             CHECK_GT(max_disp, 0) << "Please specify the minimum disparity";
             return;
         }
-        const theia::View *anchorView = reconstruction.View(anchor);
+        const theia::View *anchorView = reconstruction.View(orderedId[anchor].second);
         const theia::Camera cam = anchorView->Camera();
         vector<theia::TrackId> trackIds = anchorView->TrackIds();
         vector<double> disps;
@@ -82,7 +82,7 @@ namespace dynamic_stereo {
             }
         }
         if(recompute) {
-            const theia::Camera& cam1 = reconstruction.View(anchor)->Camera();
+            const theia::Camera& cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
 
             int index = 0;
             int unit = width * height / 10;
@@ -116,7 +116,7 @@ namespace dynamic_stereo {
                         //project onto other views and compute matching cost
                         vector<vector<double> > patches(images.size());
                         for (auto v = 0; v < images.size(); ++v) {
-                            const theia::Camera& cam2 = reconstruction.View(v + offset)->Camera();
+                            const theia::Camera& cam2 = reconstruction.View(orderedId[v + offset].second)->Camera();
                             for (const auto &spt: sptBase) {
                                 if (spt[3] == 0) {
                                     patches[v].push_back(-1);

@@ -16,6 +16,7 @@
 
 namespace dynamic_stereo {
 
+
     class LineSeg {
     public:
         LineSeg(const FileIO& file_io_);

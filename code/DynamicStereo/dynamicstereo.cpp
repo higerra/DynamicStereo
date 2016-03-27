@@ -86,6 +86,18 @@ namespace dynamic_stereo{
 		cout << "Reading reconstruction" << endl;
 		CHECK(theia::ReadReconstruction(file_io.getReconstruction(), &reconstruction)) << "Can not open reconstruction file";
 		CHECK_EQ(reconstruction.NumViews(), file_io.getTotalNum());
+
+		const vector<theia::ViewId>& vids = reconstruction.ViewIds();
+		orderedId.resize(vids.size());
+		for(auto i=0; i<vids.size(); ++i) {
+			const theia::View* v = reconstruction.View(vids[i]);
+			std::string nstr = v->Name().substr(5,5);
+			int idx = atoi(nstr.c_str());
+			orderedId[i] = IdPair(idx, vids[i]);
+		}
+		std::sort(orderedId.begin(), orderedId.end(),
+				  [](const std::pair<int, theia::ViewId>& v1, const std::pair<int, theia::ViewId>& v2){return v1.first < v2.first;});
+
 		CHECK(downsample == 1 || downsample == 2 || downsample == 4 || downsample == 8) << "Invalid downsample ratio!";
 		images.resize((size_t)tWindow);
 
@@ -99,8 +111,8 @@ namespace dynamic_stereo{
 				pyrDown(pyramid[k-1], pyramid[k]);
 			images[i] = pyramid.back().clone();
 
-			const theia::Camera cam = reconstruction.View(i+offset)->Camera();
-			cout << "Projection matrix for view " << i+offset<< endl;
+			const theia::Camera cam = reconstruction.View(orderedId[i+offset].second)->Camera();
+			cout << "Projection matrix for view " << orderedId[i+offset].first<< endl;
 			theia::Matrix3x4d pm;
 			cam.GetProjectionMatrix(&pm);
 			cout << pm << endl;
@@ -131,8 +143,8 @@ namespace dynamic_stereo{
 		CHECK_LT(pt[0], (double)width * downsample);
 		CHECK_LT(pt[1], (double)height * downsample);
 
-		theia::Camera cam1 = reconstruction.View(id1)->Camera();
-		theia::Camera cam2 = reconstruction.View(id2)->Camera();
+		theia::Camera cam1 = reconstruction.View(orderedId[id1].second)->Camera();
+		theia::Camera cam2 = reconstruction.View(orderedId[id2].second)->Camera();
 
 		Vector3d ray1 = cam1.PixelToUnitDepthRay(pt*(double)downsample);
 		//ray1.normalize();
@@ -222,7 +234,7 @@ namespace dynamic_stereo{
 			cout << endl;
 			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
 
-			const theia::Camera &cam = reconstruction.View(anchor)->Camera();
+			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
 			//ray.normalize();
 
@@ -235,7 +247,7 @@ namespace dynamic_stereo{
 			for (auto v = 0; v < images.size(); ++v) {
 				Mat curimg = imread(file_io.getImage(v + offset));
 				Vector2d imgpt;
-				reconstruction.View(v + offset)->Camera().ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
 				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
 					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
 				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
@@ -303,7 +315,7 @@ namespace dynamic_stereo{
 		for(auto i=0; i<width * height; ++i)
 			depthUnary[i] = model->dispToDepth(dispUnary[i]);
 		sprintf(buffer, "%s/temp/unaryDepth_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), depthUnary, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+		utility::saveDepthAsPly(string(buffer), depthUnary, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
 
 
 		//debug for SfM proposal
@@ -325,13 +337,13 @@ namespace dynamic_stereo{
 		disparityToDepth(result_firstOrder, depth_firstOrder);
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
 
-		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
 		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
 		printf("Applying bilateral filter to depth:\n");
-		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 10, 100, 3);
+		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 5, 30, 3);
 		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
+		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
 		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
 
 
@@ -383,12 +395,13 @@ namespace dynamic_stereo{
 		const int w = fullimages[0].cols;
 		const int h = fullimages[0].rows;
 
-		const theia::Camera cam1 = reconstruction.View(anchor)->Camera();
+		const theia::Camera cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
 
 		//in full resolution
-		Mat warpMask;
-		sprintf(buffer, "%s/mask%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		warpMask = imread(buffer);
+//		Mat warpMask
+//		sprintf(buffer, "%s/mask%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		warpMask = imread(buffer);
+		Mat warpMask(h,w,CV_8UC3, Scalar(255,255,255));
 
 		CHECK(warpMask.data) << "Empty mask";
 
@@ -403,7 +416,7 @@ namespace dynamic_stereo{
 			if(i == anchor-offset)
 				continue;
 			bool invalid = false;
-			const theia::Camera cam2 = reconstruction.View(i+offset)->Camera();
+			const theia::Camera cam2 = reconstruction.View(orderedId[i+offset].second)->Camera();
 			for(auto y=downsample; y<h-downsample; ++y){
 				for(auto x=downsample; x<w-downsample; ++x){
 					if(warpMask.at<uchar>(y,x) < 200)
@@ -419,8 +432,9 @@ namespace dynamic_stereo{
 						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
 						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
 					}else{
-						invalid = true;
-						break;
+						warpped[i].at<Vec3b>(y,x) = Vec3b(0,0,0);
+						//invalid = true;
+						//break;
 					}
 				}
 				if(invalid) {
@@ -438,39 +452,39 @@ namespace dynamic_stereo{
 		vector<Mat> oriWarpped(warpped.size());
 		for(auto i=startid; i<=endid; ++i)
 			oriWarpped[i] = warpped[i].clone();
-		const int r = 5;
-		printf("Applying median filter, r = %d\n", r);
-		for(auto i=startid; i<=endid; ++i) {
-			int s, e;
-			if (i - r < startid) {
-				s = startid;
-				e = startid + 2 * r + 1;
-			}
-			else if (i + r > endid) {
-				s = endid - 2 * r - 1;
-				e = endid;
-			} else {
-				s = i - r;
-				e = i + r;
-			}
-			for(auto y=0; y<h; ++y){
-				for(auto x=0; x<w; ++x){
-					if(warpMask.at<uchar>(y,x) < 200)
-						continue;
-					vector<int> rc,gc,bc;
-					for(auto t = s; t <= e; ++t){
-						Vec3b pix = oriWarpped[t].at<Vec3b>(y,x);
-						rc.push_back(pix[0]);
-						gc.push_back(pix[1]);
-						bc.push_back(pix[2]);
-					}
-					nth_element(rc.begin(), rc.begin()+r, rc.end());
-					nth_element(gc.begin(), gc.begin()+r, gc.end());
-					nth_element(bc.begin(), bc.begin()+r, bc.end());
-					warpped[i].at<Vec3b>(y,x) = Vec3b((uchar)rc[r], (uchar)gc[r], (uchar)bc[r]);
-				}
-			}
-		}
+//		const int r = 5;
+//		printf("Applying median filter, r = %d\n", r);
+//		for(auto i=startid; i<=endid; ++i) {
+//			int s, e;
+//			if (i - r < startid) {
+//				s = startid;
+//				e = startid + 2 * r + 1;
+//			}
+//			else if (i + r > endid) {
+//				s = endid - 2 * r - 1;
+//				e = endid;
+//			} else {
+//				s = i - r;
+//				e = i + r;
+//			}
+//			for(auto y=0; y<h; ++y){
+//				for(auto x=0; x<w; ++x){
+//					if(warpMask.at<uchar>(y,x) < 200)
+//						continue;
+//					vector<int> rc,gc,bc;
+//					for(auto t = s; t <= e; ++t){
+//						Vec3b pix = oriWarpped[t].at<Vec3b>(y,x);
+//						rc.push_back(pix[0]);
+//						gc.push_back(pix[1]);
+//						bc.push_back(pix[2]);
+//					}
+//					nth_element(rc.begin(), rc.begin()+r, rc.end());
+//					nth_element(gc.begin(), gc.begin()+r, gc.end());
+//					nth_element(bc.begin(), bc.begin()+r, bc.end());
+//					warpped[i].at<Vec3b>(y,x) = Vec3b((uchar)rc[r], (uchar)gc[r], (uchar)bc[r]);
+//				}
+//			}
+//		}
 
 		printf("Saving: start: %d, end:%d\n", startid, endid);
 		for(auto i=startid; i<=endid; ++i){
