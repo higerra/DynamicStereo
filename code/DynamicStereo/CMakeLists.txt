@@ -5,9 +5,9 @@ project(DynamicStereo)
 
 set(SOURCE_FILES dynamicstereo.cpp dynamicstereo_cli.cpp MRFDefinition.cpp proposal.cpp
         optimization_firstorder.cpp optimization_fusionmove.cpp optimization_TRWS.cpp optimization_TRBP.cpp
-        proposal_SfM.cpp
-        local_matcher.cpp)
-set(HEADER_FILES dynamicstereo.h proposal.h optimization.h local_matcher.h model.h)
+        proposal_SfM.cpp local_matcher.cpp gridwarpping.cpp)
+set(HEADER_FILES dynamicstereo.h proposal.h optimization.h local_matcher.h model.h
+        gridwarpping.h)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/DynamicStereo)
 
 add_subdirectory(external/segment_ms)

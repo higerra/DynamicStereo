@@ -16,7 +16,12 @@ namespace dynamic_stereo{
 		StereoModel(const cv::Mat& img_, const int nLabel_, const double MRFRatio_, const double ws_):
 				image(img_.clone()), width(img_.cols), height(img_.rows), nLabel(nLabel_), MRFRatio(MRFRatio_), weight_smooth(ws_){
 			CHECK(image.data) << "Empty image";
+			std::cout << "Model created: " << this << std::endl << std::flush;
 		}
+		~StereoModel(){
+			std::cout << "Model destructed: " << this << std::endl << std::flush;
+		}
+
 		void allocate(){
 			unary.resize(width * height * nLabel);
 			vCue.resize(width * height);

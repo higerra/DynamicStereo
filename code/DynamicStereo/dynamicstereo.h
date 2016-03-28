@@ -21,6 +21,7 @@
 #include "external/segment_ms/msImageProcessor.h"
 #include "external/segment_gb/segment-image.h"
 #include "external/MRF2.2/mrf.h"
+#include "gridwarpping.h"
 //#include "MRF2.2/GCoptimization.h"
 //#include <opengm/graphicalmodel/graphicalmodel.hxx>
 //#include <opengm/graphicalmodel/space/simplediscretespace.hxx>

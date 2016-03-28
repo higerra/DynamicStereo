@@ -238,16 +238,17 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
 			//ray.normalize();
 
-			int tdisp = (int)dispUnary(tx,ty);
+			int tdisp = (int) dispUnary(tx, ty);
 			//int tdisp = 30;
 			double td = model->dispToDepth(tdisp);
-			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty*width+tx, tdisp));
+			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty * width + tx, tdisp));
 
 			Vector3d spt = cam.GetPosition() + ray * td;
 			for (auto v = 0; v < images.size(); ++v) {
 				Mat curimg = imread(file_io.getImage(v + offset));
 				Vector2d imgpt;
-				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
+						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
 				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
 					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
 				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
@@ -305,9 +306,22 @@ namespace dynamic_stereo{
 
 		//generate proposal
 		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		dispUnary.saveImage(string(buffer), 255.0 / (double)dispResolution);
+		dispUnary.saveImage(string(buffer), 255.0 / (double) dispResolution);
 
+		{
+			//test for GridWarpping
+			vector<Mat> fullImg(images.size());
+			for(auto i=0; i<fullImg.size(); ++i)
+				fullImg[i] = imread(file_io.getImage(i+offset));
+			GridWarpping gridWarpping(file_io,fullImg,*model,reconstruction, downsample, offset);
 
+			Vector2d testpt(0,0);
+			Vector4i ind;
+			Vector4d w;
+			gridWarpping.getGridIndAndWeight(testpt, ind, w);
+			printf("Test point: (%.2f,%.2f), ind:(%d,%d,%d,%d), w:(%.2f,%.2f,%.2f,%.2f)\n", testpt[0], testpt[1],
+				   ind[0], ind[1], ind[2], ind[3], w[0], w[1], w[2],w[3]);
+		}
 
 //
 		Depth depthUnary;
