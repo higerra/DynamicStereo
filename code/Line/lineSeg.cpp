@@ -4,21 +4,32 @@
 
 #include <stlplus3/file_system.hpp>
 #include "lineSeg.h"
+
 using namespace std;
 using namespace cv;
 using namespace Eigen;
 namespace dynamic_stereo{
 
-    LineSeg::LineSeg(const FileIO &file_io_):file_io(file_io_) {
+    int Line::sampleNum = 100;
+
+    void Line::extractHist(const cv::Mat &img) {
+
+    }
+
+
+    LineSeg::LineSeg(const FileIO &file_io_, const int anchor_, const int tWindow):file_io(file_io_), anchor(anchor_) {
         CHECK(theia::ReadReconstruction(file_io.getReconstruction(), &reconstruction)) << "Run SfM first";
-        //const int framenum = file_io.getTotalNum();
-        //images.resize((size_t)framenum);
-//        for(auto i=0; i<framenum; ++i) {
-//            images[i] = imread(file_io.getImage(i));
-//        }
-//        CHECK(!images.empty());
-//        width = images[0].cols;
-//        height = images[0].rows;
+
+        offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
+        CHECK_LT(file_io.getTotalNum(), offset + tWindow);
+
+        images.resize((size_t)tWindow);
+        for(auto i=0; i<tWindow; ++i)
+            images[i] = imread(file_io.getImage(i+offset));
+        CHECK(!images.empty());
+        width = images[0].cols;
+        height = images[0].rows;
+
 
         const vector<theia::ViewId>& vids = reconstruction.ViewIds();
         orderedId.resize(vids.size());
@@ -59,6 +70,7 @@ namespace dynamic_stereo{
     void LineSeg::runLSD() {
         char buffer[1024] = {};
         const double min_length = 30;
+
         for(auto i=0; i<file_io.getTotalNum(); ++i){
 //            printf("Undistoring frame %d\n", i);
 //            Mat undis;
