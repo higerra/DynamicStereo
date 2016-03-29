@@ -8,7 +8,6 @@
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
 #include "proposal.h"
 #include "local_matcher.h"
-#include <opencv2/ximgproc/disparity_filter.hpp>
 
 using namespace std;
 using namespace cv;
@@ -225,36 +224,36 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-			const int tx = 0 / downsample;
-			const int ty = 0 / downsample;
-			printf("Unary term for (%d,%d)\n", tx, ty);
-			for (auto d = 0; d < dispResolution; ++d) {
-				cout << model->operator()(ty * width + tx, d) << ' ';
-			}
-			cout << endl;
-			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
-
-			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
-			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
-			//ray.normalize();
-
-			int tdisp = (int) dispUnary(tx, ty);
-			//int tdisp = 30;
-			double td = model->dispToDepth(tdisp);
-			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty * width + tx, tdisp));
-
-			Vector3d spt = cam.GetPosition() + ray * td;
-			for (auto v = 0; v < images.size(); ++v) {
-				Mat curimg = imread(file_io.getImage(v + offset));
-				Vector2d imgpt;
-				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
-						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
-					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
-				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
-						v + offset);
-				imwrite(buffer, curimg);
-			}
+//			const int tx = 0 / downsample;
+//			const int ty = 0 / downsample;
+//			printf("Unary term for (%d,%d)\n", tx, ty);
+//			for (auto d = 0; d < dispResolution; ++d) {
+//				cout << model->operator()(ty * width + tx, d) << ' ';
+//			}
+//			cout << endl;
+//			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+//
+//			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
+//			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
+//			//ray.normalize();
+//
+//			int tdisp = (int) dispUnary(tx, ty);
+//			//int tdisp = 30;
+//			double td = model->dispToDepth(tdisp);
+//			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty * width + tx, tdisp));
+//
+//			Vector3d spt = cam.GetPosition() + ray * td;
+//			for (auto v = 0; v < images.size(); ++v) {
+//				Mat curimg = imread(file_io.getImage(v + offset));
+//				Vector2d imgpt;
+//				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
+//						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+//				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
+//					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
+//				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
+//						v + offset);
+//				imwrite(buffer, curimg);
+//			}
 		}
 
 		{
@@ -359,19 +358,21 @@ namespace dynamic_stereo{
 			printf("Computing point correspondence...\n");
 			gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
 			CHECK_EQ(refPt.size(), srcPt.size());
+			printf("Done, correspondence: %d\n", (int)refPt.size());
 			Mat grayRef, graySrc, colorRef, colorSrc;
-			cvtColor(fullImg[anchor], grayRef, CV_RGB2GRAY);
+			cvtColor(fullImg[anchor-offset], grayRef, CV_RGB2GRAY);
 			cvtColor(fullImg[testF], graySrc, CV_RGB2GRAY);
 			cvtColor(grayRef, colorRef, CV_GRAY2RGB);
 			cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
 			std::default_random_engine generator;
-			std::uniform_int_distribution<int> distribution(0,255);
+			std::uniform_int_distribution<int> distribution(128,255);
 			for(auto i=0; i<refPt.size(); ++i){
 				uchar ranR = (uchar)distribution(generator);
 				uchar ranG = (uchar)distribution(generator);
 				uchar ranB = (uchar)distribution(generator);
-				cv::circle(colorRef, cv::Point(refPt[i][0], refPt[i][1]), 2, cv::Scalar(ranR, ranG, ranB));
-				cv::circle(colorSrc, cv::Point(srcPt[i][0], srcPt[i][1]), 2, cv::Scalar(ranR, ranG, ranB));
+				cv::circle(colorRef, cv::Point(refPt[i][0], refPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB),2);
+				cv::circle(colorSrc, cv::Point(srcPt[i][0], srcPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB),2);
+				printf("(%.2f,%.2f), (%.2f,%.2f)\n", refPt[i][0], refPt[i][1], srcPt[i][0], srcPt[i][1]);
 			}
 			Mat comb;
 			cv::hconcat(colorRef, colorSrc, comb);

@@ -78,9 +78,12 @@ namespace dynamic_stereo {
         for (auto &ht: hTable)
             ht.resize(height);
         double zMargin = 0.1 * refDepth.getMedianDepth();
-        for (auto y = 0; y < refDepth.getHeight(); ++y) {
-            for (auto x = 0; x < refDepth.getWidth(); ++x) {
-                Vector3d spt = refCam.PixelToUnitDepthRay(Vector2d(x * downsample, y * downsample));
+        for (auto y = 0; y < height-downsample; ++y) {
+            for (auto x = 0; x < width-downsample; ++x) {
+                Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y));
+	            Matrix<double,1,1> dRef = interpolation_util::bilinear<double, 1>(refDepth.getRawData().data(), refDepth.getWidth(),
+	                                                                  refDepth.getHeight(), Vector2d((double)x/downsample, (double)y/downsample));
+	            Vector3d spt = refCam.GetPosition() + dRef(0,0) * ray;
                 Vector2d imgpt;
                 double d = srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
                 if (imgpt[0] >= 0 && imgpt[0] < width - 1 && imgpt[1] >= 0 && imgpt[1] < height - 1) {
@@ -96,6 +99,7 @@ namespace dynamic_stereo {
 
 
         printf("Re-warping points\n");
+	    printf("Number of visible structure points: %d\n", (int)visiblePts.size());
         const int nR = 2;
         const double sigma = (double) nR * 0.5;
         for (auto tid: visiblePts) {
@@ -121,14 +125,15 @@ namespace dynamic_stereo {
                     if (curx < 0 || curx > width - 1 || cury < 0 || cury > height - 1)
                         continue;
                     for (auto sample: hTable[curx][cury]) {
-                        CHECK_LT(sample[2], 0.0);
+                        CHECK_GT(sample[2], 0.0);
                         Vector2d off = ptSrc - Vector2d(sample[0], sample[1]);
                         w += math_util::gaussian(0, sigma, off.norm());
                         dsrc2 += (1.0 / sample[2]) * w;
                     }
                 }
             }
-            CHECK_LT(w, 0.0);
+            if(w == 0)
+	            continue;
             dsrc2 /= w;
             dsrc2 = 1.0 / dsrc2;
             Vector3d sptSrc = dsrc2 * srcCam.PixelToUnitDepthRay(ptSrc) + srcCam.GetPosition();
