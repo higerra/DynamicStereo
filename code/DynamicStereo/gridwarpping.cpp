@@ -63,7 +63,7 @@ namespace dynamic_stereo {
         for (auto tid: trackIds) {
             const theia::Track *t = reconstruction.Track(tid);
             const std::unordered_set<theia::ViewId> &viewids = t->ViewIds();
-            if ((viewids.find(orderedId[anchor + offset].second) != viewids.end()) &&
+            if ((viewids.find(orderedId[anchor].second) != viewids.end()) &&
                 (viewids.find(orderedId[id + offset].second) != viewids.end()))
                 visiblePts.push_back(tid);
         }

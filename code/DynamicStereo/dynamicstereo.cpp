@@ -354,14 +354,31 @@ namespace dynamic_stereo{
 				fullImg[i] = imread(file_io.getImage(i+offset));
 			GridWarpping gridWarpping(file_io, anchor, fullImg,*model,reconstruction, orderedId, depth_firstOrder_filtered, downsample, offset);
 			vector<Vector2d> refPt, srcPt;
-			const int testF = 0;
+			const int testF = anchor-offset;
 			printf("Computing point correspondence...\n");
 			gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
 			CHECK_EQ(refPt.size(), srcPt.size());
 			printf("Done, correspondence: %d\n", (int)refPt.size());
+			Mat warpped(fullImg[0].rows, fullImg[0].cols, CV_8UC3, Scalar(0,0,0));
+			const theia::Camera& refCam = reconstruction.View(orderedId[anchor].second)->Camera();
+			const theia::Camera& srcCam = reconstruction.View(orderedId[testF+offset].second)->Camera();
+			for(auto y=downsample; y<warpped.rows-downsample; ++y){
+				for(auto x=downsample; x<warpped.cols-downsample; ++x){
+					double d = depth_firstOrder_filtered.getDepthAt(Vector2d((double)x/(double)downsample, (double)y/(double)downsample));
+					Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x,y));
+					Vector3d spt = refCam.GetPosition() + d * ray;
+					Vector2d imgpt;
+					srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
+					if(imgpt[0] < 0 || imgpt[0] > warpped.cols -1 || imgpt[1] < 0 || imgpt[1] > warpped.rows-1)
+						continue;
+					Vector3d pix = interpolation_util::bilinear<uchar,3>(fullImg[anchor-offset].data, warpped.cols, warpped.rows, imgpt);
+					warpped.at<Vec3b>(y,x) = Vec3b((uchar)pix[0], (uchar)pix[1], (uchar)pix[2]);
+				}
+			}
+
 			Mat grayRef, graySrc, colorRef, colorSrc;
 			cvtColor(fullImg[anchor-offset], grayRef, CV_RGB2GRAY);
-			cvtColor(fullImg[testF], graySrc, CV_RGB2GRAY);
+			cvtColor(warpped, graySrc, CV_RGB2GRAY);
 			cvtColor(grayRef, colorRef, CV_GRAY2RGB);
 			cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
 			std::default_random_engine generator;
