@@ -308,20 +308,7 @@ namespace dynamic_stereo{
 		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		dispUnary.saveImage(string(buffer), 255.0 / (double) dispResolution);
 
-		{
-			//test for GridWarpping
-			vector<Mat> fullImg(images.size());
-			for(auto i=0; i<fullImg.size(); ++i)
-				fullImg[i] = imread(file_io.getImage(i+offset));
-			GridWarpping gridWarpping(file_io,fullImg,*model,reconstruction, downsample, offset);
 
-			Vector2d testpt(0,0);
-			Vector4i ind;
-			Vector4d w;
-			gridWarpping.getGridIndAndWeight(testpt, ind, w);
-			printf("Test point: (%.2f,%.2f), ind:(%d,%d,%d,%d), w:(%.2f,%.2f,%.2f,%.2f)\n", testpt[0], testpt[1],
-				   ind[0], ind[1], ind[2], ind[3], w[0], w[1], w[2],w[3]);
-		}
 
 //
 		Depth depthUnary;
@@ -356,10 +343,41 @@ namespace dynamic_stereo{
 		printf("Applying bilateral filter to depth:\n");
 		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 5, 30, 3);
 		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
+		depth_firstOrder_filtered.updateStatics();
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
+		//warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
 
+		{
+			//test for GridWarpping
+			vector<Mat> fullImg(images.size());
+			for(auto i=0; i<fullImg.size(); ++i)
+				fullImg[i] = imread(file_io.getImage(i+offset));
+			GridWarpping gridWarpping(file_io, anchor, fullImg,*model,reconstruction, orderedId, depth_firstOrder_filtered, downsample, offset);
+			vector<Vector2d> refPt, srcPt;
+			const int testF = 0;
+			printf("Computing point correspondence...\n");
+			gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
+			CHECK_EQ(refPt.size(), srcPt.size());
+			Mat grayRef, graySrc, colorRef, colorSrc;
+			cvtColor(fullImg[anchor], grayRef, CV_RGB2GRAY);
+			cvtColor(fullImg[testF], graySrc, CV_RGB2GRAY);
+			cvtColor(grayRef, colorRef, CV_GRAY2RGB);
+			cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
+			std::default_random_engine generator;
+			std::uniform_int_distribution<int> distribution(0,255);
+			for(auto i=0; i<refPt.size(); ++i){
+				uchar ranR = (uchar)distribution(generator);
+				uchar ranG = (uchar)distribution(generator);
+				uchar ranB = (uchar)distribution(generator);
+				cv::circle(colorRef, cv::Point(refPt[i][0], refPt[i][1]), 2, cv::Scalar(ranR, ranG, ranB));
+				cv::circle(colorSrc, cv::Point(srcPt[i][0], srcPt[i][1]), 2, cv::Scalar(ranR, ranG, ranB));
+			}
+			Mat comb;
+			cv::hconcat(colorRef, colorSrc, comb);
+			sprintf(buffer, "%s/temp/ptcoor%05d-%05d.jpg", file_io.getDirectory().c_str(), anchor, testF+offset);
+			imwrite(buffer,comb);
+		}
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
 //		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);

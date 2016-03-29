@@ -6,11 +6,15 @@
 #include <fstream>
 #include <opencv2/opencv.hpp>
 #include <glog/logging.h>
-
+#include <limits>
 namespace dynamic_stereo{
     class Depth{
     public:
-        Depth(): depthwidth(0), depthheight(0), average_depth(0),median_depth(0), depth_var(0),max_depth(-1),min_depth(10000000), statics_computed(false){}
+        Depth(): depthwidth(0), depthheight(0), average_depth(0),median_depth(0), depth_var(0),max_depth(-1),min_depth(std::numeric_limits<double>::max()), statics_computed(false){}
+        Depth(int width, int height, const double v=-1):
+                average_depth(0),median_depth(0), depth_var(0),max_depth(-1),min_depth(std::numeric_limits<double>::max()), statics_computed(false){
+            initialize(width, height, v);
+        }
         void initialize(int width, int height, const double v = -1);
 
         inline int getWidth()const {return depthwidth;}
