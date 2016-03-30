@@ -38,8 +38,13 @@ namespace dynamic_stereo {
 	    //wf: output dense warping field
 	    void computeWarppingField(const std::vector<Eigen::Vector2d>& refPt,
 	                              const std::vector<Eigen::Vector2d>& srcPt,
-	                              std::vector<std::vector<Eigen::Vector2d> >& wf, cv::Mat& vis) const;
-
+								  const cv::Mat& inputImg, cv::Mat& outputImg, cv::Mat& vis) const;
+		inline double getBlockW() const{
+			return blockW;
+		}
+		inline double getBlockH() const{
+			return blockH;
+		}
     private:
         const FileIO &file_io;
         const std::vector<cv::Mat> &images;

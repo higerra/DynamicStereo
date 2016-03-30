@@ -304,18 +304,18 @@ namespace dynamic_stereo{
 		}
 
 		//generate proposal
-		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		dispUnary.saveImage(string(buffer), 255.0 / (double) dispResolution);
-
-
-
+//		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		dispUnary.saveImage(string(buffer), 255.0 / (double) dispResolution);
 //
-		Depth depthUnary;
-		depthUnary.initialize(width, height, -1);
-		for(auto i=0; i<width * height; ++i)
-			depthUnary[i] = model->dispToDepth(dispUnary[i]);
-		sprintf(buffer, "%s/temp/unaryDepth_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), depthUnary, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
+//
+//
+////
+//		Depth depthUnary;
+//		depthUnary.initialize(width, height, -1);
+//		for(auto i=0; i<width * height; ++i)
+//			depthUnary[i] = model->dispToDepth(dispUnary[i]);
+//		sprintf(buffer, "%s/temp/unaryDepth_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+//		utility::saveDepthAsPly(string(buffer), depthUnary, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
 
 
 		//debug for SfM proposal
@@ -328,9 +328,9 @@ namespace dynamic_stereo{
 		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
 		Depth result_firstOrder;
 		optimizer_firstorder.optimize(result_firstOrder, 10);
-		sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		//sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 		//warpToAnchor(result_firstOrder, "firstorder");
-		result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+		//result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 
 		printf("Saving depth to point cloud...\n");
 		Depth depth_firstOrder;
@@ -353,6 +353,15 @@ namespace dynamic_stereo{
 			for(auto i=0; i<fullImg.size(); ++i)
 				fullImg[i] = imread(file_io.getImage(i+offset));
 			GridWarpping gridWarpping(file_io, anchor, fullImg,*model,reconstruction, orderedId, depth_firstOrder_filtered, downsample, offset);
+
+			printf("================\nTesting for bilinear coefficience\n");
+			Vector2d testP(50,50);
+			Vector4i testInd;
+			Vector4d testW;
+			gridWarpping.getGridIndAndWeight(testP, testInd, testW);
+			printf("(%d,%d,%d,%d), (%.2f,%.2f,%.2f,%.2f)\n", testInd[0], testInd[1], testInd[2], testInd[3],
+				   testW[0], testW[1], testW[2], testW[3]);
+
 			vector<Vector2d> refPt, srcPt;
 			const int testF = 0;
 			printf("Computing point correspondence...\n");
@@ -389,12 +398,33 @@ namespace dynamic_stereo{
 				uchar ranB = (uchar)distribution(generator);
 				cv::circle(colorRef, cv::Point(refPt[i][0], refPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB),2);
 				cv::circle(colorSrc, cv::Point(srcPt[i][0], srcPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB),2);
-				printf("(%.2f,%.2f), (%.2f,%.2f)\n", refPt[i][0], refPt[i][1], srcPt[i][0], srcPt[i][1]);
+				//printf("(%.2f,%.2f), (%.2f,%.2f)\n", refPt[i][0], refPt[i][1], srcPt[i][0], srcPt[i][1]);
 			}
-			sprintf(buffer, "%s/temp/ptcoor%05d-%05dRef.jpg", file_io.getDirectory().c_str(), anchor, testF+offset);
-			imwrite(buffer,colorRef);
-			sprintf(buffer, "%s/temp/ptcoor%05d-%05dSrc.jpg", file_io.getDirectory().c_str(), anchor, testF+offset);
-			imwrite(buffer,colorSrc);
+			for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
+				cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+				cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+			}
+			for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
+				cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+				cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+			}
+
+			Mat stabled, vis;
+			Mat comb;
+			gridWarpping.computeWarppingField(refPt, srcPt, colorSrc, stabled, vis);
+			hconcat(stabled, vis, comb);
+			sprintf(buffer, "%s/temp/sta_img1_%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+			imwrite(buffer, colorRef);
+			sprintf(buffer, "%s/temp/sta_img2_%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+			imwrite(buffer, colorSrc);
+			sprintf(buffer, "%s/temp/sta_img3_%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+			imwrite(buffer, colorRef);
+			sprintf(buffer, "%s/temp/sta_img4_%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+			imwrite(buffer, stabled);
+//			sprintf(buffer, "%s/temp/sta_gri%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+//			imwrite(buffer, vis);
+//			sprintf(buffer, "%s/temp/sta_com%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+//			imwrite(buffer, comb);
 		}
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;

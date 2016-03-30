@@ -36,8 +36,8 @@ namespace dynamic_stereo {
 
 	void GridWarpping::getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind,
 	                                       Eigen::Vector4d &w) const {
-		CHECK_LE(pt[0], width-1);
-		CHECK_LE(pt[1], height-1);
+		CHECK_LE(pt[0], width - 1);
+		CHECK_LE(pt[1], height - 1);
 		int x = (int) floor(pt[0] / blockW);
 		int y = (int) floor(pt[1] / blockH);
 
@@ -47,11 +47,23 @@ namespace dynamic_stereo {
 		// 4--3
 		/////////////
 		ind = Vector4i(y * (gridW + 1) + x, y * (gridW + 1) + x + 1, (y + 1) * (gridW + 1) + x + 1,
-		               (y + 1) * (gridW + 1) + x);
-		for (auto i = 0; i < 4; ++i) {
-			CHECK_LT(ind[i], gridLoc.size());
-			w[i] = (pt - gridLoc[ind[i]]).norm();
-		}
+					   (y + 1) * (gridW + 1) + x);
+
+		const double &xd = pt[0];
+		const double &yd = pt[1];
+		w[0] = (gridLoc[ind[2]][0] - xd) * (gridLoc[ind[2]][1] - yd);
+		w[1] = (xd - gridLoc[ind[0]][0]) * (gridLoc[ind[2]][1] - yd);
+		w[2] = (xd - gridLoc[ind[0]][0]) * (yd - gridLoc[ind[0]][1]);
+		w[3] = (gridLoc[ind[2]][0] - xd) * (yd - gridLoc[ind[0]][1]);
+
+		double s = w[0] + w[1] + w[2] + w[3];
+		CHECK_GT(s, 0) << pt[0] << ' '<< pt[1];
+		w = w / s;
+
+		Vector2d pt2 =
+				gridLoc[ind[0]] * w[0] + gridLoc[ind[1]] * w[1] + gridLoc[ind[2]] * w[2] + gridLoc[ind[3]] * w[3];
+		double error = (pt2 - pt).norm();
+		CHECK_LT(error, 0.0001) << pt[0] << ' ' << pt[1] << ' ' << pt2[0] << ' ' << pt2[1];
 	}
 
 	void GridWarpping::computePointCorrespondence(const int id, std::vector<Eigen::Vector2d> &refPt,
@@ -166,49 +178,148 @@ namespace dynamic_stereo {
 		const Vector4d w;
 	};
 
+	struct WarpFunctorRegularization{
+	public:
+		WarpFunctorRegularization(const Vector2d& pt_, const double w_): pt(pt_), w(w_){}
+		template<typename T>
+		bool operator()(const T* const g1, T* residual) const{
+			T diffx = g1[0] - (T)pt[0];
+			T diffy = g1[1] - (T)pt[1];
+			residual[0] = ceres::sqrt(w * (diffx * diffx + diffy * diffy) + 0.000001);
+			return true;
+		}
+	private:
+		const Vector2d pt;
+		const double w;
+	};
+
+	struct WarpFunctorSimilarity{
+	public:
+		template<typename T>
+		Matrix<T,2,1> getLocalCoord(const Matrix<T,2,1>& p1, const Matrix<T,2,1>& p2, const Matrix<T,2,1>& p3)const {
+			Matrix<T,2,1> ax1 = p3 - p2;
+			Matrix<T,2,1> ax2(-1.0*ax1[1], ax1[0]);
+			CHECK_GT(ax1.norm(), (T)0.0);
+			Matrix<T,2,1> uv;
+			uv[0] = (p1-p2).dot(ax1) / ax1.norm() / ax1.norm();
+			uv[1] = (p1-p2).dot(ax2) / ax2.norm() / ax2.norm();
+			return uv;
+		}
+
+		WarpFunctorSimilarity(const Vector2d& p1, const Vector2d& p2, const Vector2d& p3, const double w_): w(std::sqrt(w_)){
+			refUV = getLocalCoord<double>(p1,p2,p3);
+		}
+
+		template<typename T>
+		bool operator()(const T* const g1, const T* const g2, const T* const g3, T* residual)const{
+			Matrix<T,2,1> p1(g1[0], g1[1]);
+			Matrix<T,2,1> p2(g2[0], g2[1]);
+			Matrix<T,2,1> p3(g3[0], g3[1]);
+			//Matrix<T,2,1> curUV = getLocalCoord<T>(p1,p2,p3);
+			Matrix<T,2,1> axis1 = p3-p2;
+			Matrix<T,2,1> axis2(-1.0*axis1[1], axis1[0]);
+			//Matrix<T,2,1> reconp1 = axis1 * refUV[0] + axis2 * refUV[1];
+			T reconx = axis1[0] * refUV[0] + axis2[0] * refUV[1] + p2[0];
+			T recony = axis1[1] * refUV[0] + axis2[1] * refUV[1] + p2[1];
+			T diffx = reconx - g1[0];
+			T diffy = recony - g1[1];
+			residual[0] = ceres::sqrt(diffx * diffx + diffy * diffy + 0.00001) * w;
+			return true;
+		}
+	private:
+		Vector2d refUV;
+		const double w;
+	};
+
 	void GridWarpping::computeWarppingField(const std::vector<Eigen::Vector2d> &refPt,
 	                                        const std::vector<Eigen::Vector2d> &srcPt,
-	                                        std::vector<std::vector<Eigen::Vector2d> > &wf, cv::Mat &vis) const {
+											const cv::Mat& inputImg, cv::Mat& outputImg, cv::Mat &vis) const {
 		CHECK_EQ(refPt.size(), srcPt.size());
-		vector<vector<double> > vars((size_t)(gridW+1) * (gridH+1));
-		for(auto& v: vars)
+		CHECK_EQ(inputImg.cols, width);
+		CHECK_EQ(inputImg.rows, height);
+		vector<vector<double> > vars(gridLoc.size());
+		for (auto &v: vars)
 			v.resize(2);
-		for(auto i=0; i<gridLoc.size(); ++i){
+		for (auto i = 0; i < gridLoc.size(); ++i) {
 			vars[i][0] = gridLoc[i][0];
 			vars[i][1] = gridLoc[i][1];
 		}
 
 		ceres::Problem problem;
-		for(auto i=0; i<refPt.size(); ++i) {
-			const double &xd = srcPt[i][0];
-			const double &yd = srcPt[i][1];
-			int x = (int) floor(xd / blockW);
-			int y = (int) floor(yd / blockH);
-			Vector4i ind(y * (gridW + 1) + x, y * (gridW + 1) + x + 1, (y + 1) * (gridW + 1) + x + 1,
-			             (y + 1) * (gridW + 1) + x);
-			Vector4d bw((xd - x * blockW) * (yd - y * blockH),
-			            ((x + 1) * blockW - xd) * (yd - y * blockH),
-			            ((x + 1) * blockW - xd) * ((y + 1) * blockH - yd),
-			            (xd - x * blockW) * ((y + 1) * blockH - yd));
-			double bwsum = bw[0] + bw[1] + bw[2] + bw[3];
-			CHECK_GT(bwsum, 0.0);
-			bw = bw / bwsum;
-			problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorData,1,2,2,2,2>(new WarpFunctorData(refPt[i], bw)), NULL,
-			                         vars[ind[0]].data(), vars[ind[1]].data(), vars[ind[2]].data(), vars[ind[3]].data());
+		printf("Creating problem...\n");
+		const double wregular = 0.01;
 
+		const double truncDis = 10;
+		for (auto i = 0; i < refPt.size(); ++i) {
+			double dis = (refPt[i] - srcPt[i]).norm();
+			if(dis > truncDis)
+				continue;
+			Vector4i indRef, indSrc;
+			Vector4d bwRef, bwSrc;
+			getGridIndAndWeight(refPt[i], indRef, bwRef);
+			getGridIndAndWeight(srcPt[i], indSrc, bwSrc);
+			if(indRef != indSrc)
+				continue;
+			problem.AddResidualBlock(
+					new ceres::AutoDiffCostFunction<WarpFunctorData, 1, 2, 2, 2, 2>(new WarpFunctorData(srcPt[i], bwRef)),
+					new ceres::HuberLoss(5),
+					vars[indRef[0]].data(), vars[indRef[1]].data(), vars[indRef[2]].data(), vars[indRef[3]].data());
+		}
+
+
+//		for (auto i = 0; i < gridLoc.size(); ++i)
+//			problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorRegularization, 1, 2>(
+//					new WarpFunctorRegularization(gridLoc[i], wregular)), NULL, vars[i].data());
+		double wsimilarity = 0.001;
+		//similarity term
+		for(auto y=1; y<=gridH; ++y) {
+			for (auto x = 0; x < gridW; ++x) {
+				int gid1, gid2, gid3;
+				gid1 = y * (gridW + 1) + x;
+				gid2 = (y - 1) * (gridW + 1) + x;
+				gid3 = y * (gridW + 1) + x + 1;
+				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
+						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), NULL,
+										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
+				gid2 = (y - 1) * (gridW + 1) + x+1;
+				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
+						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), NULL,
+										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
+			}
 		}
 
 		ceres::Solver::Options options;
-		options.max_num_iterations = 1000;
-		options.linear_solver_type = ceres::DENSE_QR;
+		options.max_num_iterations = 10000;
+		options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
 		options.minimizer_progress_to_stdout = true;
 
 		ceres::Solver::Summary summary;
+		printf("Solving...\n");
 		ceres::Solve(options, &problem, &summary);
+		cout << summary.BriefReport() << endl;
 
-		wf.resize(width);
-		for(auto& w: wf)
-			w.resize(height);
+		outputImg = Mat(height, width, CV_8UC3, Scalar(0, 0, 0));
+		vis = Mat(height, width, CV_8UC3, Scalar(0,0,0));
+		Mat oriGrid = inputImg.clone();
 
+		printf("Warpping...\n");
+		for (auto y = 0; y < height; ++y) {
+			for (auto x = 0; x < width; ++x) {
+				Vector4i ind;
+				Vector4d w;
+				getGridIndAndWeight(Vector2d(x, y), ind, w);
+				Vector2d pt(0, 0);
+				for (auto i = 0; i < 4; ++i) {
+					pt[0] += vars[ind[i]][0] * w[i];
+					pt[1] += vars[ind[i]][1] * w[i];
+				}
+				if (pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1)
+					continue;
+				Vector3d pixG = interpolation_util::bilinear<uchar, 3>(oriGrid.data, oriGrid.cols, oriGrid.rows, pt);
+				Vector3d pixO = interpolation_util::bilinear<uchar, 3>(inputImg.data, inputImg.cols, inputImg.rows, pt);
+				vis.at<Vec3b>(y, x) = Vec3b((uchar) pixG[0], (uchar) pixG[1], (uchar) pixG[2]);
+				outputImg.at<Vec3b>(y, x) = Vec3b((uchar) pixO[0], (uchar) pixO[1], (uchar) pixO[2]);
+			}
+		}
 	}
 } //namespace dynamic_stereo
