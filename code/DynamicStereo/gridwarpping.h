@@ -29,11 +29,16 @@ namespace dynamic_stereo {
                      const theia::Reconstruction &reconstruction_, const OrderedIDSet &orderedId_, Depth &refDepth_,
                      const int downsample_, const int offset_, const int gw = 32, const int gh = 18);
 
-        //void runWarpping(std::vector<cv::Mat>& result);
+
         void getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind, Eigen::Vector4d &w) const;
 
         void computePointCorrespondence(const int id, std::vector<Eigen::Vector2d> &refPt,
                                         std::vector<Eigen::Vector2d> &srcPt) const;
+
+	    //wf: output dense warping field
+	    void computeWarppingField(const std::vector<Eigen::Vector2d>& refPt,
+	                              const std::vector<Eigen::Vector2d>& srcPt,
+	                              std::vector<std::vector<Eigen::Vector2d> >& wf, cv::Mat& vis) const;
 
     private:
         const FileIO &file_io;

@@ -354,7 +354,7 @@ namespace dynamic_stereo{
 				fullImg[i] = imread(file_io.getImage(i+offset));
 			GridWarpping gridWarpping(file_io, anchor, fullImg,*model,reconstruction, orderedId, depth_firstOrder_filtered, downsample, offset);
 			vector<Vector2d> refPt, srcPt;
-			const int testF = anchor-offset;
+			const int testF = 0;
 			printf("Computing point correspondence...\n");
 			gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
 			CHECK_EQ(refPt.size(), srcPt.size());
@@ -371,7 +371,7 @@ namespace dynamic_stereo{
 					srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
 					if(imgpt[0] < 0 || imgpt[0] > warpped.cols -1 || imgpt[1] < 0 || imgpt[1] > warpped.rows-1)
 						continue;
-					Vector3d pix = interpolation_util::bilinear<uchar,3>(fullImg[anchor-offset].data, warpped.cols, warpped.rows, imgpt);
+					Vector3d pix = interpolation_util::bilinear<uchar,3>(fullImg[testF].data, warpped.cols, warpped.rows, imgpt);
 					warpped.at<Vec3b>(y,x) = Vec3b((uchar)pix[0], (uchar)pix[1], (uchar)pix[2]);
 				}
 			}
@@ -391,10 +391,10 @@ namespace dynamic_stereo{
 				cv::circle(colorSrc, cv::Point(srcPt[i][0], srcPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB),2);
 				printf("(%.2f,%.2f), (%.2f,%.2f)\n", refPt[i][0], refPt[i][1], srcPt[i][0], srcPt[i][1]);
 			}
-			Mat comb;
-			cv::hconcat(colorRef, colorSrc, comb);
-			sprintf(buffer, "%s/temp/ptcoor%05d-%05d.jpg", file_io.getDirectory().c_str(), anchor, testF+offset);
-			imwrite(buffer,comb);
+			sprintf(buffer, "%s/temp/ptcoor%05d-%05dRef.jpg", file_io.getDirectory().c_str(), anchor, testF+offset);
+			imwrite(buffer,colorRef);
+			sprintf(buffer, "%s/temp/ptcoor%05d-%05dSrc.jpg", file_io.getDirectory().c_str(), anchor, testF+offset);
+			imwrite(buffer,colorSrc);
 		}
 
 //		cout << "Solving with second order smoothness (trbp)..." << endl;
