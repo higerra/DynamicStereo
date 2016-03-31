@@ -405,30 +405,32 @@ namespace dynamic_stereo{
 					cv::circle(colorSrc, cv::Point(srcPt[i][0], srcPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB), 2);
 					//printf("(%.2f,%.2f), (%.2f,%.2f)\n", refPt[i][0], refPt[i][1], srcPt[i][0], srcPt[i][1]);
 				}
-//				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
-//					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-//					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-//				}
-//				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
-//					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-//					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-//				}
+				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
+					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+				}
+				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
+					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+				}
 
 				Mat stabled, vis;
 				Mat comb;
-				gridWarpping.computeWarppingField(refPt, srcPt, warpped, stabled, vis);
+				gridWarpping.computeWarppingField(refPt, srcPt, colorSrc, stabled, vis);
 				hconcat(stabled, vis, comb);
-//				sprintf(buffer, "%s/temp/sta_img1_%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
-//				imwrite(buffer, colorRef);
-//				sprintf(buffer, "%s/temp/sta_img2_%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
-//				imwrite(buffer, colorSrc);
-//				sprintf(buffer, "%s/temp/sta_img3_%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
-//				imwrite(buffer, colorRef);
-				sprintf(buffer, "%s/temp/unstabled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
-				imwrite(buffer, warpped);
-
-				sprintf(buffer, "%s/temp/stabbled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
+				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF + offset);
+				imwrite(buffer, colorRef);
+				sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), testF + offset);
+				imwrite(buffer, colorSrc);
+				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF + offset);
+				imwrite(buffer, colorRef);
+				sprintf(buffer, "%s/temp/sta_%05dimg4.jpg", file_io.getDirectory().c_str(), testF + offset);
 				imwrite(buffer, stabled);
+//				sprintf(buffer, "%s/temp/unstabled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
+//				imwrite(buffer, warpped);
+//
+//				sprintf(buffer, "%s/temp/stabbled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
+//				imwrite(buffer, stabled);
 //			sprintf(buffer, "%s/temp/sta_gri%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
 //			imwrite(buffer, vis);
 //			sprintf(buffer, "%s/temp/sta_com%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
