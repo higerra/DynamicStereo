@@ -288,7 +288,7 @@ namespace dynamic_stereo {
 		ceres::Solver::Options options;
 		options.max_num_iterations = 10000;
 		options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-		options.minimizer_progress_to_stdout = true;
+		//options.minimizer_progress_to_stdout = true;
 
 		ceres::Solver::Summary summary;
 		printf("Solving...\n");
