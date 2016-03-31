@@ -363,7 +363,7 @@ namespace dynamic_stereo{
 			printf("(%d,%d,%d,%d), (%.2f,%.2f,%.2f,%.2f)\n", testInd[0], testInd[1], testInd[2], testInd[3],
 			       testW[0], testW[1], testW[2], testW[3]);
 
-			for (auto i = 0; i < fullImg.size(); ++i) {
+			for (auto i = 0; i < 1; ++i) {
 				printf("=================\nWarpping frame %d\n", i);
 				vector<Vector2d> refPt, srcPt;
 				const int testF = i;
@@ -371,6 +371,7 @@ namespace dynamic_stereo{
 				//gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
 				gridWarpping.computePointCorrespondenceNoWarp(testF, refPt, srcPt);
 				CHECK_EQ(refPt.size(), srcPt.size());
+
 				printf("Done, correspondence: %d\n", (int) refPt.size());
 //				Mat warpped(fullImg[0].rows, fullImg[0].cols, CV_8UC3, Scalar(0, 0, 0));
 //				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();

@@ -319,11 +319,11 @@ namespace dynamic_stereo {
 
 		sprintf(buffer, "%s/temp/src%05d_1.jpg", file_io.getDirectory().c_str(), id);
 		imwrite(buffer, inputImg3);
-		sprintf(buffer, "%s/temp/src%05d_2.jpg", file_io.getDirectory().c_str(), id);
+		sprintf(buffer, "%s/temp/refPt%05d_init.jpg", file_io.getDirectory().c_str(), id);
 		imwrite(buffer, inputImg2);
 
-		sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), id);
-		imwrite(buffer, initWarp);
+//		sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), id);
+//		imwrite(buffer, initWarp);
 
 		ceres::Problem problem;
 		printf("Creating problem...\n");
@@ -356,11 +356,11 @@ namespace dynamic_stereo {
 				gid2 = (y - 1) * (gridW + 1) + x;
 				gid3 = y * (gridW + 1) + x + 1;
 				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
-						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), NULL,
+						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
 										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
 				gid2 = (y - 1) * (gridW + 1) + x+1;
 				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
-						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), NULL,
+						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
 										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
 			}
 		}
@@ -404,11 +404,23 @@ namespace dynamic_stereo {
 			resGrid[i][0] = vars[i][0];
 			resGrid[i][1] = vars[i][1];
 		}
+		vector<Vector2d> refPt3(refPt.size(), Vector2d(0,0));
+		for(auto i=0; i<refPt.size(); ++i){
+			Vector4i ind;
+			Vector4d w;
+			getGridIndAndWeight(refPt[i], ind, w);
+			for(auto j=0; j<4; ++j)
+				refPt3[i] += resGrid[ind[j]] * w[j];
+		}
 		Mat resGridImg;
 		visualizeGrid(resGrid, resGridImg);
 		sprintf(buffer, "%s/temp/Grid%05d_2.jpg", file_io.getDirectory().c_str(), id);
 		imwrite(buffer, resGridImg);
 
+		Mat resRefPtImg = inputImg.clone();
+		drawKeyPoints(resRefPtImg, refPt3);
+		sprintf(buffer, "%s/temp/refPt%05d_res.jpg", file_io.getDirectory().c_str(), id);
+		imwrite(buffer, resRefPtImg);
 	}
 
 	void drawKeyPoints(cv::Mat& img, const std::vector<Eigen::Vector2d>& pts){
