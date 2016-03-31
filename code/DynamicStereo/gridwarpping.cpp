@@ -327,27 +327,27 @@ namespace dynamic_stereo {
 
 		ceres::Problem problem;
 		printf("Creating problem...\n");
-		const double wregular = 0.01;
+		const double wregular = 0.0000001;
 
 		const double truncDis = 20;
 		for (auto i = 0; i < refPt.size(); ++i) {
 			double dis = (refPt2[i] - srcPt[i]).norm();
 			if(dis > truncDis)
 				continue;
-			Vector4i indSrc;
-			Vector4d bwSrc;
-			getGridIndAndWeight(srcPt[i], indSrc, bwSrc);
+			Vector4i indRef;
+			Vector4d bwRef;
+			getGridIndAndWeight(refPt[i], indRef, bwRef);
 			problem.AddResidualBlock(
-					new ceres::AutoDiffCostFunction<WarpFunctorData, 1, 2, 2, 2, 2>(new WarpFunctorData(srcPt[i], bwSrc)),
+					new ceres::AutoDiffCostFunction<WarpFunctorData, 1, 2, 2, 2, 2>(new WarpFunctorData(srcPt[i], bwRef)),
 					new ceres::HuberLoss(5),
-					vars[indSrc[0]].data(), vars[indSrc[1]].data(), vars[indSrc[2]].data(), vars[indSrc[3]].data());
+					vars[indRef[0]].data(), vars[indRef[1]].data(), vars[indRef[2]].data(), vars[indRef[3]].data());
 		}
 
 
 //		for (auto i = 0; i < gridLoc.size(); ++i)
 //			problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorRegularization, 1, 2>(
 //					new WarpFunctorRegularization(gridLoc[i], wregular)), NULL, vars[i].data());
-		double wsimilarity = 0.01;
+		double wsimilarity = 0.000001;
 		//similarity term
 		for(auto y=1; y<=gridH; ++y) {
 			for (auto x = 0; x < gridW; ++x) {
