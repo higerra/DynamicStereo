@@ -34,6 +34,8 @@ namespace dynamic_stereo {
 
         void computePointCorrespondence(const int id, std::vector<Eigen::Vector2d> &refPt,
                                         std::vector<Eigen::Vector2d> &srcPt) const;
+	    void computePointCorrespondenceNoWarp(const int id, std::vector<Eigen::Vector2d> &refPt,
+	                                          std::vector<Eigen::Vector2d> &srcPt) const;
 
 	    //wf: output dense warping field
 	    void computeWarppingField(const std::vector<Eigen::Vector2d>& refPt,

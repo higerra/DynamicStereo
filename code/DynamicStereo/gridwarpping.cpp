@@ -160,6 +160,27 @@ namespace dynamic_stereo {
 		}
 	}
 
+	void GridWarpping::computePointCorrespondenceNoWarp(const int id, std::vector<Eigen::Vector2d> &refPt,
+	                                      std::vector<Eigen::Vector2d> &srcPt) const{
+		const vector<theia::TrackId> trackIds = reconstruction.TrackIds();
+		//tracks that are visible on both frames
+		const theia::Camera& refCam = reconstruction.View(orderedId[anchor].second)->Camera();
+		const theia::Camera& srcCam = reconstruction.View(orderedId[id + offset].second)->Camera();
+
+		for (auto tid: trackIds) {
+			const theia::Track *t = reconstruction.Track(tid);
+			const std::unordered_set<theia::ViewId> &viewids = t->ViewIds();
+			if ((viewids.find(orderedId[anchor].second) == viewids.end()) ||
+			    (viewids.find(orderedId[id + offset].second) == viewids.end()))
+				continue;
+			Vector2d imgptRef;
+			Vector2d imgptSrc;
+			refCam.ProjectPoint(t->Point(), &imgptRef);
+			srcCam.ProjectPoint(t->Point(), &imgptSrc);
+			refPt.push_back(imgptRef);
+			srcPt.push_back(imgptSrc);
+		}
+	}
 
 	struct WarpFunctorData{
 	public:
