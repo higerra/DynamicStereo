@@ -5,6 +5,7 @@
 #include <Eigen/Sparse>
 #include <Eigen/SparseCholesky>
 #include <glog/logging.h>
+#include "utility.h"
 
 using namespace std;
 using namespace cv;
@@ -25,25 +26,6 @@ namespace dynamic_stereo {
 
 	}
 
-	double Depth::getDepthAt(const Vector2d &loc) const {
-		double x = loc[0], y = loc[1];
-		int xl = floor(x), xh = round(x + 0.5);
-		int yl = floor(y), yh = round(y + 0.5);
-		double lm = x - (double) xl, rm = (double) xh - x;
-		double tm = y - (double) yl, bm = (double) yh - y;
-		Vector4d ind(xl + yl * getWidth(), xh + yl * getWidth(), xh + yh * getWidth(), xl + yh * getWidth());
-		Vector4d w(rm * bm, lm * bm, lm * tm, rm * tm);
-		Vector4d v(data[ind[0]], data[ind[1]], data[ind[2]], data[ind[3]]);
-		for (int i = 0; i < 4; i++) {
-			if (v[i] == -1)
-				w[i] = 0;
-		}
-
-		if (w[0] + w[1] + w[2] + w[3] == 0)
-			return -10;
-		return w.dot(v);
-	}
-
 	void Depth::setDepthAt(const Vector2d &pix, double v) {
 		const double max_diff = 1.5;
 		int xl = floor(pix[0]), xh = round(pix[0] + 0.5);
@@ -61,6 +43,10 @@ namespace dynamic_stereo {
 		}
 	}
 
+	double Depth::getDepthAt(const Eigen::Vector2d& loc)const{
+		Eigen::Matrix<double,1,1> d = interpolation_util::bilinear<double,1>(data.data(), getWidth(), getHeight(), loc);
+		return d(0,0);
+	}
 	void Depth::saveImage(const string &filename, double amp) const{
 		Mat outmat(getHeight(), getWidth(), CV_8UC3);
 		uchar* pData = outmat.data;

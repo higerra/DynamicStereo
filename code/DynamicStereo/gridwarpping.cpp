@@ -3,6 +3,8 @@
 //
 
 #include "gridwarpping.h"
+#include "gridenergy.h"
+#include <random>
 using namespace std;
 using namespace cv;
 using namespace Eigen;
@@ -34,6 +36,45 @@ namespace dynamic_stereo {
 		}
 	}
 
+	void GridWarpping::visualizeGrid(const std::vector<Eigen::Vector2d>& grid, cv::Mat &img) const {
+		CHECK_EQ(grid.size(), gridLoc.size());
+//		Mat oriGrid = Mat(height, width, CV_8UC3, Scalar(0,0,0));
+		img = Mat(height, width, CV_8UC3, Scalar(0,0,0));
+//		for (auto x = 0; x < width; x += getBlockW()) {
+//			cv::line(oriGrid, cv::Point(x, 0), cv::Point(x, height - 1), Scalar(255, 255, 255), 1);
+//		}
+//		for (auto y = 0; y < height; y += getBlockH()) {
+//			cv::line(oriGrid, cv::Point(0, y), cv::Point(width - 1, y), Scalar(255, 255, 255), 1);
+//		}
+//		for (auto y = 0; y < height; ++y) {
+//			for (auto x = 0; x < width; ++x) {
+//				Vector4i ind;
+//				Vector4d w;
+//				getGridIndAndWeight(Vector2d(x, y), ind, w);
+//				Vector2d pt(0, 0);
+//				for (auto i = 0; i < 4; ++i) {
+//					pt += grid[ind[i]] * w[i];
+//				}
+//				if (pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1)
+//					continue;
+//				Vector3d pixG = interpolation_util::bilinear<uchar, 3>(oriGrid.data, oriGrid.cols, oriGrid.rows, pt);
+//				img.at<Vec3b>(y, x) = Vec3b((uchar) pixG[0], (uchar) pixG[1], (uchar) pixG[2]);
+//			}
+//		}
+		for(auto gy=0; gy<gridH; ++gy) {
+			for (auto gx = 0; gx < gridW; ++gx){
+				const int gid1 = gy * (gridW+1) + gx;
+				const int gid2 = (gy+1) * (gridW+1) + gx;
+				const int gid3 = (gy+1)*(gridW+1)+gx+1;
+				const int gid4= gy * (gridW+1) + gx+1;
+				cv::line(img, cv::Point(grid[gid1][0], grid[gid1][1]), cv::Point(grid[gid2][0], grid[gid2][1]), Scalar(255,255,255));
+				cv::line(img, cv::Point(grid[gid2][0], grid[gid2][1]), cv::Point(grid[gid3][0], grid[gid3][1]), Scalar(255,255,255));
+				cv::line(img, cv::Point(grid[gid3][0], grid[gid3][1]), cv::Point(grid[gid4][0], grid[gid4][1]), Scalar(255,255,255));
+				cv::line(img, cv::Point(grid[gid4][0], grid[gid4][1]), cv::Point(grid[gid1][0], grid[gid1][1]), Scalar(255,255,255));
+			}
+		}
+	}
+
 	void GridWarpping::getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind,
 	                                       Eigen::Vector4d &w) const {
 		CHECK_LE(pt[0], width - 1);
@@ -51,10 +92,15 @@ namespace dynamic_stereo {
 
 		const double &xd = pt[0];
 		const double &yd = pt[1];
-		w[0] = (gridLoc[ind[2]][0] - xd) * (gridLoc[ind[2]][1] - yd);
-		w[1] = (xd - gridLoc[ind[0]][0]) * (gridLoc[ind[2]][1] - yd);
-		w[2] = (xd - gridLoc[ind[0]][0]) * (yd - gridLoc[ind[0]][1]);
-		w[3] = (gridLoc[ind[2]][0] - xd) * (yd - gridLoc[ind[0]][1]);
+		const double xl = gridLoc[ind[0]][0];
+		const double xh = gridLoc[ind[2]][0];
+		const double yl = gridLoc[ind[0]][1];
+		const double yh = gridLoc[ind[2]][1];
+
+		w[0] = (xh - xd) * (yh - yd);
+		w[1] = (xd - xl) * (yh - yd);
+		w[2] = (xd - xl) * (yd - yl);
+		w[3] = (xh - xd) * (yd - yl);
 
 		double s = w[0] + w[1] + w[2] + w[3];
 		CHECK_GT(s, 0) << pt[0] << ' '<< pt[1];
@@ -199,72 +245,85 @@ namespace dynamic_stereo {
 		const Vector4d w;
 	};
 
-	struct WarpFunctorRegularization{
-	public:
-		WarpFunctorRegularization(const Vector2d& pt_, const double w_): pt(pt_), w(w_){}
-		template<typename T>
-		bool operator()(const T* const g1, T* residual) const{
-			T diffx = g1[0] - (T)pt[0];
-			T diffy = g1[1] - (T)pt[1];
-			residual[0] = ceres::sqrt(w * (diffx * diffx + diffy * diffy) + 0.000001);
-			return true;
-		}
-	private:
-		const Vector2d pt;
-		const double w;
-	};
 
-	struct WarpFunctorSimilarity{
-	public:
-		template<typename T>
-		Matrix<T,2,1> getLocalCoord(const Matrix<T,2,1>& p1, const Matrix<T,2,1>& p2, const Matrix<T,2,1>& p3)const {
-			Matrix<T,2,1> ax1 = p3 - p2;
-			Matrix<T,2,1> ax2(-1.0*ax1[1], ax1[0]);
-			CHECK_GT(ax1.norm(), (T)0.0);
-			Matrix<T,2,1> uv;
-			uv[0] = (p1-p2).dot(ax1) / ax1.norm() / ax1.norm();
-			uv[1] = (p1-p2).dot(ax2) / ax2.norm() / ax2.norm();
-			return uv;
-		}
-
-		WarpFunctorSimilarity(const Vector2d& p1, const Vector2d& p2, const Vector2d& p3, const double w_): w(std::sqrt(w_)){
-			refUV = getLocalCoord<double>(p1,p2,p3);
-		}
-
-		template<typename T>
-		bool operator()(const T* const g1, const T* const g2, const T* const g3, T* residual)const{
-			Matrix<T,2,1> p1(g1[0], g1[1]);
-			Matrix<T,2,1> p2(g2[0], g2[1]);
-			Matrix<T,2,1> p3(g3[0], g3[1]);
-			//Matrix<T,2,1> curUV = getLocalCoord<T>(p1,p2,p3);
-			Matrix<T,2,1> axis1 = p3-p2;
-			Matrix<T,2,1> axis2(-1.0*axis1[1], axis1[0]);
-			//Matrix<T,2,1> reconp1 = axis1 * refUV[0] + axis2 * refUV[1];
-			T reconx = axis1[0] * refUV[0] + axis2[0] * refUV[1] + p2[0];
-			T recony = axis1[1] * refUV[0] + axis2[1] * refUV[1] + p2[1];
-			T diffx = reconx - g1[0];
-			T diffy = recony - g1[1];
-			residual[0] = ceres::sqrt(diffx * diffx + diffy * diffy + 0.00001) * w;
-			return true;
-		}
-	private:
-		Vector2d refUV;
-		const double w;
-	};
-
-	void GridWarpping::computeWarppingField(const std::vector<Eigen::Vector2d> &refPt,
+	void GridWarpping::computeWarppingField(const int id, const std::vector<Eigen::Vector2d> &refPt,
 	                                        const std::vector<Eigen::Vector2d> &srcPt,
-											const cv::Mat& inputImg, cv::Mat& outputImg, cv::Mat &vis) const {
+											const cv::Mat& inputImg, cv::Mat& outputImg, cv::Mat &vis,
+											const bool initByStereo) const{
 		CHECK_EQ(refPt.size(), srcPt.size());
 		CHECK_EQ(inputImg.cols, width);
 		CHECK_EQ(inputImg.rows, height);
+		char buffer[1024] = {};
 		vector<vector<double> > vars(gridLoc.size());
 		for (auto &v: vars)
 			v.resize(2);
+
+		const theia::Camera& refCam = reconstruction.View(orderedId[anchor].second)->Camera();
+		const theia::Camera& srcCam = reconstruction.View(orderedId[id + offset].second)->Camera();
+
+		vector<Vector2d> grid2(gridLoc.size());
 		for (auto i = 0; i < gridLoc.size(); ++i) {
-			vars[i][0] = gridLoc[i][0];
-			vars[i][1] = gridLoc[i][1];
+			if(initByStereo){
+				Vector2d imgpt = gridLoc[i] / downsample;
+				if(imgpt[0] >= model.width - 1)
+					imgpt[0] = model.width - 1.1;
+				if(imgpt[1] >= model.height - 1)
+					imgpt[1] = model.height - 1.1;
+				double d = refDepth.getDepthAt(imgpt);
+				Vector3d spt = refCam.GetPosition() + d * refCam.PixelToUnitDepthRay(gridLoc[i]);
+				Vector2d imgptSrc;
+				srcCam.ProjectPoint(spt.homogeneous(), &imgptSrc);
+				vars[i][0] = imgptSrc[0];
+				vars[i][1] = imgptSrc[1];
+				grid2[i] = imgptSrc;
+			}else{
+				vars[i][0] = gridLoc[i][0];
+				vars[i][1] = gridLoc[i][1];
+				grid2[i] = gridLoc[i];
+			}
 		}
+
+		vector<Vector2d> refPt2(refPt.size(), Vector2d(0,0));
+		for(auto i=0; i<refPt.size(); ++i){
+			Vector4i ind;
+			Vector4d w;
+			getGridIndAndWeight(refPt[i], ind, w);
+			for(auto j=0; j<4; ++j)
+				refPt2[i] += grid2[ind[j]] * w[j];
+		}
+
+		Mat initGrid, initWarp;
+		visualizeGrid(grid2, initGrid);
+		sprintf(buffer, "%s/temp/Grid%05d_1.jpg", file_io.getDirectory().c_str(), id);
+		imwrite(buffer, initGrid);
+		initWarp = Mat(height, width, CV_8UC3, Scalar(0,0,0));
+		for (auto y = 0; y < height; ++y) {
+			for (auto x = 0; x < width; ++x) {
+				Vector4i ind;
+				Vector4d w;
+				getGridIndAndWeight(Vector2d(x, y), ind, w);
+				Vector2d pt(0, 0);
+				for (auto i = 0; i < 4; ++i) {
+					pt += grid2[ind[i]] * w[i];
+				}
+				if (pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1)
+					continue;
+				Vector3d pixW = interpolation_util::bilinear<uchar, 3>(inputImg.data, inputImg.cols, inputImg.rows, pt);
+				initWarp.at<Vec3b>(y, x) = Vec3b((uchar) pixW[0], (uchar) pixW[1], (uchar) pixW[2]);
+			}
+		}
+		Mat inputImg2 = inputImg.clone();
+		drawKeyPoints(inputImg2, refPt2);
+		Mat inputImg3 = inputImg.clone();
+		drawKeyPoints(inputImg3, srcPt);
+
+		sprintf(buffer, "%s/temp/src%05d_1.jpg", file_io.getDirectory().c_str(), id);
+		imwrite(buffer, inputImg3);
+		sprintf(buffer, "%s/temp/src%05d_2.jpg", file_io.getDirectory().c_str(), id);
+		imwrite(buffer, inputImg2);
+
+		sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), id);
+		imwrite(buffer, initWarp);
 
 		ceres::Problem problem;
 		printf("Creating problem...\n");
@@ -272,16 +331,16 @@ namespace dynamic_stereo {
 
 		const double truncDis = 20;
 		for (auto i = 0; i < refPt.size(); ++i) {
-			double dis = (refPt[i] - srcPt[i]).norm();
+			double dis = (refPt2[i] - srcPt[i]).norm();
 			if(dis > truncDis)
 				continue;
-			Vector4i indRef;
-			Vector4d bwRef;
-			getGridIndAndWeight(refPt[i], indRef, bwRef);
+			Vector4i indSrc;
+			Vector4d bwSrc;
+			getGridIndAndWeight(srcPt[i], indSrc, bwSrc);
 			problem.AddResidualBlock(
-					new ceres::AutoDiffCostFunction<WarpFunctorData, 1, 2, 2, 2, 2>(new WarpFunctorData(srcPt[i], bwRef)),
+					new ceres::AutoDiffCostFunction<WarpFunctorData, 1, 2, 2, 2, 2>(new WarpFunctorData(srcPt[i], bwSrc)),
 					new ceres::HuberLoss(5),
-					vars[indRef[0]].data(), vars[indRef[1]].data(), vars[indRef[2]].data(), vars[indRef[3]].data());
+					vars[indSrc[0]].data(), vars[indSrc[1]].data(), vars[indSrc[2]].data(), vars[indSrc[3]].data());
 		}
 
 
@@ -339,5 +398,30 @@ namespace dynamic_stereo {
 				outputImg.at<Vec3b>(y, x) = Vec3b((uchar) pixO[0], (uchar) pixO[1], (uchar) pixO[2]);
 			}
 		}
+
+		vector<Vector2d> resGrid(grid2.size());
+		for(auto i=0; i<resGrid.size(); ++i){
+			resGrid[i][0] = vars[i][0];
+			resGrid[i][1] = vars[i][1];
+		}
+		Mat resGridImg;
+		visualizeGrid(resGrid, resGridImg);
+		sprintf(buffer, "%s/temp/Grid%05d_2.jpg", file_io.getDirectory().c_str(), id);
+		imwrite(buffer, resGridImg);
+
 	}
+
+	void drawKeyPoints(cv::Mat& img, const std::vector<Eigen::Vector2d>& pts){
+		std::default_random_engine generator;
+		std::uniform_int_distribution<int> distribution(128, 255);
+		for (auto i = 0; i < pts.size(); ++i) {
+			uchar ranR = (uchar) distribution(generator);
+			uchar ranG = (uchar) distribution(generator);
+			uchar ranB = (uchar) distribution(generator);
+			cv::circle(img, cv::Point(pts[i][0], pts[i][1]), 3, cv::Scalar(ranR, ranG, ranB), 2);
+			//printf("(%.2f,%.2f), (%.2f,%.2f)\n", refPt[i][0], refPt[i][1], srcPt[i][0], srcPt[i][1]);
+		}
+	}
+
+
 } //namespace dynamic_stereo

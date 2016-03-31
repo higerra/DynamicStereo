@@ -356,7 +356,7 @@ namespace dynamic_stereo{
 			                          depth_firstOrder_filtered, downsample, offset);
 
 			printf("================\nTesting for bilinear coefficience\n");
-			Vector2d testP(50, 50);
+			Vector2d testP(1000, 1000);
 			Vector4i testInd;
 			Vector4d testW;
 			gridWarpping.getGridIndAndWeight(testP, testInd, testW);
@@ -368,63 +368,59 @@ namespace dynamic_stereo{
 				vector<Vector2d> refPt, srcPt;
 				const int testF = i;
 				printf("Computing point correspondence...\n");
-				gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
+				//gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
+				gridWarpping.computePointCorrespondenceNoWarp(testF, refPt, srcPt);
 				CHECK_EQ(refPt.size(), srcPt.size());
 				printf("Done, correspondence: %d\n", (int) refPt.size());
-				Mat warpped(fullImg[0].rows, fullImg[0].cols, CV_8UC3, Scalar(0, 0, 0));
-				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-				const theia::Camera &srcCam = reconstruction.View(orderedId[testF + offset].second)->Camera();
-				for (auto y = downsample; y < warpped.rows - downsample; ++y) {
-					for (auto x = downsample; x < warpped.cols - downsample; ++x) {
-						double d = depth_firstOrder_filtered.getDepthAt(
-								Vector2d((double) x / (double) downsample, (double) y / (double) downsample));
-						Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y));
-						Vector3d spt = refCam.GetPosition() + d * ray;
-						Vector2d imgpt;
-						srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
-						if (imgpt[0] < 0 || imgpt[0] > warpped.cols - 1 || imgpt[1] < 0 || imgpt[1] > warpped.rows - 1)
-							continue;
-						Vector3d pix = interpolation_util::bilinear<uchar, 3>(fullImg[testF].data, warpped.cols,
-						                                                      warpped.rows, imgpt);
-						warpped.at<Vec3b>(y, x) = Vec3b((uchar) pix[0], (uchar) pix[1], (uchar) pix[2]);
-					}
-				}
+//				Mat warpped(fullImg[0].rows, fullImg[0].cols, CV_8UC3, Scalar(0, 0, 0));
+//				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
+//				const theia::Camera &srcCam = reconstruction.View(orderedId[testF + offset].second)->Camera();
+//				for (auto y = downsample; y < warpped.rows - downsample; ++y) {
+//					for (auto x = downsample; x < warpped.cols - downsample; ++x) {
+//						double d = depth_firstOrder_filtered.getDepthAt(
+//								Vector2d((double) x / (double) downsample, (double) y / (double) downsample));
+//						Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y));
+//						Vector3d spt = refCam.GetPosition() + d * ray;
+//						Vector2d imgpt;
+//						srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
+//						if (imgpt[0] < 0 || imgpt[0] > warpped.cols - 1 || imgpt[1] < 0 || imgpt[1] > warpped.rows - 1)
+//							continue;
+//						Vector3d pix = interpolation_util::bilinear<uchar, 3>(fullImg[testF].data, warpped.cols,
+//						                                                      warpped.rows, imgpt);
+//						warpped.at<Vec3b>(y, x) = Vec3b((uchar) pix[0], (uchar) pix[1], (uchar) pix[2]);
+//					}
+//				}
 
 				Mat grayRef, graySrc, colorRef, colorSrc;
-				cvtColor(fullImg[anchor - offset], grayRef, CV_RGB2GRAY);
-				cvtColor(warpped, graySrc, CV_RGB2GRAY);
-				cvtColor(grayRef, colorRef, CV_GRAY2RGB);
-				cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
-				std::default_random_engine generator;
-				std::uniform_int_distribution<int> distribution(128, 255);
-				for (auto i = 0; i < refPt.size(); ++i) {
-					uchar ranR = (uchar) distribution(generator);
-					uchar ranG = (uchar) distribution(generator);
-					uchar ranB = (uchar) distribution(generator);
-					cv::circle(colorRef, cv::Point(refPt[i][0], refPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB), 2);
-					cv::circle(colorSrc, cv::Point(srcPt[i][0], srcPt[i][1]), 3, cv::Scalar(ranR, ranG, ranB), 2);
-					//printf("(%.2f,%.2f), (%.2f,%.2f)\n", refPt[i][0], refPt[i][1], srcPt[i][0], srcPt[i][1]);
-				}
-				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
-					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-				}
-				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
-					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-				}
+				colorSrc = fullImg[testF].clone();
+				colorRef = fullImg[anchor-offset].clone();
+//				cvtColor(fullImg[anchor - offset], grayRef, CV_RGB2GRAY);
+//				cvtColor(warpped, graySrc, CV_RGB2GRAY);
+//
+//				cvtColor(grayRef, colorRef, CV_GRAY2RGB);
+//				cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
+
+//				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
+//					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+//					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+//				}
+//				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
+//					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+//					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+//				}
+				drawKeyPoints(colorRef, refPt);
 
 				Mat stabled, vis;
 				Mat comb;
-				gridWarpping.computeWarppingField(refPt, srcPt, colorSrc, stabled, vis);
-				hconcat(stabled, vis, comb);
-				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF + offset);
+				gridWarpping.computeWarppingField(testF, refPt, srcPt, fullImg[testF], stabled, vis, true);
+//				hconcat(stabled, vis, comb);
+				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF);
 				imwrite(buffer, colorRef);
-				sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), testF + offset);
-				imwrite(buffer, colorSrc);
-				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF + offset);
-				imwrite(buffer, colorRef);
-				sprintf(buffer, "%s/temp/sta_%05dimg4.jpg", file_io.getDirectory().c_str(), testF + offset);
+//				sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), testF + offset);
+//				imwrite(buffer, colorSrc);
+//				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF + offset);
+//				imwrite(buffer, colorRef);
+				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF);
 				imwrite(buffer, stabled);
 //				sprintf(buffer, "%s/temp/unstabled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
 //				imwrite(buffer, warpped);

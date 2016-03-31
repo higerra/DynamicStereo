@@ -79,7 +79,6 @@ namespace dynamic_stereo{
         inline double getDepthAtInd(int ind)const{
             return this->operator[](ind);
         }
-
         inline bool insideDepth(int x,int y)const{
             return (x>=0 && x<getWidth() && y>=0 && y<getHeight());
         }
