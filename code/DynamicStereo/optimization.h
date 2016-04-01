@@ -115,6 +115,8 @@ namespace dynamic_stereo {
         std::vector<int> refSeg;
     };
 
+    void toyTripleTRWS();
+
 }//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_OPTIMIZATION_H

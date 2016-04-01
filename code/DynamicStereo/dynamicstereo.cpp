@@ -220,6 +220,8 @@ namespace dynamic_stereo{
 //			imwrite(buffer, undistored);
 //		}
 
+		toyTripleTRWS();
+
 		initMRF();
 
 		{
@@ -250,7 +252,7 @@ namespace dynamic_stereo{
 //						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
 //				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
 //					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
-//				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg\n", file_io.getDirectory().c_str(), anchor,
+//				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
 //						v + offset);
 //				imwrite(buffer, curimg);
 //			}
@@ -404,8 +406,8 @@ namespace dynamic_stereo{
 						warpped.at<Vec3b>(y, x) = Vec3b((uchar) pix[0], (uchar) pix[1], (uchar) pix[2]);
 					}
 				}
-				sprintf(buffer, "stereo%05d.jpg", testF);
-
+				sprintf(buffer, "%s/temp/stereo%05d.jpg", file_io.getDirectory().c_str(), testF);
+				imwrite(buffer, warpped);
 				Mat grayRef, graySrc, colorRef, colorSrc;
 				colorSrc = fullImg[testF].clone();
 				colorRef = fullImg[anchor-offset].clone();
@@ -423,6 +425,16 @@ namespace dynamic_stereo{
 //					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
 //					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
 //				}
+				Mat tgtImg = fullImg[testF].clone();
+				drawKeyPoints(tgtImg, srcPt);
+				sprintf(buffer, "%s/temp/trackOnTgt%05d.jpg", file_io.getDirectory().c_str(), testF);
+				imwrite(buffer, tgtImg);
+
+				Mat refImg = fullImg[anchor-offset].clone();
+				drawKeyPoints(refImg, refPt);
+				sprintf(buffer, "%s/temp/trackOnRef%05d.jpg", file_io.getDirectory().c_str(), anchor-offset);
+				imwrite(buffer, refImg);
+
 				drawKeyPoints(colorRef, refPt);
 
 				Mat stabled, vis;

@@ -331,27 +331,27 @@ namespace dynamic_stereo {
 		}
 
 
-		for (auto i = 0; i < gridLoc.size(); ++i)
-			problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorRegularization, 1, 2>(
-					new WarpFunctorRegularization(grid2[i], wregular)), NULL, vars[i].data());
+//		for (auto i = 0; i < gridLoc.size(); ++i)
+//			problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorRegularization, 1, 2>(
+//					new WarpFunctorRegularization(grid2[i], wregular)), NULL, vars[i].data());
 
 		double wsimilarity = 0.0001;
 		//similarity term
-//		for(auto y=1; y<=gridH; ++y) {
-//			for (auto x = 0; x < gridW; ++x) {
-//				int gid1, gid2, gid3;
-//				gid1 = y * (gridW + 1) + x;
-//				gid2 = (y - 1) * (gridW + 1) + x;
-//				gid3 = y * (gridW + 1) + x + 1;
-//				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
-//						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
-//										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
-//				gid2 = (y - 1) * (gridW + 1) + x+1;
-//				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
-//						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
-//										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
-//			}
-//		}
+		for(auto y=1; y<=gridH; ++y) {
+			for (auto x = 0; x < gridW; ++x) {
+				int gid1, gid2, gid3;
+				gid1 = y * (gridW + 1) + x;
+				gid2 = (y - 1) * (gridW + 1) + x;
+				gid3 = y * (gridW + 1) + x + 1;
+				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
+						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
+										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
+				gid2 = (y - 1) * (gridW + 1) + x+1;
+				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
+						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
+										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
+			}
+		}
 
 		ceres::Solver::Options options;
 		options.max_num_iterations = 1000;
