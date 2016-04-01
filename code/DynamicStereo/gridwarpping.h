@@ -27,7 +27,7 @@ namespace dynamic_stereo {
         GridWarpping(const FileIO &file_io_, const int anchor_, const std::vector<cv::Mat> &images_,
                      const StereoModel<EnergyType> &model_,
                      const theia::Reconstruction &reconstruction_, const OrderedIDSet &orderedId_, Depth &refDepth_,
-                     const int downsample_, const int offset_, const int gw = 128, const int gh = 72);
+                     const int downsample_, const int offset_, const int gw = 64, const int gh = 36);
 
 
         void getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind, Eigen::Vector4d &w) const;

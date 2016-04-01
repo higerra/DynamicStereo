@@ -228,22 +228,7 @@ namespace dynamic_stereo {
 		}
 	}
 
-	struct WarpFunctorData{
-	public:
-		WarpFunctorData(const Vector2d& tgt_, const Vector4d& w_): tgt(tgt_), w(w_){}
-		template<typename T>
-		bool operator()(const T* const g1, const T* const g2, const T* const g3, const T* const g4, T* residual) const{
-			T x = g1[0] * w[0] + g2[0] * w[1] + g3[0] * w[2] + g4[0] * w[3];
-			T y = g1[1] * w[0] + g2[1] * w[1] + g3[1] * w[2] + g4[1] * w[3];
-			T diffx = x - (T)tgt[0];
-			T diffy = y - (T)tgt[1];
-			residual[0] = ceres::sqrt(diffx * diffx + diffy * diffy);
-			return true;
-		}
-	private:
-		const Vector2d tgt;
-		const Vector4d w;
-	};
+
 
 
 	void GridWarpping::computeWarppingField(const int id, const std::vector<Eigen::Vector2d> &refPt,
@@ -294,8 +279,6 @@ namespace dynamic_stereo {
 
 		Mat initGrid, initWarp;
 		visualizeGrid(grid2, initGrid);
-		sprintf(buffer, "%s/temp/Grid%05d_1.jpg", file_io.getDirectory().c_str(), id);
-		imwrite(buffer, initGrid);
 		initWarp = Mat(height, width, CV_8UC3, Scalar(0,0,0));
 		for (auto y = 0; y < height; ++y) {
 			for (auto x = 0; x < width; ++x) {
@@ -312,68 +295,67 @@ namespace dynamic_stereo {
 				initWarp.at<Vec3b>(y, x) = Vec3b((uchar) pixW[0], (uchar) pixW[1], (uchar) pixW[2]);
 			}
 		}
-		Mat inputImg2 = inputImg.clone();
-		drawKeyPoints(inputImg2, refPt2);
+		drawKeyPoints(initGrid, refPt2);
 		Mat inputImg3 = inputImg.clone();
 		drawKeyPoints(inputImg3, srcPt);
 
-		sprintf(buffer, "%s/temp/src%05d_1.jpg", file_io.getDirectory().c_str(), id);
-		imwrite(buffer, inputImg3);
-		sprintf(buffer, "%s/temp/refPt%05d_init.jpg", file_io.getDirectory().c_str(), id);
-		imwrite(buffer, inputImg2);
-
+//		sprintf(buffer, "%s/temp/refPt%05d_init.jpg", file_io.getDirectory().c_str(), id);
+//		imwrite(buffer, initGrid);
+//
 //		sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), id);
 //		imwrite(buffer, initWarp);
 
 		ceres::Problem problem;
 		printf("Creating problem...\n");
-		const double wregular = 0.0000001;
+		const double wdata = 1.0;
+		const double wregular = 0.01;
 
-		const double truncDis = 20;
-		for (auto i = 0; i < refPt.size(); ++i) {
-			double dis = (refPt2[i] - srcPt[i]).norm();
-			if(dis > truncDis)
-				continue;
-			Vector4i indRef;
-			Vector4d bwRef;
-			getGridIndAndWeight(refPt[i], indRef, bwRef);
-			problem.AddResidualBlock(
-					new ceres::AutoDiffCostFunction<WarpFunctorData, 1, 2, 2, 2, 2>(new WarpFunctorData(srcPt[i], bwRef)),
-					new ceres::HuberLoss(5),
-					vars[indRef[0]].data(), vars[indRef[1]].data(), vars[indRef[2]].data(), vars[indRef[3]].data());
-		}
-
-
+//		const double truncDis = 20;
+//		for (auto i = 0; i < refPt.size(); ++i) {
+//			double dis = (refPt2[i] - srcPt[i]).norm();
+//			if(dis > truncDis)
+//				continue;
+//			Vector4i indRef;
+//			Vector4d bwRef;
+//			getGridIndAndWeight(refPt[i], indRef, bwRef);
+//			problem.AddResidualBlock(
+//					new ceres::AutoDiffCostFunction<WarpFunctorData, 1, 2, 2, 2, 2>(new WarpFunctorData(srcPt[i], bwRef, wdata)),
+//					new ceres::HuberLoss(5),
+//					vars[indRef[0]].data(), vars[indRef[1]].data(), vars[indRef[2]].data(), vars[indRef[3]].data());
+//		}
+//
+//
 //		for (auto i = 0; i < gridLoc.size(); ++i)
 //			problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorRegularization, 1, 2>(
-//					new WarpFunctorRegularization(gridLoc[i], wregular)), NULL, vars[i].data());
-		double wsimilarity = 0.000001;
-		//similarity term
-		for(auto y=1; y<=gridH; ++y) {
-			for (auto x = 0; x < gridW; ++x) {
-				int gid1, gid2, gid3;
-				gid1 = y * (gridW + 1) + x;
-				gid2 = (y - 1) * (gridW + 1) + x;
-				gid3 = y * (gridW + 1) + x + 1;
-				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
-						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
-										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
-				gid2 = (y - 1) * (gridW + 1) + x+1;
-				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
-						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
-										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
-			}
-		}
-
-		ceres::Solver::Options options;
-		options.max_num_iterations = 1000;
-		options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-		//options.minimizer_progress_to_stdout = true;
-
-		ceres::Solver::Summary summary;
-		printf("Solving...\n");
-		ceres::Solve(options, &problem, &summary);
-		cout << summary.BriefReport() << endl;
+//					new WarpFunctorRegularization(grid2[i], wregular)), NULL, vars[i].data());
+//
+//		double wsimilarity = 0.0001;
+//		//similarity term
+////		for(auto y=1; y<=gridH; ++y) {
+////			for (auto x = 0; x < gridW; ++x) {
+////				int gid1, gid2, gid3;
+////				gid1 = y * (gridW + 1) + x;
+////				gid2 = (y - 1) * (gridW + 1) + x;
+////				gid3 = y * (gridW + 1) + x + 1;
+////				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
+////						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
+////										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
+////				gid2 = (y - 1) * (gridW + 1) + x+1;
+////				problem.AddResidualBlock(new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
+////						new WarpFunctorSimilarity(gridLoc[gid1], gridLoc[gid2], gridLoc[gid3], wsimilarity)), new ceres::HuberLoss(5),
+////										 vars[gid1].data(), vars[gid2].data(), vars[gid3].data());
+////			}
+////		}
+//
+//		ceres::Solver::Options options;
+//		options.max_num_iterations = 1000;
+//		options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+//		//options.minimizer_progress_to_stdout = true;
+//
+//		ceres::Solver::Summary summary;
+//		printf("Solving...\n");
+//		ceres::Solve(options, &problem, &summary);
+//		cout << summary.BriefReport() << endl;
 
 		outputImg = Mat(height, width, CV_8UC3, Scalar(0, 0, 0));
 		vis = Mat(height, width, CV_8UC3, Scalar(0,0,0));
@@ -412,15 +394,16 @@ namespace dynamic_stereo {
 			for(auto j=0; j<4; ++j)
 				refPt3[i] += resGrid[ind[j]] * w[j];
 		}
-		Mat resGridImg;
-		visualizeGrid(resGrid, resGridImg);
-		sprintf(buffer, "%s/temp/Grid%05d_2.jpg", file_io.getDirectory().c_str(), id);
-		imwrite(buffer, resGridImg);
 
-		Mat resRefPtImg = inputImg.clone();
-		drawKeyPoints(resRefPtImg, refPt3);
-		sprintf(buffer, "%s/temp/refPt%05d_res.jpg", file_io.getDirectory().c_str(), id);
-		imwrite(buffer, resRefPtImg);
+//		Mat resGridImg;
+//		visualizeGrid(resGrid, resGridImg);
+//		sprintf(buffer, "%s/temp/Grid%05d_2.jpg", file_io.getDirectory().c_str(), id);
+//		imwrite(buffer, resGridImg);
+//
+//		Mat resRefPtImg = resGridImg.clone();
+//		drawKeyPoints(resRefPtImg, refPt3);
+//		sprintf(buffer, "%s/temp/refPt%05d_res.jpg", file_io.getDirectory().c_str(), id);
+//		imwrite(buffer, resRefPtImg);
 	}
 
 	void drawKeyPoints(cv::Mat& img, const std::vector<Eigen::Vector2d>& pts){

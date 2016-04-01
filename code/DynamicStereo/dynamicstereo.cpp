@@ -356,14 +356,14 @@ namespace dynamic_stereo{
 			                          depth_firstOrder_filtered, downsample, offset);
 
 			printf("================\nTesting for bilinear coefficience\n");
-			Vector2d testP(1000, 1000);
+			Vector2d testP(500, 500);
 			Vector4i testInd;
 			Vector4d testW;
 			gridWarpping.getGridIndAndWeight(testP, testInd, testW);
 			printf("(%d,%d,%d,%d), (%.2f,%.2f,%.2f,%.2f)\n", testInd[0], testInd[1], testInd[2], testInd[3],
 			       testW[0], testW[1], testW[2], testW[3]);
 
-			for (auto i = 0; i < 1; ++i) {
+			for (auto i = 0; i < fullImg.size(); ++i) {
 				printf("=================\nWarpping frame %d\n", i);
 				vector<Vector2d> refPt, srcPt;
 				const int testF = i;
@@ -415,13 +415,15 @@ namespace dynamic_stereo{
 				Mat comb;
 				gridWarpping.computeWarppingField(testF, refPt, srcPt, fullImg[testF], stabled, vis, true);
 //				hconcat(stabled, vis, comb);
-				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF);
-				imwrite(buffer, colorRef);
+//				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF);
+//				imwrite(buffer, colorRef);
 //				sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), testF + offset);
 //				imwrite(buffer, colorSrc);
 //				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF + offset);
 //				imwrite(buffer, colorRef);
-				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF);
+//				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF);
+//				imwrite(buffer, colorRef);
+				sprintf(buffer, "%s/temp/sta_%05dimg4.jpg", file_io.getDirectory().c_str(), testF);
 				imwrite(buffer, stabled);
 //				sprintf(buffer, "%s/temp/unstabled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
 //				imwrite(buffer, warpped);
