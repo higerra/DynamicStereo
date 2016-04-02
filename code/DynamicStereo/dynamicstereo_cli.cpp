@@ -24,7 +24,6 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-
 	google::InitGoogleLogging(argv[0]);
 	google::ParseCommandLineFlags(&argc, &argv, true);
 

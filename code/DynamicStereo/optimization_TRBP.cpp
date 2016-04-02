@@ -174,7 +174,7 @@ namespace dynamic_stereo{
 
 		CHECK_EQ(lapE(0,2,2), 2.0);
 
-		const double ws = 50;
+		const double ws = 1;
 
 		auto evaluateEnergy = [&](const std::vector<int>& result){
 			CHECK_EQ(result.size(), dim*dim);
