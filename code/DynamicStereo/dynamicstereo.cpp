@@ -221,6 +221,7 @@ namespace dynamic_stereo{
 //		}
 
 		toyTripleTRWS();
+		toyTripleTRBP();
 
 		initMRF();
 
@@ -326,160 +327,165 @@ namespace dynamic_stereo{
 //		proposalSfM.genProposal(SfMProposals);
 
 
-		cout << "Solving with first order smoothness..." << endl;
-		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
-		Depth result_firstOrder;
-		optimizer_firstorder.optimize(result_firstOrder, 10);
-		//sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		//warpToAnchor(result_firstOrder, "firstorder");
-		//result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
-
-		printf("Saving depth to point cloud...\n");
-		Depth depth_firstOrder;
-		disparityToDepth(result_firstOrder, depth_firstOrder);
-		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-
-		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
-		printf("Applying bilateral filter to depth:\n");
-		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 5, 30, 3);
-		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
-		depth_firstOrder_filtered.updateStatics();
-		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-		//warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
-
-		{
-			//test for GridWarpping
-			vector<Mat> fullImg(images.size());
-			for (auto i = 0; i < fullImg.size(); ++i)
-				fullImg[i] = imread(file_io.getImage(i + offset));
-			GridWarpping gridWarpping(file_io, anchor, fullImg, *model, reconstruction, orderedId,
-			                          depth_firstOrder_filtered, downsample, offset);
-
-			printf("================\nTesting for bilinear coefficience\n");
-			Vector2d testP(500, 500);
-			Vector4i testInd;
-			Vector4d testW;
-			gridWarpping.getGridIndAndWeight(testP, testInd, testW);
-			printf("(%d,%d,%d,%d), (%.2f,%.2f,%.2f,%.2f)\n", testInd[0], testInd[1], testInd[2], testInd[3],
-			       testW[0], testW[1], testW[2], testW[3]);
-
-			Mat mask;
-			sprintf(buffer, "%s/mask%05d.jpg", file_io.getDirectory().c_str(), anchor);
-			mask = imread(buffer);
-			CHECK(mask.data);
-			CHECK_EQ(mask.cols, fullImg[0].cols);
-			CHECK_EQ(mask.rows, fullImg[0].rows);
-			cvtColor(mask, mask, CV_RGB2GRAY);
-
-			for (auto i = 0; i < fullImg.size(); ++i) {
-				printf("=================\nWarpping frame %d\n", i);
-				vector<Vector2d> refPt, srcPt;
-				const int testF = i;
-				printf("Computing point correspondence...\n");
-				//gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
-				gridWarpping.computePointCorrespondenceNoWarp(testF, refPt, srcPt);
-				CHECK_EQ(refPt.size(), srcPt.size());
-
-				printf("Done, correspondence: %d\n", (int) refPt.size());
-
-
-
-				Mat warpped = fullImg[anchor-offset].clone();
-				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-				const theia::Camera &srcCam = reconstruction.View(orderedId[testF + offset].second)->Camera();
-				for (auto y = downsample; y < warpped.rows - downsample; ++y) {
-					for (auto x = downsample; x < warpped.cols - downsample; ++x) {
-						if(mask.at<uchar>(y,x) < 200)
-							continue;
-						double d = depth_firstOrder_filtered.getDepthAt(
-								Vector2d((double) x / (double) downsample, (double) y / (double) downsample));
-						Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y));
-						Vector3d spt = refCam.GetPosition() + d * ray;
-						Vector2d imgpt;
-						srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
-						if (imgpt[0] < 0 || imgpt[0] > warpped.cols - 1 || imgpt[1] < 0 || imgpt[1] > warpped.rows - 1)
-							continue;
-						Vector3d pix = interpolation_util::bilinear<uchar, 3>(fullImg[testF].data, warpped.cols,
-						                                                      warpped.rows, imgpt);
-						warpped.at<Vec3b>(y, x) = Vec3b((uchar) pix[0], (uchar) pix[1], (uchar) pix[2]);
-					}
-				}
-				sprintf(buffer, "%s/temp/stereo%05d.jpg", file_io.getDirectory().c_str(), testF);
-				imwrite(buffer, warpped);
-				Mat grayRef, graySrc, colorRef, colorSrc;
-				colorSrc = fullImg[testF].clone();
-				colorRef = fullImg[anchor-offset].clone();
-//				cvtColor(fullImg[anchor - offset], grayRef, CV_RGB2GRAY);
-//				cvtColor(warpped, graySrc, CV_RGB2GRAY);
+//		cout << "Solving with first order smoothness..." << endl;
+//		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
+//		Depth result_firstOrder;
+//		optimizer_firstorder.optimize(result_firstOrder, 10);
+//		//sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+//		//warpToAnchor(result_firstOrder, "firstorder");
+//		//result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 //
-//				cvtColor(grayRef, colorRef, CV_GRAY2RGB);
-//				cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
-
-//				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
-//					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-//					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+//		printf("Saving depth to point cloud...\n");
+//		Depth depth_firstOrder;
+//		disparityToDepth(result_firstOrder, depth_firstOrder);
+//		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+//
+//		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
+//		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
+//		printf("Applying bilateral filter to depth:\n");
+//		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 5, 30, 3);
+//		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
+//		depth_firstOrder_filtered.updateStatics();
+//		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
+//		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
+//		//warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
+//
+//		{
+//			//test for GridWarpping
+//			vector<Mat> fullImg(images.size());
+//			for (auto i = 0; i < fullImg.size(); ++i)
+//				fullImg[i] = imread(file_io.getImage(i + offset));
+//			GridWarpping gridWarpping(file_io, anchor, fullImg, *model, reconstruction, orderedId,
+//			                          depth_firstOrder_filtered, downsample, offset);
+//
+//			printf("================\nTesting for bilinear coefficience\n");
+//			Vector2d testP(500, 500);
+//			Vector4i testInd;
+//			Vector4d testW;
+//			gridWarpping.getGridIndAndWeight(testP, testInd, testW);
+//			printf("(%d,%d,%d,%d), (%.2f,%.2f,%.2f,%.2f)\n", testInd[0], testInd[1], testInd[2], testInd[3],
+//			       testW[0], testW[1], testW[2], testW[3]);
+//
+//			Mat mask;
+//			sprintf(buffer, "%s/mask%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//			mask = imread(buffer);
+//			CHECK(mask.data);
+//			CHECK_EQ(mask.cols, fullImg[0].cols);
+//			CHECK_EQ(mask.rows, fullImg[0].rows);
+//			cvtColor(mask, mask, CV_RGB2GRAY);
+//
+//			for (auto i = 0; i < fullImg.size(); ++i) {
+//				printf("=================\nWarpping frame %d\n", i);
+//				vector<Vector2d> refPt, srcPt;
+//				const int testF = i;
+//				printf("Computing point correspondence...\n");
+//				//gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
+//				gridWarpping.computePointCorrespondenceNoWarp(testF, refPt, srcPt);
+//				CHECK_EQ(refPt.size(), srcPt.size());
+//
+//				printf("Done, correspondence: %d\n", (int) refPt.size());
+//
+//
+//
+//				Mat warpped = fullImg[anchor-offset].clone();
+//				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
+//				const theia::Camera &srcCam = reconstruction.View(orderedId[testF + offset].second)->Camera();
+//				for (auto y = downsample; y < warpped.rows - downsample; ++y) {
+//					for (auto x = downsample; x < warpped.cols - downsample; ++x) {
+//						if(mask.at<uchar>(y,x) < 200)
+//							continue;
+//						double d = depth_firstOrder_filtered.getDepthAt(
+//								Vector2d((double) x / (double) downsample, (double) y / (double) downsample));
+//						Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y));
+//						Vector3d spt = refCam.GetPosition() + d * ray;
+//						Vector2d imgpt;
+//						srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
+//						if (imgpt[0] < 0 || imgpt[0] > warpped.cols - 1 || imgpt[1] < 0 || imgpt[1] > warpped.rows - 1)
+//							continue;
+//						Vector3d pix = interpolation_util::bilinear<uchar, 3>(fullImg[testF].data, warpped.cols,
+//						                                                      warpped.rows, imgpt);
+//						warpped.at<Vec3b>(y, x) = Vec3b((uchar) pix[0], (uchar) pix[1], (uchar) pix[2]);
+//					}
 //				}
-//				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
-//					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-//					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-//				}
-				Mat tgtImg = fullImg[testF].clone();
-				drawKeyPoints(tgtImg, srcPt);
-				sprintf(buffer, "%s/temp/trackOnTgt%05d.jpg", file_io.getDirectory().c_str(), testF);
-				imwrite(buffer, tgtImg);
-
-				Mat refImg = fullImg[anchor-offset].clone();
-				drawKeyPoints(refImg, refPt);
-				sprintf(buffer, "%s/temp/trackOnRef%05d.jpg", file_io.getDirectory().c_str(), anchor-offset);
-				imwrite(buffer, refImg);
-
-				drawKeyPoints(colorRef, refPt);
-
-				Mat stabled, vis;
-				Mat comb;
-				gridWarpping.computeWarppingField(testF, refPt, srcPt, fullImg[testF], stabled, vis, true);
-
-//				hconcat(stabled, vis, comb);
-//				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF);
-//				imwrite(buffer, colorRef);
-//				sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), testF + offset);
-//				imwrite(buffer, colorSrc);
-//				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF + offset);
-//				imwrite(buffer, colorRef);
-//				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF);
-//				imwrite(buffer, colorRef);
-
-
-				for(auto y=0; y<stabled.rows; ++y){
-					for(auto x=0; x<stabled.cols; ++x){
-						if(mask.at<uchar>(y,x) < 200)
-							stabled.at<Vec3b>(y,x) = fullImg[anchor-offset].at<Vec3b>(y,x);
-					}
-				}
-
-				sprintf(buffer, "%s/temp/sta_%05dimg4.jpg", file_io.getDirectory().c_str(), testF);
-				imwrite(buffer, stabled);
-
-//				sprintf(buffer, "%s/temp/unstabled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
+//				sprintf(buffer, "%s/temp/stereo%05d.jpg", file_io.getDirectory().c_str(), testF);
 //				imwrite(buffer, warpped);
+//				Mat grayRef, graySrc, colorRef, colorSrc;
+//				colorSrc = fullImg[testF].clone();
+//				colorRef = fullImg[anchor-offset].clone();
+////				cvtColor(fullImg[anchor - offset], grayRef, CV_RGB2GRAY);
+////				cvtColor(warpped, graySrc, CV_RGB2GRAY);
+////
+////				cvtColor(grayRef, colorRef, CV_GRAY2RGB);
+////				cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
 //
-//				sprintf(buffer, "%s/temp/stabbled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
+////				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
+////					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+////					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+////				}
+////				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
+////					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+////					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+////				}
+//				Mat tgtImg = fullImg[testF].clone();
+//				drawKeyPoints(tgtImg, srcPt);
+//				sprintf(buffer, "%s/temp/trackOnTgt%05d.jpg", file_io.getDirectory().c_str(), testF);
+//				imwrite(buffer, tgtImg);
+//
+//				Mat refImg = fullImg[anchor-offset].clone();
+//				drawKeyPoints(refImg, refPt);
+//				sprintf(buffer, "%s/temp/trackOnRef%05d.jpg", file_io.getDirectory().c_str(), anchor-offset);
+//				imwrite(buffer, refImg);
+//
+//				drawKeyPoints(colorRef, refPt);
+//
+//				Mat stabled, vis;
+//				Mat comb;
+//				gridWarpping.computeWarppingField(testF, refPt, srcPt, fullImg[testF], stabled, vis, true);
+//
+////				hconcat(stabled, vis, comb);
+////				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF);
+////				imwrite(buffer, colorRef);
+////				sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), testF + offset);
+////				imwrite(buffer, colorSrc);
+////				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF + offset);
+////				imwrite(buffer, colorRef);
+////				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF);
+////				imwrite(buffer, colorRef);
+//
+//
+//				for(auto y=0; y<stabled.rows; ++y){
+//					for(auto x=0; x<stabled.cols; ++x){
+//						if(mask.at<uchar>(y,x) < 200)
+//							stabled.at<Vec3b>(y,x) = fullImg[anchor-offset].at<Vec3b>(y,x);
+//					}
+//				}
+//
+//				sprintf(buffer, "%s/temp/sta_%05dimg4.jpg", file_io.getDirectory().c_str(), testF);
 //				imwrite(buffer, stabled);
-//			sprintf(buffer, "%s/temp/sta_gri%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
-//			imwrite(buffer, vis);
-//			sprintf(buffer, "%s/temp/sta_com%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
-//			imwrite(buffer, comb);
-			}
-		}
+//
+////				sprintf(buffer, "%s/temp/unstabled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
+////				imwrite(buffer, warpped);
+////
+////				sprintf(buffer, "%s/temp/stabbled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
+////				imwrite(buffer, stabled);
+////			sprintf(buffer, "%s/temp/sta_gri%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+////			imwrite(buffer, vis);
+////			sprintf(buffer, "%s/temp/sta_com%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
+////			imwrite(buffer, comb);
+//			}
+//		}
 
-//		cout << "Solving with second order smoothness (trbp)..." << endl;
-//		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), images[anchor-offset], MRF_data, (float)MRFRatio, dispResolution);
-//		Depth result_trbp;
-//		optimizer_trbp.optimize(result_trbp, 10);
-//		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
+		cout << "Solving with second order smoothness (trbp)..." << endl;
+		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), model);
+		Depth result_trbp, depth_trbp;
+		optimizer_trbp.optimize(result_trbp, 100);
+		disparityToDepth(result_trbp, depth_trbp);
+
+		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
+		sprintf(buffer, "%s/temp/mesh%05d_trbp.jpg", file_io.getDirectory().c_str(), anchor);
+		utility::saveDepthAsPly(string(buffer), depth_trbp, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
+
 
 //		cout << "Solving with second order smoothness (fusion move)..." << endl;
 //		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, images.size(), model, dispUnary);

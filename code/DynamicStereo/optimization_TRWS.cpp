@@ -309,7 +309,7 @@ namespace dynamic_stereo{
         };
         double initE = evaluateEnergy(vars);
         printf("Init energy: %.2f\n", initE);
-        vector<int> labelList{1,2,0};
+        vector<int> labelList{0,1,2};
         for(auto lid=0; lid<labelList.size(); ++lid){
             const int& l = labelList[lid];
             printf("Expanding label %d\n", labelList[lid]);

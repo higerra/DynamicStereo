@@ -78,8 +78,11 @@ namespace dynamic_stereo {
         virtual double evaluateEnergy(const Depth &) const;
 
     private:
-        EnergyType laml;
-        EnergyType lamh;
+	    inline double lapE(const double x0, const double x1, const double x2) const{
+		    //return std::min((x0 + x2 - 2 * x1) * (x0 + x2 - 2 * x1), trun * trun);
+		    return std::min(std::abs(x0 + x2 - 2 * x1), trun);
+	    }
+	    const double trun;
         std::vector<int> refSeg;
     };
 
@@ -116,6 +119,7 @@ namespace dynamic_stereo {
     };
 
     void toyTripleTRWS();
+	void toyTripleTRBP();
 
 }//namespace dynamic_stereo
 
