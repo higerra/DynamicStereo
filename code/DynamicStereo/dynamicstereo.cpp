@@ -54,6 +54,8 @@ namespace dynamic_stereo{
 			int vid = 0;
 			for (auto y = 0; y < h; ++y) {
 				for (auto x = 0; x < w; ++x, ++vid) {
+					if(depth(x,y) <= 0)
+						continue;
 					cv::Vec3b pix = image.at<Vec3b>(y, x);
 					Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(x * downsample, y * downsample));
 					//ray.normalize();
@@ -124,7 +126,7 @@ namespace dynamic_stereo{
 		height = images.front().rows;
 		dispUnary.initialize(width, height, 0.0);
 
-		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], dispResolution, 1000, weight_smooth_));
+		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 1000, weight_smooth_));
 		cout << "Computing disparity range" << endl;
 		if(min_disp < 0 || max_disp < 0)
 			computeMinMaxDisparity();
@@ -327,20 +329,20 @@ namespace dynamic_stereo{
 //		proposalSfM.genProposal(SfMProposals);
 
 
-//		cout << "Solving with first order smoothness..." << endl;
-//		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
-//		Depth result_firstOrder;
-//		optimizer_firstorder.optimize(result_firstOrder, 10);
-//		//sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		//warpToAnchor(result_firstOrder, "firstorder");
-//		//result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
-//
-//		printf("Saving depth to point cloud...\n");
-//		Depth depth_firstOrder;
-//		disparityToDepth(result_firstOrder, depth_firstOrder);
-//		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-//
-//		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
+		cout << "Solving with first order smoothness..." << endl;
+		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
+		Depth result_firstOrder;
+		optimizer_firstorder.optimize(result_firstOrder, 10);
+		//sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
+		//warpToAnchor(result_firstOrder, "firstorder");
+		//result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
+
+		printf("Saving depth to point cloud...\n");
+		Depth depth_firstOrder;
+		disparityToDepth(result_firstOrder, depth_firstOrder);
+		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
+
 //		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
 //		printf("Applying bilateral filter to depth:\n");
 //		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 5, 30, 3);
@@ -478,12 +480,12 @@ namespace dynamic_stereo{
 		cout << "Solving with second order smoothness (trbp)..." << endl;
 		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), model);
 		Depth result_trbp, depth_trbp;
-		optimizer_trbp.optimize(result_trbp, 100);
+		optimizer_trbp.optimize(result_trbp, 10);
 		disparityToDepth(result_trbp, depth_trbp);
 
 		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
 		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
-		sprintf(buffer, "%s/temp/mesh%05d_trbp.jpg", file_io.getDirectory().c_str(), anchor);
+		sprintf(buffer, "%s/temp/mesh%05d_trbp.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depth_trbp, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
 
 
@@ -627,9 +629,14 @@ namespace dynamic_stereo{
 	}
 
 	void DynamicStereo::disparityToDepth(const Depth& disp, Depth& depth){
-		depth.initialize(disp.getWidth(), disp.getHeight());
-		for(auto i=0; i<disp.getWidth() * disp.getHeight(); ++i)
+		depth.initialize(disp.getWidth(), disp.getHeight(), -1);
+		for(auto i=0; i<disp.getWidth() * disp.getHeight(); ++i) {
+			if(disp[i] <= 0) {
+				depth[i] = -1;
+				continue;
+			}
 			depth[i] = model->dispToDepth(disp[i]);
+		}
 	}
 
 	void DynamicStereo::bilateralFilter(const Depth &input, const cv::Mat &inputImg, Depth &output,

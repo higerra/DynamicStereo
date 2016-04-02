@@ -13,8 +13,8 @@ namespace dynamic_stereo{
 
 	template<typename T>
 	struct StereoModel{
-		StereoModel(const cv::Mat& img_, const int nLabel_, const double MRFRatio_, const double ws_):
-				image(img_.clone()), width(img_.cols), height(img_.rows), nLabel(nLabel_), MRFRatio(MRFRatio_), weight_smooth(ws_){
+		StereoModel(const cv::Mat& img_, const double downsample_, const int nLabel_, const double MRFRatio_, const double ws_):
+				image(img_.clone()), downsample(downsample_), width(img_.cols), height(img_.rows), nLabel(nLabel_), MRFRatio(MRFRatio_), weight_smooth(ws_){
 			CHECK(image.data) << "Empty image";
 		}
 		~StereoModel(){
@@ -39,6 +39,7 @@ namespace dynamic_stereo{
 		const double weight_smooth;
 
 		const cv::Mat image;
+		const double downsample;
 
 		double min_disp;
 		double max_disp;

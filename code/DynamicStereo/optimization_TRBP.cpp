@@ -11,6 +11,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace Eigen;
 
 namespace dynamic_stereo{
 
@@ -34,6 +35,15 @@ namespace dynamic_stereo{
 
     void SecondOrderOptimizeTRBP::optimize(Depth &result, const int max_iter) const {
         char buffer[1024] = {};
+		Vector4i ROI(0,0,width, height);
+		ROI[0] = 1451 / (int)model->downsample;
+		ROI[1] = 337 / (int)model->downsample;
+		ROI[2] = 1904 / (int)model->downsample;
+		ROI[3] = 479 / (int)model->downsample;
+
+		const int roiW = ROI[2] - ROI[0];
+		const int roiH = ROI[3] - ROI[1];
+
         //formulate problem with OpenGM
         typedef opengm::SimpleDiscreteSpace<size_t, size_t> Space;
         typedef opengm::SparseFunction<double, size_t, size_t> SparseFunction;
@@ -44,28 +54,37 @@ namespace dynamic_stereo{
         typedef opengm::TrbpUpdateRules<GraphicalModel, opengm::Minimizer> UpdateRules;
         typedef opengm::MessagePassing<GraphicalModel, opengm::Minimizer, UpdateRules, opengm::MaxDistance> TRBP;
         //typedef opengm::GraphCut<GraphicalModel, opengm::Minimizer
-	    const int& nLabel = model->nLabel;
-        Space space((size_t)(width * height), (size_t)nLabel);
+
+		const int& nLabel = model->nLabel;
+		const int kVar = roiW * roiH;
+		printf("Number of variables: %d\n", kVar);
+
+        Space space((size_t)(kVar), (size_t)nLabel);
         GraphicalModel gm(space);
         //add unary terms
         size_t shape[] = {(size_t) nLabel, (size_t) nLabel, (size_t)nLabel};
-        for (auto i = 0; i < width * height; ++i) {
-            opengm::ExplicitFunction<double> f(shape, shape + 1);
-            for (auto l = 0; l < nLabel; ++l)
-	            f(l) = model->operator()(i, l) / model->MRFRatio;
-            GraphicalModel::FunctionIdentifier fid = gm.addFunction(f);
-            size_t vid[] = {(size_t) i};
-            gm.addFactor(fid, vid, vid + 1);
-        }
+		int varIdx = 0;
+
+		vector<int> idxMap(width * height);
+
+		for(auto y=ROI[1]; y<ROI[3]; ++y){
+			for(auto x=ROI[0]; x<ROI[2]; ++x, ++varIdx){
+				const int& i = y * width + x;
+				opengm::ExplicitFunction<double> f(shape, shape + 1);
+				for (auto l = 0; l < nLabel; ++l)
+					f(l) = model->operator()(i, l) / model->MRFRatio;
+				GraphicalModel::FunctionIdentifier fid = gm.addFunction(f);
+				size_t vid[] = {(size_t) varIdx};
+				gm.addFactor(fid, vid, vid + 1);
+				idxMap[i] = varIdx;
+			}
+		}
 
         //add triple terms
         cout << "Adding triple terms" << endl << flush;
 
-//	    const int cueResolution = 100;
-//        const double maxCue = (double)std::max(*max_element(model->vCue.begin(), model->vCue.end()), *max_element(model->hCue.begin(), model->hCue.end())) / model->MRFRatio;
-//	    const double weight_step = maxCue / (double)cueResolution;
-
 	    const double ws = 0.01;
+
         SparseFunction fv(shape, shape+3, 0.0);
         int count = 0;
         for (int l0 = 0; l0 < nLabel; ++l0) {
@@ -73,8 +92,8 @@ namespace dynamic_stereo{
                 for (int l2 = 0; l2 < nLabel; ++l2) {
                     int labelDiff = std::abs(l0 + l2 - 2 * l1);
                     size_t coord[] = {(size_t)l0, (size_t)l1, (size_t)l2};
-                    if (labelDiff <= trun){
-	                    fv.insert(coord, labelDiff * ws);
+                    if (labelDiff <= 2000){
+	                    fv.insert(coord, (double)labelDiff * ws);
                         count++;
                     }
                 }
@@ -83,45 +102,23 @@ namespace dynamic_stereo{
         GraphicalModel::FunctionIdentifier fidtriple = gm.addFunction(fv);
         cout << "Non zero count: " << count << endl << flush;
 
-        for (size_t y = 0; y < height; ++y) {
-            for (size_t x = 0; x < width; ++x) {
-//                int lamH, lamV;
-//                if(refSeg[y*width+x] == refSeg[y*width+x+1] && refSeg[y*width+x] == refSeg[y*width+x-1])
-//                    lamH = lamh;
-//                else
-//                    lamH = laml;
-//                if(refSeg[y*width+x] == refSeg[(y+1)*width+x] && refSeg[y*width+x] == refSeg[(y-1)*width+x])
-//                    lamV = lamh;
-//                else
-//                    lamV = laml;
+		for(auto y=ROI[1]; y<ROI[3]; ++y){
+			for(auto x=ROI[0]; x<ROI[2]; ++x){
+				if(x > ROI[0] && x < ROI[2] - 1) {
+					size_t vIndxH[] = {(size_t) idxMap[y * width + x - 1], (size_t)idxMap[y * width + x], (size_t)idxMap[y * width + x + 1]};
+					gm.addFactor(fidtriple, vIndxH, vIndxH+3);
+				}
+				if(y>ROI[1] && y < ROI[3] - 1) {
+					size_t vIndxV[] = {(size_t) idxMap[(y - 1) * width + x], (size_t) idxMap[y * width + x],
+									   (size_t) idxMap[(y + 1) * width + x]};
+					gm.addFactor(fidtriple, vIndxV, vIndxV+3);
+				}
+			}
+		}
 
-                size_t vIndxV[] = {(size_t) (y - 1) * width + x, (size_t) y * width + x, (size_t) (y + 1) * width + x};
-                size_t vIndxH[] = {(size_t) y * width + x - 1, (size_t) y * width + x, (size_t) y * width + x + 1};
-
-//                SparseFunction fv(shape, shape+3, (EnergyType)(lamV * MRFRatio * trun)), fh(shape, shape+3, (EnergyType)(lamH * MRFRatio * trun));
-//
-//                for (int l0 = 0; l0 < nLabel; ++l0) {
-//                    for (int l1 = 0; l1 < nLabel; ++l1) {
-//                        for (int l2 = 0; l2 < nLabel; ++l2) {
-//                            int labelDiff = l0 + l2 - 2 * l1;
-//                            size_t coord[] = {(size_t)l0, (size_t)l1, (size_t)l2};
-//                            if (abs(labelDiff) <= trun){
-//                                fv.insert(coord, (EnergyType)(lamV * MRFRatio * labelDiff));
-//                                fh.insert(coord, (EnergyType)(lamH * MRFRatio * labelDiff));
-//                            }
-//                        }
-//                    }
-//                }
-	            if(x > 0 && x < width-1)
-		            gm.addFactor(fidtriple, vIndxH, vIndxH + 3);
-	            if(y > 0 && y < height-1)
-		            gm.addFactor(fidtriple, vIndxV, vIndxV + 3);
-
-            }
-        }
 
         //solve
-        const double converge_bound = 1e-7;
+        const double converge_bound = 1e-5;
         const double damping = 0.0;
         TRBP::Parameter parameter(max_iter);
         TRBP trbp(gm, parameter);
@@ -134,10 +131,14 @@ namespace dynamic_stereo{
 
         vector<size_t> labels;
         trbp.arg(labels);
-        CHECK_EQ(labels.size(), width * height);
+        CHECK_EQ(labels.size(), kVar);
         result.initialize(width, height, -1);
-        for(auto i=0; i<width * height; ++i)
-            result.setDepthAtInd(i, labels[i]);
+        for(auto y=ROI[1]; y<ROI[3]; ++y){
+			for(auto x=ROI[0]; x<ROI[2]; ++x){
+				CHECK_LT(idxMap[y*width+x], labels.size());
+				result(x,y) = labels[idxMap[y*width+x]];
+			}
+		}
     }
 
     double SecondOrderOptimizeTRBP::evaluateEnergy(const Depth& disp) const {
