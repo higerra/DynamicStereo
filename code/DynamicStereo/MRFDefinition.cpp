@@ -58,7 +58,7 @@ namespace dynamic_stereo {
 	    CHECK_GT(max_disp, 0);
 	    //read from cache
 	    char buffer[1024] = {};
-	    sprintf(buffer, "%s/temp/cacheMRFdata", file_io.getDirectory().c_str());
+	    sprintf(buffer, "%s/temp/cacheMRFdata%d", file_io.getDirectory().c_str(), dispResolution);
 	    ifstream fin(buffer, ios::binary);
 
         bool recompute = true;
