@@ -21,25 +21,27 @@ namespace dynamic_stereo {
         const theia::View *anchorView = reconstruction.View(orderedId[anchor].second);
         const theia::Camera cam = anchorView->Camera();
         vector<theia::TrackId> trackIds = anchorView->TrackIds();
-        vector<double> disps;
+        vector<double> depths;
         for (const auto tid: trackIds) {
             const theia::Track *t = reconstruction.Track(tid);
             Vector4d spacePt = t->Point();
             Vector2d imgpt;
             double curdepth = cam.ProjectPoint(spacePt, &imgpt);
             if (curdepth > 0)
-                disps.push_back(1.0 / curdepth);
+                depths.push_back(curdepth);
         }
         //ignore furthest 1% and nearest 1% points
         const double lowRatio = 0.01;
         const double highRatio = 0.99;
-        const size_t lowKth = (size_t) (lowRatio * disps.size());
-        const size_t highKth = (size_t) (highRatio * disps.size());
+        const size_t lowKth = (size_t) (lowRatio * depths.size());
+        const size_t highKth = (size_t) (highRatio * depths.size());
         //min_disp should be correspond to high depth
-        nth_element(disps.begin(), disps.begin() + lowKth, disps.end());
-        min_disp = disps[lowKth] * 0.6;
-        nth_element(disps.begin(), disps.begin() + highKth, disps.end());
-        max_disp = disps[highKth] * 1.5;
+        nth_element(depths.begin(), depths.begin() + lowKth, depths.end());
+        CHECK_GT(depths[lowKth], 0.0);
+        max_disp = 1.0 / (depths[lowKth]);
+        nth_element(depths.begin(), depths.begin() + highKth, depths.end());
+        CHECK_GT(depths[highKth], 0.0);
+        min_disp = 1.0 / (depths[highKth]);
 
 	    model->min_disp = min_disp;
 	    model->max_disp = max_disp;
@@ -74,7 +76,7 @@ namespace dynamic_stereo {
             fin.read((char *) &maxdisp, sizeof(double));
             printf("Cached data: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.5f, max_disp:%.5f\n",
                    frame, resolution, tw, ds, type, mindisp, maxdisp);
-            if (frame == anchor && resolution == dispResolution && tw == tWindow &&
+            if (frame == anchor && resolution == dispResolution && tw == tWindowStereo &&
                 type == sizeof(EnergyType) && ds == downsample && min_disp == mindisp && max_disp == maxdisp) {
                 printf("Reading unary term from cache...\n");
                 fin.read((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
@@ -86,12 +88,13 @@ namespace dynamic_stereo {
 
             int index = 0;
             int unit = width * height / 10;
+            const int stereoOffset = anchor - tWindowStereo / 2;
             //Be careful about down sample ratio!!!!!
             for (int y = 0; y < height; ++y) {
                 for (int x = 0; x < width; ++x, ++index) {
                     if (index % unit == 0)
                         cout << '.' << flush;
-#pragma omp parallel for
+//#pragma omp parallel for
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
                         double depth = model->dispToDepth(d);
@@ -106,7 +109,6 @@ namespace dynamic_stereo {
                                     continue;
                                 }
                                 Vector3d ray = cam1.PixelToUnitDepthRay(pt * downsample);
-                                //ray.normalize();
                                 Vector3d spt = cam1.GetPosition() + ray * depth;
                                 Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
                                 sptBase.push_back(spt_homo);
@@ -114,9 +116,9 @@ namespace dynamic_stereo {
                         }
 
                         //project onto other views and compute matching cost
-                        vector<vector<double> > patches(images.size());
-                        for (auto v = 0; v < images.size(); ++v) {
-                            const theia::Camera& cam2 = reconstruction.View(orderedId[v + offset].second)->Camera();
+                        vector<vector<double> > patches(tWindowStereo);
+                        for (auto v = 0; v < tWindowStereo; ++v) {
+                            const theia::Camera& cam2 = reconstruction.View(orderedId[v + stereoOffset].second)->Camera();
                             for (const auto &spt: sptBase) {
                                 if (spt[3] == 0) {
                                     patches[v].push_back(-1);
@@ -140,7 +142,7 @@ namespace dynamic_stereo {
                                 }
                             }
                         }
-                        double mCost = local_matcher::sumMatchingCost(patches, anchor - offset);
+                        double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
                         //double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
 	                    model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
                         //MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 - mCost) * MRFRatio);
@@ -158,7 +160,7 @@ namespace dynamic_stereo {
             int sz = sizeof(EnergyType);
             fout.write((char *) &anchor, sizeof(int));
             fout.write((char *) &dispResolution, sizeof(int));
-            fout.write((char *) &tWindow, sizeof(int));
+            fout.write((char *) &tWindowStereo, sizeof(int));
             fout.write((char *) &downsample, sizeof(int));
             fout.write((char *) &sz, sizeof(int));
             fout.write((char *) &min_disp, sizeof(double));
