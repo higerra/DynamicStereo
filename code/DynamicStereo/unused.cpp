@@ -3,6 +3,8 @@
 //
 
 
+//dynamicstereo.cpp
+//runstereo()
 //		{
 //			//test for GridWarpping
 //			vector<Mat> fullImg(images.size());

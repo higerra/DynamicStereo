@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
 			const int tf1 = FLAGS_testFrame;
 			Mat imgRef = imread(file_io.getImage(tf1));
 			//In original scale
-			Vector2d pt(179, 216);
+			Vector2d pt(38, 279);
 			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
 			cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0, 0, 255), 2);
 			imwrite(buffer, imgRef);

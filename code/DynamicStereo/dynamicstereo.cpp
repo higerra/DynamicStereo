@@ -183,8 +183,8 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-			const int tx = 179;
-			const int ty = 216;
+			const int tx = 38;
+			const int ty = 279;
 			int dtx = tx / downsample;
 			int dty = ty / downsample;
 			printf("Unary term for (%d,%d)\n", tx, ty);
@@ -293,7 +293,7 @@ namespace dynamic_stereo{
 		depth_firstOrder_filtered.updateStatics();
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-//		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
+		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
 //
 
 	}
@@ -315,12 +315,10 @@ namespace dynamic_stereo{
 		//in full resolution
 		Mat warpMask;
 		sprintf(buffer, "%s/mask%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		warpMask = imread(buffer);
-//		Mat warpMask(h,w,CV_8UC3, Scalar(255,255,255));
-
+		warpMask = imread(buffer, false);
 		CHECK(warpMask.data) << "Empty mask";
-
-		cvtColor(warpMask, warpMask, CV_RGB2GRAY);
+		cv::erode(warpMask, warpMask, cv::getStructuringElement(MORPH_RECT, cv::Size(3,3)));
+		//cvtColor(warpMask, warpMask, CV_RGB2GRAY);
 
 		int startid = anchor - offset;
 		int endid = anchor - offset;
@@ -340,14 +338,13 @@ namespace dynamic_stereo{
 					//ray.normalize();
 					double disp = refDisp.getDepthAt(Vector2d(x/downsample, y/downsample));
 					Vector3d spt = cam1.GetPosition() + ray * model->dispToDepth(disp);
-					Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
 					Vector2d imgpt;
-					cam2.ProjectPoint(spt_homo, &imgpt);
+					cam2.ProjectPoint(spt.homogeneous(), &imgpt);
 					if(imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w -1 && imgpt[1] < h - 1){
 						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
 						warpped[i].at<Vec3b>(y,x) = Vec3b(pix2[0], pix2[1], pix2[2]);
 					}else{
-						warpped[i].at<Vec3b>(y,x) = Vec3b(0,0,0);
+						printf("(%d,%d)->(%.2f,%.2f) in outside frame %d\n", x,y,imgpt[0], imgpt[1],i+offset);
 						invalid = true;
 						break;
 					}
@@ -367,7 +364,7 @@ namespace dynamic_stereo{
 		vector<Mat> oriWarpped(warpped.size());
 		for(auto i=startid; i<=endid; ++i)
 			oriWarpped[i] = warpped[i].clone();
-//		const int r = 1;
+//		const int r = 2;
 //		printf("Applying median filter, r = %d\n", r);
 //		for(auto i=startid; i<=endid; ++i) {
 //			int s, e;
@@ -401,7 +398,7 @@ namespace dynamic_stereo{
 //			}
 //		}
 
-		printf("Saving: start: %d, end:%d\n", startid, endid);
+		printf("Saving: start: %d, end:%d\n", startid+offset, endid+offset);
 		for(auto i=startid; i<=endid; ++i){
 			sprintf(buffer, "%s/temp/warpped_%s_b%05d_f%05d.jpg", file_io.getDirectory().c_str(),prefix.c_str(),  anchor, i+offset);
 			imwrite(buffer, warpped[i]);
