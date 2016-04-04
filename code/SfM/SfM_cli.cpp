@@ -103,10 +103,10 @@ DEFINE_bool(only_calibrated_views, false,
                     "provided or can be extracted from EXIF");
 DEFINE_int32(max_track_length, 50, "Maximum length of a track.");
 DEFINE_string(intrinsics_to_optimize,
-              "ALL",
+              "FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION",
               "Set to control which intrinsics parameters are optimized during "
                       "bundle adjustment.");
-DEFINE_double(max_reprojection_error_pixels, 4.0,
+DEFINE_double(max_reprojection_error_pixels, 3.0,
               "Maximum reprojection error for a correspondence to be "
                       "considered an inlier after bundle adjustment.");
 

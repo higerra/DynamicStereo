@@ -12,8 +12,9 @@ using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
 DEFINE_int32(tWindow, 60, "tWindow");
+DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
 DEFINE_int32(downsample, 4, "downsample ratio");
-DEFINE_int32(resolution, 64, "disparity resolution");
+DEFINE_int32(resolution, 256, "disparity resolution");
 DEFINE_double(weight_smooth, 0.001, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
@@ -34,7 +35,7 @@ int main(int argc, char **argv) {
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/temp"))
 		stlplus::folder_create(file_io.getDirectory() + "/temp");
 
-	DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_weight_smooth,
+	DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_tWindowStereo, FLAGS_downsample, FLAGS_weight_smooth,
 	                     FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
 
 //    {
@@ -88,17 +89,19 @@ int main(int argc, char **argv) {
 
     {
         //    //test SfM
-        Mat imgL, imgR;
+
         const int tf1 = FLAGS_testFrame;
+		Mat imgRef = imread(file_io.getImage(tf1));
         //In original scale
-        Vector2d pt(1534,380);
+        Vector2d pt(478,164);
+		sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
+		cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0,0,255),2);
+		imwrite(buffer, imgRef);
         for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-            stereo.verifyEpipolarGeometry(tf1, tf2, pt / (double) stereo.getDownsample(), imgL, imgR);
-            CHECK_EQ(imgL.size(), imgR.size());
-            Mat imgAll;
-            cv::hconcat(imgL, imgR, imgAll);
+			Mat imgL, imgR;
+            stereo.verifyEpipolarGeometry(tf1, tf2, pt, imgL, imgR);
             sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-            imwrite(buffer, imgAll);
+            imwrite(buffer, imgR);
         }
     }
 
