@@ -35,8 +35,10 @@ int main(int argc, char **argv) {
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/temp"))
 		stlplus::folder_create(file_io.getDirectory() + "/temp");
 
-	DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_tWindowStereo, FLAGS_downsample, FLAGS_weight_smooth,
-	                     FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
+	for(auto tf = FLAGS_testFrame; tf<=FLAGS_testFrame; tf+=5) {
+		DynamicStereo stereo(file_io, tf, FLAGS_tWindow, FLAGS_tWindowStereo, FLAGS_downsample,
+							 FLAGS_weight_smooth,
+							 FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
 
 //    {
 //        //test mean shift segmentation
@@ -69,45 +71,27 @@ int main(int argc, char **argv) {
 //        }
 //    }
 
-	{
-		//test graph based segmentation
-//		cout << "Test graph based segmentation" << endl;
-//		Mat sgtest = imread(file_io.getImage(FLAGS_testFrame));
-//		float spTest[] = {1, 1.5, 10};
-//		float mults[] = {3,5,8,12,24,50,100};
-//		for(auto cid=0; cid < 7; ++cid){
-//			cout << "Configuration: " << cid << endl << flush;
-//			Mat output;
-//			vector<vector<int> > seg;
-//			//int nLabel = segment_gb::segment_image(sgtest, output, seg, spTest[0] * mults[cid], spTest[1] * mults[cid], (int)spTest[1] * (int)mults[cid]);
-//			int nLabel = segment_gb::segment_image(sgtest, output, seg, 0.8, 500, 30);
-//			sprintf(buffer, "%s/temp/gbseg%05d_%03d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, cid);
-//			imwrite(buffer, output);
-//		}
+
+		{
+			    //test SfM
+			const int tf1 = FLAGS_testFrame;
+			Mat imgRef = imread(file_io.getImage(tf1));
+			//In original scale
+			Vector2d pt(179, 216);
+			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
+			cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0, 0, 255), 2);
+			imwrite(buffer, imgRef);
+			for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+				Mat imgL, imgR;
+				stereo.verifyEpipolarGeometry(tf1, tf2, pt, imgL, imgR);
+				sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+				imwrite(buffer, imgR);
+			}
+		}
+
+		stereo.runStereo();
+		//stereo.warpToAnchor();
 	}
-
-
-    {
-        //    //test SfM
-
-        const int tf1 = FLAGS_testFrame;
-		Mat imgRef = imread(file_io.getImage(tf1));
-        //In original scale
-        Vector2d pt(1078,258);
-		sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
-		cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0,0,255),2);
-		imwrite(buffer, imgRef);
-        for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-			Mat imgL, imgR;
-            stereo.verifyEpipolarGeometry(tf1, tf2, pt, imgL, imgR);
-            sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-            imwrite(buffer, imgR);
-        }
-    }
-
-    stereo.runStereo();
-    //stereo.warpToAnchor();
-
 
     return 0;
 }

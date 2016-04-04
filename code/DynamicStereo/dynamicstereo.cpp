@@ -183,23 +183,25 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-			const int tx = 1078 / downsample;
-			const int ty = 258 / downsample;
+			const int tx = 179;
+			const int ty = 216;
+			int dtx = tx / downsample;
+			int dty = ty / downsample;
 			printf("Unary term for (%d,%d)\n", tx, ty);
 			for (auto d = 0; d < dispResolution; ++d) {
-				cout << model->operator()(ty * width + tx, d) << ' ';
+				cout << model->operator()(dty * width + dtx, d) << ' ';
 			}
 			cout << endl;
-			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary[dty*width+dtx]);
 
 			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
-			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
+			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx, ty));
 			//ray.normalize();
 
-			int tdisp = (int) dispUnary(tx, ty);
-			//int tdisp = 30;
+			int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
+			//int tdisp = 2;
 			double td = model->dispToDepth(tdisp);
-			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty * width + tx, tdisp));
+			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
 
 			Vector3d spt = cam.GetPosition() + ray * td;
 			for (auto v = 0; v < images.size(); ++v) {
@@ -208,7 +210,7 @@ namespace dynamic_stereo{
 				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
 						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
 				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
-					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
+					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(0, 0, 255), 1);
 				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
 						v + offset);
 				imwrite(buffer, curimg);
@@ -262,12 +264,6 @@ namespace dynamic_stereo{
 //			}
 		}
 
-		//generate proposal
-//		sprintf(buffer, "%s/temp/unarydisp_b%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//		dispUnary.saveImage(string(buffer), 255.0 / (double) dispResolution);
-//
-//
-//
 ////
 //		Depth depthUnary;
 //		depthUnary.initialize(width, height, -1);
@@ -275,13 +271,6 @@ namespace dynamic_stereo{
 //			depthUnary[i] = model->dispToDepth(dispUnary[i]);
 //		sprintf(buffer, "%s/temp/unaryDepth_b%05d.ply", file_io.getDirectory().c_str(), anchor);
 //		utility::saveDepthAsPly(string(buffer), depthUnary, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-
-
-		//debug for SfM proposal
-//		vector<Depth> SfMProposals;
-//		ProposalSfM proposalSfM(file_io, images[anchor-offset], reconstruction, anchor, dispResolution, min_disp, max_disp, (double)downsample);
-//		proposalSfM.genProposal(SfMProposals);
-
 
 		cout << "Solving with first order smoothness..." << endl;
 		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
@@ -299,177 +288,14 @@ namespace dynamic_stereo{
 
 		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
 		printf("Applying bilateral filter to depth:\n");
-		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 21, 5, 30, 3);
+		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 11, 5, 10, 3);
 		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
 		depth_firstOrder_filtered.updateStatics();
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
+//		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
 //
-//		{
-//			//test for GridWarpping
-//			vector<Mat> fullImg(images.size());
-//			for (auto i = 0; i < fullImg.size(); ++i)
-//				fullImg[i] = imread(file_io.getImage(i + offset));
-//			GridWarpping gridWarpping(file_io, anchor, fullImg, *model, reconstruction, orderedId,
-//			                          depth_firstOrder_filtered, downsample, offset);
-//
-//			printf("================\nTesting for bilinear coefficience\n");
-//			Vector2d testP(500, 500);
-//			Vector4i testInd;
-//			Vector4d testW;
-//			gridWarpping.getGridIndAndWeight(testP, testInd, testW);
-//			printf("(%d,%d,%d,%d), (%.2f,%.2f,%.2f,%.2f)\n", testInd[0], testInd[1], testInd[2], testInd[3],
-//			       testW[0], testW[1], testW[2], testW[3]);
-//
-//			Mat mask;
-//			sprintf(buffer, "%s/mask%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//			mask = imread(buffer);
-//			CHECK(mask.data);
-//			CHECK_EQ(mask.cols, fullImg[0].cols);
-//			CHECK_EQ(mask.rows, fullImg[0].rows);
-//			cvtColor(mask, mask, CV_RGB2GRAY);
-//
-//			for (auto i = 0; i < fullImg.size(); ++i) {
-//				printf("=================\nWarpping frame %d\n", i);
-//				vector<Vector2d> refPt, srcPt;
-//				const int testF = i;
-//				printf("Computing point correspondence...\n");
-//				//gridWarpping.computePointCorrespondence(testF, refPt, srcPt);
-//				gridWarpping.computePointCorrespondenceNoWarp(testF, refPt, srcPt);
-//				CHECK_EQ(refPt.size(), srcPt.size());
-//
-//				printf("Done, correspondence: %d\n", (int) refPt.size());
-//
-//
-//
-//				Mat warpped = fullImg[anchor-offset].clone();
-//				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-//				const theia::Camera &srcCam = reconstruction.View(orderedId[testF + offset].second)->Camera();
-//				for (auto y = downsample; y < warpped.rows - downsample; ++y) {
-//					for (auto x = downsample; x < warpped.cols - downsample; ++x) {
-//						if(mask.at<uchar>(y,x) < 200)
-//							continue;
-//						double d = depth_firstOrder_filtered.getDepthAt(
-//								Vector2d((double) x / (double) downsample, (double) y / (double) downsample));
-//						Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y));
-//						Vector3d spt = refCam.GetPosition() + d * ray;
-//						Vector2d imgpt;
-//						srcCam.ProjectPoint(spt.homogeneous(), &imgpt);
-//						if (imgpt[0] < 0 || imgpt[0] > warpped.cols - 1 || imgpt[1] < 0 || imgpt[1] > warpped.rows - 1)
-//							continue;
-//						Vector3d pix = interpolation_util::bilinear<uchar, 3>(fullImg[testF].data, warpped.cols,
-//						                                                      warpped.rows, imgpt);
-//						warpped.at<Vec3b>(y, x) = Vec3b((uchar) pix[0], (uchar) pix[1], (uchar) pix[2]);
-//					}
-//				}
-//				sprintf(buffer, "%s/temp/stereo%05d.jpg", file_io.getDirectory().c_str(), testF);
-//				imwrite(buffer, warpped);
-//				Mat grayRef, graySrc, colorRef, colorSrc;
-//				colorSrc = fullImg[testF].clone();
-//				colorRef = fullImg[anchor-offset].clone();
-////				cvtColor(fullImg[anchor - offset], grayRef, CV_RGB2GRAY);
-////				cvtColor(warpped, graySrc, CV_RGB2GRAY);
-////
-////				cvtColor(grayRef, colorRef, CV_GRAY2RGB);
-////				cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
-//
-////				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
-////					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-////					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-////				}
-////				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
-////					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-////					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-////				}
-//				Mat tgtImg = fullImg[testF].clone();
-//				drawKeyPoints(tgtImg, srcPt);
-//				sprintf(buffer, "%s/temp/trackOnTgt%05d.jpg", file_io.getDirectory().c_str(), testF);
-//				imwrite(buffer, tgtImg);
-//
-//				Mat refImg = fullImg[anchor-offset].clone();
-//				drawKeyPoints(refImg, refPt);
-//				sprintf(buffer, "%s/temp/trackOnRef%05d.jpg", file_io.getDirectory().c_str(), anchor-offset);
-//				imwrite(buffer, refImg);
-//
-//				drawKeyPoints(colorRef, refPt);
-//
-//				Mat stabled, vis;
-//				Mat comb;
-//				gridWarpping.computeWarppingField(testF, refPt, srcPt, fullImg[testF], stabled, vis, true);
-//
-////				hconcat(stabled, vis, comb);
-////				sprintf(buffer, "%s/temp/sta_%05dimg1.jpg", file_io.getDirectory().c_str(), testF);
-////				imwrite(buffer, colorRef);
-////				sprintf(buffer, "%s/temp/sta_%05dimg2.jpg", file_io.getDirectory().c_str(), testF + offset);
-////				imwrite(buffer, colorSrc);
-////				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF + offset);
-////				imwrite(buffer, colorRef);
-////				sprintf(buffer, "%s/temp/sta_%05dimg3.jpg", file_io.getDirectory().c_str(), testF);
-////				imwrite(buffer, colorRef);
-//
-//
-//				for(auto y=0; y<stabled.rows; ++y){
-//					for(auto x=0; x<stabled.cols; ++x){
-//						if(mask.at<uchar>(y,x) < 200)
-//							stabled.at<Vec3b>(y,x) = fullImg[anchor-offset].at<Vec3b>(y,x);
-//					}
-//				}
-//
-//				sprintf(buffer, "%s/temp/sta_%05dimg4.jpg", file_io.getDirectory().c_str(), testF);
-//				imwrite(buffer, stabled);
-//
-////				sprintf(buffer, "%s/temp/unstabled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
-////				imwrite(buffer, warpped);
-////
-////				sprintf(buffer, "%s/temp/stabbled%05d.jpg", file_io.getDirectory().c_str(), testF + offset);
-////				imwrite(buffer, stabled);
-////			sprintf(buffer, "%s/temp/sta_gri%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
-////			imwrite(buffer, vis);
-////			sprintf(buffer, "%s/temp/sta_com%05d.jpg", file_io.getDirectory().c_str(), testF+offset);
-////			imwrite(buffer, comb);
-//			}
-//		}
 
-//		cout << "Solving with second order smoothness (trbp)..." << endl;
-//		SecondOrderOptimizeTRBP optimizer_trbp(file_io, (int)images.size(), model);
-//		Depth result_trbp, depth_trbp;
-//		optimizer_trbp.optimize(result_trbp, 10);
-//		disparityToDepth(result_trbp, depth_trbp);
-//
-//		sprintf(buffer, "%s/temp/result%05d_trbp_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		result_trbp.saveImage(buffer, 255.0 / (double)dispResolution);
-//		sprintf(buffer, "%s/temp/mesh%05d_trbp.ply", file_io.getDirectory().c_str(), anchor);
-//		utility::saveDepthAsPly(string(buffer), depth_trbp, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-
-
-//		cout << "Solving with second order smoothness (fusion move)..." << endl;
-//		SecondOrderOptimizeFusionMove optimizer_fusion(file_io, images.size(), model, dispUnary);
-//		const vector<int>& refSeg = optimizer_fusion.getRefSeg();
-//		Mat segImg;
-//		utility::visualizeSegmentation(refSeg, width, height, segImg);
-//		sprintf(buffer, "%s/temp/refSeg%.5d.jpg", file_io.getDirectory().c_str(), anchor);
-//		imwrite(buffer, segImg);
-//		Depth result_fusion;
-//		optimizer_fusion.optimize(result_fusion, 300);
-//
-//		sprintf(buffer, "%s/temp/result%05d_fusionmove_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		result_fusion.saveImage(buffer, 255.0 / (double)dispResolution);
-//		printf("Saving depth to point cloud...\n");
-//		Depth depth_fusion;
-//		disparityToDepth(result_fusion, depth_fusion);
-//		sprintf(buffer, "%s/temp/mesh_fusion_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-//		utility::saveDepthAsPly(string(buffer), depth_fusion, images[anchor-offset], reconstruction.View(anchor)->Camera(), downsample);
-//		warpToAnchor(result_fusion, "fusion");
-
-//		cout << "Solving with second order smoothness (TRWS)..." << endl;
-//		SecondOrderOptimizeTRWS optimizer_TRWS(file_io, (int)images.size(), model);
-//		Depth result_TRWS;
-//		optimizer_TRWS.optimize(result_TRWS, 1);
-//
-//		sprintf(buffer, "%s/temp/result%05d_TRWS_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-//		result_TRWS.saveImage(buffer, 255.0 / (double)dispResolution);
-//		warpToAnchor(result_TRWS, "TRWS");
 	}
 
 	void DynamicStereo::warpToAnchor(const Depth& refDisp, const std::string& prefix) const{
@@ -541,7 +367,7 @@ namespace dynamic_stereo{
 		vector<Mat> oriWarpped(warpped.size());
 		for(auto i=startid; i<=endid; ++i)
 			oriWarpped[i] = warpped[i].clone();
-//		const int r = 5;
+//		const int r = 1;
 //		printf("Applying median filter, r = %d\n", r);
 //		for(auto i=startid; i<=endid; ++i) {
 //			int s, e;
