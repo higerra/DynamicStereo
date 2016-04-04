@@ -21,6 +21,7 @@ namespace dynamic_stereo {
         const theia::View *anchorView = reconstruction.View(orderedId[anchor].second);
         const theia::Camera cam = anchorView->Camera();
         vector<theia::TrackId> trackIds = anchorView->TrackIds();
+        printf("number of tracks:%lu\n", trackIds.size());
         vector<double> depths;
         for (const auto tid: trackIds) {
             const theia::Track *t = reconstruction.Track(tid);
@@ -42,7 +43,6 @@ namespace dynamic_stereo {
         nth_element(depths.begin(), depths.begin() + highKth, depths.end());
         CHECK_GT(depths[highKth], 0.0);
         min_disp = 1.0 / (depths[highKth]);
-
 	    model->min_disp = min_disp;
 	    model->max_disp = max_disp;
     }
@@ -74,7 +74,7 @@ namespace dynamic_stereo {
             fin.read((char *) &type, sizeof(int));
             fin.read((char *) &mindisp, sizeof(double));
             fin.read((char *) &maxdisp, sizeof(double));
-            printf("Cached data: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.5f, max_disp:%.5f\n",
+            printf("Cached data: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
                    frame, resolution, tw, ds, type, mindisp, maxdisp);
             if (frame == anchor && resolution == dispResolution && tw == tWindowStereo &&
                 type == sizeof(EnergyType) && ds == downsample && min_disp == mindisp && max_disp == maxdisp) {
@@ -89,12 +89,13 @@ namespace dynamic_stereo {
             int index = 0;
             int unit = width * height / 10;
             const int stereoOffset = anchor - tWindowStereo / 2;
+            printf("Stereo Offset: %d, stereo frame range: %d->%d\n", stereoOffset, anchor-stereoOffset, anchor-stereoOffset+tWindowStereo);
             //Be careful about down sample ratio!!!!!
             for (int y = 0; y < height; ++y) {
                 for (int x = 0; x < width; ++x, ++index) {
                     if (index % unit == 0)
                         cout << '.' << flush;
-//#pragma omp parallel for
+#pragma omp parallel for
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
                         double depth = model->dispToDepth(d);
@@ -133,7 +134,7 @@ namespace dynamic_stereo {
                                         patches[v].push_back(-1);
                                         patches[v].push_back(-1);
                                     } else {
-                                        Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v].data, width,
+                                        Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v+stereoOffset-offset].data, width,
                                                                                             height, imgpt);
                                         patches[v].push_back(c[0]);
                                         patches[v].push_back(c[1]);

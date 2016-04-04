@@ -183,36 +183,36 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-//			const int tx = 0 / downsample;
-//			const int ty = 0 / downsample;
-//			printf("Unary term for (%d,%d)\n", tx, ty);
-//			for (auto d = 0; d < dispResolution; ++d) {
-//				cout << model->operator()(ty * width + tx, d) << ' ';
-//			}
-//			cout << endl;
-//			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
-//
-//			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
-//			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
-//			//ray.normalize();
-//
-//			int tdisp = (int) dispUnary(tx, ty);
-//			//int tdisp = 30;
-//			double td = model->dispToDepth(tdisp);
-//			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty * width + tx, tdisp));
-//
-//			Vector3d spt = cam.GetPosition() + ray * td;
-//			for (auto v = 0; v < images.size(); ++v) {
-//				Mat curimg = imread(file_io.getImage(v + offset));
-//				Vector2d imgpt;
-//				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
-//						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-//				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
-//					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
-//				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
-//						v + offset);
-//				imwrite(buffer, curimg);
-//			}
+			const int tx = 1078 / downsample;
+			const int ty = 258 / downsample;
+			printf("Unary term for (%d,%d)\n", tx, ty);
+			for (auto d = 0; d < dispResolution; ++d) {
+				cout << model->operator()(ty * width + tx, d) << ' ';
+			}
+			cout << endl;
+			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary.getDepthAtInt(tx, ty));
+
+			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
+			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx * downsample, ty * downsample));
+			//ray.normalize();
+
+			int tdisp = (int) dispUnary(tx, ty);
+			//int tdisp = 30;
+			double td = model->dispToDepth(tdisp);
+			printf("Cost at d=%d: %d\n", tdisp, model->operator()(ty * width + tx, tdisp));
+
+			Vector3d spt = cam.GetPosition() + ray * td;
+			for (auto v = 0; v < images.size(); ++v) {
+				Mat curimg = imread(file_io.getImage(v + offset));
+				Vector2d imgpt;
+				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
+						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
+					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 2, cv::Scalar(0, 0, 255), 2);
+				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
+						v + offset);
+				imwrite(buffer, curimg);
+			}
 		}
 
 		{
