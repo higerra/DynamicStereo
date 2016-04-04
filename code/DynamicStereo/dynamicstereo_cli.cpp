@@ -89,6 +89,7 @@ int main(int argc, char **argv) {
 
     {
         //    //test SfM
+
         const int tf1 = FLAGS_testFrame;
 		Mat imgRef = imread(file_io.getImage(tf1));
         //In original scale
