@@ -110,4 +110,5 @@ namespace local_matcher {
         nth_element(mCost.begin(), mCost.begin() + kth, mCost.end());
         return mCost[kth];
     }
+
 }

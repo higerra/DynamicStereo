@@ -55,6 +55,53 @@ namespace dynamic_stereo {
         assignSmoothWeight();
     }
 
+	void DynamicStereo::getPatchArray(const int x, const int y, const int d, const theia::Camera& refCam, const int stereoOffset, vector<vector<double> >& patches) const {
+		double depth = model->dispToDepth(d);
+		//sample in 3D space
+		vector<Vector4d> sptBase;
+		for (auto dy = -1 * pR; dy <= pR; ++dy) {
+			for (auto dx = -1 * pR; dx <= pR; ++dx) {
+				Vector2d pt(x + dx, y + dy);
+				if (pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1) {
+					sptBase.push_back(Vector4d(0, 0, 0, 0));
+					continue;
+				}
+				Vector3d ray = refCam.PixelToUnitDepthRay(pt * downsample);
+				Vector3d spt = refCam.GetPosition() + ray * depth;
+				Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
+				sptBase.push_back(spt_homo);
+			}
+		}
+
+		//project onto other views and compute matching cost
+		patches.resize(tWindowStereo);
+		for (auto v = 0; v < tWindowStereo; ++v) {
+			const theia::Camera& cam2 = reconstruction.View(orderedId[v + stereoOffset].second)->Camera();
+			for (const auto &spt: sptBase) {
+				if (spt[3] == 0) {
+					patches[v].push_back(-1);
+					patches[v].push_back(-1);
+					patches[v].push_back(-1);
+				} else {
+					Vector2d imgpt;
+					cam2.ProjectPoint(spt, &imgpt);
+					imgpt = imgpt / (double) downsample;
+					if (imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] > width - 1 || imgpt[1] > height - 1) {
+						patches[v].push_back(-1);
+						patches[v].push_back(-1);
+						patches[v].push_back(-1);
+					} else {
+						Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v+stereoOffset-offset].data, width,
+						                                                    height, imgpt);
+						patches[v].push_back(c[0]);
+						patches[v].push_back(c[1]);
+						patches[v].push_back(c[2]);
+					}
+				}
+			}
+		}
+	}
+
     void DynamicStereo::assignDataTerm() {
 	    CHECK_GT(min_disp, 0);
 	    CHECK_GT(max_disp, 0);
@@ -98,51 +145,8 @@ namespace dynamic_stereo {
 #pragma omp parallel for
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
-                        double depth = model->dispToDepth(d);
-
-                        //sample in 3D space
-                        vector<Vector4d> sptBase;
-                        for (auto dy = -1 * pR; dy <= pR; ++dy) {
-                            for (auto dx = -1 * pR; dx <= pR; ++dx) {
-                                Vector2d pt(x + dx, y + dy);
-                                if (pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1) {
-                                    sptBase.push_back(Vector4d(0, 0, 0, 0));
-                                    continue;
-                                }
-                                Vector3d ray = cam1.PixelToUnitDepthRay(pt * downsample);
-                                Vector3d spt = cam1.GetPosition() + ray * depth;
-                                Vector4d spt_homo(spt[0], spt[1], spt[2], 1.0);
-                                sptBase.push_back(spt_homo);
-                            }
-                        }
-
-                        //project onto other views and compute matching cost
-                        vector<vector<double> > patches(tWindowStereo);
-                        for (auto v = 0; v < tWindowStereo; ++v) {
-                            const theia::Camera& cam2 = reconstruction.View(orderedId[v + stereoOffset].second)->Camera();
-                            for (const auto &spt: sptBase) {
-                                if (spt[3] == 0) {
-                                    patches[v].push_back(-1);
-                                    patches[v].push_back(-1);
-                                    patches[v].push_back(-1);
-                                } else {
-                                    Vector2d imgpt;
-                                    cam2.ProjectPoint(spt, &imgpt);
-                                    imgpt = imgpt / (double) downsample;
-                                    if (imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] > width - 1 || imgpt[1] > height - 1) {
-                                        patches[v].push_back(-1);
-                                        patches[v].push_back(-1);
-                                        patches[v].push_back(-1);
-                                    } else {
-                                        Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v+stereoOffset-offset].data, width,
-                                                                                            height, imgpt);
-                                        patches[v].push_back(c[0]);
-                                        patches[v].push_back(c[1]);
-                                        patches[v].push_back(c[2]);
-                                    }
-                                }
-                            }
-                        }
+	                    vector<vector<double> > patches;
+	                    getPatchArray(x,y,d,cam1, stereoOffset, patches);
                         double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
                         //double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
 	                    model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);

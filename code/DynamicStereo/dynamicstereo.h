@@ -45,6 +45,8 @@ namespace dynamic_stereo {
 		void disparityToDepth(const Depth& disp, Depth& depth);
 		void bilateralFilter(const Depth& input, const cv::Mat& inputImg, Depth& output,
 							 const int size, const double sigmas, const double sigmar, const double sigmau);
+
+	    void getPatchArray(const int x, const int y, const int d, const theia::Camera& refCam, const int stereoOffset, std::vector<std::vector<double> >& patches) const;
     private:
         typedef int EnergyType;
 
@@ -75,9 +77,6 @@ namespace dynamic_stereo {
 
         //downsampled version
         std::vector<cv::Mat> images;
-
-	    //segmentation from meanshift, used for space varying CRF weight
-	    std::vector<int> refSeg;
 
         theia::Reconstruction reconstruction;
         Depth dispUnary; //Noisy disparity map only based on unary term

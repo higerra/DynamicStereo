@@ -183,8 +183,8 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-			const int tx = 38;
-			const int ty = 279;
+			const int tx = 1214;
+			const int ty = 308;
 			int dtx = tx / downsample;
 			int dty = ty / downsample;
 			printf("Unary term for (%d,%d)\n", tx, ty);
@@ -198,8 +198,8 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx, ty));
 			//ray.normalize();
 
-			int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
-			//int tdisp = 2;
+			//int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
+			int tdisp = 30;
 			double td = model->dispToDepth(tdisp);
 			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
 
@@ -215,6 +215,15 @@ namespace dynamic_stereo{
 						v + offset);
 				imwrite(buffer, curimg);
 			}
+		}
+
+		{
+			//test for PCA
+			const int tx = 1214;
+			const int ty = 308;
+			const int testd = 30;
+			vector<vector<double> > patches;
+			
 		}
 
 		{
