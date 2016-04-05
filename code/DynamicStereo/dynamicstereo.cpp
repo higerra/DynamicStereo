@@ -224,13 +224,15 @@ namespace dynamic_stereo{
 			const int testd = 30;
 			vector<vector<double> > patches;
 			const theia::Camera& refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-			getPatchArray(tx/downsample, ty/downsample, testd, refCam, anchor-tWindowStereo/2, patches);
-			vector<vector<double> > patches_ave;
+			getPatchArray(tx/downsample, ty/downsample, testd, 0,refCam, anchor-tWindowStereo/2, patches);
+			vector<vector<double> > patch_reduce;
 			for(const auto& p: patches){
-				CHECK_EQ(p.size(), (pR+1) * (pR+1) * 3);
-				Vector3d aveP;
-				double count = 0.0;
+				CHECK_EQ(p.size(), 3);
+				if(*min_element(p.begin(), p.end()) < 0)
+					continue;
+				patch_reduce.push_back(p);
 			}
+			
 		}
 
 		{
