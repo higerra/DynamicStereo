@@ -55,12 +55,12 @@ namespace dynamic_stereo {
         assignSmoothWeight();
     }
 
-	void DynamicStereo::getPatchArray(const int x, const int y, const int d, const theia::Camera& refCam, const int stereoOffset, vector<vector<double> >& patches) const {
+	void DynamicStereo::getPatchArray(const int x, const int y, const int d, const int r, const theia::Camera& refCam, const int stereoOffset, vector<vector<double> >& patches) const {
 		double depth = model->dispToDepth(d);
 		//sample in 3D space
 		vector<Vector4d> sptBase;
-		for (auto dy = -1 * pR; dy <= pR; ++dy) {
-			for (auto dx = -1 * pR; dx <= pR; ++dx) {
+		for (auto dy = -1 * r; dy <= r; ++dy) {
+			for (auto dx = -1 * r; dx <= r; ++dx) {
 				Vector2d pt(x + dx, y + dy);
 				if (pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1) {
 					sptBase.push_back(Vector4d(0, 0, 0, 0));
@@ -146,7 +146,7 @@ namespace dynamic_stereo {
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
 	                    vector<vector<double> > patches;
-	                    getPatchArray(x,y,d,cam1, stereoOffset, patches);
+	                    getPatchArray(x,y,d, pR, cam1, stereoOffset, patches);
                         double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
                         //double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
 	                    model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
