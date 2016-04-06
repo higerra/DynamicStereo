@@ -183,10 +183,10 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-			const int tx = 1214;
-			const int ty = 308;
-//			const int tx = 794;
-//			const int ty = 294;
+//			const int tx = 1214;
+//			const int ty = 308;
+			const int tx = 794;
+			const int ty = 294;
 			int dtx = tx / downsample;
 			int dty = ty / downsample;
 
@@ -202,7 +202,7 @@ namespace dynamic_stereo{
 			//ray.normalize();
 
 //			int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
-			int tdisp = 28;
+			int tdisp = 63;
 			double td = model->dispToDepth(tdisp);
 			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
 
@@ -222,10 +222,10 @@ namespace dynamic_stereo{
 
 		{
 			//test for PCA
-			const int tx = 1214;
-			const int ty = 308;
-//			const int tx = 794;
-//			const int ty = 294;
+//			const int tx = 1214;
+//			const int ty = 308;
+			const int tx = 794;
+			const int ty = 294;
 			const int dim = 3;
 			vector<double> reprojeEs(dispResolution);
 			double minreproE = numeric_limits<double>::max();
@@ -269,7 +269,7 @@ namespace dynamic_stereo{
 				for (auto i = 0; i < dim; ++i)
 					ev[i] = eigenv.at<double>(i, 0);
 
-				double ratio = 1.0 - (ev[2] / (ev[0] + ev[1] + ev[2]));
+				double ratio = ev[0] / (ev[0] + ev[1] + ev[2]);
 				printf("Eigen values: %.3f,%.3f,%.3f. Ratio: %.3f\n", ev[0], ev[1], ev[2], ratio);
 
 				//compute reprojection error
@@ -283,6 +283,7 @@ namespace dynamic_stereo{
 					for(auto j=0; j<dim; ++j)
 						reproE += pAbsd[j] * pAbsd[j];
 				}
+				reproE = sqrt(reproE / (double)Dm.rows);
 				printf("Reprojection error: %.3f\n", reproE);
 				reprojeEs[testd] = reproE;
 				if(reproE < minreproE){
