@@ -183,26 +183,27 @@ namespace dynamic_stereo{
 
 		{
 			//debug: inspect unary term
-//			const int tx = 1214;
-//			const int ty = 308;
-			const int tx = 794;
-			const int ty = 294;
-			int dtx = tx / downsample;
-			int dty = ty / downsample;
+//			const int tx = 794;
+//			const int ty = 294;
+//			const int tx = 1077;
+//			const int ty = 257;
 
-			printf("Unary term for (%d,%d)\n", tx, ty);
+			int dtx = (int)dbtx / downsample;
+			int dty = (int)dbty / downsample;
+
+			printf("Unary term for (%d,%d)\n", (int)dbtx, (int)dbty);
 			for (auto d = 0; d < dispResolution; ++d) {
 				cout << model->operator()(dty * width + dtx, d) << ' ';
 			}
 			cout << endl;
-			printf("noisyDisp(%d,%d): %.2f\n", tx, ty, dispUnary[dty*width+dtx]);
+			printf("noisyDisp(%d,%d): %.2f\n", (int)dbtx, (int)dbty, dispUnary[dty*width+dtx]);
 
 			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
-			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx, ty));
+			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
 //			int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
-			int tdisp = 63;
+			int tdisp = 62;
 			double td = model->dispToDepth(tdisp);
 			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
 
@@ -222,20 +223,17 @@ namespace dynamic_stereo{
 
 		{
 			//test for PCA
-//			const int tx = 1214;
-//			const int ty = 308;
-			const int tx = 794;
-			const int ty = 294;
 			const int dim = 3;
 			vector<double> reprojeEs(dispResolution);
 			double minreproE = numeric_limits<double>::max();
 			int minreproDisp = 0;
 			for (auto testd = 0; testd < dispResolution; ++testd) {
-				printf("==========================\ndisparity:%d\n", testd);
+				printf("===============================\nDisparity %d\n", testd);
 				vector<vector<double> > patches;
 				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-				getPatchArray(tx / downsample, ty / downsample, testd, pR, refCam, anchor - tWindowStereo / 2, patches);
+				getPatchArray(dbtx / downsample, dbty / downsample, testd, 0, refCam, 0, (int)images.size()-1, patches);
 				vector<VectorXd> patch_reduce;
+				int fid = anchor - tWindowStereo / 2;
 				for (const auto &p: patches) {
 					CHECK_EQ(p.size() % dim, 0);
 					if (*min_element(p.begin(), p.end()) < 0)
@@ -273,17 +271,16 @@ namespace dynamic_stereo{
 				printf("Eigen values: %.3f,%.3f,%.3f. Ratio: %.3f\n", ev[0], ev[1], ev[2], ratio);
 
 				//compute reprojection error
-				cv::PCA pca2(Dm, Mat(), CV_PCA_DATA_AS_ROW, 2);
+				cv::PCA pca2(Dm, Mat(), CV_PCA_DATA_AS_ROW, 1);
 				double reproE = 0.0;
 				for(auto i=0; i<Dm.rows; ++i){
 					Mat reprojected = pca2.backProject(pca2.project(Dm.row(i)));
 					Mat absd;
 					cv::absdiff(Dm.row(i), reprojected, absd);
 					const double* pAbsd = (double*)absd.data;
-					for(auto j=0; j<dim; ++j)
-						reproE += pAbsd[j] * pAbsd[j];
+					reproE += sqrt(pAbsd[0]*pAbsd[0]+pAbsd[1]*pAbsd[1]+pAbsd[2]*pAbsd[2]);
 				}
-				reproE = sqrt(reproE / (double)Dm.rows);
+				reproE = reproE / (double)Dm.rows;
 				printf("Reprojection error: %.3f\n", reproE);
 				reprojeEs[testd] = reproE;
 				if(reproE < minreproE){
@@ -295,50 +292,37 @@ namespace dynamic_stereo{
 		}
 
 		{
-			//plot the gray value
-//			Vector2d testPt(1178,422);
-//			const int testDisp = 3;
-//
-//			vector<vector<double> > gv(dispResolution); //gv[i][j]: pixel in jth view on disparity i
-//			const theia::Camera cam = reconstruction.View(anchor)->Camera();
-//			Vector3d ray = cam.PixelToUnitDepthRay(testPt);
-//			ray.normalize();
-//
-//			vector<Mat> grayImg(images.size());
-//			for(auto v=0; v<images.size(); ++v)
-//				cvtColor(images[v], grayImg[v], CV_RGB2GRAY);
-//			for(auto d=0; d<dispResolution; ++d){
-//				double depth = dispToDepth(d);
-//				Vector3d spt = cam.GetPosition() + ray * depth;
-//				for(auto v=0; v<images.size(); ++v){
-//					const theia::Camera cam2 = reconstruction.View(v + offset)->Camera();
-//					Vector2d imgpt;
-//					cam2.ProjectPoint(Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-//					imgpt = imgpt / downsample;
-//					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width - 1 || imgpt[1] >= height - 1)
-//						gv[d].push_back(0.0);
-//					else {
-//						VectorXd pix = interpolation_util::bilinear<uchar, 1>(grayImg[v].data, width, height, imgpt);
-//						gv[d].push_back(pix[0]);
-//					}
-//
-//					if(d == testDisp){
-//						Mat outImg = grayImg[v].clone();
-//						cvtColor(outImg, outImg, CV_GRAY2RGB);
-//						circle(outImg, cv::Point(imgpt[0], imgpt[1]),1,cv::Scalar(0,0,255));
-//						sprintf(buffer, "%s/temp/pattern_d%03d_v%03d.jpg", file_io.getDirectory().c_str(), d, v+offset);
-//						imwrite(buffer, outImg);
-//					}
-//				}
-//			}
-//			sprintf(buffer, "%s/temp/pattern.txt", file_io.getDirectory().c_str());
-//			ofstream fout(buffer);
-//			CHECK(fout.is_open());
-//			for(auto d=0; d<gv.size(); ++d){
-//				for(auto v=0; v<gv[d].size(); ++v)
-//					fout << gv[d][v] << ' ';
-//				fout << endl;
-//			}
+			//plot the matching cost
+			for (auto testd = 0; testd < dispResolution; ++testd) {
+				sprintf(buffer, "%s/temp/costpattern%05d_%03d.txt", file_io.getDirectory().c_str(), anchor, testd);
+				ofstream fout(buffer);
+				CHECK(fout.is_open());
+//				printf("===============================\nDisparity %d\n", testd);
+				vector<vector<double> > patches;
+				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
+				getPatchArray(dbtx / downsample, dbty / downsample, testd, pR, refCam, 0, (int) images.size() - 1,
+							  patches);
+				vector<double> mCost;
+				int startid = 999, endid = 0;
+				int refId = (int) patches.size() / 2;
+				for (auto i = 0; i < patches.size(); ++i) {
+					if (*min_element(patches[i].begin(), patches[i].end()) < 0)
+						continue;
+					startid = std::min(startid, i);
+					endid = std::max(endid, i);
+				}
+				for (auto i = startid; i <= endid; ++i) {
+					double ssd = 0.0;
+					for (auto j = 0; j < patches[i].size(); ++j) {
+						ssd += (patches[refId][j] - patches[i][j]) * (patches[refId][j] - patches[i][j]);
+					}
+					mCost.push_back(ssd);
+				}
+				for (auto v: mCost)
+					fout << v << ' ';
+				fout << endl;
+				fout.close();
+			}
 		}
 
 ////

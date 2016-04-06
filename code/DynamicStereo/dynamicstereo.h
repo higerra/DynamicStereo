@@ -46,7 +46,11 @@ namespace dynamic_stereo {
 		void bilateralFilter(const Depth& input, const cv::Mat& inputImg, Depth& output,
 							 const int size, const double sigmas, const double sigmar, const double sigmau);
 
-	    void getPatchArray(const int x, const int y, const int d, const int r, const theia::Camera& refCam, const int stereoOffset, std::vector<std::vector<double> >& patches) const;
+	    void getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, const int startid, const int endid, std::vector<std::vector<double> >& patches) const;
+
+		//for debuging
+		double dbtx;
+		double dbty;
     private:
         typedef int EnergyType;
 

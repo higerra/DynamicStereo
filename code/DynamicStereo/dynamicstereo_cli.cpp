@@ -78,6 +78,10 @@ int main(int argc, char **argv) {
 			Mat imgRef = imread(file_io.getImage(tf1));
 			//In original scale
 			Vector2d pt(1214, 308);
+			stereo.dbtx = pt[0];
+			stereo.dbty = pt[1];
+			//Vector2d pt(794, 294);
+			//Vector2d pt(1077, 257);
 			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
 			cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0, 0, 255), 2);
 			imwrite(buffer, imgRef);

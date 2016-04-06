@@ -55,12 +55,13 @@ namespace dynamic_stereo {
         assignSmoothWeight();
     }
 
-	void DynamicStereo::getPatchArray(const int x, const int y, const int d, const int r, const theia::Camera& refCam, const int stereoOffset, vector<vector<double> >& patches) const {
+	void DynamicStereo::getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, const int startid, const int endid, vector<vector<double> >& patches) const {
 		double depth = model->dispToDepth(d);
 		//sample in 3D space
 		vector<Vector4d> sptBase;
-		for (auto dy = -1 * r; dy <= r; ++dy) {
-			for (auto dx = -1 * r; dx <= r; ++dx) {
+		const double dr = (double)r / (double)downsample;
+		for (double dy = -1 * dr; dy <= dr; dy += 1.0  / downsample) {
+			for (double dx = -1 * dr; dx <= dr; dx += 1.0 / downsample) {
 				Vector2d pt(x + dx, y + dy);
 				if (pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1) {
 					sptBase.push_back(Vector4d(0, 0, 0, 0));
@@ -74,9 +75,12 @@ namespace dynamic_stereo {
 		}
 
 		//project onto other views and compute matching cost
-		patches.resize(tWindowStereo);
-		for (auto v = 0; v < tWindowStereo; ++v) {
-			const theia::Camera& cam2 = reconstruction.View(orderedId[v + stereoOffset].second)->Camera();
+		patches.resize((size_t)(endid - startid + 1));
+		for (auto v = startid; v <= endid; ++v) {
+			CHECK_GE(v,0);
+			CHECK_LT(v, images.size());
+			const theia::Camera& cam2 = reconstruction.View(orderedId[v + offset].second)->Camera();
+			//printf("--------------Sample from frame %d\n", v+stereoOffset);
 			for (const auto &spt: sptBase) {
 				if (spt[3] == 0) {
 					patches[v].push_back(-1);
@@ -85,17 +89,20 @@ namespace dynamic_stereo {
 				} else {
 					Vector2d imgpt;
 					cam2.ProjectPoint(spt, &imgpt);
+			//		printf("image pt: (%.2f,%.2f)\t", imgpt[0], imgpt[1]);
 					imgpt = imgpt / (double) downsample;
+
 					if (imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] > width - 1 || imgpt[1] > height - 1) {
 						patches[v].push_back(-1);
 						patches[v].push_back(-1);
 						patches[v].push_back(-1);
 					} else {
-						Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v+stereoOffset-offset].data, width,
+						Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v].data, width,
 						                                                    height, imgpt);
 						patches[v].push_back(c[0]);
 						patches[v].push_back(c[1]);
 						patches[v].push_back(c[2]);
+			//			printf("Color: (%.2f,%.2f,%.2f)\n", c[0], c[1], c[2]);
 					}
 				}
 			}
@@ -132,7 +139,6 @@ namespace dynamic_stereo {
         }
         if(recompute) {
             const theia::Camera& cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
-
             int index = 0;
             int unit = width * height / 10;
             const int stereoOffset = anchor - tWindowStereo / 2;
@@ -146,7 +152,7 @@ namespace dynamic_stereo {
                     for (int d = 0; d < dispResolution; ++d) {
                         //compute 3D point
 	                    vector<vector<double> > patches;
-	                    getPatchArray(x,y,d, pR, cam1, stereoOffset, patches);
+	                    getPatchArray((double)x,(double)y,d, pR, cam1, anchor-stereoOffset, anchor-stereoOffset+tWindowStereo-1, patches);
                         double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
                         //double mCost = local_matcher::medianMatchingCost(patches, anchor-offset);
 	                    model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
