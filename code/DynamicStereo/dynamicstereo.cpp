@@ -185,8 +185,11 @@ namespace dynamic_stereo{
 			//debug: inspect unary term
 			const int tx = 1214;
 			const int ty = 308;
+//			const int tx = 794;
+//			const int ty = 294;
 			int dtx = tx / downsample;
 			int dty = ty / downsample;
+
 			printf("Unary term for (%d,%d)\n", tx, ty);
 			for (auto d = 0; d < dispResolution; ++d) {
 				cout << model->operator()(dty * width + dtx, d) << ' ';
@@ -198,8 +201,8 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(tx, ty));
 			//ray.normalize();
 
-			//int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
-			int tdisp = 30;
+//			int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
+			int tdisp = 28;
 			double td = model->dispToDepth(tdisp);
 			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
 
@@ -221,18 +224,73 @@ namespace dynamic_stereo{
 			//test for PCA
 			const int tx = 1214;
 			const int ty = 308;
-			const int testd = 30;
-			vector<vector<double> > patches;
-			const theia::Camera& refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-			getPatchArray(tx/downsample, ty/downsample, testd, 0,refCam, anchor-tWindowStereo/2, patches);
-			vector<vector<double> > patch_reduce;
-			for(const auto& p: patches){
-				CHECK_EQ(p.size(), 3);
-				if(*min_element(p.begin(), p.end()) < 0)
-					continue;
-				patch_reduce.push_back(p);
+//			const int tx = 794;
+//			const int ty = 294;
+			const int dim = 3;
+			vector<double> reprojeEs(dispResolution);
+			double minreproE = numeric_limits<double>::max();
+			int minreproDisp = 0;
+			for (auto testd = 0; testd < dispResolution; ++testd) {
+				printf("==========================\ndisparity:%d\n", testd);
+				vector<vector<double> > patches;
+				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
+				getPatchArray(tx / downsample, ty / downsample, testd, pR, refCam, anchor - tWindowStereo / 2, patches);
+				vector<VectorXd> patch_reduce;
+				for (const auto &p: patches) {
+					CHECK_EQ(p.size() % dim, 0);
+					if (*min_element(p.begin(), p.end()) < 0)
+						continue;
+					for(auto j=0; j<p.size() / dim; ++j){
+						VectorXd pt(dim);
+						for(auto k=0; k<dim; ++k)
+							pt[k] = p[j*dim+k];
+						patch_reduce.push_back(pt);
+					}
+				}
+
+				sprintf(buffer, "%s/temp/matrix%05d_%03d.txt", file_io.getDirectory().c_str(), anchor, testd);
+				ofstream fout(buffer);
+				CHECK(fout.is_open());
+				for(auto i=0; i<patch_reduce.size(); ++i){
+					for(auto j=0; j<dim; ++j)
+						fout << patch_reduce[i][j] << ' ';
+					fout << endl;
+				}
+				fout.close();
+
+				Mat Dm((int) patch_reduce.size(), dim, CV_64FC1);
+				for (auto i = 0; i < patch_reduce.size(); ++i) {
+					for (auto j = 0; j < dim; ++j)
+						Dm.at<double>(i, j) = patch_reduce[i][j];
+				}
+				cv::PCA pca(Dm, Mat(), CV_PCA_DATA_AS_ROW, 0);
+				Mat eigenv = pca.eigenvalues;
+				vector<double> ev(dim);
+				for (auto i = 0; i < dim; ++i)
+					ev[i] = eigenv.at<double>(i, 0);
+
+				double ratio = 1.0 - (ev[2] / (ev[0] + ev[1] + ev[2]));
+				printf("Eigen values: %.3f,%.3f,%.3f. Ratio: %.3f\n", ev[0], ev[1], ev[2], ratio);
+
+				//compute reprojection error
+				cv::PCA pca2(Dm, Mat(), CV_PCA_DATA_AS_ROW, 2);
+				double reproE = 0.0;
+				for(auto i=0; i<Dm.rows; ++i){
+					Mat reprojected = pca2.backProject(pca2.project(Dm.row(i)));
+					Mat absd;
+					cv::absdiff(Dm.row(i), reprojected, absd);
+					const double* pAbsd = (double*)absd.data;
+					for(auto j=0; j<dim; ++j)
+						reproE += pAbsd[j] * pAbsd[j];
+				}
+				printf("Reprojection error: %.3f\n", reproE);
+				reprojeEs[testd] = reproE;
+				if(reproE < minreproE){
+					minreproE = reproE;
+					minreproDisp = testd;
+				}
 			}
-			
+			printf("Minimum reprojection error: %.3f, disp: %d\n", minreproE, minreproDisp);
 		}
 
 		{
