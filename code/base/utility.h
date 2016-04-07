@@ -123,7 +123,28 @@ namespace math_util {
 		return std::exp(-1 * (v-m)*(v-m) / (2 * sigma * sigma));
 	}
 
-}//namespace_math_util
+
+
+}//namespace math_util
+
+namespace geometry_util{
+	template<int N>
+	double distanceToLineSegment(const Eigen::Matrix<double,N,1>& pt, const Eigen::Matrix<double, N,1>& spt, const Eigen::Matrix<double, N,1>& ept){
+		const double epsilon = 1e-6;
+		typedef Eigen::Matrix<double, N,1> VecN;
+		VecN sp = pt - spt;
+		VecN lineDir = ept - spt;
+		double lineNorm = lineDir.norm();
+		CHECK_GT(lineNorm, epsilon);
+		lineDir /= lineNorm;
+		//p2: projection of pt to line
+		VecN p2 = spt + lineDir * sp.dot(lineDir);
+		//if p2 is outside line segment
+		if((p2-spt).dot(ept-p2) > 0)
+			return std::min((pt-spt).norm(), (pt-ept).norm());
+		return (pt-p2).norm();
+	}
+}//namespace geometry_util
 
 
 #endif //RENDERPROJECT_INTERPOLATION_H
