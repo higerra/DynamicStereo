@@ -13,10 +13,10 @@
 #include <glog/logging.h>
 #include <theia/theia.h>
 #include <time.h>
-#include "base/utility.h"
-#include "base/configurator.h"
-#include "base/depth.h"
-#include "base/file_io.h"
+#include "../base/utility.h"
+#include "../base/configurator.h"
+#include "../base/depth.h"
+#include "../base/file_io.h"
 //#include "external/QPBO1.4/ELC.h"
 #include "external/segment_ms/msImageProcessor.h"
 #include "external/segment_gb/segment-image.h"

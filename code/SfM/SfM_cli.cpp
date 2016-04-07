@@ -42,7 +42,7 @@
 #include <vector>
 #include <stlplus3/file_system.hpp>
 #include <opencv2/opencv.hpp>
-#include "base/file_io.h"
+#include "../base/file_io.h"
 
 #include "command_line_helpers.h"
 

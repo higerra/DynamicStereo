@@ -8,6 +8,7 @@ set(SOURCE_FILES dynamicstereo.cpp dynamicstereo_cli.cpp MRFDefinition.cpp
 set(HEADER_FILES dynamicstereo.h optimization.h local_matcher.h model.h)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/DynamicStereo)
 
+include_directories(/usr/local/include/eigen3 ${THEIA_INCLUDE_DIRS})
 #add_subdirectory(external/segment_ms)
 #add_subdirectory(external/segment_gb)
 #add_subdirectory(external/QPBO1.4)

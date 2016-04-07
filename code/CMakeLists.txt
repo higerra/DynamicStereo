@@ -12,8 +12,6 @@ find_package(Ceres REQUIRED)
 find_package(gflags REQUIRED)
 find_package(Theia REQUIRED)
 
-include_directories(/usr/local/include/eigen3 ${CMAKE_CURRENT_SOURCE_DIR} ${THEIA_INCLUDE_DIRS})
-
 unset(OPENMP_FOUND)
 unset(CUDA_FOUND)
 find_package(OpenMP QUIET)
@@ -24,10 +22,13 @@ if(OPENMP_FOUND)
     message("-- Compiler flags: ${CMAKE_CXX_FLAGS}")
 endif()
 
+
 if(CUDA_FOUND)
     message("-- Found CUDA")
     add_definitions("-DUSE_CUDA")
 endif()
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/MRF2.2)

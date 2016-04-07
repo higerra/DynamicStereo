@@ -7,6 +7,7 @@ set(HEADER_FILE frame.h camera.h camera_utli.h superpixel.h colorwheel.h optical
 set(SOURCE_FILE frame.cpp camera.cpp camera_utli.cpp depth.cpp superpixel.cpp colorwheel.cpp opticalflow.cpp SLIC.cpp
         configurator.cpp meanshift.cpp utility.cpp plane3D.cpp simplePly.cpp)
 
+include_directories(/usr/local/include/eigen3)
 add_subdirectory(OpticalFlow)
 add_library(base ${HEADER_FILE} ${SOURCE_FILE})
 

@@ -13,8 +13,8 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
 
-#include "base/depth.h"
-#include "base/file_io.h"
+#include "../base/depth.h"
+#include "../base/file_io.h"
 #include "model.h"
 
 namespace dynamic_stereo {
