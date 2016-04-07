@@ -140,7 +140,7 @@ namespace geometry_util{
 		//p2: projection of pt to line
 		VecN p2 = spt + lineDir * sp.dot(lineDir);
 		//if p2 is outside line segment
-		if((p2-spt).dot(ept-p2) > 0)
+		if((p2-spt).dot(ept-p2) < 0)
 			return std::min((pt-spt).norm(), (pt-ept).norm());
 		return (pt-p2).norm();
 	}
