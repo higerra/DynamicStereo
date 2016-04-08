@@ -68,8 +68,8 @@ namespace dynamic_stereo {
 
 		cout << "Computing confidence..." << endl;
 		const int unit = width * height / 10;
-		const int testx = -1;
-		const int testy = -1;
+		const int testx = 1078 / downsample;
+		const int testy = 257 / downsample;
 
 		int startx = 0, endx = width-1, starty = 0, endy = height-1;
 		if(testx >=0 && testy>=0){
@@ -79,8 +79,8 @@ namespace dynamic_stereo {
 			endy = testy;
 		}
 
-		for (auto y = starty; y < height; ++y) {
-			for (auto x = startx; x < width; ++x) {
+		for (auto y = starty; y<= endy; ++y) {
+			for (auto x = startx; x <= endx; ++x) {
 				if((y*width+x) % unit == 0)
 					cout << '.' << flush;
 				vector<double> epiErr;
@@ -107,11 +107,11 @@ namespace dynamic_stereo {
 					cam2.ProjectPoint(minpt.homogeneous(), &spt);
 					cam2.ProjectPoint(maxpt.homogeneous(), &ept);
 
-					if(testx >=0 && testy >= 0){
+					if(x == testx && y == testy){
 						Mat img = imread(file_io.getImage(i+startid));
 						cv::circle(img, cv::Point(locR[0], locR[1]), 2, cv::Scalar(0,0,255), 2);
 						cv::line(img, cv::Point(spt[0], spt[1]), cv::Point(ept[0], ept[1]), cv::Scalar(255,0,0), 2);
-						sprintf(buffer, "%s/temp/conf_ref%05d_%5d.jpg\n", file_io.getDirectory().c_str(), anchor, i+startid);
+						sprintf(buffer, "%s/temp/conf_ref%05d_%05d.jpg\n", file_io.getDirectory().c_str(), anchor, i+startid);
 						imwrite(buffer, img);
 					}
 
