@@ -27,8 +27,17 @@ int main(int argc, char** argv){
         stlplus::folder_create(file_io.getDirectory() + "/dynamic_confidence");
 
     try{
+	    cout << "Checking optical flow..." << endl;
         flow_util::computeMissingFlow(file_io);
-        DynamicConfidence confidence(file_io);
+        DynamicConfidence dynamicConfidence(file_io, 4.0);
+	    const int startid = FLAGS_testFrame;
+	    const int endid = FLAGS_testFrame;
+	    for(auto fid=startid; fid<=endid; fid+=5) {
+		    Depth confidence;
+		    dynamicConfidence.run(fid, confidence);
+		    confidence.saveDepthFile(file_io.getDynamicConfidence(fid));
+		    confidence.saveImage(file_io.getDynamicConfidenceImage(fid), 5);
+	    }
     }catch(const std::exception& e){
         cerr << e.what() << endl;
     }

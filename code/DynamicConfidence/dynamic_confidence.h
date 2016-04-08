@@ -18,18 +18,19 @@
 namespace dynamic_stereo {
     class DynamicConfidence {
     public:
-        DynamicConfidence(const FileIO& file_io_):
-                file_io(file_io_), max_tWindow(100){
+        DynamicConfidence(const FileIO& file_io_, const double downsample_):
+                file_io(file_io_), max_tWindow(100), downsample(4.0){
             init();
         }
         void init();
         void run(const int anchor, Depth& confidence);
+	    void computeMinMaxDepth(const int anchor, double& min_depth, double& max_depth) const;
     private:
         const FileIO &file_io;
         typedef std::pair<int, theia::ViewId> IdPair;
         std::vector<IdPair> orderedId;
         theia::Reconstruction reconstruction;
-
+	    const double downsample;
         const int max_tWindow;
     };
 

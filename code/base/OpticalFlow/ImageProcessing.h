@@ -409,7 +409,7 @@ void ImageProcessing::filtering(const T1* pSrcImage,T2* pDstImage,int width,int 
 			for(k=0;k<nChannels;k++)
 				pDstImage[offset+k]=pBuffer[k];
 		}
-	delete pBuffer;
+	delete[] pBuffer;
 }
 
 //------------------------------------------------------------------------------------------------------------
