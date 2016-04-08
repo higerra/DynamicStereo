@@ -57,7 +57,7 @@ namespace dynamic_stereo {
 		confidence.initialize(widthFull, heightFull, 0);
 
 		const int min_interval = 10;
-		const double kth_ratio = 0.7;
+		const double kth_ratio = 0.8;
 		const size_t min_length = 5;
 		double min_depth, max_depth;
 		cout << "Computing min-max depth" << endl;
@@ -68,17 +68,19 @@ namespace dynamic_stereo {
 
 		cout << "Computing confidence..." << endl;
 		const int unit = width * height / 10;
-		const int testx = 1078 / downsample;
-		const int testy = 257 / downsample;
+		const int testx = 1361 / downsample;
+		const int testy = 252 / downsample;
 
 		int startx = 0, endx = width-1, starty = 0, endy = height-1;
 		if(testx >=0 && testy>=0){
+			printf("Debug mode: %d, %d\n", testx, testy);
 			startx = testx;
 			endx = testx;
 			starty = testy;
 			endy = testy;
 		}
 
+		double max_line_length = 100;
 		for (auto y = starty; y<= endy; ++y) {
 			for (auto x = startx; x <= endx; ++x) {
 				if((y*width+x) % unit == 0)
@@ -88,6 +90,9 @@ namespace dynamic_stereo {
 				Vector3d ray = refCam.PixelToUnitDepthRay(locL * downsample);
 				Vector3d minpt = refCam.GetPosition() + ray * min_depth;
 				Vector3d maxpt = refCam.GetPosition() + ray * max_depth;
+				if(testx >= 0 && testy >= 0){
+					printf("min depth: %.3f, max depth: %.3f\n", min_depth, max_depth);
+				}
 
 				for (auto i = 0; i < flow_forward.size(); ++i) {
 					const theia::Camera& cam2 = reconstruction.View(orderedId[i+startid].second)->Camera();
@@ -106,13 +111,21 @@ namespace dynamic_stereo {
 					Vector2d spt, ept;
 					cam2.ProjectPoint(minpt.homogeneous(), &spt);
 					cam2.ProjectPoint(maxpt.homogeneous(), &ept);
+//					Vector2d dir = spt - ept;
+//					dir.normalize();
+//					spt = ept + dir * max_line_length;
 
 					if(x == testx && y == testy){
 						Mat img = imread(file_io.getImage(i+startid));
 						cv::circle(img, cv::Point(locR[0], locR[1]), 2, cv::Scalar(0,0,255), 2);
+						printf("---------------------\nFrame %d, spt:(%.2f,%.2f), ept:(%.2f,%.2f)\n", i+startid, spt[0], spt[1], ept[0], ept[1]);
 						cv::line(img, cv::Point(spt[0], spt[1]), cv::Point(ept[0], ept[1]), cv::Scalar(255,0,0), 2);
 						sprintf(buffer, "%s/temp/conf_ref%05d_%05d.jpg\n", file_io.getDirectory().c_str(), anchor, i+startid);
 						imwrite(buffer, img);
+
+						theia::Matrix3x4d pMatrix;
+						cam2.GetProjectionMatrix(&pMatrix);
+						cout << "Projection matrix:" << endl << pMatrix << endl;
 					}
 
 					epiErr.push_back(geometry_util::distanceToLineSegment<2>(locR, spt, ept));

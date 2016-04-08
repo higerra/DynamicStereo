@@ -19,7 +19,7 @@ namespace dynamic_stereo {
     class DynamicConfidence {
     public:
         DynamicConfidence(const FileIO& file_io_, const double downsample_):
-                file_io(file_io_), max_tWindow(100), downsample(4.0){
+                file_io(file_io_), max_tWindow(60), downsample(4.0){
             init();
         }
         void init();
