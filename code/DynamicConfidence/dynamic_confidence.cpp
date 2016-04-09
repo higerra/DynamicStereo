@@ -56,7 +56,7 @@ namespace dynamic_stereo {
 		Depth confidence_down(width, height, -1);
 		confidence.initialize(widthFull, heightFull, 0);
 
-		const int min_interval = 10;
+		const int min_interval = 0;
 		const double kth_ratio = 0.8;
 		const size_t min_length = 5;
 		double min_depth, max_depth;
@@ -68,8 +68,8 @@ namespace dynamic_stereo {
 
 		cout << "Computing confidence..." << endl;
 		const int unit = width * height / 10;
-		const int testx = 1361 / downsample;
-		const int testy = 252 / downsample;
+		const int testx = 1596 / downsample;
+		const int testy = 472 / downsample;
 
 		int startx = 0, endx = width-1, starty = 0, endy = height-1;
 		if(testx >=0 && testy>=0){
@@ -96,6 +96,13 @@ namespace dynamic_stereo {
 
 				for (auto i = 0; i < flow_forward.size(); ++i) {
 					const theia::Camera& cam2 = reconstruction.View(orderedId[i+startid].second)->Camera();
+					if(i == id){
+						Mat img = imread(file_io.getImage(i+startid));
+						cv::circle(img, cv::Point(locL[0], locL[1]), 2, cv::Scalar(0,0,255), 2);
+						sprintf(buffer, "%s/temp/conf_ref%05d_%05d.jpg", file_io.getDirectory().c_str(), anchor, i+startid);
+						imwrite(buffer, img);
+						continue;
+					}
 					if (std::abs(id - i) < min_interval)
 						continue;
 
@@ -120,7 +127,7 @@ namespace dynamic_stereo {
 						cv::circle(img, cv::Point(locR[0], locR[1]), 2, cv::Scalar(0,0,255), 2);
 						printf("---------------------\nFrame %d, spt:(%.2f,%.2f), ept:(%.2f,%.2f)\n", i+startid, spt[0], spt[1], ept[0], ept[1]);
 						cv::line(img, cv::Point(spt[0], spt[1]), cv::Point(ept[0], ept[1]), cv::Scalar(255,0,0), 2);
-						sprintf(buffer, "%s/temp/conf_ref%05d_%05d.jpg\n", file_io.getDirectory().c_str(), anchor, i+startid);
+						sprintf(buffer, "%s/temp/conf_ref%05d_%05d.jpg", file_io.getDirectory().c_str(), anchor, i+startid);
 						imwrite(buffer, img);
 
 						theia::Matrix3x4d pMatrix;
