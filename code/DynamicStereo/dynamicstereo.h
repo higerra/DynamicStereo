@@ -48,6 +48,9 @@ namespace dynamic_stereo {
 
 	    void getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, const int startid, const int endid, std::vector<std::vector<double> >& patches) const;
 
+		//segmentation if performed at ORIGINAL resolution
+		void dynamicSegment(const Depth& disparity, cv::Mat& binaryMask) const;
+
 		//for debuging
 		double dbtx;
 		double dbty;
@@ -70,6 +73,7 @@ namespace dynamic_stereo {
 		std::vector<IdPair> orderedId;
 
 	    std::shared_ptr<StereoModel<EnergyType> > model;
+		cv::Mat segMask;
 
         int width;
         int height;

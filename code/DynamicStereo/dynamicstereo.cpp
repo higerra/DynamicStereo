@@ -79,7 +79,7 @@ namespace dynamic_stereo{
 	                             const int tWindow_, const int tWindowStereo_, const int downsample_, const double weight_smooth_, const int dispResolution_,
 	                             const double min_disp_, const double max_disp_):
 			file_io(file_io_), anchor(anchor_), tWindow(tWindow_), tWindowStereo(tWindowStereo_), downsample(downsample_), dispResolution(dispResolution_), pR(3),
-			min_disp(min_disp_), max_disp(max_disp_){
+			min_disp(min_disp_), max_disp(max_disp_), dbtx(0), dbty(0){
 		CHECK_LE(tWindowStereo, tWindow);
 		cout << "Reading..." << endl;
 		offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
@@ -181,13 +181,40 @@ namespace dynamic_stereo{
 
 		initMRF();
 
-		{
-			//debug: inspect unary term
-//			const int tx = 794;
-//			const int ty = 294;
-//			const int tx = 1077;
-//			const int ty = 257;
+		//read semantic mask
+		sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
+		Mat segMaskImg = imread(buffer);
+		CHECK(segMaskImg.data) << buffer;
+		//in ORIGINAL resolution
+		cv::resize(segMaskImg, segMaskImg, cv::Size(width * downsample, height * downsample), 0,0,INTER_NEAREST);
+		segMask = Mat(segMaskImg.rows, segMaskImg.cols, CV_8UC1, Scalar(255));
+		sprintf(buffer, "%s/temp/seg%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		imwrite(buffer, segMask);
 
+		vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192)};
+		for(auto y=0; y<segMaskImg.rows; ++y){
+			for(auto x=0; x<segMaskImg.cols; ++x){
+				Vec3b pix = segMaskImg.at<Vec3b>(y,x);
+				if(std::find(validColor.begin(), validColor.end(), pix) == validColor.end())
+					segMask.at<uchar>(y,x) = 0;
+			}
+		}
+		sprintf(buffer, "%s/temp/segmask%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		imwrite(buffer, segMask);
+
+		{
+			//debug: visualize seg mask
+			Mat anchorImg = imread(file_io.getImage(anchor));
+			CHECK_EQ(segMaskImg.size(), anchorImg.size());
+			Mat overlayImg;
+			cv::addWeighted(anchorImg, 0.5, segMaskImg, 0.5, 0.0, overlayImg);
+			sprintf(buffer, "%s/temp/seg_overlay%05d.jpg", file_io.getDirectory().c_str(), anchor);
+			imwrite(buffer, overlayImg);
+		}
+
+
+		if(true){
+			//debug: inspect unary term
 			int dtx = (int)dbtx / downsample;
 			int dty = (int)dbty / downsample;
 
@@ -202,8 +229,8 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
-//			int tdisp = (int) dispUnary((int)(tx/downsample), (int)(ty/downsample));
-			int tdisp = 62;
+//			int tdisp = (int) dispUnary((int)(dtx), (int)(dty));
+			int tdisp = 42;
 			double td = model->dispToDepth(tdisp);
 			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
 
@@ -214,116 +241,13 @@ namespace dynamic_stereo{
 				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
 						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
 				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
-					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(0, 0, 255), 1);
+					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(0, 0, 255), 2);
 				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
 						v + offset);
 				imwrite(buffer, curimg);
 			}
 		}
 
-		{
-			//test for PCA
-			const int dim = 3;
-			vector<double> reprojeEs(dispResolution);
-			double minreproE = numeric_limits<double>::max();
-			int minreproDisp = 0;
-			for (auto testd = 0; testd < dispResolution; ++testd) {
-				printf("===============================\nDisparity %d\n", testd);
-				vector<vector<double> > patches;
-				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-				getPatchArray(dbtx / downsample, dbty / downsample, testd, 0, refCam, 0, (int)images.size()-1, patches);
-				vector<VectorXd> patch_reduce;
-				int fid = anchor - tWindowStereo / 2;
-				for (const auto &p: patches) {
-					CHECK_EQ(p.size() % dim, 0);
-					if (*min_element(p.begin(), p.end()) < 0)
-						continue;
-					for(auto j=0; j<p.size() / dim; ++j){
-						VectorXd pt(dim);
-						for(auto k=0; k<dim; ++k)
-							pt[k] = p[j*dim+k];
-						patch_reduce.push_back(pt);
-					}
-				}
-
-				sprintf(buffer, "%s/temp/matrix%05d_%03d.txt", file_io.getDirectory().c_str(), anchor, testd);
-				ofstream fout(buffer);
-				CHECK(fout.is_open());
-				for(auto i=0; i<patch_reduce.size(); ++i){
-					for(auto j=0; j<dim; ++j)
-						fout << patch_reduce[i][j] << ' ';
-					fout << endl;
-				}
-				fout.close();
-
-				Mat Dm((int) patch_reduce.size(), dim, CV_64FC1);
-				for (auto i = 0; i < patch_reduce.size(); ++i) {
-					for (auto j = 0; j < dim; ++j)
-						Dm.at<double>(i, j) = patch_reduce[i][j];
-				}
-				cv::PCA pca(Dm, Mat(), CV_PCA_DATA_AS_ROW, 0);
-				Mat eigenv = pca.eigenvalues;
-				vector<double> ev(dim);
-				for (auto i = 0; i < dim; ++i)
-					ev[i] = eigenv.at<double>(i, 0);
-
-				double ratio = ev[0] / (ev[0] + ev[1] + ev[2]);
-				printf("Eigen values: %.3f,%.3f,%.3f. Ratio: %.3f\n", ev[0], ev[1], ev[2], ratio);
-
-				//compute reprojection error
-				cv::PCA pca2(Dm, Mat(), CV_PCA_DATA_AS_ROW, 1);
-				double reproE = 0.0;
-				for(auto i=0; i<Dm.rows; ++i){
-					Mat reprojected = pca2.backProject(pca2.project(Dm.row(i)));
-					Mat absd;
-					cv::absdiff(Dm.row(i), reprojected, absd);
-					const double* pAbsd = (double*)absd.data;
-					reproE += sqrt(pAbsd[0]*pAbsd[0]+pAbsd[1]*pAbsd[1]+pAbsd[2]*pAbsd[2]);
-				}
-				reproE = reproE / (double)Dm.rows;
-				printf("Reprojection error: %.3f\n", reproE);
-				reprojeEs[testd] = reproE;
-				if(reproE < minreproE){
-					minreproE = reproE;
-					minreproDisp = testd;
-				}
-			}
-			printf("Minimum reprojection error: %.3f, disp: %d\n", minreproE, minreproDisp);
-		}
-
-		{
-			//plot the matching cost
-			for (auto testd = 0; testd < dispResolution; ++testd) {
-				sprintf(buffer, "%s/temp/costpattern%05d_%03d.txt", file_io.getDirectory().c_str(), anchor, testd);
-				ofstream fout(buffer);
-				CHECK(fout.is_open());
-//				printf("===============================\nDisparity %d\n", testd);
-				vector<vector<double> > patches;
-				const theia::Camera &refCam = reconstruction.View(orderedId[anchor].second)->Camera();
-				getPatchArray(dbtx / downsample, dbty / downsample, testd, pR, refCam, 0, (int) images.size() - 1,
-							  patches);
-				vector<double> mCost;
-				int startid = 999, endid = 0;
-				int refId = (int) patches.size() / 2;
-				for (auto i = 0; i < patches.size(); ++i) {
-					if (*min_element(patches[i].begin(), patches[i].end()) < 0)
-						continue;
-					startid = std::min(startid, i);
-					endid = std::max(endid, i);
-				}
-				for (auto i = startid; i <= endid; ++i) {
-					double ssd = 0.0;
-					for (auto j = 0; j < patches[i].size(); ++j) {
-						ssd += (patches[refId][j] - patches[i][j]) * (patches[refId][j] - patches[i][j]);
-					}
-					mCost.push_back(ssd);
-				}
-				for (auto v: mCost)
-					fout << v << ' ';
-				fout << endl;
-				fout.close();
-			}
-		}
 
 ////
 //		Depth depthUnary;
@@ -338,7 +262,7 @@ namespace dynamic_stereo{
 		Depth result_firstOrder;
 		optimizer_firstorder.optimize(result_firstOrder, 10);
 		//sprintf(buffer, "%s/temp/result%05d_firstorder_resolution%d.jpg", file_io.getDirectory().c_str(), anchor, dispResolution);
-		warpToAnchor(result_firstOrder, "firstorder");
+		//warpToAnchor(result_firstOrder, "firstorder");
 		//result_firstOrder.saveImage(buffer, 255.0 / (double)dispResolution);
 
 		printf("Saving depth to point cloud...\n");
@@ -354,8 +278,14 @@ namespace dynamic_stereo{
 		depth_firstOrder_filtered.updateStatics();
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-		warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
-//
+		//warpToAnchor(disp_firstOrder_filtered, "firstorder_bifiltered");
+
+		{
+			//test segment according to matching cost
+			Mat dynamicseg;
+			dynamicSegment(result_firstOrder, dynamicseg);
+
+		}
 
 	}
 
