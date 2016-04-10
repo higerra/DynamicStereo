@@ -111,7 +111,9 @@ namespace dynamic_stereo{
 		}
 	}
 
-
+	void DynamicStereo::run(){
+		
+	}
 
 	void DynamicStereo::runStereo() {
 		char buffer[1024] = {};

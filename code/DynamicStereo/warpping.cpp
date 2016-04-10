@@ -60,8 +60,6 @@ namespace dynamic_stereo{
 			}
 			zBuffers[i-startid].updateStatics();
 			zMargin[i-startid] = zBuffers[i-startid].getMedianDepth() / 5.0;
-			printf("zMargin %d: %.3f, min depth: %.3f, max depth: %.3f\n", i+offset, zMargin[i-startid],
-			       1.0 / model->max_disp, 1.0 / model->min_disp);
 		}
 		for(auto i=startid; i<=endid; ++i){
 			cout << i+offset << ' ' << flush;
@@ -74,8 +72,10 @@ namespace dynamic_stereo{
 			const theia::Camera cam2 = reconstruction.View(orderedId[i+offset].second)->Camera();
 			for(auto y=downsample; y<h-downsample; ++y) {
 				for (auto x = downsample; x < w - downsample; ++x) {
-					if (mask.at<uchar>(y, x) < 200)
+					if (mask.at<uchar>(y, x) < 200) {
+						warpped[i-startid].at<Vec3b>(y, x) = refImg.at<Vec3b>(y,x);
 						continue;
+					}
 					Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x, y));
 					//ray.normalize();
 					double disp = refDisp.getDepthAt(Vector2d(x / downsample, y / downsample));
@@ -86,7 +86,7 @@ namespace dynamic_stereo{
 					int dpty = (int)imgpt[1] / downsample;
 					if(dptx >= 0 && dptx < width && dpty >=0 && dpty < height){
 						if(curdepth > zBuffers[i-startid](dptx,dpty) + zMargin[i-startid]) {
-							//warpped[i-startid].at<Vec3b>(y, x) = refImg.at<Vec3b>(y,x);
+							warpped[i-startid].at<Vec3b>(y, x) = refImg.at<Vec3b>(y,x);
 							continue;
 						}
 					}

@@ -31,6 +31,9 @@ namespace dynamic_stereo {
         void verifyEpipolarGeometry(const int id1, const int id2,
                                                    const Eigen::Vector2d& pt,
                                                    cv::Mat &imgL, cv::Mat &imgR);
+
+	    void run();
+
         void runStereo();
 
         inline int getAnchor()const{return anchor;}
