@@ -86,7 +86,7 @@ namespace dynamic_stereo{
 					int dpty = (int)imgpt[1] / downsample;
 					if(dptx >= 0 && dptx < width && dpty >=0 && dpty < height){
 						if(curdepth > zBuffers[i-startid](dptx,dpty) + zMargin[i-startid]) {
-							warpped[i-startid].at<Vec3b>(y, x) = refImg.at<Vec3b>(y,x);
+							//warpped[i-startid].at<Vec3b>(y, x) = refImg.at<Vec3b>(y,x);
 							continue;
 						}
 					}
