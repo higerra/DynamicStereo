@@ -10,46 +10,16 @@ using namespace cv;
 using namespace Eigen;
 
 namespace dynamic_stereo {
-    void DynamicStereo::computeMinMaxDisparity(){
-        if(min_disp > 0 && max_disp > 0)
-            return;
-        if(reconstruction.NumTracks() == 0){
-            CHECK_GT(min_disp, 0) << "Please specify the minimum disparity";
-            CHECK_GT(max_disp, 0) << "Please specify the minimum disparity";
-            return;
-        }
-        const theia::View *anchorView = reconstruction.View(orderedId[anchor].second);
-        const theia::Camera cam = anchorView->Camera();
-        vector<theia::TrackId> trackIds = anchorView->TrackIds();
-        printf("number of tracks:%lu\n", trackIds.size());
-        vector<double> depths;
-        for (const auto tid: trackIds) {
-            const theia::Track *t = reconstruction.Track(tid);
-            Vector4d spacePt = t->Point();
-            Vector2d imgpt;
-            double curdepth = cam.ProjectPoint(spacePt, &imgpt);
-            if (curdepth > 0)
-                depths.push_back(curdepth);
-        }
-        //ignore furthest 1% and nearest 1% points
-        const double lowRatio = 0.01;
-        const double highRatio = 0.99;
-        const size_t lowKth = (size_t) (lowRatio * depths.size());
-        const size_t highKth = (size_t) (highRatio * depths.size());
-        //min_disp should be correspond to high depth
-        nth_element(depths.begin(), depths.begin() + lowKth, depths.end());
-        CHECK_GT(depths[lowKth], 0.0);
-        max_disp = 1.0 / (depths[lowKth]);
-        nth_element(depths.begin(), depths.begin() + highKth, depths.end());
-        CHECK_GT(depths[highKth], 0.0);
-        min_disp = 1.0 / (depths[highKth]);
-	    model->min_disp = min_disp;
-	    model->max_disp = max_disp;
-    }
 
     void DynamicStereo::initMRF() {
 	    CHECK(model.get());
 	    model->allocate();
+		double min_depth, max_depth;
+		utility::computeMinMaxDepth(sfmModel, anchor, min_depth, max_depth);
+		CHECK_GT(min_depth, 0.0);
+		CHECK_GT(max_depth, 0.0);
+		model->min_disp = 1.0 / max_depth;
+		model->max_disp = 1.0 / min_depth;
         cout << "Assigning data term..." << endl << flush;
         assignDataTerm();
         assignSmoothWeight();
@@ -80,7 +50,9 @@ namespace dynamic_stereo {
 		for (auto v = startid; v <= endid; ++v) {
 			CHECK_GE(v,0);
 			CHECK_LT(v, images.size());
-			const theia::Camera& cam2 = reconstruction.View(orderedId[v + offset].second)->Camera();
+			//const theia::Camera& cam2 = reconstruction.View(orderedId[v + offset].second)->Camera();
+			const theia::Camera& cam2 = sfmModel.getCamera(v+offset);
+
 			//printf("--------------Sample from frame %d\n", v+offset);
 			for (const auto &spt: sptBase) {
 				if (spt[3] == 0) {
@@ -111,8 +83,8 @@ namespace dynamic_stereo {
 	}
 
     void DynamicStereo::assignDataTerm() {
-	    CHECK_GT(min_disp, 0);
-	    CHECK_GT(max_disp, 0);
+	    CHECK_GT(model->min_disp, 0);
+	    CHECK_GT(model->max_disp, 0);
 	    //read from cache
 	    char buffer[1024] = {};
 	    sprintf(buffer, "%s/temp/cacheMRFdata%05dR%dD%d", file_io.getDirectory().c_str(), anchor, dispResolution, downsample);
@@ -132,14 +104,16 @@ namespace dynamic_stereo {
             printf("Cached data: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
                    frame, resolution, tw, ds, type, mindisp, maxdisp);
             if (frame == anchor && resolution == dispResolution && tw == tWindowStereo &&
-                type == sizeof(EnergyType) && ds == downsample && min_disp == mindisp && max_disp == maxdisp) {
+                type == sizeof(EnergyType) && ds == downsample && model->min_disp == mindisp && model->max_disp == maxdisp) {
                 printf("Reading unary term from cache...\n");
                 fin.read((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
                 recompute = false;
             }
         }
         if(recompute) {
-            const theia::Camera& cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
+            //const theia::Camera& cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
+
+			const theia::Camera& cam1 = sfmModel.getCamera(anchor);
             int index = 0;
             int unit = width * height / 10;
             const int stereoOffset = anchor - tWindowStereo / 2;
@@ -175,8 +149,8 @@ namespace dynamic_stereo {
             fout.write((char *) &tWindowStereo, sizeof(int));
             fout.write((char *) &downsample, sizeof(int));
             fout.write((char *) &sz, sizeof(int));
-            fout.write((char *) &min_disp, sizeof(double));
-            fout.write((char *) &max_disp, sizeof(double));
+            fout.write((char *) &model->min_disp, sizeof(double));
+            fout.write((char *) &model->max_disp, sizeof(double));
             fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
 
             fout.close();

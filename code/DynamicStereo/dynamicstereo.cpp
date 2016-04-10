@@ -15,26 +15,14 @@ namespace dynamic_stereo{
 	DynamicStereo::DynamicStereo(const dynamic_stereo::FileIO &file_io_, const int anchor_,
 	                             const int tWindow_, const int tWindowStereo_, const int downsample_, const double weight_smooth_, const int dispResolution_,
 	                             const double min_disp_, const double max_disp_):
-			file_io(file_io_), anchor(anchor_), tWindow(tWindow_), tWindowStereo(tWindowStereo_), downsample(downsample_), dispResolution(dispResolution_), pR(3),
-			min_disp(min_disp_), max_disp(max_disp_), dbtx(0), dbty(0){
+			file_io(file_io_), anchor(anchor_), tWindow(tWindow_), tWindowStereo(tWindowStereo_), downsample(downsample_), dispResolution(dispResolution_),
+			pR(3), dbtx(-1), dbty(-1){
 		CHECK_LE(tWindowStereo, tWindow);
 		cout << "Reading..." << endl;
 		offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
 		CHECK_GE(file_io.getTotalNum(), offset + tWindow);
 		cout << "Reading reconstruction" << endl;
-		CHECK(theia::ReadReconstruction(file_io.getReconstruction(), &reconstruction)) << "Can not open reconstruction file";
-		CHECK_EQ(reconstruction.NumViews(), file_io.getTotalNum());
-
-		const vector<theia::ViewId>& vids = reconstruction.ViewIds();
-		orderedId.resize(vids.size());
-		for(auto i=0; i<vids.size(); ++i) {
-			const theia::View* v = reconstruction.View(vids[i]);
-			std::string nstr = v->Name().substr(5,5);
-			int idx = atoi(nstr.c_str());
-			orderedId[i] = IdPair(idx, vids[i]);
-		}
-		std::sort(orderedId.begin(), orderedId.end(),
-				  [](const std::pair<int, theia::ViewId>& v1, const std::pair<int, theia::ViewId>& v2){return v1.first < v2.first;});
+		sfmModel.init(file_io.getReconstruction());
 
 		CHECK(downsample == 1 || downsample == 2 || downsample == 4 || downsample == 8) << "Invalid downsample ratio!";
 		images.resize((size_t)tWindow);
@@ -49,14 +37,14 @@ namespace dynamic_stereo{
 				pyrDown(pyramid[k-1], pyramid[k]);
 			images[i] = pyramid.back().clone();
 
-			const theia::Camera cam = reconstruction.View(orderedId[i+offset].second)->Camera();
-			cout << "Projection matrix for view " << orderedId[i+offset].first<< endl;
-			theia::Matrix3x4d pm;
-			cam.GetProjectionMatrix(&pm);
-			cout << pm << endl;
-			double dis1 = cam.RadialDistortion1();
-			double dis2 = cam.RadialDistortion2();
-			printf("Radio distortion:(%.5ff,%.5f)\n", dis1, dis2);
+//			const theia::Camera& cam = sfmModel.getCamera(i+offset);
+//			cout << "Projection matrix for view " << i+offset << endl;
+//			theia::Matrix3x4d pm;
+//			cam.GetProjectionMatrix(&pm);
+//			cout << pm << endl;
+//			double dis1 = cam.RadialDistortion1();
+//			double dis2 = cam.RadialDistortion2();
+//			printf("Radio distortion:(%.5ff,%.5f)\n", dis1, dis2);
 		}
 		CHECK_GT(images.size(), 2) << "Too few images";
 		width = images.front().cols;
@@ -64,58 +52,10 @@ namespace dynamic_stereo{
 		dispUnary.initialize(width, height, 0.0);
 
 		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 1000, weight_smooth_));
-		cout << "Computing disparity range" << endl;
-		if(min_disp < 0 || max_disp < 0)
-			computeMinMaxDisparity();
 	}
 
-	void DynamicStereo::verifyEpipolarGeometry(const int id1, const int id2,
-	                                           const Eigen::Vector2d& pt,
-	                                           cv::Mat &imgL, cv::Mat &imgR) {
-		CHECK_GE(id1 - offset, 0);
-		CHECK_GE(id2 - offset, 0);
-		CHECK_LT(id1 - offset, images.size());
-		CHECK_LT(id2 - offset, images.size());
-		CHECK_GE(pt[0], 0);
-		CHECK_GE(pt[1], 0);
-		CHECK_LT(pt[0], (double)width * downsample);
-		CHECK_LT(pt[1], (double)height * downsample);
 
-		theia::Camera cam1 = reconstruction.View(orderedId[id1].second)->Camera();
-		theia::Camera cam2 = reconstruction.View(orderedId[id2].second)->Camera();
-
-		Vector3d ray1 = cam1.PixelToUnitDepthRay(pt);
-		//ray1.normalize();
-		imgL = imread(file_io.getImage(id1));
-		imgR = imread(file_io.getImage(id2));
-		cv::circle(imgL, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0,0,255), 2);
-
-		const double min_depth = 1.0 / max_disp;
-		const double max_depth = 1.0 / min_disp;
-		printf("min depth:%.3f, max depth:%.3f\n", min_depth, max_depth);
-
-		double cindex = 0.0;
-		double steps = 1000;
-		for(double i=min_disp; i<=max_disp; i+=(max_disp-min_disp)/steps){
-			Vector3d curpt = cam1.GetPosition() + ray1 * 1.0 / i;
-			Vector4d curpt_homo(curpt[0], curpt[1], curpt[2], 1.0);
-			Vector2d imgpt;
-			double depth = cam2.ProjectPoint(curpt_homo, &imgpt);
-			if(depth < 0)
-				continue;
-			imgpt = imgpt;
-			//printf("curpt:(%.2f,%.2f,%.2f), Depth:%.3f, pt:(%.2f,%.2f)\n", curpt[0], curpt[1], curpt[2], depth, imgpt[0], imgpt[1]);
-			cv::Point cvpt(((int)imgpt[0]), ((int)imgpt[1]));
-			cv::circle(imgR, cvpt, 1, cv::Scalar(255 - cindex * 255.0, 0 ,cindex * 255.0));
-			cindex += 1.0 / steps;
-		}
-	}
-
-	void DynamicStereo::run(){
-		
-	}
-
-	void DynamicStereo::runStereo() {
+	void DynamicStereo::runStereo(Depth& result) {
 		char buffer[1024] = {};
 
 		initMRF();
@@ -152,7 +92,7 @@ namespace dynamic_stereo{
 		}
 
 
-		if(true){
+		if(dbtx >= 0 && dbty >= 0){
 			//debug: inspect unary term
 			int dtx = (int)dbtx / downsample;
 			int dty = (int)dbty / downsample;
@@ -164,7 +104,8 @@ namespace dynamic_stereo{
 			cout << endl;
 			printf("noisyDisp(%d,%d): %.2f\n", (int)dbtx, (int)dbty, dispUnary[dty*width+dtx]);
 
-			const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
+			//const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
+			const theia::Camera &cam = sfmModel.getCamera(anchor);
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
@@ -177,7 +118,7 @@ namespace dynamic_stereo{
 			for (auto v = 0; v < images.size(); ++v) {
 				Mat curimg = imread(file_io.getImage(v + offset));
 				Vector2d imgpt;
-				reconstruction.View(orderedId[v + offset].second)->Camera().ProjectPoint(
+				double curdepth = sfmModel.getCamera(v+offset).ProjectPoint(
 						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
 				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
 					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(0, 0, 255), 2);
@@ -195,25 +136,17 @@ namespace dynamic_stereo{
 
 		printf("Saving depth to point cloud...\n");
 		Depth depth_firstOrder;
-		disparityToDepth(result_firstOrder, depth_firstOrder);
+		disparityToDepth(result_firstOrder, result);
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
+		utility::saveDepthAsPly(string(buffer), result, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
 
-		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
-		printf("Applying bilateral filter to depth:\n");
-		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 11, 5, 10, 3);
-		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
-		depth_firstOrder_filtered.updateStatics();
-		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], reconstruction.View(orderedId[anchor].second)->Camera(), downsample);
-
-		{
-			//test segment according to matching cost
-			Mat dynamicseg;
-			dynamicSegment(result_firstOrder, dynamicseg);
-
-		}
-
+//		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
+//		printf("Applying bilateral filter to depth:\n");
+//		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 11, 5, 10, 3);
+//		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
+//		depth_firstOrder_filtered.updateStatics();
+//		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
+//		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
 	}
 
 

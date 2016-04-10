@@ -2,7 +2,7 @@
 // Created by Yan Hang on 4/9/16.
 //
 
-#include "dynamicstereo.h"
+#include "dynamic_utility.h"
 #include <OpenMesh/Core/IO/MeshIO.hh>
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
 using namespace std;
@@ -99,6 +99,88 @@ namespace dynamic_stereo {
 						output[i].at<Vec3b>(y,x) = Vec3b((uchar)rc[r], (uchar)gc[r], (uchar)bc[r]);
 					}
 				}
+			}
+		}
+
+		void computeMinMaxDepth(const SfMModel& sfm, const int refId, double& min_depth, double& max_depth){
+			const theia::Camera& cam = sfm.getCamera(refId);
+			min_depth = -1;
+			max_depth = -1;
+
+			vector<theia::TrackId> trackIds = sfm.getView(refId)->TrackIds();
+			printf("number of tracks:%lu\n", trackIds.size());
+			vector<double> depths;
+			for (const auto tid: trackIds) {
+				const theia::Track *t = sfm.reconstruction.Track(tid);
+				Vector4d spacePt = t->Point();
+				Vector2d imgpt;
+				double curdepth = cam.ProjectPoint(spacePt, &imgpt);
+				if (curdepth > 0)
+					depths.push_back(curdepth);
+			}
+			//ignore furthest 1% and nearest 1% points
+			const double lowRatio = 0.01;
+			const double highRatio = 0.99;
+			const size_t lowKth = (size_t) (lowRatio * depths.size());
+			const size_t highKth = (size_t) (highRatio * depths.size());
+			//min_disp should be correspond to high depth
+			nth_element(depths.begin(), depths.begin() + lowKth, depths.end());
+			CHECK_GT(depths[lowKth], 0.0);
+			min_depth = depths[lowKth];
+			nth_element(depths.begin(), depths.begin() + highKth, depths.end());
+			CHECK_GT(depths[highKth], 0.0);
+			max_depth = depths[highKth];
+		}
+
+		void verifyEpipolarGeometry(const FileIO& file_io,
+									const SfMModel& sfm,
+									const int id1, const int id2,
+									const Eigen::Vector2d& pt,
+									cv::Mat &imgL, cv::Mat &imgR) {
+			CHECK_GE(id1, 0);
+			CHECK_GE(id2, 0);
+			CHECK_LT(id1, file_io.getTotalNum());
+			CHECK_LT(id2, file_io.getTotalNum());
+
+			Mat tempM = imread(file_io.getImage(id1));
+			const int width = tempM.cols;
+			const int height = tempM.rows;
+			CHECK_GE(pt[0], 0);
+			CHECK_GE(pt[1], 0);
+			CHECK_LT(pt[0], width);
+			CHECK_LT(pt[1], height);
+
+			const theia::Camera& cam1 = sfm.getCamera(id1);
+			const theia::Camera& cam2 = sfm.getCamera(id2);
+
+			Vector3d ray1 = cam1.PixelToUnitDepthRay(pt);
+			//ray1.normalize();
+			imgL = imread(file_io.getImage(id1));
+			imgR = imread(file_io.getImage(id2));
+			cv::circle(imgL, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0,0,255), 2);
+
+			double min_depth, max_depth;
+			computeMinMaxDepth(sfm, id1, min_depth, max_depth);
+
+			CHECK_GT(min_depth, 0.0);
+			CHECK_GT(max_depth, 0.0);
+			double min_disp = 1.0 / max_depth;
+			double max_disp = 1.0 / min_depth;
+			printf("min depth:%.3f, max depth:%.3f\n", min_depth, max_depth);
+
+			double cindex = 0.0;
+			double steps = 1000;
+			for(double i=min_disp; i<=max_disp; i+=(max_disp-min_disp)/steps){
+				Vector3d curpt = cam1.GetPosition() + ray1 * 1.0 / i;
+				Vector2d imgpt;
+				double depth = cam2.ProjectPoint(curpt.homogeneous(), &imgpt);
+				if(depth < 0)
+					continue;
+				imgpt = imgpt;
+				//printf("curpt:(%.2f,%.2f,%.2f), Depth:%.3f, pt:(%.2f,%.2f)\n", curpt[0], curpt[1], curpt[2], depth, imgpt[0], imgpt[1]);
+				cv::Point cvpt(((int)imgpt[0]), ((int)imgpt[1]));
+				cv::circle(imgR, cvpt, 1, cv::Scalar(255 - cindex * 255.0, 0 ,cindex * 255.0));
+				cindex += 1.0 / steps;
 			}
 		}
 
