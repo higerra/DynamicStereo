@@ -122,10 +122,17 @@ namespace dynamic_stereo {
 		}
 		depth_var /= static_cast<double>(count);
 
-		vector<double> data_dummy = data;
-		const size_t kth = data.size() / 2;
-		nth_element(data_dummy.begin(), data_dummy.begin() + kth, data_dummy.end());
-		median_depth = data_dummy[kth];
+		vector<double> data_dummy;
+		data_dummy.reserve(data.size());
+		for(int i=0; i<data.size(); ++i){
+			if(data[i] >= 0)
+				data_dummy.push_back(data[i]);
+		}
+		if(data_dummy.size() > 2) {
+			const size_t kth = data_dummy.size() / 2;
+			nth_element(data_dummy.begin(), data_dummy.begin() + kth, data_dummy.end());
+			median_depth = data_dummy[kth];
+		}
 
 		for(int i=0; i<data.size(); ++i){
 			if(data[i] >= 0){

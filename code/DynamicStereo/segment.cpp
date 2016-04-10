@@ -16,9 +16,16 @@ namespace dynamic_stereo{
         CHECK_EQ(disparity.getHeight(), model->height);
         char buffer[1024] = {};
 
-	    {
-		    //debug warpping
+	    vector<Mat> warpped;
+	    warpToAnchor(disparity, segMask, 0, (int)images.size() - 1, warpped);
+	    for(auto i=0; i<warpped.size(); ++i){
+		    sprintf(buffer, "%s/temp/segwarp_b%05d_f%05d.jpg", file_io.getDirectory().c_str(), anchor, i+offset);
+		    imwrite(buffer, warpped[i]);
 	    }
+
+
+
+
 //        {
 //            //debug: visualize matching cost
 //            Depth mCost(model->width, model->height, 0.0);

@@ -28,6 +28,8 @@ namespace dynamic_stereo{
 		}
 		warpped.resize(fullimages.size());
 
+		Mat refImg = imread(file_io.getImage(anchor));
+
 		const int w = fullimages[0].cols;
 		const int h = fullimages[0].rows;
 		CHECK_EQ(mask.cols, w);
@@ -36,7 +38,31 @@ namespace dynamic_stereo{
 
 		const theia::Camera cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
 
-
+		//compute zBuffer
+		vector<Depth> zBuffers((size_t)endid-startid+1);
+		vector<double> zMargin(zBuffers.size(), 0.0);
+		for(auto i=startid; i<=endid; ++i){
+			const theia::Camera& cam2 = reconstruction.View(orderedId[i+offset].second)->Camera();
+			zBuffers[i-startid].initialize(width, height, -1);
+			for(auto y=0; y<height; ++y){
+				for(auto x=0; x<width; ++x){
+					Vector3d spt = cam1.GetPosition() +
+							cam1.PixelToUnitDepthRay(Vector2d(x*downsample,y*downsample)) * model->dispToDepth(refDisp(x,y));
+					Vector2d imgpt;
+					double depth = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
+					imgpt /= downsample;
+					if(imgpt[0] >= 0 && imgpt[0] < width && imgpt[1] >= 0 && imgpt[1] < height){
+						double curzB = zBuffers[i-startid]((int)imgpt[0], (int)imgpt[1]);
+						if(depth >= 0 && (curzB < 0 || depth < curzB))
+							zBuffers[i-startid]((int)imgpt[0], (int)imgpt[1]) = depth;
+					}
+				}
+			}
+			zBuffers[i-startid].updateStatics();
+			zMargin[i-startid] = zBuffers[i-startid].getMedianDepth() / 5.0;
+			printf("zMargin %d: %.3f, min depth: %.3f, max depth: %.3f\n", i+offset, zMargin[i-startid],
+			       1.0 / model->max_disp, 1.0 / model->min_disp);
+		}
 		for(auto i=startid; i<=endid; ++i){
 			cout << i+offset << ' ' << flush;
 			if(i == anchor-offset) {
@@ -55,10 +81,18 @@ namespace dynamic_stereo{
 					double disp = refDisp.getDepthAt(Vector2d(x / downsample, y / downsample));
 					Vector3d spt = cam1.GetPosition() + ray * model->dispToDepth(disp);
 					Vector2d imgpt;
-					cam2.ProjectPoint(spt.homogeneous(), &imgpt);
+					double curdepth = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
+					int dptx = (int)imgpt[0] / downsample;
+					int dpty = (int)imgpt[1] / downsample;
+					if(dptx >= 0 && dptx < width && dpty >=0 && dpty < height){
+						if(curdepth > zBuffers[i-startid](dptx,dpty) + zMargin[i-startid]) {
+							warpped[i-startid].at<Vec3b>(y, x) = refImg.at<Vec3b>(y,x);
+							continue;
+						}
+					}
 					if (imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < w - 1 && imgpt[1] < h - 1) {
-						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i].data, w, h, imgpt);
-						warpped[i].at<Vec3b>(y, x) = Vec3b(pix2[0], pix2[1], pix2[2]);
+						Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(fullimages[i-startid].data, w, h, imgpt);
+						warpped[i-startid].at<Vec3b>(y, x) = Vec3b(pix2[0], pix2[1], pix2[2]);
 					}
 				}
 			}
