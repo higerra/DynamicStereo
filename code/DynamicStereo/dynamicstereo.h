@@ -17,15 +17,11 @@
 #include "../base/configurator.h"
 #include "../base/depth.h"
 #include "../base/file_io.h"
-//#include "external/QPBO1.4/ELC.h"
 #include "external/segment_ms/msImageProcessor.h"
 #include "external/segment_gb/segment-image.h"
 #include "external/MRF2.2/mrf.h"
 #include "gridwarpping.h"
-//#include "MRF2.2/GCoptimization.h"
-//#include <opengm/graphicalmodel/graphicalmodel.hxx>
-//#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
-//#include <opengm/functions/truncated_absolute_difference.hxx>
+
 #include "model.h"
 namespace dynamic_stereo {
     class DynamicStereo {
@@ -41,7 +37,7 @@ namespace dynamic_stereo {
         inline int gettWindow() const {return tWindow;}
         inline int getOffset() const {return offset;};
         inline int getDownsample() const {return downsample; }
-	    void warpToAnchor(const Depth& refDisp, const std::string& prefix) const;
+	    void warpToAnchor(const Depth& refDisp, const cv::Mat& mask, const int startid, const int endid, std::vector<cv::Mat>& warpped) const;
 		void disparityToDepth(const Depth& disp, Depth& depth);
 		void bilateralFilter(const Depth& input, const cv::Mat& inputImg, Depth& output,
 							 const int size, const double sigmas, const double sigmar, const double sigmau);
@@ -93,12 +89,10 @@ namespace dynamic_stereo {
 	namespace utility{
 		void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output);
 
-		//test opencv built-in stereo matching
-		void stereoSGBM(const cv::Mat& img1, const cv::Mat& img2, cv::Mat& output);
-
 		//depth, not dispartiy!
 		void saveDepthAsPly(const std::string& path, const Depth& depth, const cv::Mat& image, const theia::Camera& cam, const int downsample);
 
+		void temporalMedianFilter(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const int r);
 	}
 }
 
