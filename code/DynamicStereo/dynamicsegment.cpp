@@ -41,9 +41,9 @@ namespace dynamic_stereo{
 
 	    CHECK_EQ(depths.size(), depthInd.size());
 	    for(auto i=0; i<depthInd.size(); ++i){
+			depths[i].updateStatics();
 		    if(depthInd[i] == anchor){
 			    refDepth = depths[i];
-			    break;
 		    }
 	    }
 
@@ -56,9 +56,35 @@ namespace dynamic_stereo{
 	void DynamicSegment::getGeometryConfidence(Depth &geoConf) const {
 		geoConf.initialize(width, height, 0.0);
 		const theia::Camera& refCam = sfmModel.getCamera(anchor);
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				Vector3d spt = refCam.GetPosition() + refCam.PixelToUnitDepthRay(Vector2d(x,y)) * refDepth(x/downsample, y/downsample);
+		const double large = 1000000;
+
+		for(auto y=downsample; y<height-downsample; ++y){
+			for(auto x=downsample; x<width-downsample; ++x){
+				Vector2d refPt((double)x/(double)downsample, (double)y/(double)downsample);
+				Vector3d spt = refCam.GetPosition() + refCam.PixelToUnitDepthRay(Vector2d(x,y)) * refDepth.getDepthAt(refPt);
+				vector<double> repoError;
+
+				for(auto j=0; j<depthInd.size(); ++j){
+					Vector2d imgpt;
+					const theia::Camera& cam2 = sfmModel.getCamera(depthInd[j]);
+					double d = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
+					imgpt /= (double)downsample;
+					if(d > 0 && imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < depths[j].getWidth()-1 && imgpt[1] < depths[j].getHeight()-1){
+						double depth2 = depths[j].getDepthAt(imgpt);
+						double zMargin = depths[j].getMedianDepth() / 5;
+						if(d <= depth2 + zMargin) {
+							Vector3d spt2 = cam2.PixelToUnitDepthRay(imgpt * downsample) * depth2 + cam2.GetPosition();
+							Vector2d repoPt;
+							double repoDepth = refCam.ProjectPoint(spt2.homogeneous(), &repoPt);
+							double dis = (repoPt - Vector2d(x,y)).norm();
+							repoError.push_back(dis);
+						}
+					}
+				}
+
+				//take average
+				if(!repoError.empty())
+					geoConf(x,y) = std::accumulate(repoError.begin(), repoError.end(), 0.0) / (double)repoError.size();
 			}
 		}
 	}

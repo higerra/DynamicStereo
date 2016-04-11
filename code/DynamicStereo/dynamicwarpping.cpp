@@ -65,6 +65,7 @@ namespace dynamic_stereo {
                                cam1.GetPosition();
                 Vector2d imgpt;
                 double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
+                imgpt[0] /= (double) downsample;
                 int intx = (int) imgpt[0];
                 int inty = (int) imgpt[1];
                 if (intx >= 0 && inty >= 0 && intx < w && inty < h) {
@@ -78,16 +79,19 @@ namespace dynamic_stereo {
     void DynamicWarpping::initZBuffer(const std::vector<Depth> &depths, const std::vector<int> &depthind) {
         CHECK_EQ(depths.size(), depthind.size());
         //for each frame, find nearest depth
+        printf("Computing zBuffer...\n");
         zBuffers.resize(images.size());
         for (auto i = 0; i < images.size(); ++i) {
             zBuffers[i].initialize(width / downsample, height / downsample, -1);
             if (i + offset <= depthind[0]) {
                 updateZBuffer(depths[0], zBuffers[i], sfmModel.getCamera(depthind[0]), sfmModel.getCamera(i + offset));
+                printf("Update zBuffer %d with %d\n", i+offset, depthind[0]);
                 continue;
             }
             if (i + offset >= depthind.back()) {
                 updateZBuffer(depths.back(), zBuffers[i], sfmModel.getCamera(depthind.back()),
                               sfmModel.getCamera(i + offset));
+                printf("Update zBuffer %d with %d\n", i, depthind.front());
                 continue;
             }
             for (auto j = 1; j < depthind.size(); ++j) {
@@ -96,6 +100,7 @@ namespace dynamic_stereo {
                                   sfmModel.getCamera(i + offset));
                     updateZBuffer(depths[j], zBuffers[i], sfmModel.getCamera(depthind[j]),
                                   sfmModel.getCamera(i + offset));
+                    printf("Update zBuffer %d with %d and %d\n", i+offset, depthind[j-1], depthind[j]);
                 }
             }
         }
@@ -129,19 +134,20 @@ namespace dynamic_stereo {
             for (auto y = downsample; y < height - downsample; ++y) {
                 for (auto x = downsample; x < width - downsample; ++x) {
                     if (mask.at<uchar>(y, x) < 200) {
-                        warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
+                        //warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
                         continue;
                     }
-                    Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x, y));
+                    Vector2d refPt(x,y);
+                    Vector3d ray = cam1.PixelToUnitDepthRay(refPt);
                     //ray.normalize();
-                    Vector3d spt = cam1.GetPosition() + ray * refDepth((int) x / downsample, (int) y / downsample);
+                    Vector3d spt = cam1.GetPosition() + ray * refDepth.getDepthAt(refPt / (double)downsample);
                     Vector2d imgpt;
                     double curdepth = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
                     int dptx = (int) imgpt[0] / downsample;
                     int dpty = (int) imgpt[1] / downsample;
-                    if (dptx >= 0 && dptx < width && dpty >= 0 && dpty < height) {
+                    if (dptx >= 0 && dptx < zBuffers[i].getWidth() && dpty >= 0 && dpty < zBuffers[i].getHeight()) {
                         if ((zBuffers[i](dptx, dpty) > 0) && (curdepth > zBuffers[i](dptx, dpty) + zMargin[i])) {
-                            warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
+                            //warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
                             continue;
                         }
                     }

@@ -48,7 +48,7 @@ namespace dynamic_stereo {
 
 			int vid = 0;
 			for (auto y = 0; y < h; ++y) {
-				for (auto x = 0; x < w; ++x, ++vid) {
+				for (auto x = 0; x < w; ++x) {
 					if (depth(x, y) <= 0)
 						continue;
 					cv::Vec3b pix = image.at<Vec3b>(y, x);
@@ -57,6 +57,7 @@ namespace dynamic_stereo {
 					Vector3d spt = cam.GetPosition() + ray * depth(x, y);
 					vhandle[vid] = mesh.add_vertex(TriMesh::Point(spt[0], spt[1], spt[2]));
 					mesh.set_color(vhandle[vid], TriMesh::Color(pix[2], pix[1], pix[0]));
+					vid++;
 				}
 			}
 

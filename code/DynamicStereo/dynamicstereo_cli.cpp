@@ -6,6 +6,7 @@
 #include <gflags/gflags.h>
 #include <stlplus3/file_system.hpp>
 #include "dynamicwarpping.h"
+#include "dynamicsegment.h"
 
 using namespace std;
 using namespace cv;
@@ -42,7 +43,8 @@ int main(int argc, char **argv) {
 	vector<int> depthInd;
 
 	//run stereo
-	for(auto tf = FLAGS_testFrame -FLAGS_tWindow/2; tf<=FLAGS_testFrame+FLAGS_tWindow/2; tf+=FLAGS_stereo_interval) {
+	for (auto tf = FLAGS_testFrame - FLAGS_tWindow/2;
+		 tf <= FLAGS_testFrame + FLAGS_tWindow/2; tf += FLAGS_stereo_interval) {
 		DynamicStereo stereo(file_io, tf, FLAGS_tWindow, FLAGS_tWindowStereo, FLAGS_downsample,
 							 FLAGS_weight_smooth,
 							 FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
@@ -53,7 +55,7 @@ int main(int argc, char **argv) {
 //			const int tf1 = FLAGS_testFrame;
 //			Mat imgRef = imread(file_io.getImage(tf1));
 ////			//In original scale
-//			Vector2d pt(543, 122);
+//			Vector2d pt(227, 395);
 //			stereo.dbtx = pt[0];
 //			stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
@@ -76,11 +78,24 @@ int main(int argc, char **argv) {
 		depthInd.push_back(tf);
 		//stereo.warpToAnchor();
 	}
-
-
 	//warpping
 	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd);
+	Mat mask = Mat(warpping.getHeight(), warpping.getWidth(), CV_8UC1, Scalar(255));
+	CHECK(mask.data);
 	vector<Mat> warpped;
+	warpping.warpToAnchor(mask, warpped, false);
+	for(auto i=0; i<warpped.size(); ++i){
+		sprintf(buffer, "%s/temp/warppedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping.getOffset());
+		imwrite(buffer, warpped[i]);
+	}
 
-    return 0;
+	//segmentation
+//	DynamicSegment segment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd);
+//	Depth geoConf;
+//	printf("Computing geometric dynamic confidence...\n");
+//	segment.getGeometryConfidence(geoConf);
+//	sprintf(buffer, "%s/temp/geoConf%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//	geoConf.saveImage(string(buffer), 5.0);
+
+	return 0;
 }

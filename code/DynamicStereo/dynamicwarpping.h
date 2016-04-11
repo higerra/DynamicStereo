@@ -22,6 +22,7 @@ namespace dynamic_stereo {
 
         inline int getWidth() const{return width;}
         inline int getHeight() const{return height;}
+        inline int getOffset() const{return offset;}
     private:
         void initZBuffer(const std::vector<Depth>& depths, const std::vector<int>& depthind);
         void updateZBuffer(const Depth& depth, Depth& zb, const theia::Camera& cam1, const theia::Camera& cam2) const;

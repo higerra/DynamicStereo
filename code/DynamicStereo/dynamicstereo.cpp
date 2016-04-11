@@ -132,10 +132,9 @@ namespace dynamic_stereo{
 		cout << "Solving with first order smoothness..." << endl;
 		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
 		Depth result_firstOrder;
-		optimizer_firstorder.optimize(result_firstOrder, 10);
+		optimizer_firstorder.optimize(result_firstOrder, 5);
 
 		printf("Saving depth to point cloud...\n");
-		Depth depth_firstOrder;
 		disparityToDepth(result_firstOrder, result);
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), result, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
@@ -154,7 +153,7 @@ namespace dynamic_stereo{
 	void DynamicStereo::disparityToDepth(const Depth& disp, Depth& depth){
 		depth.initialize(disp.getWidth(), disp.getHeight(), -1);
 		for(auto i=0; i<disp.getWidth() * disp.getHeight(); ++i) {
-			if(disp[i] <= 0) {
+			if(disp[i] < 0) {
 				depth[i] = -1;
 				continue;
 			}
