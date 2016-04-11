@@ -16,16 +16,23 @@
 namespace dynamic_stereo {
     class DynamicSegment {
     public:
-        DynamicSegment(const FileIO& file_io_, const int anchor_, const int downsample_,
+        DynamicSegment(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_,
                        const std::vector<Depth>& depths_, const std::vector<int>& depthInd_);
+
+	    void getGeometryConfidence(Depth& geoConf) const;
     private:
         const FileIO& file_io;
         std::vector<cv::Mat> images;
         const std::vector<Depth>& depths;
         const std::vector<int>& depthInd;
         SfMModel sfmModel;
+	    Depth refDepth;
+
+	    int width;
+	    int height;
 
         const int anchor;
+	    int offset;
         const int downsample;
     };
 }//namespace dynamic_stereo
