@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
 		//stereo.warpToAnchor();
 	}
 	//warpping
-	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd);
+	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd);
 	Mat mask = Mat(warpping.getHeight(), warpping.getWidth(), CV_8UC1, Scalar(255));
 	CHECK(mask.data);
 	vector<Mat> warpped;
