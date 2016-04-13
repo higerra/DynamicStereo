@@ -88,25 +88,28 @@ namespace dynamic_stereo {
 	    char buffer[1024] = {};
         for (auto i = 0; i < images.size(); ++i) {
             zBuffers[i].initialize(width / downsample, height / downsample, -1);
-            if (i + offset <= depthind[0]) {
-                updateZBuffer(depths[0], zBuffers[i], sfmModel.getCamera(depthind[0]), sfmModel.getCamera(i + offset));
-                printf("Update zBuffer %d with %d\n", i+offset, depthind[0]);
-            }
-            else if (i + offset >= depthind.back()) {
-                updateZBuffer(depths.back(), zBuffers[i], sfmModel.getCamera(depthind.back()),
-                              sfmModel.getCamera(i + offset));
-                printf("Update zBuffer %d with %d\n", i, depthind.front());
-            } else {
-	            for (auto j = 1; j < depthind.size(); ++j) {
-		            if (i + offset >= depthind[j - 1] && i + offset < depthind[j]) {
-			            updateZBuffer(depths[j - 1], zBuffers[i], sfmModel.getCamera(depthind[j - 1]),
-			                          sfmModel.getCamera(i + offset));
-			            updateZBuffer(depths[j], zBuffers[i], sfmModel.getCamera(depthind[j]),
-                                  sfmModel.getCamera(i + offset));
-			            printf("Update zBuffer %d with %d and %d\n", i + offset, depthind[j - 1], depthind[j]);
-		            }
-	            }
-            }
+//            if (i + offset <= depthind[0]) {
+//                updateZBuffer(depths[0], zBuffers[i], sfmModel.getCamera(depthind[0]), sfmModel.getCamera(i + offset));
+//                printf("Update zBuffer %d with %d\n", i+offset, depthind[0]);
+//            }
+//            else if (i + offset >= depthind.back()) {
+//                updateZBuffer(depths.back(), zBuffers[i], sfmModel.getCamera(depthind.back()),
+//                              sfmModel.getCamera(i + offset));
+//                printf("Update zBuffer %d with %d\n", i, depthind.front());
+//            } else {
+//	            for (auto j = 1; j < depthind.size(); ++j) {
+//		            if (i + offset >= depthind[j - 1] && i + offset < depthind[j]) {
+//			            updateZBuffer(depths[j - 1], zBuffers[i], sfmModel.getCamera(depthind[j - 1]),
+//			                          sfmModel.getCamera(i + offset));
+//			            updateZBuffer(depths[j], zBuffers[i], sfmModel.getCamera(depthind[j]),
+//                                  sfmModel.getCamera(i + offset));
+//			            printf("Update zBuffer %d with %d and %d\n", i + offset, depthind[j - 1], depthind[j]);
+//		            }
+//	            }
+//            }
+
+	        updateZBuffer(refDepth, zBuffers[i], sfmModel.getCamera(anchor), sfmModel.getCamera(i+offset));
+
 //	        sprintf(buffer, "%s/temp/zBuffer%05d.ply", file_io.getDirectory().c_str(), i+offset);
 //	        Mat dimg;
 //	        cv::resize(images[i], dimg, cv::Size(zBuffers[i].getWidth(), zBuffers[i].getHeight()));
@@ -126,7 +129,7 @@ namespace dynamic_stereo {
 
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
 
-	    double dispMargin = 3;
+	    double dispMargin = 5;
 
 	    const int tx = 477;
 	    const int ty = 162;

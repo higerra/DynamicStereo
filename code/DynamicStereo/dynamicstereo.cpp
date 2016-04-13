@@ -110,7 +110,7 @@ namespace dynamic_stereo{
 			//ray.normalize();
 
 			int tdisp = (int) dispUnary(dtx, dty);
-//			int tdisp = 42;
+//			int tdisp = 223;
 			double td = model->dispToDepth(tdisp);
 			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
 
@@ -121,7 +121,7 @@ namespace dynamic_stereo{
 				double curdepth = sfmModel.getCamera(v+offset).ProjectPoint(
 						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
 				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
-					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(0, 0, 255), 2);
+					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(255, 0, 0), 2);
 				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
 						v + offset);
 				imwrite(buffer, curimg);

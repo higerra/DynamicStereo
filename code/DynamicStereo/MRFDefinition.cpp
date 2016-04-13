@@ -89,7 +89,6 @@ namespace dynamic_stereo {
 	    char buffer[1024] = {};
 	    sprintf(buffer, "%s/temp/cacheMRFdata%05dR%dD%d", file_io.getDirectory().c_str(), anchor, dispResolution, downsample);
 	    ifstream fin(buffer, ios::binary);
-
         bool recompute = true;
 	    if (fin.is_open()) {
             int frame, resolution, tw, ds, type;
@@ -103,8 +102,10 @@ namespace dynamic_stereo {
             fin.read((char *) &maxdisp, sizeof(double));
             printf("Cached data: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
                    frame, resolution, tw, ds, type, mindisp, maxdisp);
+		    printf("Current config:: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
+		           anchor, dispResolution, tWindowStereo, downsample, (int)sizeof(EnergyType), model->min_disp, model->max_disp);
             if (frame == anchor && resolution == dispResolution && tw == tWindowStereo &&
-                type == sizeof(EnergyType) && ds == downsample && model->min_disp == mindisp && model->max_disp == maxdisp) {
+                type == sizeof(EnergyType) && ds == downsample) {
                 printf("Reading unary term from cache...\n");
                 fin.read((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
                 recompute = false;

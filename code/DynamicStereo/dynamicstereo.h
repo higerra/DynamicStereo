@@ -22,6 +22,8 @@
 namespace dynamic_stereo {
     class DynamicStereo {
     public:
+	    typedef int EnergyType;
+
         DynamicStereo(const FileIO& file_io_, const int anchor_, const int tWindow_, const int tWindowStereo_, const int downsample_, const double weight_smooth_,
                       const int dispResolution_ = 64, const double min_disp_ = -1, const double max_disp_ = -1);
 
@@ -39,12 +41,14 @@ namespace dynamic_stereo {
 							 const int size, const double sigmas, const double sigmar, const double sigmau);
 
 	    void getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, const int startid, const int endid, std::vector<std::vector<double> >& patches) const;
-
+	    const std::shared_ptr<StereoModel<EnergyType> > getMRFModel() const{
+		    return model;
+	    }
 		//for debuging
 		double dbtx;
 		double dbty;
     private:
-        typedef int EnergyType;
+
 
         void initMRF();
 
