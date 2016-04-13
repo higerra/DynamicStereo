@@ -129,7 +129,7 @@ namespace dynamic_stereo {
 
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
 
-	    double dispMargin = 5;
+	    double dispMargin = 10;
 
 	    const int tx = 477;
 	    const int ty = 162;
@@ -170,7 +170,7 @@ namespace dynamic_stereo {
 		                    if(zdisp - curdisp >= dispMargin)
 			                    continue;
 	                    }else
-		                    continue;
+                            continue;
                     }
                     if (imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < width - 1 && imgpt[1] < height - 1) {
                         Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(images[i].data, width, height,

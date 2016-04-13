@@ -51,7 +51,7 @@ namespace dynamic_stereo{
 		height = images.front().rows;
 		dispUnary.initialize(width, height, 0.0);
 
-		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 1000, weight_smooth_));
+		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 10000, weight_smooth_));
 	}
 
 
@@ -61,7 +61,7 @@ namespace dynamic_stereo{
 		initMRF();
 
 		//read semantic mask
-		sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
+		/*sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
 		Mat segMaskImg = imread(buffer);
 		CHECK(segMaskImg.data) << buffer;
 		//in ORIGINAL resolution
@@ -89,7 +89,7 @@ namespace dynamic_stereo{
 			cv::addWeighted(anchorImg, 0.5, segMaskImg, 0.5, 0.0, overlayImg);
 			sprintf(buffer, "%s/temp/seg_overlay%05d.jpg", file_io.getDirectory().c_str(), anchor);
 			imwrite(buffer, overlayImg);
-		}
+		}*/
 
 
 		if(dbtx >= 0 && dbty >= 0){

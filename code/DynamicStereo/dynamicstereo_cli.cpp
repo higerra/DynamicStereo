@@ -43,21 +43,22 @@ int main(int argc, char **argv) {
 	vector<int> depthInd;
 
 	//run stereo
-	for (auto tf = FLAGS_testFrame;
-		 tf <= FLAGS_testFrame; tf += FLAGS_stereo_interval) {
-		DynamicStereo stereo(file_io, tf, FLAGS_tWindow, FLAGS_tWindowStereo, FLAGS_downsample,
-							 FLAGS_weight_smooth,
-							 FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
+	for (auto tf = FLAGS_testFrame - FLAGS_tWindow/2;
+		 tf <= FLAGS_testFrame + FLAGS_tWindow/2; tf += FLAGS_stereo_interval) {
+		if(tf == FLAGS_testFrame) {
+			DynamicStereo stereo(file_io, tf, FLAGS_tWindow, FLAGS_tWindowStereo, FLAGS_downsample,
+								 FLAGS_weight_smooth,
+								 FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
 
 
-		{
+			{
 //			    //test SfM
 //			const int tf1 = FLAGS_testFrame;
 //			Mat imgRef = imread(file_io.getImage(tf1));
 ////			//In original scale
-			Vector2d pt(693, 434);
-			stereo.dbtx = pt[0];
-			stereo.dbty = pt[1];
+//			Vector2d pt(693, 434);
+//			stereo.dbtx = pt[0];
+//			stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
 //			//Vector2d pt(1077, 257);
 //			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
@@ -69,25 +70,29 @@ int main(int argc, char **argv) {
 //				sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
 //				imwrite(buffer, imgR);
 //			}
-		}
+			}
 
-		Depth curdepth;
-		printf("Running stereo for frame %d\n", tf);
-		stereo.runStereo(curdepth);
-		depths.push_back(curdepth);
-		depthInd.push_back(tf);
+			Depth curdepth;
+			printf("Running stereo for frame %d\n", tf);
+			stereo.runStereo(curdepth);
+			depths.push_back(curdepth);
+			depthInd.push_back(tf);
+		} else{
+			depths.push_back(Depth());
+			depthInd.push_back(tf);
+		}
 		//stereo.warpToAnchor();
 	}
 	//warpping
-//	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd);
-//	Mat mask = Mat(warpping.getHeight(), warpping.getWidth(), CV_8UC1, Scalar(255));
-//	CHECK(mask.data);
-//	vector<Mat> warpped;
-//	warpping.warpToAnchor(mask, warpped, false);
-//	for(auto i=0; i<warpped.size(); ++i){
-//		sprintf(buffer, "%s/temp/warppedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping.getOffset());
-//		imwrite(buffer, warpped[i]);
-//	}
+	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd);
+	Mat mask = Mat(warpping.getHeight(), warpping.getWidth(), CV_8UC1, Scalar(255));
+	CHECK(mask.data);
+	vector<Mat> warpped;
+	warpping.warpToAnchor(mask, warpped, false);
+	for(auto i=0; i<warpped.size(); ++i){
+		sprintf(buffer, "%s/temp/warppedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping.getOffset());
+		imwrite(buffer, warpped[i]);
+	}
 //
 //	//segmentation
 //	DynamicSegment segment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd);

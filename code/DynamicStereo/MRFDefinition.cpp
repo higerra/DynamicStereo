@@ -129,8 +129,8 @@ namespace dynamic_stereo {
                         //compute 3D point
 	                    vector<vector<double> > patches;
 	                    getPatchArray((double)x,(double)y,d, pR, cam1, anchor-stereoOffset, anchor-stereoOffset+tWindowStereo-1, patches);
-                        //double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
-                        double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
+                        double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
+                        //double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
 	                    model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
                         //MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 - mCost) * MRFRatio);
                     }
@@ -173,33 +173,33 @@ namespace dynamic_stereo {
     }
 
 	void DynamicStereo::assignSmoothWeight() {
-		const double t = 0.3;
-		double ratio = 441.0;
 		vector<EnergyType> &vCue = model->vCue;
 		vector<EnergyType> &hCue = model->hCue;
+		const double t = 40;
 		const Mat &img = model->image;
 		for (auto y = 0; y < height; ++y) {
 			for (auto x = 0; x < width; ++x) {
 				Vec3b pix1 = img.at<Vec3b>(y, x);
 				//pixel value range from 0 to 1, not 255!
-				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]) / 255.0;
+				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
 				if (y < height - 1) {
 					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]) / 255.0;
-					double diff = (dpix1 - dpix2).norm();
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+					double diff = (dpix1 - dpix2).squaredNorm();
+					vCue[y*width+x] = (EnergyType)
 					if (diff > t)
 						vCue[y * width + x] = 0;
 					else
-						vCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * ratio);
+						vCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t));
 				}
 				if (x < width - 1) {
 					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]) / 255.0;
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
 					double diff = (dpix1 - dpix2).norm();
 					if (diff > t)
 						hCue[y * width + x] = 0;
 					else
-						hCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t) * ratio);
+						hCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t));
 				}
 			}
 		}
