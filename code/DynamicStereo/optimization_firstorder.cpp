@@ -27,37 +27,6 @@ namespace dynamic_stereo {
 		shared_ptr<MRF> mrf(new Expansion(width, height, nLabel, energy_function));
 		mrf->initialize();
 
-		//set neighbor system
-		const double t = 40;
-		const Mat &img = model->image;
-		for (auto y = 0; y < height; ++y) {
-			for (auto x = 0; x < width; ++x) {
-				Vec3b pix1 = img.at<Vec3b>(y, x);
-				//pixel value range from 0 to 1, not 255!
-				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
-				if (y < height - 1) {
-					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-					double diff = (dpix1 - dpix2).squaredNorm();
-					vCue[y*width+x] = (EnergyType)
-					if (diff > t)
-						vCue[y * width + x] = 0;
-					else
-						vCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t));
-				}
-				if (x < width - 1) {
-					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-					double diff = (dpix1 - dpix2).norm();
-					if (diff > t)
-						hCue[y * width + x] = 0;
-					else
-						hCue[y * width + x] = (EnergyType) ((diff - t) * (diff - t));
-				}
-			}
-		}
-
-
 		//randomly initialize
 		std::default_random_engine generator;
 		std::uniform_int_distribution<int> distribution(0, nLabel - 1);

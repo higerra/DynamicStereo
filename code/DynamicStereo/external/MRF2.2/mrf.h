@@ -38,8 +38,8 @@ public:
 
     // *********** EVALUATING THE ENERGY
     typedef int Label;
-    typedef int EnergyVal;        /* The total energy of a labeling */
-    typedef int CostVal;          /* costs of individual terms of the energy */
+    typedef double EnergyVal;        /* The total energy of a labeling */
+    typedef double CostVal;          /* costs of individual terms of the energy */
  
     EnergyVal totalEnergy();      /* returns energy of current labeling */
     virtual EnergyVal dataEnergy() = 0;        /* returns the data part of the energy */

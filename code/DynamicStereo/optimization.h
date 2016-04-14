@@ -23,7 +23,7 @@ namespace dynamic_stereo {
 
     class StereoOptimization {
     public:
-        typedef int EnergyType;
+        typedef double EnergyType;
 
         StereoOptimization(const FileIO &file_io_, const int kFrames_, std::shared_ptr<StereoModel<EnergyType> > model_) :
                 file_io(file_io_), kFrames(kFrames_), model(model_), width(model_->width), height(model_->height){ }
