@@ -129,7 +129,7 @@ namespace dynamic_stereo {
 
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
 
-	    double dispMargin = 10;
+	    double dispMargin = 20;
 
 	    const int tx = 477;
 	    const int ty = 162;
