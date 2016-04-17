@@ -19,7 +19,9 @@ namespace dynamic_stereo {
         DynamicSegment(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_,
                        const std::vector<Depth>& depths_, const std::vector<int>& depthInd_);
 
-	    void getGeometryConfidence(Depth& geoConf) const;
+	    //void getGeometryConfidence(Depth& geoConf) const;
+
+	    void segment(const std::vector<cv::Mat>& warppedImg, cv::Mat& result) const;
     private:
         const FileIO& file_io;
         std::vector<cv::Mat> images;

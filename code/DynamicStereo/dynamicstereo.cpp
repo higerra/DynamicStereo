@@ -61,14 +61,12 @@ namespace dynamic_stereo{
 		initMRF();
 
 		//read semantic mask
-		/*sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
+		sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
 		Mat segMaskImg = imread(buffer);
 		CHECK(segMaskImg.data) << buffer;
 		//in ORIGINAL resolution
-		cv::resize(segMaskImg, segMaskImg, cv::Size(width * downsample, height * downsample), 0,0,INTER_NEAREST);
+		cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0,INTER_NEAREST);
 		segMask = Mat(segMaskImg.rows, segMaskImg.cols, CV_8UC1, Scalar(255));
-		sprintf(buffer, "%s/temp/seg%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		imwrite(buffer, segMask);
 
 		vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192)};
 		for(auto y=0; y<segMaskImg.rows; ++y){
@@ -83,13 +81,13 @@ namespace dynamic_stereo{
 
 		{
 			//debug: visualize seg mask
-			Mat anchorImg = imread(file_io.getImage(anchor));
+			const Mat& anchorImg = images[anchor-offset];
 			CHECK_EQ(segMaskImg.size(), anchorImg.size());
 			Mat overlayImg;
 			cv::addWeighted(anchorImg, 0.5, segMaskImg, 0.5, 0.0, overlayImg);
 			sprintf(buffer, "%s/temp/seg_overlay%05d.jpg", file_io.getDirectory().c_str(), anchor);
 			imwrite(buffer, overlayImg);
-		}*/
+		}
 
 
 		if(dbtx >= 0 && dbty >= 0){
@@ -134,8 +132,18 @@ namespace dynamic_stereo{
 		Depth result_firstOrder;
 		optimizer_firstorder.optimize(result_firstOrder, 5);
 
+		//masking out invalid region
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				if(segMask.at<uchar>(y,x) < 200)
+					result_firstOrder(x,y) = 0; //assign to furtherest depth, to avoid false occlusion
+			}
+		}
+
+
 		printf("Saving depth to point cloud...\n");
 		disparityToDepth(result_firstOrder, result);
+
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), result, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
 
