@@ -175,7 +175,7 @@ namespace dynamic_stereo {
 	void DynamicStereo::assignSmoothWeight() {
 		vector<EnergyType> &vCue = model->vCue;
 		vector<EnergyType> &hCue = model->hCue;
-		const double t = 40;
+		const double t = 100;
 		const Mat &img = model->image;
 		for (auto y = 0; y < height; ++y) {
 			for (auto x = 0; x < width; ++x) {
@@ -186,13 +186,13 @@ namespace dynamic_stereo {
 					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
 					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
 					double diff = (dpix1 - dpix2).squaredNorm();
-					vCue[y*width+x] = (EnergyType) std::log(1+std::exp(-1*diff/t));
+					vCue[y*width+x] = (EnergyType) std::log(1+std::exp(-1*diff/(t*t)));
 				}
 				if (x < width - 1) {
 					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
 					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
 					double diff = (dpix1 - dpix2).squaredNorm();
-					hCue[y*width+x] = (EnergyType) std::log(1+std::exp(-1*diff/t));
+					hCue[y*width+x] = (EnergyType) std::log(1+std::exp(-1*diff/(t*t)));
 				}
 			}
 		}
