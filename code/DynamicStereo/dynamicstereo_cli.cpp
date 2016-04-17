@@ -19,7 +19,7 @@ DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
 DEFINE_int32(downsample, 4, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
 DEFINE_int32(stereo_interval, 10, "interval for stereo");
-DEFINE_double(weight_smooth, 0.001, "smoothness weight for stereo");
+DEFINE_double(weight_smooth, 0.05, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
 
