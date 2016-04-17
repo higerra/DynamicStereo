@@ -144,7 +144,7 @@ namespace dynamic_stereo {
 		    }
 	    }
 
-	    double dispMargin = 20;
+	    double dispMargin = 10;
 
 	    const int tx = -1;
 	    const int ty = -1;

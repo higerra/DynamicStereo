@@ -128,9 +128,13 @@ int main(int argc, char **argv) {
 	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd);
 	vector<Mat> warpped;
 	warpping.warpToAnchor(warpMask, warpped, false);
+
+	vector<Mat> warped_filtered;
+	utility::temporalMedianFilter(warpped, warped_filtered, 2);
+
 	for(auto i=0; i<warpped.size(); ++i){
-		sprintf(buffer, "%s/temp/warppedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping.getOffset());
-		imwrite(buffer, warpped[i]);
+		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping.getOffset());
+		imwrite(buffer, warped_filtered[i]);
 	}
 //
 //	//segmentation
