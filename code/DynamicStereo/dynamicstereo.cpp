@@ -55,7 +55,7 @@ namespace dynamic_stereo{
 	}
 
 
-	void DynamicStereo::runStereo(Depth& result) {
+	void DynamicStereo::runStereo(Depth& result, cv::Mat& depthMask) {
 		char buffer[1024] = {};
 
 		initMRF();
@@ -78,6 +78,8 @@ namespace dynamic_stereo{
 		}
 		sprintf(buffer, "%s/temp/segmask%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		imwrite(buffer, segMask);
+
+		depthMask = Mat(height, width, CV_8UC1, Scalar(255));
 
 		{
 			//debug: visualize seg mask
@@ -133,13 +135,14 @@ namespace dynamic_stereo{
 		optimizer_firstorder.optimize(result_firstOrder, 5);
 
 		//masking out invalid region
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				if(segMask.at<uchar>(y,x) < 200)
-					result_firstOrder(x,y) = 0; //assign to furtherest depth, to avoid false occlusion
+		for(auto y=0; y<height; ++y) {
+			for (auto x = 0; x < width; ++x) {
+				if (segMask.at<uchar>(y, x) < 200) {
+					result_firstOrder(x, y) = 0;
+					depthMask.at<uchar>(y, x) = 0;
+				}
 			}
 		}
-
 
 		printf("Saving depth to point cloud...\n");
 		disparityToDepth(result_firstOrder, result);

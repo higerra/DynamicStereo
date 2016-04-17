@@ -49,8 +49,6 @@ namespace dynamic_stereo{
 
 	    CHECK_EQ(refDepth.getWidth(), width / downsample);
 	    CHECK_EQ(refDepth.getHeight(), height / downsample);
-
-
     }
 
 //	void DynamicSegment::getGeometryConfidence(Depth &geoConf) const {
@@ -88,5 +86,12 @@ namespace dynamic_stereo{
 //			}
 //		}
 //	}
+
+
+	void DynamicSegment::segment(const std::vector<cv::Mat> &warppedImg, cv::Mat &result) const {
+		result = Mat(height, width, CV_8UC1, Scalar(255));
+
+
+	}
 
 }//namespace dynamic_stereo

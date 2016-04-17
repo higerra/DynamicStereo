@@ -41,7 +41,30 @@ int main(int argc, char **argv) {
 
 	vector<Depth> depths;
 	vector<int> depthInd;
+	vector<Mat> depthMask;
 
+	Mat tempMat = imread(file_io.getImage(FLAGS_testFrame));
+	CHECK(tempMat.data);
+	const int width = tempMat.cols;
+	const int height = tempMat.rows;
+	tempMat.release();
+
+	//segnet mask for reference frame
+	sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	Mat segMaskImg = imread(buffer);
+	CHECK(segMaskImg.data) << buffer;
+	cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0, INTER_NEAREST);
+	vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192)};
+	Mat segMask(height, width, CV_8UC1, Scalar(255));
+	for(auto y=0; y<height; ++y){
+		for(auto x=0; x<width; ++x){
+			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
+			if(std::find(validColor.begin(), validColor.end(), pix) == validColor.end())
+				segMask.at<uchar>(y,x) = 0;
+		}
+	}
+
+	int offset;
 	//run stereo
 	for (auto tf = FLAGS_testFrame - FLAGS_tWindow/2;
 		 tf <= FLAGS_testFrame + FLAGS_tWindow/2; tf += FLAGS_stereo_interval) {
@@ -73,22 +96,38 @@ int main(int argc, char **argv) {
 			}
 
 			Depth curdepth;
+			Mat curDepthMask;
 			printf("Running stereo for frame %d\n", tf);
-			stereo.runStereo(curdepth);
+			stereo.runStereo(curdepth, curDepthMask);
 			depths.push_back(curdepth);
 			depthInd.push_back(tf);
+			depthMask.push_back(curDepthMask);
+
+			offset = (int)depths.size() - 1;
 		} else{
 			depths.push_back(Depth());
 			depthInd.push_back(tf);
+			depthMask.push_back(Mat());
 		}
-		//stereo.warpToAnchor();
 	}
 	//warpping
+	Mat refDepthMask;
+	cv::resize(depthMask[offset], refDepthMask, cv::Size(width, height), 0, 0, INTER_NEAREST);
+
+	Mat warpMask = segMask.clone();
+	CHECK_EQ(warpMask.cols, refDepthMask.cols);
+	CHECK_EQ(warpMask.rows, refDepthMask.rows);
+
+	for(auto y=0; y<height; ++y){
+		for(auto x=0; x<width; ++x){
+			if(refDepthMask.at<uchar>(y,x) < 200)
+				warpMask.at<uchar>(y,x) = 0;
+		}
+	}
+
 	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd);
-	Mat mask = Mat(warpping.getHeight(), warpping.getWidth(), CV_8UC1, Scalar(255));
-	CHECK(mask.data);
 	vector<Mat> warpped;
-	warpping.warpToAnchor(mask, warpped, false);
+	warpping.warpToAnchor(warpMask, warpped, false);
 	for(auto i=0; i<warpped.size(); ++i){
 		sprintf(buffer, "%s/temp/warppedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping.getOffset());
 		imwrite(buffer, warpped[i]);

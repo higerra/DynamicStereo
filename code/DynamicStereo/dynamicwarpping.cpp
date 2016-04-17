@@ -127,12 +127,27 @@ namespace dynamic_stereo {
         CHECK_EQ(mask.rows, height);
         CHECK_EQ(mask.channels(), 1);
 
+	    char buffer[1024] = {};
+
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
+
+	    sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
+	    Mat segMaskImg = imread(buffer);
+	    cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), INTER_NEAREST);
+	    vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192)};
+	    Mat segMask(height, width, CV_8UC1, Scalar(255));
+	    for(auto y=0; y<segMaskImg.rows; ++y){
+		    for(auto x=0; x<segMaskImg.cols; ++x){
+			    Vec3b pix = segMaskImg.at<Vec3b>(y,x);
+			    if(std::find(validColor.begin(), validColor.end(), pix) == validColor.end())
+				    segMask.at<uchar>(y,x) = 0;
+		    }
+	    }
 
 	    double dispMargin = 20;
 
-	    const int tx = 477;
-	    const int ty = 162;
+	    const int tx = -1;
+	    const int ty = -1;
 
         for (auto i = 0; i < images.size(); ++i) {
             cout << i + offset << ' ' << flush;
@@ -146,7 +161,7 @@ namespace dynamic_stereo {
             for (auto y = downsample; y < height - downsample; ++y) {
                 for (auto x = downsample; x < width - downsample; ++x) {
                     if (mask.at<uchar>(y, x) < 200) {
-                        //warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
+                        warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
                         continue;
                     }
                     Vector2d refPt(x,y);
