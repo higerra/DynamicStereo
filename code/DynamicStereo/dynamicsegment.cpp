@@ -25,30 +25,35 @@ namespace dynamic_stereo{
 	    } else
 		    offset = anchor - tWindow_ / 2;
 
-	    images.resize((size_t) tWindow_);
-	    for (auto i = 0; i < images.size(); ++i) {
-		    images[i] = imread(file_io.getImage(i + offset));
-		    for (auto y = 0; y < images[i].rows; ++y) {
-			    for (auto x = 0; x < images[i].cols; ++x) {
-				    if (images[i].at<Vec3b>(y, x) == Vec3b(0, 0, 0))
-					    images[i].at<Vec3b>(y, x) = Vec3b(1, 1, 1);
-			    }
-		    }
-	    }
-	    CHECK(!images.empty());
-	    width = images[0].cols;
-	    height = images[0].rows;
+//	    images.resize((size_t) tWindow_);
+//	    for (auto i = 0; i < images.size(); ++i) {
+//		    images[i] = imread(file_io.getImage(i + offset));
+//		    for (auto y = 0; y < images[i].rows; ++y) {
+//			    for (auto x = 0; x < images[i].cols; ++x) {
+//				    if (images[i].at<Vec3b>(y, x) == Vec3b(0, 0, 0))
+//					    images[i].at<Vec3b>(y, x) = Vec3b(1, 1, 1);
+//			    }
+//		    }
+//	    }
 
-	    CHECK_EQ(depths.size(), depthInd.size());
-	    for(auto i=0; i<depthInd.size(); ++i){
-			depths[i].updateStatics();
-		    if(depthInd[i] == anchor){
-			    refDepth = depths[i];
-		    }
-	    }
+	    Mat temp = imread(file_io.getImage(anchor));
+	    width = temp.cols;
+	    height = temp.rows;
 
-	    CHECK_EQ(refDepth.getWidth(), width / downsample);
-	    CHECK_EQ(refDepth.getHeight(), height / downsample);
+//	    CHECK(!images.empty());
+//	    width = images[0].cols;
+//	    height = images[0].rows;
+//
+//	    CHECK_EQ(depths.size(), depthInd.size());
+//	    for(auto i=0; i<depthInd.size(); ++i){
+//			depths[i].updateStatics();
+//		    if(depthInd[i] == anchor){
+//			    refDepth = depths[i];
+//		    }
+//	    }
+//
+//	    CHECK_EQ(refDepth.getWidth(), width / downsample);
+//	    CHECK_EQ(refDepth.getHeight(), height / downsample);
     }
 
 //	void DynamicSegment::getGeometryConfidence(Depth &geoConf) const {
@@ -89,9 +94,51 @@ namespace dynamic_stereo{
 
 
 	void DynamicSegment::segment(const std::vector<cv::Mat> &warppedImg, cv::Mat &result) const {
+		char buffer[1024] = {};
+
 		result = Mat(height, width, CV_8UC1, Scalar(255));
+		vector<Mat> intensityRaw(warppedImg.size());
+		for(auto i=0; i<warppedImg.size(); ++i)
+			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
 
+		vector<Depth> intensity(warppedImg.size());
 
+		Depth pMean, pVariance;
+		auto isInside = [&](int x, int y){
+			return x>=0 && y >= 0 && x < width && y < height;
+		};
+
+		const int pR = 3;
+		//gaussain filter with invalid pixel handling
+		for(auto i=0; i<warppedImg.size(); ++i) {
+			printf("frame %d\n", i+offset);
+			intensity[i].initialize(width, height, 0.0);
+			for (auto y = 0; y < height; ++y) {
+				for (auto x = 0; x < width; ++x) {
+					double curI = 0.0;
+					double count = 0.0;
+					for (auto dx = -1 * pR; dx <= pR; ++dx) {
+						for (auto dy = -1 * pR; dy <= pR; ++dy) {
+							const int curx = x + dx;
+							const int cury = y + dy;
+							if(isInside(curx, cury)){
+								uchar gv = intensityRaw[i].at<uchar>(cury,curx);
+								if(gv == (uchar)0)
+									continue;
+								count = count + 1.0;
+								curI += (double)gv;
+							}
+						}
+					}
+					if(count == 0.0)
+						continue;
+					intensity[i](x,y) = curI / count;
+				}
+			}
+
+			sprintf(buffer,"%s/temp/intensityb%05d_%05d.jpg", file_io.getDirectory().c_str(), anchor, i+offset);
+			intensity[i].saveImage(string(buffer));
+		}
 	}
 
 }//namespace dynamic_stereo

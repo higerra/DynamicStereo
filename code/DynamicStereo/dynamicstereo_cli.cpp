@@ -125,25 +125,30 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	DynamicWarpping warpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd);
+	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
+	const int warpping_offset = warpping->getOffset();
 	vector<Mat> warpped;
-	warpping.warpToAnchor(warpMask, warpped, false);
+	warpping->warpToAnchor(warpMask, warpped, false);
 
-	vector<Mat> warped_filtered;
-	utility::temporalMedianFilter(warpped, warped_filtered, 2);
+	warpping.reset();
+
+//	vector<Mat> warped_filtered;
+//	utility::temporalMedianFilter(warpped, warped_filtered, 2);
 
 	for(auto i=0; i<warpped.size(); ++i){
-		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping.getOffset());
-		imwrite(buffer, warped_filtered[i]);
+		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+		imwrite(buffer, warpped[i]);
 	}
 //
-//	//segmentation
-//	DynamicSegment segment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd);
-//	Depth geoConf;
-//	printf("Computing geometric dynamic confidence...\n");
+	//segmentation
+	printf("Segmenting...\n");
+	shared_ptr<DynamicSegment> segment(new DynamicSegment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd));
+	Mat seg_result;
 //	segment.getGeometryConfidence(geoConf);
 //	sprintf(buffer, "%s/temp/geoConf%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 //	geoConf.saveImage(string(buffer), 5.0);
+	segment->segment(warpped, seg_result);
+	segment.reset();
 
 	return 0;
 }
