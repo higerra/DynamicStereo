@@ -30,9 +30,6 @@ namespace dynamic_stereo {
         SfMModel sfmModel;
 	    Depth refDepth;
 
-	    int width;
-	    int height;
-
         const int anchor;
 	    int offset;
         const int downsample;

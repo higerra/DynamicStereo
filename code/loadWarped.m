@@ -8,14 +8,12 @@ if ~exist('startid', 'var') || ~exist('endid', 'var')
     endid = 89;
 end
 assert(startid < endid);
-tempImg = imread(sprintf('%s/temp/warpedb%05d_%05d.jpg', filepath, refid, startid));
+tempImg = imread(sprintf('%s/temp/prewarpb%05d_%05d.jpg', filepath, refid, startid));
 [height,width, ~] = size(tempImg);
 Is = zeros(height, width, endid-startid+1);
 for i=startid:endid
-    path = sprintf('%s/temp/warpedb%05d_%05d.jpg', ...
+    path = sprintf('%s/temp/prewarpb%05d_%05d.jpg', ...
         filepath, refid, i);
     disp(path);
-    Is(:,:,i-startid+1) = imgaussfilt(rgb2gray(im2double(imread(path))), 3);
-
-
+    Is(:,:,i-startid+1) = rgb2gray(im2double(imread(path)));
 end

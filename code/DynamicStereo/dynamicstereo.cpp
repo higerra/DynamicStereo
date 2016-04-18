@@ -137,10 +137,10 @@ namespace dynamic_stereo{
 		//masking out invalid region
 		for(auto y=0; y<height; ++y) {
 			for (auto x = 0; x < width; ++x) {
-				if (segMask.at<uchar>(y, x) < 200) {
+				if (segMask.at<uchar>(y, x) < 200)
 					result_firstOrder(x, y) = 0;
-					depthMask.at<uchar>(y, x) = 0;
-				}
+				if(result_firstOrder(x,y) < 1)
+					depthMask.at<uchar>(y,x) = 0;
 			}
 		}
 

@@ -131,19 +131,6 @@ namespace dynamic_stereo {
 
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
 
-	    sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
-	    Mat segMaskImg = imread(buffer);
-	    cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), INTER_NEAREST);
-	    vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192)};
-	    Mat segMask(height, width, CV_8UC1, Scalar(255));
-	    for(auto y=0; y<segMaskImg.rows; ++y){
-		    for(auto x=0; x<segMaskImg.cols; ++x){
-			    Vec3b pix = segMaskImg.at<Vec3b>(y,x);
-			    if(std::find(validColor.begin(), validColor.end(), pix) == validColor.end())
-				    segMask.at<uchar>(y,x) = 0;
-		    }
-	    }
-
 	    double dispMargin = 10;
 
 	    const int tx = -1;
@@ -196,5 +183,65 @@ namespace dynamic_stereo {
             }
         }
         cout << endl;
+    }
+
+    void DynamicWarpping::preWarping(const cv::Mat &mask, std::vector<cv::Mat> &warped) const {
+
+        vector<Mat> dimages(images.size());
+        for(auto i=0; i<images.size(); ++i){
+            const int nLevel = (int)std::log2((double)downsample) + 1;
+            vector<Mat> pyramid(nLevel);
+            pyramid[0] = images[i].clone();
+            for(auto k=1; k<nLevel; ++k)
+                pyrDown(pyramid[k-1], pyramid[k]);
+            dimages[i] = pyramid.back().clone();
+        }
+        const int dw = dimages[0].cols;
+        const int dh = dimages[0].rows;
+
+        Mat maskd;
+        cv::resize(mask, maskd, cv::Size(dw, dh), 0, 0, INTER_NEAREST);
+
+        warped.resize(images.size());
+
+        const theia::Camera& cam1 = sfmModel.getCamera(anchor);
+        const int disparity_margin = 10;
+
+        for(int i=0; i<dimages.size(); ++i) {
+            cout << i+offset << ' ' << flush;
+            const theia::Camera& cam2 = sfmModel.getCamera(i+offset);
+            if(i == anchor - offset){
+                warped[i] = dimages[anchor-offset].clone();
+                continue;
+            }else{
+                warped[i] = Mat(dh,dw,CV_8UC3, Scalar(0,0,0));
+            }
+            for (int y = 0; y < dh; ++y) {
+                for (int x = 0; x < dw; ++x) {
+                    if (maskd.at<uchar>(y, x) < 200) {
+                        warped[i].at<Vec3b>(y,x) = dimages[anchor-offset].at<Vec3b>(y,x);
+                        continue;
+                    }
+                    Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
+                    Vector3d spt = cam1.GetPosition() + ray * refDepth(x,y);
+                    Vector2d imgpt;
+                    double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
+                    imgpt = imgpt / (double)downsample;
+                    if(imgpt[0]>=0 && imgpt[1] >= 0 && imgpt[0] < dw-1 && imgpt[1] < dh-1){
+                        double zDepth = zBuffers[i].getDepthAt(imgpt);
+                        if(zDepth > 0){
+                            double curdisp = depthToDisp(curd, min_depths[i], max_depths[i]);
+                            double zdisp = depthToDisp(zDepth, min_depths[i], max_depths[i]);
+                            if(zdisp - curdisp >= disparity_margin)
+                                continue;
+                        }else
+                            continue;
+                        Vector3d pix2 = interpolation_util::bilinear<uchar,3>(dimages[i].data, dw, dh, imgpt);
+                        warped[i].at<Vec3b>(y,x) = Vec3b((uchar)pix2[0], (uchar)pix2[1], (uchar)pix2[2]);
+                    }
+                }
+            }
+        }
+        cout << "done" << endl;
     }
 }//namespace dynamic_stereo

@@ -18,7 +18,8 @@ namespace dynamic_stereo {
         DynamicWarpping(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_,
                         const int nLabel_, const std::vector<Depth>& depths, const std::vector<int>& depthind);
 
-        void warpToAnchor(const cv::Mat& mask, std::vector<cv::Mat>& warpped, const bool earlyTerminate) const;
+        void warpToAnchor(const cv::Mat& mask, std::vector<cv::Mat>& warped, const bool earlyTerminate) const;
+		void preWarping(const cv::Mat& mask, std::vector<cv::Mat>& warped) const;
 
         inline int getWidth() const{return width;}
         inline int getHeight() const{return height;}

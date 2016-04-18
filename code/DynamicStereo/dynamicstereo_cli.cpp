@@ -43,11 +43,10 @@ int main(int argc, char **argv) {
 	vector<int> depthInd;
 	vector<Mat> depthMask;
 
-	Mat tempMat = imread(file_io.getImage(FLAGS_testFrame));
-	CHECK(tempMat.data);
-	const int width = tempMat.cols;
-	const int height = tempMat.rows;
-	tempMat.release();
+	Mat refImage = imread(file_io.getImage(FLAGS_testFrame));
+	CHECK(refImage.data);
+	const int width = refImage.cols;
+	const int height = refImage.rows;
 
 	//segnet mask for reference frame
 	sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), FLAGS_testFrame);
@@ -64,7 +63,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	int offset;
+	int refId;
 	//run stereo
 	for (auto tf = FLAGS_testFrame - FLAGS_tWindow/2;
 		 tf <= FLAGS_testFrame + FLAGS_tWindow/2; tf += FLAGS_stereo_interval) {
@@ -103,7 +102,7 @@ int main(int argc, char **argv) {
 			depthInd.push_back(tf);
 			depthMask.push_back(curDepthMask);
 
-			offset = (int)depths.size() - 1;
+			refId = (int)depths.size() - 1;
 		} else{
 			depths.push_back(Depth());
 			depthInd.push_back(tf);
@@ -112,7 +111,9 @@ int main(int argc, char **argv) {
 	}
 	//warpping
 	Mat refDepthMask;
-	cv::resize(depthMask[offset], refDepthMask, cv::Size(width, height), 0, 0, INTER_NEAREST);
+	cv::resize(depthMask[refId], refDepthMask, cv::Size(width, height), 0, 0, INTER_NEAREST);
+	sprintf(buffer, "%s/temp/depthMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	imwrite(buffer, refDepthMask);
 
 	Mat warpMask = segMask.clone();
 	CHECK_EQ(warpMask.cols, refDepthMask.cols);
@@ -128,17 +129,23 @@ int main(int argc, char **argv) {
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();
 	vector<Mat> warpped;
-	warpping->warpToAnchor(warpMask, warpped, false);
+	//warpping->warpToAnchor(warpMask, warpped, false);
+
+	vector<Mat> prewarp;
+	warpping->preWarping(warpMask, prewarp);
 
 	warpping.reset();
 
 //	vector<Mat> warped_filtered;
 //	utility::temporalMedianFilter(warpped, warped_filtered, 2);
 
-	for(auto i=0; i<warpped.size(); ++i){
-		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-		imwrite(buffer, warpped[i]);
+	for(auto i=0; i<prewarp.size(); ++i){
+//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+//		imwrite(buffer, warpped[i]);
+		sprintf(buffer, "%s/temp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+		imwrite(buffer, prewarp[i]);
 	}
+
 //
 	//segmentation
 	printf("Segmenting...\n");
@@ -147,7 +154,8 @@ int main(int argc, char **argv) {
 //	segment.getGeometryConfidence(geoConf);
 //	sprintf(buffer, "%s/temp/geoConf%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 //	geoConf.saveImage(string(buffer), 5.0);
-	segment->segment(warpped, seg_result);
+//	segment->segment(warpped, seg_result);
+	segment->segment(prewarp, seg_result);
 	segment.reset();
 
 	return 0;

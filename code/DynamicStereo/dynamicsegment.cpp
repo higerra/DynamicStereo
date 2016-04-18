@@ -3,6 +3,8 @@
 //
 
 #include "dynamicsegment.h"
+#include "../base/utility.h"
+#include "external/MRF2.2/GCoptimization.h"
 
 using namespace std;
 using namespace cv;
@@ -35,10 +37,6 @@ namespace dynamic_stereo{
 //			    }
 //		    }
 //	    }
-
-	    Mat temp = imread(file_io.getImage(anchor));
-	    width = temp.cols;
-	    height = temp.rows;
 
 //	    CHECK(!images.empty());
 //	    width = images[0].cols;
@@ -96,23 +94,27 @@ namespace dynamic_stereo{
 	void DynamicSegment::segment(const std::vector<cv::Mat> &warppedImg, cv::Mat &result) const {
 		char buffer[1024] = {};
 
+		const int width = warppedImg[0].cols;
+		const int height = warppedImg[0].rows;
+
 		result = Mat(height, width, CV_8UC1, Scalar(255));
 		vector<Mat> intensityRaw(warppedImg.size());
 		for(auto i=0; i<warppedImg.size(); ++i)
 			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
-
-		vector<Depth> intensity(warppedImg.size());
 
 		Depth pMean, pVariance;
 		auto isInside = [&](int x, int y){
 			return x>=0 && y >= 0 && x < width && y < height;
 		};
 
-		const int pR = 3;
-		//gaussain filter with invalid pixel handling
+		vector<vector<double> > intensity((size_t)width * height);
+		for(auto & i: intensity)
+			i.resize(warppedImg.size(), 0.0);
+
+		const int pR = 1;
+		//box filter with invalid pixel handling
 		for(auto i=0; i<warppedImg.size(); ++i) {
 			printf("frame %d\n", i+offset);
-			intensity[i].initialize(width, height, 0.0);
 			for (auto y = 0; y < height; ++y) {
 				for (auto x = 0; x < width; ++x) {
 					double curI = 0.0;
@@ -130,15 +132,54 @@ namespace dynamic_stereo{
 							}
 						}
 					}
-					if(count == 0.0)
+					if(count < 1)
 						continue;
-					intensity[i](x,y) = curI / count;
+					intensity[y*width+x][i] = curI / count;
 				}
 			}
-
-			sprintf(buffer,"%s/temp/intensityb%05d_%05d.jpg", file_io.getDirectory().c_str(), anchor, i+offset);
-			intensity[i].saveImage(string(buffer));
 		}
+
+		//brightness confidence dynamicness confidence
+		Depth brightness(width, height, 0.0), dynamicness(width, height, 0.0);
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				const vector<double>& pixIntensity = intensity[y*width+x];
+				CHECK_GT(pixIntensity.size(), 0);
+				double count = 0.0;
+				for(auto i=0; i<pixIntensity.size(); ++i){
+					if(pixIntensity[i] > 0){
+						brightness(x,y) += pixIntensity[i];
+						count += 1.0;
+					}
+				}
+				if(count < 2){
+					continue;
+				}
+				brightness(x,y) /= count;
+				for(auto i=0; i<pixIntensity.size(); ++i){
+					if(pixIntensity[i] > 0)
+						dynamicness(x,y) += (pixIntensity[i] - brightness(x,y)) * (pixIntensity[i] - brightness(x,y));
+				}
+				if(dynamicness(x,y) > 0)
+					dynamicness(x,y) = std::sqrt(dynamicness(x,y)/(count - 1));
+			}
+		}
+
+		sprintf(buffer, "%s/temp/conf_brightness%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		brightness.saveImage(string(buffer));
+		sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		dynamicness.saveImage(string(buffer),5);
+
+
+		//create problem
+		std::vector<double> MRF_data(width*height*2);
+		std::vector<double> hCue(width*height), vCue(width*height);
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+
+			}
+		}
+
 	}
 
 }//namespace dynamic_stereo
