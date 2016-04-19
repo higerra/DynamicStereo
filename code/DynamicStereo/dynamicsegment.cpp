@@ -198,17 +198,19 @@ namespace dynamic_stereo{
 			}
 		}
 
-//		for(auto i=0; i<warppedImg.size(); ++i){
-//			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
-//			ofstream fout(buffer);
-//			CHECK(fout.is_open());
-//			for(auto y=0; y<height; ++y){
-//				for(auto x=0; x<width; ++x)
-//					fout << colorDiff[y*width+x][i] << ' ';
-//				fout << endl;
-//			}
-//			fout.close();
-//		}
+		for(auto i=0; i<warppedImg.size(); ++i){
+			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
+			ofstream fout(buffer);
+			CHECK(fout.is_open());
+			for(auto y=0; y<height; ++y){
+				for(auto x=0; x<width; ++x)
+					fout << intensity[y*width+x][i] << ' ';
+					//fout << colorDiff[y*width+x][i] << ' ';
+
+				fout << endl;
+			}
+			fout.close();
+		}
 
 		//get array of
 
