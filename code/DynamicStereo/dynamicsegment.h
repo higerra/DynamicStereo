@@ -24,11 +24,7 @@ namespace dynamic_stereo {
 	    void segment(const std::vector<cv::Mat>& warppedImg, cv::Mat& result) const;
     private:
         const FileIO& file_io;
-        std::vector<cv::Mat> images;
-        const std::vector<Depth>& depths;
-        const std::vector<int>& depthInd;
         SfMModel sfmModel;
-	    Depth refDepth;
 
         const int anchor;
 	    int offset;

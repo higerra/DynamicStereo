@@ -150,13 +150,25 @@ int main(int argc, char **argv) {
 	//segmentation
 	printf("Segmenting...\n");
 	shared_ptr<DynamicSegment> segment(new DynamicSegment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd));
-	Mat seg_result;
+	Mat seg_result_small;
 //	segment.getGeometryConfidence(geoConf);
 //	sprintf(buffer, "%s/temp/geoConf%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 //	geoConf.saveImage(string(buffer), 5.0);
 //	segment->segment(warpped, seg_result);
-	segment->segment(prewarp, seg_result);
+	segment->segment(prewarp, seg_result_small);
 	segment.reset();
-
+	Mat seg_result;
+	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);
+	Mat seg_overlay(height, width, CV_8UC3, Scalar(0,0,0));
+	for(auto y=0; y<height; ++y){
+		for(auto x=0; x<width; ++x){
+			if(seg_result.at<uchar>(y,x) > 200)
+				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(255,0,0) * 0.6;
+			else
+				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(0,0,255) * 0.6;
+		}
+	}
+	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	imwrite(buffer, seg_overlay);
 	return 0;
 }

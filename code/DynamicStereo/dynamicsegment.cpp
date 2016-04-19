@@ -14,7 +14,7 @@ namespace dynamic_stereo{
 
     DynamicSegment::DynamicSegment(const FileIO &file_io_, const int anchor_, const int tWindow_, const int downsample_,
     const std::vector<Depth>& depths_, const std::vector<int>& depthInd_):
-            file_io(file_io_), anchor(anchor_), downsample(downsample_), depths(depths_), depthInd(depthInd_) {
+            file_io(file_io_), anchor(anchor_), downsample(downsample_) {
         sfmModel.init(file_io.getReconstruction());
 
 	    //load image
@@ -102,7 +102,6 @@ namespace dynamic_stereo{
 		for(auto i=0; i<warppedImg.size(); ++i)
 			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
 
-		Depth pMean, pVariance;
 		auto isInside = [&](int x, int y){
 			return x>=0 && y >= 0 && x < width && y < height;
 		};
@@ -143,42 +142,157 @@ namespace dynamic_stereo{
 		Depth brightness(width, height, 0.0), dynamicness(width, height, 0.0);
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
-				const vector<double>& pixIntensity = intensity[y*width+x];
+				vector<double>& pixIntensity = intensity[y*width+x];
 				CHECK_GT(pixIntensity.size(), 0);
 				double count = 0.0;
+				//take median as brightness
+				const size_t kth = pixIntensity.size() / 2;
+				nth_element(pixIntensity.begin(), pixIntensity.begin()+kth, pixIntensity.end());
+				brightness(x,y) = pixIntensity[kth];
+
+				double averageIntensity = 0.0;
 				for(auto i=0; i<pixIntensity.size(); ++i){
 					if(pixIntensity[i] > 0){
-						brightness(x,y) += pixIntensity[i];
+						//brightness(x,y) += pixIntensity[i];
+						averageIntensity += pixIntensity[i];
 						count += 1.0;
 					}
 				}
 				if(count < 2){
 					continue;
 				}
-				brightness(x,y) /= count;
-				for(auto i=0; i<pixIntensity.size(); ++i){
-					if(pixIntensity[i] > 0)
-						dynamicness(x,y) += (pixIntensity[i] - brightness(x,y)) * (pixIntensity[i] - brightness(x,y));
-				}
-				if(dynamicness(x,y) > 0)
-					dynamicness(x,y) = std::sqrt(dynamicness(x,y)/(count - 1));
+//				averageIntensity /= count;
+//				for(auto i=0; i<pixIntensity.size(); ++i){
+//					if(pixIntensity[i] > 0)
+//						dynamicness(x,y) += (pixIntensity[i] - averageIntensity) * (pixIntensity[i] - averageIntensity);
+//				}
+//				if(dynamicness(x,y) > 0)
+//					dynamicness(x,y) = std::sqrt(dynamicness(x,y)/(count - 1));
 			}
 		}
+
+		//compute color difference pattern
+		vector<vector<double> > colorDiff((size_t)width*height);
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				Vec3b refPixv = warppedImg[anchor-offset].at<Vec3b>(y,x);
+				Vector3d refPix(refPixv[0], refPixv[1], refPixv[2]);
+				for(auto i=0; i<warppedImg.size(); ++i){
+					if(i == anchor-offset)
+						continue;
+					Vec3b curPixv = warppedImg[i].at<Vec3b>(y,x);
+					if(curPixv == Vec3b(0,0,0)) {
+						colorDiff[y*width+x].push_back(0.0);
+						continue;
+					}
+					Vector3d curPix(curPixv[0], curPixv[1], curPixv[2]);
+					colorDiff[y*width+x].push_back((curPix - refPix).norm());
+				}
+				const size_t kth = colorDiff[y*width+x].size()/2;
+				//sort(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), std::less<double>());
+//				nth_element(colorDiff[y*width+x].begin(), colorDiff[y*width+x].begin() + kth, colorDiff[y*width+x].end());
+				dynamicness(x,y) = accumulate(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), 0.0) / (double)colorDiff[y*width+x].size();
+
+			}
+		}
+
+//		for(auto i=0; i<warppedImg.size(); ++i){
+//			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
+//			ofstream fout(buffer);
+//			CHECK(fout.is_open());
+//			for(auto y=0; y<height; ++y){
+//				for(auto x=0; x<width; ++x)
+//					fout << colorDiff[y*width+x][i] << ' ';
+//				fout << endl;
+//			}
+//			fout.close();
+//		}
+
+		//get array of
+
+		Depth unaryTerm(width, height, 0.0);
+		for(auto i=0; i<width * height; ++i)
+			unaryTerm[i] = min(dynamicness[i] * brightness[i] / 255.0 * 3, 255.0);
 
 		sprintf(buffer, "%s/temp/conf_brightness%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		brightness.saveImage(string(buffer));
 		sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		dynamicness.saveImage(string(buffer),5);
+		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		unaryTerm.saveImage(string(buffer));
 
+//		unaryTerm.updateStatics();
+//		double static_threshold = unaryTerm.getMedianDepth() / 255.0;
 
 		//create problem
-		std::vector<double> MRF_data(width*height*2);
-		std::vector<double> hCue(width*height), vCue(width*height);
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
+		//label 0: don't animate
+		//label 1: animate
+		printf("Solving by MRF\n");
+		std::vector<double> MRF_data((size_t)width*height*2);
+		std::vector<double> hCue((size_t)width*height), vCue((size_t)width*height);
+		for(auto i=0; i<width*height; ++i){
+//			if(unaryTerm[i]/255.0 < static_threshold)
+//				MRF_data[2*i] = 0;
+//			else
+//				MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
+//			MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
+//			MRF_data[2*i+1] = (unaryTerm[i]/255.0) * (unaryTerm[i]/255.0);
 
+			MRF_data[2*i] = unaryTerm[i]/255.0;
+			MRF_data[2*i+1] = max(0.0, 0.6 - unaryTerm[i]/255.0);
+		}
+
+		const double t = 100;
+		const Mat &img = warppedImg[anchor-offset];
+		for (auto y = 0; y < height; ++y) {
+			for (auto x = 0; x < width; ++x) {
+				Vec3b pix1 = img.at<Vec3b>(y, x);
+				//pixel value range from 0 to 1, not 255!
+				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
+				if (y < height - 1) {
+					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+					double diff = (dpix1 - dpix2).squaredNorm();
+					vCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
+				}
+				if (x < width - 1) {
+					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+					double diff = (dpix1 - dpix2).squaredNorm();
+					hCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
+				}
 			}
 		}
+
+		double weight_smooth = 0.5;
+		vector<double> MRF_smooth{0,weight_smooth,weight_smooth,0};
+		DataCost *dataCost = new DataCost(MRF_data.data());
+		SmoothnessCost *smoothnessCost = new SmoothnessCost(MRF_smooth.data(), hCue.data(), vCue.data());
+		EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
+
+		Expansion mrf(width,height,2,energy_function);
+		mrf.initialize();
+		mrf.clearAnswer();
+		for(auto i=0; i<width*height; ++i)
+			mrf.setLabel(i,0);
+		double initDataE = mrf.dataEnergy();
+		double initSmoothE = mrf.smoothnessEnergy();
+		float mrf_time;
+		mrf.optimize(10, mrf_time);
+		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
+		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
+
+		uchar* pResult = result.data;
+		for(auto i=0; i<width*height; ++i){
+			if(mrf.getLabel(i) > 0)
+				pResult[i] = (uchar)255;
+			else
+				pResult[i] = (uchar)0;
+		}
+
+		delete dataCost;
+		delete smoothnessCost;
+		delete energy_function;
 
 	}
 
