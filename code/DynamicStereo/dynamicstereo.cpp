@@ -109,21 +109,29 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
-			int tdisp = (int) dispUnary(dtx, dty);
-//			int tdisp = 223;
+//			int tdisp = (int) dispUnary(dtx, dty);
+			int tdisp = 1;
 			double td = model->dispToDepth(tdisp);
-			printf("Cost at d=%d: %d\n", tdisp, model->operator()(dty * width + dtx, tdisp));
+			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
+			cout << "Gray value:" << endl;
 			Vector3d spt = cam.GetPosition() + ray * td;
 			for (auto v = 0; v < images.size(); ++v) {
 				Mat curimg = imread(file_io.getImage(v + offset));
 				Vector2d imgpt;
 				double curdepth = sfmModel.getCamera(v+offset).ProjectPoint(
 						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-				if (imgpt[0] >= 0 || imgpt[1] >= 0 || imgpt[0] < width || imgpt[1] < height)
+				if (imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < width && imgpt[1] < height)
 					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(255, 0, 0), 2);
 				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
 						v + offset);
+
+				imgpt = imgpt / (double)downsample;
+				if(imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < images[0].cols-1 && imgpt[1] < images[0].rows-1){
+					Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows,  imgpt);
+					double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
+					cout << gv << endl;
+				}
 				imwrite(buffer, curimg);
 			}
 		}

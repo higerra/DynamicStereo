@@ -16,7 +16,7 @@ using namespace dynamic_stereo;
 DEFINE_int32(testFrame, 60, "anchor frame");
 DEFINE_int32(tWindow, 60, "tWindow");
 DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
-DEFINE_int32(downsample, 4, "downsample ratio");
+DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
 DEFINE_int32(stereo_interval, 10, "interval for stereo");
 DEFINE_double(weight_smooth, 0.05, "smoothness weight for stereo");
@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
 //			const int tf1 = FLAGS_testFrame;
 //			Mat imgRef = imread(file_io.getImage(tf1));
 ////			//In original scale
-//			Vector2d pt(693, 434);
-//			stereo.dbtx = pt[0];
-//			stereo.dbty = pt[1];
+			Vector2d pt(470, 128);
+			stereo.dbtx = pt[0];
+			stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
 //			//Vector2d pt(1077, 257);
 //			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);

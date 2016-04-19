@@ -55,6 +55,9 @@ namespace dynamic_stereo {
         void assignDataTerm();
 	    void assignSmoothWeight();
 
+	    //analysis the
+	    double getFrequencyConfidence(const int fid, const int x, const int y, const int d) const;
+
         const FileIO& file_io;
         const int anchor;
         const int tWindow;

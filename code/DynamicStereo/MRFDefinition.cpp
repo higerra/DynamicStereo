@@ -82,6 +82,16 @@ namespace dynamic_stereo {
 		}
 	}
 
+	double DynamicStereo::getFrequencyConfidence(const int fid, const int x, const int y, const int d) const {
+		const theia::Camera& refCam = sfmModel.getCamera(fid+offset);
+		Mat pixArray((int)images.size(), 1, CV_32FC1);
+		float* pArray = (float*) pixArray.data;
+
+		for(auto v=0; v<images.size(); ++v){
+			
+		}
+	}
+
     void DynamicStereo::assignDataTerm() {
 	    CHECK_GT(model->min_disp, 0);
 	    CHECK_GT(model->max_disp, 0);
