@@ -102,6 +102,11 @@ namespace dynamic_stereo{
 		for(auto i=0; i<warppedImg.size(); ++i)
 			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
 
+//		for(auto i=0; i<intensityRaw.size(); ++i){
+//			sprintf(buffer, "%s/temp/gray_BGR%05d.jpg", file_io.getDirectory().c_str(), i+offset);
+//			imwrite(buffer, intensityRaw[i]);
+//		}
+
 		auto isInside = [&](int x, int y){
 			return x>=0 && y >= 0 && x < width && y < height;
 		};
@@ -110,7 +115,8 @@ namespace dynamic_stereo{
 		for(auto & i: intensity)
 			i.resize(warppedImg.size(), 0.0);
 
-		const int pR = 1;
+		const int pR = 0;
+
 		//box filter with invalid pixel handling
 		for(auto i=0; i<warppedImg.size(); ++i) {
 			printf("frame %d\n", i+offset);
@@ -137,6 +143,20 @@ namespace dynamic_stereo{
 				}
 			}
 		}
+
+		for(auto i=0; i<warppedImg.size(); ++i){
+			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
+			ofstream fout(buffer);
+			CHECK(fout.is_open());
+			for(auto y=0; y<height; ++y){
+				for(auto x=0; x<width; ++x)
+					fout << intensity[y*width+x][i] << ' ';
+				//fout << colorDiff[y*width+x][i] << ' ';
+				fout << endl;
+			}
+			fout.close();
+		}
+
 
 		//brightness confidence dynamicness confidence
 		Depth brightness(width, height, 0.0), dynamicness(width, height, 0.0);
@@ -190,29 +210,15 @@ namespace dynamic_stereo{
 					Vector3d curPix(curPixv[0], curPixv[1], curPixv[2]);
 					colorDiff[y*width+x].push_back((curPix - refPix).norm());
 				}
+				if(count < 1)
+					continue;
 //				const size_t kth = colorDiff[y*width+x].size()/2;
-				//sort(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), std::less<double>());
+//				sort(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), std::less<double>());
 //				nth_element(colorDiff[y*width+x].begin(), colorDiff[y*width+x].begin() + kth, colorDiff[y*width+x].end());
 				dynamicness(x,y) = accumulate(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), 0.0) / count;
-
 			}
 		}
 
-		for(auto i=0; i<warppedImg.size(); ++i){
-			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
-			ofstream fout(buffer);
-			CHECK(fout.is_open());
-			for(auto y=0; y<height; ++y){
-				for(auto x=0; x<width; ++x)
-					fout << intensity[y*width+x][i] << ' ';
-					//fout << colorDiff[y*width+x][i] << ' ';
-
-				fout << endl;
-			}
-			fout.close();
-		}
-
-		//get array of
 
 		Depth unaryTerm(width, height, 0.0);
 		for(auto i=0; i<width * height; ++i)
@@ -241,7 +247,6 @@ namespace dynamic_stereo{
 //				MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
 //			MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
 //			MRF_data[2*i+1] = (unaryTerm[i]/255.0) * (unaryTerm[i]/255.0);
-
 			MRF_data[2*i] = unaryTerm[i]/255.0;
 			MRF_data[2*i+1] = max(0.0, 0.6 - unaryTerm[i]/255.0);
 		}

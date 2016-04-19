@@ -128,8 +128,8 @@ int main(int argc, char **argv) {
 
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();
-	vector<Mat> warpped;
-	warpping->warpToAnchor(warpMask, warpped, false);
+//	vector<Mat> warpped;
+//	warpping->warpToAnchor(warpMask, warpped, false);
 
 	vector<Mat> prewarp;
 	warpping->preWarping(warpMask, prewarp);
@@ -171,19 +171,19 @@ int main(int argc, char **argv) {
 	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 	imwrite(buffer, seg_overlay);
 
-	for(auto i=0; i<warpped.size(); ++i){
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				if(seg_result.at<uchar>(y,x) < 200){
-					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
-				}
-			}
-		}
-	}
+//	for(auto i=0; i<warpped.size(); ++i){
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				if(seg_result.at<uchar>(y,x) < 200){
+//					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
+//				}
+//			}
+//		}
+//	}
 
-	for(auto i=0; i<warpped.size(); ++i){
-		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-		imwrite(buffer, warpped[i]);
-	}
+//	for(auto i=0; i<warpped.size(); ++i){
+//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+//		imwrite(buffer, warpped[i]);
+//	}
 	return 0;
 }

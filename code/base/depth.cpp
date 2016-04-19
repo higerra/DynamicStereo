@@ -69,9 +69,9 @@ namespace dynamic_stereo {
 					for(int i=0; i<3; ++i)
 						pData[3*idx+i] = (uchar)curdepth;
 				else{
-					pData[3*idx] = 255;
+					pData[3*idx] = 0;
 					pData[3*idx+1] = 0;
-					pData[3*idx+2] = 0;
+					pData[3*idx+2] = 255;
 				}
 			}
 		}
