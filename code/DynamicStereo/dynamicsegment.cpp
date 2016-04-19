@@ -177,6 +177,7 @@ namespace dynamic_stereo{
 			for(auto x=0; x<width; ++x){
 				Vec3b refPixv = warppedImg[anchor-offset].at<Vec3b>(y,x);
 				Vector3d refPix(refPixv[0], refPixv[1], refPixv[2]);
+				double count = 0.0;
 				for(auto i=0; i<warppedImg.size(); ++i){
 					if(i == anchor-offset)
 						continue;
@@ -185,13 +186,14 @@ namespace dynamic_stereo{
 						colorDiff[y*width+x].push_back(0.0);
 						continue;
 					}
+					count += 1.0;
 					Vector3d curPix(curPixv[0], curPixv[1], curPixv[2]);
 					colorDiff[y*width+x].push_back((curPix - refPix).norm());
 				}
-				const size_t kth = colorDiff[y*width+x].size()/2;
+//				const size_t kth = colorDiff[y*width+x].size()/2;
 				//sort(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), std::less<double>());
 //				nth_element(colorDiff[y*width+x].begin(), colorDiff[y*width+x].begin() + kth, colorDiff[y*width+x].end());
-				dynamicness(x,y) = accumulate(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), 0.0) / (double)colorDiff[y*width+x].size();
+				dynamicness(x,y) = accumulate(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), 0.0) / count;
 
 			}
 		}
