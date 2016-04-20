@@ -110,7 +110,7 @@ namespace dynamic_stereo{
 			//ray.normalize();
 
 //			int tdisp = (int) dispUnary(dtx, dty);
-			int tdisp = 1;
+			int tdisp = 100;
 			double td = model->dispToDepth(tdisp);
 			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
@@ -129,8 +129,8 @@ namespace dynamic_stereo{
 				imgpt = imgpt / (double)downsample;
 				if(imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < images[0].cols-1 && imgpt[1] < images[0].rows-1){
 					Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows,  imgpt);
-					double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
-					cout << gv << endl;
+					//double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
+					printf("%.2f %.2f %.2f\n", pix[2], pix[1], pix[0]);
 				}
 				imwrite(buffer, curimg);
 			}

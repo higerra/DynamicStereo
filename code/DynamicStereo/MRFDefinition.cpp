@@ -84,12 +84,44 @@ namespace dynamic_stereo {
 
 	double DynamicStereo::getFrequencyConfidence(const int fid, const int x, const int y, const int d) const {
 		const theia::Camera& refCam = sfmModel.getCamera(fid+offset);
-		Mat pixArray((int)images.size(), 1, CV_32FC1);
-		float* pArray = (float*) pixArray.data;
+		Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
+		Vector3d spt = ray * model->dispToDepth(d) + refCam.GetPosition();
+		const int N = (int)images.size();
 
+		Mat colorArray(3, N, CV_32FC1);
+		float* pArray = (float*) colorArray.data;
+		Vector3d meanColor(0,0,0);
 		for(auto v=0; v<images.size(); ++v){
-			
+			Vector2d imgpt;
+			sfmModel.getCamera(v+offset).ProjectPoint(spt.homogeneous(), &imgpt);
+			imgpt = imgpt / (double)downsample;
+			if(imgpt[0] >=0 && imgpt[1] >=0 && imgpt[0]<images[v].cols-1 && imgpt[1] < images[v].rows-1){
+				Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows, imgpt);
+				pArray[v] = (float)pix[0];
+				pArray[N+v] = (float)pix[1];
+				pArray[2*N+v] = (float)pix[2];
+				meanColor += pix;
+			}else{
+				pArray[v] = 0.0;
+				pArray[N+v] = 0.0;
+				pArray[2*N+v] = 0.0;
+			}
+
 		}
+		//Normalize
+		meanColor = meanColor / (double)images.size();
+		for(auto i=0; i<N; ++i){
+			pArray[i] -= meanColor[0];
+			pArray[N+i] -= meanColor[1];
+			pArray[2*N+i] -= meanColor[2];
+		}
+		//padding to power of 2
+		int optN = getOptimalDFTSize(N);
+		Mat padded;
+		copyMakeBorder(colorArray, padded, 0, 0, 0, optN-N, BORDER_CONSTANT, Scalar::all(0));
+
+		Mat dftRes;
+		cv::dft(colorArray, dftRes);
 	}
 
     void DynamicStereo::assignDataTerm() {
