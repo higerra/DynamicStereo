@@ -82,7 +82,8 @@ namespace dynamic_stereo {
 		}
 	}
 
-	double DynamicStereo::getFrequencyConfidence(const int fid, const int x, const int y, const int d) const {
+	double DynamicStereo::getFrequencyConfidence(const int fid, const int x, const int y, const int d,
+												 const double alpha, const double beta) const {
 		const theia::Camera& refCam = sfmModel.getCamera(fid+offset);
 		Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
 		Vector3d spt = ray * model->dispToDepth(d) + refCam.GetPosition();
@@ -91,6 +92,7 @@ namespace dynamic_stereo {
 		Mat colorArray(3, N, CV_32FC1);
 		float* pArray = (float*) colorArray.data;
 		Vector3d meanColor(0,0,0);
+		//compose input array
 		for(auto v=0; v<images.size(); ++v){
 			Vector2d imgpt;
 			sfmModel.getCamera(v+offset).ProjectPoint(spt.homogeneous(), &imgpt);
@@ -109,19 +111,52 @@ namespace dynamic_stereo {
 
 		}
 		//Normalize
-		meanColor = meanColor / (double)images.size();
+		meanColor = meanColor / (double)N;
+		printf("Mean color: (%.2f,%.2f,%.2f)\n", meanColor[0], meanColor[1], meanColor[2]);
 		for(auto i=0; i<N; ++i){
 			pArray[i] -= meanColor[0];
 			pArray[N+i] -= meanColor[1];
 			pArray[2*N+i] -= meanColor[2];
 		}
-		//padding to power of 2
+
+		//padding the sequence size to power of optimal size
 		int optN = getOptimalDFTSize(N);
 		Mat padded;
 		copyMakeBorder(colorArray, padded, 0, 0, 0, optN-N, BORDER_CONSTANT, Scalar::all(0));
 
-		Mat dftRes;
-		cv::dft(colorArray, dftRes);
+		//perform DFT
+		Mat planes[] = {Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F)};
+		Mat complexI;
+		cv::merge(planes, 2, complexI);
+		cv::dft(complexI, complexI, DFT_ROWS);
+
+		cv::split(complexI, planes);
+		cv::magnitude(planes[0], planes[1], planes[0]);
+
+		const Mat& frqMag = planes[0];
+		CHECK_EQ(frqMag.rows, 3);
+
+		double frqConf = 0.0;
+		const double epsilon = 1e-05;
+		//only consider magnitude peak higher than a specific frequency
+		const size_t frqThreshold = 4;
+		for(auto i=0; i<frqMag.rows; ++i){
+			const float* rowPtr = frqMag.ptr<float>(i);
+			float peak = -1, sum = 0.0;
+			//Note: only compute frequence magnitude before nyquist frequency
+			for(auto j=0; j<frqMag.cols; ++j){
+				if(j >= frqThreshold && rowPtr[j] >= peak){
+					peak = rowPtr[j];
+				}
+				sum += rowPtr[j];
+			}
+			if(sum < epsilon)
+				continue;
+			frqConf += peak / sum;
+		}
+
+		frqConf /= 3.0;
+		return 1 / (1 + std::exp(-1*alpha*(frqConf - beta)));
 	}
 
     void DynamicStereo::assignDataTerm() {

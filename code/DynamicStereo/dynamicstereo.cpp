@@ -110,7 +110,7 @@ namespace dynamic_stereo{
 			//ray.normalize();
 
 //			int tdisp = (int) dispUnary(dtx, dty);
-			int tdisp = 100;
+			int tdisp = 107;
 			double td = model->dispToDepth(tdisp);
 			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
@@ -134,6 +134,15 @@ namespace dynamic_stereo{
 				}
 				imwrite(buffer, curimg);
 			}
+		}
+
+
+		{
+			//debug for frequency confidence
+//			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
+//				const double conf = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
+//				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
+//			}
 		}
 
 
