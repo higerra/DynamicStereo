@@ -55,7 +55,7 @@ namespace dynamic_stereo{
 	}
 
 
-	void DynamicStereo::runStereo(Depth& result, cv::Mat& depthMask) {
+	void DynamicStereo::runStereo(Depth& depth_firstOrder, cv::Mat& depthMask) {
 		char buffer[1024] = {};
 
 		initMRF();
@@ -109,19 +109,18 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
-//			int tdisp = (int) dispUnary(dtx, dty);
-			int tdisp = 107;
+			int tdisp = (int) dispUnary(dtx, dty);
+//			int tdisp = 16;
 			double td = model->dispToDepth(tdisp);
 			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
-			cout << "Gray value:" << endl;
 			Vector3d spt = cam.GetPosition() + ray * td;
 			for (auto v = 0; v < images.size(); ++v) {
 				Mat curimg = imread(file_io.getImage(v + offset));
 				Vector2d imgpt;
 				double curdepth = sfmModel.getCamera(v+offset).ProjectPoint(
 						Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
-				if (imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < width && imgpt[1] < height)
+				if (imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < curimg.cols && imgpt[1] < curimg.rows)
 					cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(255, 0, 0), 2);
 				sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,
 						v + offset);
@@ -130,17 +129,20 @@ namespace dynamic_stereo{
 				if(imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < images[0].cols-1 && imgpt[1] < images[0].rows-1){
 					Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows,  imgpt);
 					//double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
-					printf("%.2f %.2f %.2f\n", pix[2], pix[1], pix[0]);
+//					printf("%.2f %.2f %.2f\n", pix[0], pix[1], pix[2]);
 				}
 				imwrite(buffer, curimg);
 			}
+//			cout << "===============================" << endl;
 		}
 
 
-		{
+		if(dbtx >= 0 && dbty >= 0){
 			//debug for frequency confidence
 //			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
-//				const double conf = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
+//				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
+//				double alpha = 50, beta=0.25;
+//				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
 //				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
 //			}
 		}
@@ -161,13 +163,15 @@ namespace dynamic_stereo{
 			}
 		}
 
+//		Depth depth_firstOrder;
 		printf("Saving depth to point cloud...\n");
-		disparityToDepth(result_firstOrder, result);
+		disparityToDepth(result_firstOrder, depth_firstOrder);
 
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-		utility::saveDepthAsPly(string(buffer), result, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
+		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
 
 //		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
+//		Depth disp_firstOrder_filtered;
 //		printf("Applying bilateral filter to depth:\n");
 //		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 11, 5, 10, 3);
 //		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
@@ -231,7 +235,7 @@ namespace dynamic_stereo{
 			wunary[i] = math_util::gaussian(conf_thres, sigmau, conf);
 		}
 
-
+		const double max_disp_diff = 10;
 		//apply bilateral filter
 		for (auto y = 0; y < height; ++y) {
 #pragma omp parallel for
@@ -240,12 +244,16 @@ namespace dynamic_stereo{
 				double m = 0.0;
 				double acc = 0.0;
 				Vector3d pc(pImg[3 * cidx], pImg[3 * cidx + 1], pImg[3 * cidx + 2]);
+				double disp1 = input(x,y);
 				for (auto dx = -1 * R; dx <= R; ++dx) {
 					for (auto dy = -1 * R; dy <= R; ++dy) {
 						int curx = x + dx;
 						int cury = y + dy;
 						const int kid = (dy + R) * size + dx + R;
 						if (curx < 0 || cury < 0 || curx >= width - 1 || cury >= height - 1)
+							continue;
+						double disp2 = input(curx,cury);
+						if(abs(disp1 - disp2) > max_disp_diff)
 							continue;
 						int idx = cury * width + curx;
 						Vector3d p2(pImg[3 * idx], pImg[3 * idx + 1], pImg[3 * idx + 2]);
@@ -256,8 +264,10 @@ namespace dynamic_stereo{
 						acc += input(curx, cury) * w;
 					}
 				}
-				CHECK_GT(m, 0);
-				output(x, y) = acc / m;
+				if(m != 0)
+					output(x, y) = acc / m;
+				else
+					output(x,y) = input(x,y);
 			}
 		}
 	}

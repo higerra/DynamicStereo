@@ -38,6 +38,8 @@ int main(int argc, char **argv) {
 
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/temp"))
 		stlplus::folder_create(file_io.getDirectory() + "/temp");
+	if (!stlplus::folder_exists(file_io.getDirectory() + "/midres"))
+		stlplus::folder_create(file_io.getDirectory() + "/midres");
 
 	vector<Depth> depths;
 	vector<int> depthInd;
@@ -78,9 +80,9 @@ int main(int argc, char **argv) {
 //			const int tf1 = FLAGS_testFrame;
 //			Mat imgRef = imread(file_io.getImage(tf1));
 ////			//In original scale
-			Vector2d pt(470, 128);
-			stereo.dbtx = pt[0];
-			stereo.dbty = pt[1];
+//			Vector2d pt(794, 294);
+//			stereo.dbtx = pt[0];
+//			stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
 //			//Vector2d pt(1077, 257);
 //			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
@@ -180,7 +182,7 @@ int main(int argc, char **argv) {
 //			}
 //		}
 //	}
-
+//
 //	for(auto i=0; i<warpped.size(); ++i){
 //		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 //		imwrite(buffer, warpped[i]);

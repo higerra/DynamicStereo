@@ -23,6 +23,7 @@ namespace dynamic_stereo {
 
 	    void segment(const std::vector<cv::Mat>& warppedImg, cv::Mat& result) const;
     private:
+		void computeFrequencyConfidence(const std::vector<cv::Mat>& warppedImg, Depth& result) const;
         const FileIO& file_io;
         SfMModel sfmModel;
 

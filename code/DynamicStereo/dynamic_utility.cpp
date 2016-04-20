@@ -33,7 +33,7 @@ namespace dynamic_stereo {
 
 
 		void saveDepthAsPly(const string &path, const Depth &depth, const cv::Mat &image, const theia::Camera &cam,
-		                    const int downsample) {
+							const int downsample) {
 			CHECK_EQ(depth.getWidth(), image.cols);
 			CHECK_EQ(depth.getHeight(), image.rows);
 			TriMesh mesh;
@@ -185,6 +185,46 @@ namespace dynamic_stereo {
 			}
 		}
 
+		double getFrequencyScore(const cv::Mat& colorArray, const int min_frq){
+			const int N = colorArray.cols;
+			int optN = getOptimalDFTSize(N);
+			Mat padded;
+			copyMakeBorder(colorArray, padded, 0, 0, 0, optN-N, BORDER_CONSTANT, Scalar::all(0));
+			//perform DFT
+			Mat planes[] = {Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F)};
+			Mat complexI;
+			cv::merge(planes, 2, complexI);
+			cv::dft(complexI, complexI, DFT_ROWS);
+
+			cv::split(complexI, planes);
+			cv::magnitude(planes[0], planes[1], planes[0]);
+
+			const Mat& frqMag = planes[0];
+
+			double frqConf = 0.0;
+			const double epsilon = 1e-05;
+			//only consider magnitude peak higher than a specific frequency
+			vector<int> frqLoc((size_t)frqMag.rows, 0);
+			for(auto i=0; i<frqMag.rows; ++i){
+				const float* rowPtr = frqMag.ptr<float>(i);
+//				printf("channel %d\n", i);
+				float peak = -1, sum = 0.0;
+				//Note: only compute frequence magnitude before nyquist frequency
+				for(auto j=0; j<frqMag.cols/2; ++j){
+//					printf("%d\t%.2f\n", j, rowPtr[j]);
+					if(j >= min_frq && rowPtr[j] >= peak){
+						peak = rowPtr[j];
+						frqLoc[i] = j;
+					}
+					sum += rowPtr[j];
+				}
+				if(sum < epsilon)
+					continue;
+				frqConf += peak / sum;
+//				printf("peak at %d, mag: %.2f, sum: %.2f, ratio: %.2f\n", frqLoc[i], peak, sum, peak / sum);
+			}
+			return frqConf / (double)frqMag.rows;
+		}
 	}//namespace utility
 }//namespace dynamic_stereo
 

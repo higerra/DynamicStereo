@@ -48,16 +48,14 @@ namespace dynamic_stereo {
 		double dbtx;
 		double dbty;
     private:
-
-
         void initMRF();
 
         void assignDataTerm();
 	    void assignSmoothWeight();
+		void computeFrequencyConfidence(const double alpha = 50, const double beta = 0.25);
 
 	    //analysis the
-	    double getFrequencyConfidence(const int fid, const int x, const int y, const int d,
-									  const double alpha = 40, const double beta = 0.1) const;
+	    double getFrequencyConfidence(const int fid, const int x, const int y, const int d) const;
 
         const FileIO& file_io;
         const int anchor;

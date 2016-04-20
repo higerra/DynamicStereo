@@ -4,6 +4,7 @@
 
 #include "dynamicsegment.h"
 #include "../base/utility.h"
+#include "dynamic_utility.h"
 #include "external/MRF2.2/GCoptimization.h"
 
 using namespace std;
@@ -91,6 +92,49 @@ namespace dynamic_stereo{
 //	}
 
 
+	void DynamicSegment::computeFrequencyConfidence(const std::vector<cv::Mat> &warppedImg, Depth &result) const {
+		CHECK(!warppedImg.empty());
+		const int width = warppedImg[0].cols;
+		const int height = warppedImg[0].rows;
+		result.initialize(width, height, 0.0);
+		const int N = (int)warppedImg.size();
+		const double alpha = 50, beta = 0.25;
+		const float epsilon = 1e-05;
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				Vector3d meanColor(0,0,0);
+				Mat colorArray(3,(int)warppedImg.size(),CV_32FC1, Scalar::all(0));
+				float* pArray = (float*)colorArray.data;
+				for(auto v=0; v<warppedImg.size(); ++v){
+					Vec3b pixv = warppedImg[v].at<Vec3b>(y,x);
+					if(pixv[0] != 0 && pixv[1] != 0 && pixv[2] != 0){
+						pArray[v] = (float)pixv[0];
+						pArray[N+v] = (float)pixv[1];
+						pArray[2*N+v] = (float)pixv[2];
+					}else{
+						pArray[v] = 0.0;
+						pArray[N+v] = 0.0;
+						pArray[2*N+v] = 0.0;
+					}
+					meanColor[0] += pArray[v];
+					meanColor[1] += pArray[N+v];
+					meanColor[2] += pArray[2*N+v];
+				}
+				meanColor /= (double)N;
+				for(auto v=0; v<N; ++v){
+					pArray[v] -= meanColor[0];
+					pArray[N+v] -= meanColor[1];
+					pArray[2*N+v] -= meanColor[2];
+				}
+				const int min_frq = 4;
+				double frqConf = utility::getFrequencyScore(colorArray, min_frq);
+				result(x,y) = 1 / (1 + std::exp(-1*alpha*(frqConf - beta)));
+			}
+		}
+
+	}
+
+
 	void DynamicSegment::segment(const std::vector<cv::Mat> &warppedImg, cv::Mat &result) const {
 		char buffer[1024] = {};
 
@@ -101,11 +145,6 @@ namespace dynamic_stereo{
 		vector<Mat> intensityRaw(warppedImg.size());
 		for(auto i=0; i<warppedImg.size(); ++i)
 			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
-
-//		for(auto i=0; i<intensityRaw.size(); ++i){
-//			sprintf(buffer, "%s/temp/gray_BGR%05d.jpg", file_io.getDirectory().c_str(), i+offset);
-//			imwrite(buffer, intensityRaw[i]);
-//		}
 
 		auto isInside = [&](int x, int y){
 			return x>=0 && y >= 0 && x < width && y < height;
@@ -219,6 +258,10 @@ namespace dynamic_stereo{
 			}
 		}
 
+		//repetative pattern
+		Depth frequency;
+		computeFrequencyConfidence(warppedImg, frequency);
+
 
 		Depth unaryTerm(width, height, 0.0);
 		for(auto i=0; i<width * height; ++i)
@@ -230,6 +273,8 @@ namespace dynamic_stereo{
 		dynamicness.saveImage(string(buffer),5);
 		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		unaryTerm.saveImage(string(buffer));
+		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		frequency.saveImage(string(buffer), 255);
 
 //		unaryTerm.updateStatics();
 //		double static_threshold = unaryTerm.getMedianDepth() / 255.0;

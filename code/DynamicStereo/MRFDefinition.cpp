@@ -22,6 +22,8 @@ namespace dynamic_stereo {
 		model->max_disp = 1.0 / min_depth;
         cout << "Assigning data term..." << endl << flush;
         assignDataTerm();
+		cout << "Computing frequency confidence..." << endl << flush;
+		//computeFrequencyConfidence();
         assignSmoothWeight();
     }
 
@@ -82,13 +84,12 @@ namespace dynamic_stereo {
 		}
 	}
 
-	double DynamicStereo::getFrequencyConfidence(const int fid, const int x, const int y, const int d,
-												 const double alpha, const double beta) const {
+	double DynamicStereo::getFrequencyConfidence(const int fid, const int x, const int y, const int d) const {
+		//printf("(%d,%d,%d)\n", x, y, d);
 		const theia::Camera& refCam = sfmModel.getCamera(fid+offset);
 		Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
 		Vector3d spt = ray * model->dispToDepth(d) + refCam.GetPosition();
 		const int N = (int)images.size();
-
 		Mat colorArray(3, N, CV_32FC1);
 		float* pArray = (float*) colorArray.data;
 		Vector3d meanColor(0,0,0);
@@ -108,55 +109,18 @@ namespace dynamic_stereo {
 				pArray[N+v] = 0.0;
 				pArray[2*N+v] = 0.0;
 			}
-
+			//printf("%.2f,%.2f,%.2f\n", pArray[v], pArray[N+v], pArray[2*N+v]);
 		}
 		//Normalize
 		meanColor = meanColor / (double)N;
-		printf("Mean color: (%.2f,%.2f,%.2f)\n", meanColor[0], meanColor[1], meanColor[2]);
 		for(auto i=0; i<N; ++i){
 			pArray[i] -= meanColor[0];
 			pArray[N+i] -= meanColor[1];
 			pArray[2*N+i] -= meanColor[2];
 		}
 
-		//padding the sequence size to power of optimal size
-		int optN = getOptimalDFTSize(N);
-		Mat padded;
-		copyMakeBorder(colorArray, padded, 0, 0, 0, optN-N, BORDER_CONSTANT, Scalar::all(0));
-
-		//perform DFT
-		Mat planes[] = {Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F)};
-		Mat complexI;
-		cv::merge(planes, 2, complexI);
-		cv::dft(complexI, complexI, DFT_ROWS);
-
-		cv::split(complexI, planes);
-		cv::magnitude(planes[0], planes[1], planes[0]);
-
-		const Mat& frqMag = planes[0];
-		CHECK_EQ(frqMag.rows, 3);
-
-		double frqConf = 0.0;
-		const double epsilon = 1e-05;
-		//only consider magnitude peak higher than a specific frequency
-		const size_t frqThreshold = 4;
-		for(auto i=0; i<frqMag.rows; ++i){
-			const float* rowPtr = frqMag.ptr<float>(i);
-			float peak = -1, sum = 0.0;
-			//Note: only compute frequence magnitude before nyquist frequency
-			for(auto j=0; j<frqMag.cols; ++j){
-				if(j >= frqThreshold && rowPtr[j] >= peak){
-					peak = rowPtr[j];
-				}
-				sum += rowPtr[j];
-			}
-			if(sum < epsilon)
-				continue;
-			frqConf += peak / sum;
-		}
-
-		frqConf /= 3.0;
-		return 1 / (1 + std::exp(-1*alpha*(frqConf - beta)));
+		const int min_frq = 4;
+		return utility::getFrequencyScore(colorArray, min_frq);
 	}
 
     void DynamicStereo::assignDataTerm() {
@@ -164,7 +128,7 @@ namespace dynamic_stereo {
 	    CHECK_GT(model->max_disp, 0);
 	    //read from cache
 	    char buffer[1024] = {};
-	    sprintf(buffer, "%s/temp/cacheMRFdata%05dR%dD%d", file_io.getDirectory().c_str(), anchor, dispResolution, downsample);
+	    sprintf(buffer, "%s/midres/matching%05dR%dD%d", file_io.getDirectory().c_str(), anchor, dispResolution, downsample);
 	    ifstream fin(buffer, ios::binary);
         bool recompute = true;
 	    if (fin.is_open()) {
@@ -273,5 +237,55 @@ namespace dynamic_stereo {
 				}
 			}
 		}
+	}
+
+	void DynamicStereo::computeFrequencyConfidence(const double alpha, const double beta) {
+		CHECK(model.get());
+		CHECK_EQ(model->unary.size(), width * height * dispResolution);
+		vector<double> frqConf(width * height * dispResolution);
+		char buffer[1024] = {};
+		sprintf(buffer, "%s/midres/frq%05dR%dD%d", file_io.getDirectory().c_str(), anchor, dispResolution, downsample);
+		ifstream fin(buffer, ios::binary);
+		bool recompute = true;
+		const double epsilon = 1e-05;
+		if(fin.is_open()){
+			double a,b;
+			fin.read((char *) &a, sizeof(double));
+			fin.read((char *) &b, sizeof(double));
+			if(abs(a-alpha) < epsilon && abs(b-beta) < epsilon) {
+				fin.read((char *) frqConf.data(), frqConf.size() * sizeof(double));
+				recompute = false;
+			}
+			fin.close();
+		}
+		if(recompute){
+			int unit = width * height / 10;
+			for(auto y=0; y<height; ++y){
+				for(auto x=0; x<width; ++x){
+					if((y*width+x) % unit == 0)
+						cout << '.' << flush;
+#pragma omp parallel for
+                    for(auto d=0; d<dispResolution; ++d) {
+						double conf = getFrequencyConfidence(anchor - offset, x, y, d);
+						frqConf[dispResolution * (y * width + x) + d] = conf;
+
+					}
+				}
+			}
+			cout <<"done" << endl;
+			ofstream fout(buffer, ios::binary);
+			CHECK(fout.is_open());
+			fout.write((char*)&alpha, sizeof(double));
+			fout.write((char*)&beta, sizeof(double));
+			fout.write((char*)frqConf.data(), frqConf.size() * sizeof(double));
+			fout.close();
+		}
+
+		CHECK_EQ(frqConf.size(), model->unary.size());
+		for(auto i=0; i<frqConf.size(); ++i){
+			double w = 1 - 1 / (1 + std::exp(-1*alpha*(frqConf[i] - beta)));
+			model->unary[i] *= w;
+		}
+
 	}
 }//namespace dynamic_stereo
