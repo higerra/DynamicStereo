@@ -205,7 +205,7 @@ namespace dynamic_stereo {
         warped.resize(images.size());
 
         const theia::Camera& cam1 = sfmModel.getCamera(anchor);
-        const int disparity_margin = 10;
+        const int disparity_margin = 15;
 
         for(int i=0; i<dimages.size(); ++i) {
             cout << i+offset << ' ' << flush;
