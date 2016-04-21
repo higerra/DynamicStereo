@@ -109,8 +109,8 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
-			int tdisp = (int) dispUnary(dtx, dty);
-//			int tdisp = 16;
+//			int tdisp = (int) dispUnary(dtx, dty);
+			int tdisp = 118;
 			double td = model->dispToDepth(tdisp);
 			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
@@ -129,7 +129,7 @@ namespace dynamic_stereo{
 				if(imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < images[0].cols-1 && imgpt[1] < images[0].rows-1){
 					Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows,  imgpt);
 					//double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
-//					printf("%.2f %.2f %.2f\n", pix[0], pix[1], pix[2]);
+					printf("%.2f %.2f %.2f\n", pix[0], pix[1], pix[2]);
 				}
 				imwrite(buffer, curimg);
 			}
@@ -139,12 +139,12 @@ namespace dynamic_stereo{
 
 		if(dbtx >= 0 && dbty >= 0){
 			//debug for frequency confidence
-//			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
-//				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
-//				double alpha = 50, beta=0.25;
-//				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
-//				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
-//			}
+			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
+				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
+				double alpha = 50, beta=0.25;
+				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
+				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
+			}
 		}
 
 
