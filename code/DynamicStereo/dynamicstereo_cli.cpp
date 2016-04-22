@@ -77,23 +77,23 @@ int main(int argc, char **argv) {
 
 			{
 //			    //test SfM
-//			const int tf1 = FLAGS_testFrame;
-//			Mat imgRef = imread(file_io.getImage(tf1));
-////			//In original scale
-			Vector2d pt(640, 36);
-			stereo.dbtx = pt[0];
-			stereo.dbty = pt[1];
+				const int tf1 = FLAGS_testFrame;
+				Mat imgRef = imread(file_io.getImage(tf1));
+//			//In original scale
+				Vector2d pt(230*2, 82*2);
+				stereo.dbtx = pt[0];
+				stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
 //			//Vector2d pt(1077, 257);
-//			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
-//			cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0, 0, 255), 2);
-//			imwrite(buffer, imgRef);
-//			for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-//				Mat imgL, imgR;
-//				stereo.verifyEpipolarGeometry(tf1, tf2, pt, imgL, imgR);
-//				sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-//				imwrite(buffer, imgR);
-//			}
+				sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
+				cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0, 0, 255), 2);
+				imwrite(buffer, imgRef);
+				for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+					Mat imgL, imgR;
+					utility::verifyEpipolarGeometry(file_io, stereo.getSfMModel(), tf1, tf2, pt, imgL, imgR);
+					sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+					imwrite(buffer, imgR);
+				}
 			}
 
 			Depth curdepth;
@@ -130,8 +130,8 @@ int main(int argc, char **argv) {
 
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();
-//	vector<Mat> warpped;
-//	warpping->warpToAnchor(warpMask, warpped, false);
+	vector<Mat> warpped;
+	warpping->warpToAnchor(warpMask, warpped, false);
 
 	vector<Mat> prewarp;
 	warpping->preWarping(warpMask, prewarp);
@@ -173,19 +173,19 @@ int main(int argc, char **argv) {
 	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 	imwrite(buffer, seg_overlay);
 
-//	for(auto i=0; i<warpped.size(); ++i){
-//		for(auto y=0; y<height; ++y){
-//			for(auto x=0; x<width; ++x){
-//				if(seg_result.at<uchar>(y,x) < 200){
-//					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
-//				}
-//			}
-//		}
-//	}
-//
-//	for(auto i=0; i<warpped.size(); ++i){
-//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-//		imwrite(buffer, warpped[i]);
-//	}
+	for(auto i=0; i<warpped.size(); ++i){
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				if(seg_result.at<uchar>(y,x) < 200){
+					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
+				}
+			}
+		}
+	}
+
+	for(auto i=0; i<warpped.size(); ++i){
+		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+		imwrite(buffer, warpped[i]);
+	}
 	return 0;
 }

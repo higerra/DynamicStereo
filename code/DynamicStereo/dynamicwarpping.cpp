@@ -87,7 +87,7 @@ namespace dynamic_stereo {
 	    cout << endl;
 	    char buffer[1024] = {};
         for (auto i = 0; i < images.size(); ++i) {
-            zBuffers[i].initialize(width / downsample, height / downsample, -1);
+            zBuffers[i].initialize(width / downsample, height / downsample, std::numeric_limits<double>::max());
 //            if (i + offset <= depthind[0]) {
 //                updateZBuffer(depths[0], zBuffers[i], sfmModel.getCamera(depthind[0]), sfmModel.getCamera(i + offset));
 //                printf("Update zBuffer %d with %d\n", i+offset, depthind[0]);
@@ -108,7 +108,7 @@ namespace dynamic_stereo {
 //	            }
 //            }
 
-	        updateZBuffer(refDepth, zBuffers[i], sfmModel.getCamera(anchor), sfmModel.getCamera(i+offset));
+//	        updateZBuffer(refDepth, zBuffers[i], sfmModel.getCamera(anchor), sfmModel.getCamera(i+offset));
 
 //	        sprintf(buffer, "%s/temp/zBuffer%05d.ply", file_io.getDirectory().c_str(), i+offset);
 //	        Mat dimg;
@@ -131,7 +131,7 @@ namespace dynamic_stereo {
 
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
 
-	    double dispMargin = 10;
+	    double dispMargin = 20;
 
 	    const int tx = -1;
 	    const int ty = -1;

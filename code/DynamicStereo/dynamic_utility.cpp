@@ -187,6 +187,20 @@ namespace dynamic_stereo {
 
 		double getFrequencyScore(const cv::Mat& colorArray, const int min_frq){
 			const int N = colorArray.cols;
+			float min_colorDiff = 15;
+			float max_mag = -1;
+			for(auto i=0; i<colorArray.rows; ++i){
+				float curmin = numeric_limits<float>::max(), curmax = -1;
+				for(auto j=0; j<N; ++j){
+					curmin = std::min(colorArray.at<float>(i,j), curmin);
+					curmax = std::max(colorArray.at<float>(i,j), curmax);
+				}
+				max_mag = std::max(max_mag, curmax-curmin);
+			}
+
+			if(max_mag < min_colorDiff)
+				return 0;
+
 			int optN = getOptimalDFTSize(N);
 			Mat padded;
 			copyMakeBorder(colorArray, padded, 0, 0, 0, optN-N, BORDER_CONSTANT, Scalar::all(0));
@@ -216,22 +230,26 @@ namespace dynamic_stereo {
 				const float* rowPtr = frqMag.ptr<float>(i);
 				float mag = 0.0;
 //				printf("channel %d\n", i);
-				float peak = -1, sum = 0.0;
-				for(auto j=0; j<colorArray.cols; ++j)
-					mag = std::max(std::abs(colorArray.at<float>(i,j)), mag);
-
+//				float peak = -1, sum = 0.0;
+				float peak1 = -1, peak2 = -1;
 				//Note: only compute frequence magnitude before nyquist frequency
+
 				for(auto j=0; j<frqMag.cols/2; ++j){
 //					printf("%d\t%.2f\n", j, rowPtr[j]);
-					if(j >= min_frq && rowPtr[j] >= peak){
-						peak = rowPtr[j];
+					if(j < min_frq && rowPtr[j] >= peak1){
+						peak1 = rowPtr[j];
+					}
+					if(j >= min_frq && rowPtr[j] >= peak2){
+						peak2 = rowPtr[j];
 						frqLoc[i] = j;
 					}
-					sum += rowPtr[j];
+//					sum += rowPtr[j];
 				}
-				if(sum < epsilon)
-					continue;
-				frqConfs[i] = peak / sum;
+//				if(sum < epsilon)
+//					continue;
+				if(peak1 < epsilon)
+					return 1.0;
+				frqConfs[i] = peak2 / peak1;
 //				frqConfs[i] = peak * 2 / (double)N / (double)mag;
 //				printf("peak at %d, mag: %.2f (%.2f), ratio: %.2f\n", frqLoc[i], peak*2/(double)N, mag, frqConfs[i]);
 			}

@@ -31,8 +31,9 @@ namespace dynamic_stereo {
 
         inline int getAnchor()const{return anchor;}
         inline int gettWindow() const {return tWindow;}
-        inline int getOffset() const {return offset;};
+        inline int getOffset() const {return offset;}
         inline int getDownsample() const {return downsample; }
+		inline const SfMModel& getSfMModel() const{return sfmModel;}
 
 		void warpToAnchor(const Depth& refDisp, const cv::Mat& mask, const int startid, const int endid, std::vector<cv::Mat>& warpped) const;
 
@@ -79,10 +80,6 @@ namespace dynamic_stereo {
 		SfMModel sfmModel;
         Depth dispUnary; //Noisy disparity map only based on unary term
     };
-
-	namespace utility{
-
-	}
 }
 
 #endif //DYNAMICSTEREO_DYNAMICSTEREO_H

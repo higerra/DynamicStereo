@@ -99,7 +99,7 @@ namespace dynamic_stereo{
 
 			printf("Unary term for (%d,%d)\n", (int)dbtx, (int)dbty);
 			for (auto d = 0; d < dispResolution; ++d) {
-				cout << model->operator()(dty * width + dtx, d) << ' ';
+				cout << (int)model->operator()(dty * width + dtx, d) << ' ';
 			}
 			cout << endl;
 			printf("noisyDisp(%d,%d): %.2f\n", (int)dbtx, (int)dbty, dispUnary[dty*width+dtx]);
@@ -109,10 +109,10 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
-//			int tdisp = (int) dispUnary(dtx, dty);
-			int tdisp = 118;
+			int tdisp = (int) dispUnary(dtx, dty);
+//			int tdisp = 5;
 			double td = model->dispToDepth(tdisp);
-			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
+			cout << "Cost at d=" << tdisp << ": " << (int)model->operator()(dty * width + dtx, tdisp) << endl;
 
 			Vector3d spt = cam.GetPosition() + ray * td;
 			for (auto v = 0; v < images.size(); ++v) {
@@ -137,16 +137,16 @@ namespace dynamic_stereo{
 		}
 
 
-		if(dbtx >= 0 && dbty >= 0){
-			//debug for frequency confidence
-			for(int tdisp = 36; tdisp < 37; ++tdisp) {
-				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
-				double alpha = 40, beta=0.2;
-				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
-				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
-			}
-		}
-
+//		if(dbtx >= 0 && dbty >= 0){
+//			//debug for frequency confidence
+//			for(int tdisp = 36; tdisp < 37; ++tdisp) {
+//				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
+//				double alpha = 40, beta=0.2;
+//				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
+//				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
+//			}
+//		}
+//
 
 		cout << "Solving with first order smoothness..." << endl;
 		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
