@@ -139,9 +139,9 @@ namespace dynamic_stereo{
 
 		if(dbtx >= 0 && dbty >= 0){
 			//debug for frequency confidence
-			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
+			for(int tdisp = 36; tdisp < 37; ++tdisp) {
 				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
-				double alpha = 50, beta=0.25;
+				double alpha = 40, beta=0.2;
 				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
 				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
 			}

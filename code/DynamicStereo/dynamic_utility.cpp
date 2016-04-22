@@ -201,14 +201,25 @@ namespace dynamic_stereo {
 
 			const Mat& frqMag = planes[0];
 
-			double frqConf = 0.0;
+//			cout << "+++++++++++++++++++++++++++++++++" << endl;
+//			for(auto i=0; i<colorArray.rows; ++i){
+//				for(auto j=0; j<N; ++j){
+//					printf("%.2f ", colorArray.at<float>(i,j));
+//				}
+//				cout << endl;
+//			}
+			vector<double> frqConfs((size_t)frqMag.rows);
 			const double epsilon = 1e-05;
 			//only consider magnitude peak higher than a specific frequency
 			vector<int> frqLoc((size_t)frqMag.rows, 0);
 			for(auto i=0; i<frqMag.rows; ++i){
 				const float* rowPtr = frqMag.ptr<float>(i);
+				float mag = 0.0;
 //				printf("channel %d\n", i);
 				float peak = -1, sum = 0.0;
+				for(auto j=0; j<colorArray.cols; ++j)
+					mag = std::max(std::abs(colorArray.at<float>(i,j)), mag);
+
 				//Note: only compute frequence magnitude before nyquist frequency
 				for(auto j=0; j<frqMag.cols/2; ++j){
 //					printf("%d\t%.2f\n", j, rowPtr[j]);
@@ -220,10 +231,13 @@ namespace dynamic_stereo {
 				}
 				if(sum < epsilon)
 					continue;
-				frqConf += peak / sum;
-//				printf("peak at %d, mag: %.2f, sum: %.2f, ratio: %.2f\n", frqLoc[i], peak, sum, peak / sum);
+				frqConfs[i] = peak / sum;
+//				frqConfs[i] = peak * 2 / (double)N / (double)mag;
+//				printf("peak at %d, mag: %.2f (%.2f), ratio: %.2f\n", frqLoc[i], peak*2/(double)N, mag, frqConfs[i]);
 			}
-			return frqConf / (double)frqMag.rows;
+			const size_t kth = frqConfs.size() / 2;
+			nth_element(frqConfs.begin(), frqConfs.begin()+kth, frqConfs.end());
+			return frqConfs[kth];
 		}
 	}//namespace utility
 }//namespace dynamic_stereo

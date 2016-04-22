@@ -94,6 +94,7 @@ namespace dynamic_stereo {
 		float* pArray = (float*) colorArray.data;
 		Vector3d meanColor(0,0,0);
 		//compose input array
+		int validN = 0;
 		for(auto v=0; v<images.size(); ++v){
 			Vector2d imgpt;
 			sfmModel.getCamera(v+offset).ProjectPoint(spt.homogeneous(), &imgpt);
@@ -104,23 +105,21 @@ namespace dynamic_stereo {
 				pArray[N+v] = (float)pix[1];
 				pArray[2*N+v] = (float)pix[2];
 				meanColor += pix;
-			}else{
-				pArray[v] = 0.0;
-				pArray[N+v] = 0.0;
-				pArray[2*N+v] = 0.0;
-			}
+				validN++;
+			}else
+				break;
 			//printf("%.2f,%.2f,%.2f\n", pArray[v], pArray[N+v], pArray[2*N+v]);
 		}
 		//Normalize
-		meanColor = meanColor / (double)N;
+		meanColor = meanColor / (double)validN;
 		for(auto i=0; i<N; ++i){
 			pArray[i] -= meanColor[0];
 			pArray[N+i] -= meanColor[1];
 			pArray[2*N+i] -= meanColor[2];
 		}
-
+		Mat truncColorArray = colorArray(cv::Rect(0,0,validN,3)).clone();
 		const int min_frq = 4;
-		return utility::getFrequencyScore(colorArray, min_frq);
+		return utility::getFrequencyScore(truncColorArray, min_frq);
 	}
 
     void DynamicStereo::assignDataTerm() {
