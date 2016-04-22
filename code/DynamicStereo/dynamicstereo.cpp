@@ -109,8 +109,8 @@ namespace dynamic_stereo{
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
-			int tdisp = (int) dispUnary(dtx, dty);
-//			int tdisp = 16;
+//			int tdisp = (int) dispUnary(dtx, dty);
+			int tdisp = 118;
 			double td = model->dispToDepth(tdisp);
 			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
