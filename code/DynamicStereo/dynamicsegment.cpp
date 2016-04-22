@@ -98,37 +98,43 @@ namespace dynamic_stereo{
 		const int height = warppedImg[0].rows;
 		result.initialize(width, height, 0.0);
 		const int N = (int)warppedImg.size();
-		const double alpha = 50, beta = 0.25;
+		const double alpha = 40, beta = 0.20;
 		const float epsilon = 1e-05;
+		const int min_frq = 3;
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
-				Vector3d meanColor(0,0,0);
-				Mat colorArray(3,(int)warppedImg.size(),CV_32FC1, Scalar::all(0));
-				float* pArray = (float*)colorArray.data;
+				//seprate first half and second half
+				vector<Vector3d> meanColor(2, Vector3d(0,0,0));
+				vector<Mat> colorArray(2, Mat(3,(int)warppedImg.size(),CV_32FC1, Scalar::all(0)));
+				vector<float*> pArray{(float*)colorArray[0].data, (float*) colorArray[1].data};
 				for(auto v=0; v<warppedImg.size(); ++v){
 					Vec3b pixv = warppedImg[v].at<Vec3b>(y,x);
+					int ind = v < warppedImg.size()/2 ? 0 : 1;
 					if(pixv[0] != 0 && pixv[1] != 0 && pixv[2] != 0){
-						pArray[v] = (float)pixv[0];
-						pArray[N+v] = (float)pixv[1];
-						pArray[2*N+v] = (float)pixv[2];
+						pArray[ind][v] = (float)pixv[0];
+						pArray[ind][N+v] = (float)pixv[1];
+						pArray[ind][2*N+v] = (float)pixv[2];
 					}else{
-						pArray[v] = 0.0;
-						pArray[N+v] = 0.0;
-						pArray[2*N+v] = 0.0;
+						pArray[ind][v] = 0.0;
+						pArray[ind][N+v] = 0.0;
+						pArray[ind][2*N+v] = 0.0;
 					}
-					meanColor[0] += pArray[v];
-					meanColor[1] += pArray[N+v];
-					meanColor[2] += pArray[2*N+v];
+					meanColor[ind][0] += pArray[ind][v];
+					meanColor[ind][1] += pArray[ind][N+v];
+					meanColor[ind][2] += pArray[ind][2*N+v];
 				}
-				meanColor /= (double)N;
-				for(auto v=0; v<N; ++v){
-					pArray[v] -= meanColor[0];
-					pArray[N+v] -= meanColor[1];
-					pArray[2*N+v] -= meanColor[2];
+				for(auto h=0; h<2; ++h) {
+					meanColor[h] /= (double)N;
+					for (auto v = 0; v < N; ++v) {
+						pArray[h][v] -= meanColor[h][0];
+						pArray[h][N + v] -= meanColor[h][1];
+						pArray[h][2 * N + v] -= meanColor[h][2];
+					}
 				}
-				const int min_frq = 4;
-				double frqConf = utility::getFrequencyScore(colorArray, min_frq);
-				result(x,y) = 1 / (1 + std::exp(-1*alpha*(frqConf - beta)));
+
+				vector<double> frqConfs{utility::getFrequencyScore(colorArray[0], min_frq),
+										utility::getFrequencyScore(colorArray[1], min_frq)};
+				result(x,y) = 1 / (1 + std::exp(-1*alpha*(*max_element(frqConfs.begin(), frqConfs.end()) - beta)));
 			}
 		}
 

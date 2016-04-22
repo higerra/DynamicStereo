@@ -80,9 +80,9 @@ int main(int argc, char **argv) {
 //			const int tf1 = FLAGS_testFrame;
 //			Mat imgRef = imread(file_io.getImage(tf1));
 ////			//In original scale
-//			Vector2d pt(794, 294);
-//			stereo.dbtx = pt[0];
-//			stereo.dbty = pt[1];
+			Vector2d pt(640, 36);
+			stereo.dbtx = pt[0];
+			stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
 //			//Vector2d pt(1077, 257);
 //			sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
