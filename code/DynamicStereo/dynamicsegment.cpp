@@ -277,6 +277,16 @@ namespace dynamic_stereo{
 		computeFrequencyConfidence(warppedImg, frequency);
 		printf("Done\n");
 
+		{
+			//test for grabuct segmentation
+			Mat fgmask(height, width, CV_8UC1, Scalar::all(0));
+			for(auto y=0; y<height; ++y){
+				for(auto x=0; x<width; ++x){
+					
+				}
+			}
+		}
+
 
 		Depth unaryTerm(width, height, 0.0);
 		for(auto i=0; i<width * height; ++i)
@@ -297,73 +307,73 @@ namespace dynamic_stereo{
 		//create problem
 		//label 0: don't animate
 		//label 1: animate
-		printf("Solving by MRF\n");
-		std::vector<double> MRF_data((size_t)width*height*2);
-		std::vector<double> hCue((size_t)width*height), vCue((size_t)width*height);
-		for(auto i=0; i<width*height; ++i){
-//			if(unaryTerm[i]/255.0 < static_threshold)
-//				MRF_data[2*i] = 0;
+//		printf("Solving by MRF\n");
+//		std::vector<double> MRF_data((size_t)width*height*2);
+//		std::vector<double> hCue((size_t)width*height), vCue((size_t)width*height);
+//		for(auto i=0; i<width*height; ++i){
+////			if(unaryTerm[i]/255.0 < static_threshold)
+////				MRF_data[2*i] = 0;
+////			else
+////				MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
+////			MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
+////			MRF_data[2*i+1] = (unaryTerm[i]/255.0) * (unaryTerm[i]/255.0);
+////			MRF_data[2*i] = unaryTerm[i]/255.0;
+////			MRF_data[2*i+1] = max(0.0, 0.6 - unaryTerm[i]/255.0);
+//			MRF_data[2*i] = frequency[i];
+//			MRF_data[2*i+1] = 1-frequency[i];
+//		}
+//
+//		const double t = 100;
+//		const Mat &img = warppedImg[anchor-offset];
+//		for (auto y = 0; y < height; ++y) {
+//			for (auto x = 0; x < width; ++x) {
+//				Vec3b pix1 = img.at<Vec3b>(y, x);
+//				//pixel value range from 0 to 1, not 255!
+//				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
+//				if (y < height - 1) {
+//					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
+//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+//					double diff = (dpix1 - dpix2).squaredNorm();
+//					vCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
+//				}
+//				if (x < width - 1) {
+//					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
+//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+//					double diff = (dpix1 - dpix2).squaredNorm();
+//					hCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
+//				}
+//			}
+//		}
+//
+//		double weight_smooth = 0.5;
+//		vector<double> MRF_smooth{0,weight_smooth,weight_smooth,0};
+//		DataCost *dataCost = new DataCost(MRF_data.data());
+//		SmoothnessCost *smoothnessCost = new SmoothnessCost(MRF_smooth.data(), hCue.data(), vCue.data());
+//		EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
+//
+//		Expansion mrf(width,height,2,energy_function);
+//		mrf.initialize();
+//		mrf.clearAnswer();
+//		for(auto i=0; i<width*height; ++i)
+//			mrf.setLabel(i,0);
+//		double initDataE = mrf.dataEnergy();
+//		double initSmoothE = mrf.smoothnessEnergy();
+//		float mrf_time;
+//		mrf.optimize(10, mrf_time);
+//		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
+//		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
+//
+//		uchar* pResult = result.data;
+//		for(auto i=0; i<width*height; ++i){
+//			if(mrf.getLabel(i) > 0)
+//				pResult[i] = (uchar)255;
 //			else
-//				MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
-//			MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
-//			MRF_data[2*i+1] = (unaryTerm[i]/255.0) * (unaryTerm[i]/255.0);
-//			MRF_data[2*i] = unaryTerm[i]/255.0;
-//			MRF_data[2*i+1] = max(0.0, 0.6 - unaryTerm[i]/255.0);
-			MRF_data[2*i] = frequency[i];
-			MRF_data[2*i+1] = 1-frequency[i];
-		}
-
-		const double t = 100;
-		const Mat &img = warppedImg[anchor-offset];
-		for (auto y = 0; y < height; ++y) {
-			for (auto x = 0; x < width; ++x) {
-				Vec3b pix1 = img.at<Vec3b>(y, x);
-				//pixel value range from 0 to 1, not 255!
-				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
-				if (y < height - 1) {
-					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-					double diff = (dpix1 - dpix2).squaredNorm();
-					vCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
-				}
-				if (x < width - 1) {
-					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-					double diff = (dpix1 - dpix2).squaredNorm();
-					hCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
-				}
-			}
-		}
-
-		double weight_smooth = 0.5;
-		vector<double> MRF_smooth{0,weight_smooth,weight_smooth,0};
-		DataCost *dataCost = new DataCost(MRF_data.data());
-		SmoothnessCost *smoothnessCost = new SmoothnessCost(MRF_smooth.data(), hCue.data(), vCue.data());
-		EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
-
-		Expansion mrf(width,height,2,energy_function);
-		mrf.initialize();
-		mrf.clearAnswer();
-		for(auto i=0; i<width*height; ++i)
-			mrf.setLabel(i,0);
-		double initDataE = mrf.dataEnergy();
-		double initSmoothE = mrf.smoothnessEnergy();
-		float mrf_time;
-		mrf.optimize(10, mrf_time);
-		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
-		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
-
-		uchar* pResult = result.data;
-		for(auto i=0; i<width*height; ++i){
-			if(mrf.getLabel(i) > 0)
-				pResult[i] = (uchar)255;
-			else
-				pResult[i] = (uchar)0;
-		}
-
-		delete dataCost;
-		delete smoothnessCost;
-		delete energy_function;
+//				pResult[i] = (uchar)0;
+//		}
+//
+//		delete dataCost;
+//		delete smoothnessCost;
+//		delete energy_function;
 
 	}
 
