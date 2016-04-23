@@ -118,7 +118,7 @@ namespace dynamic_stereo {
 			pArray[N+i] -= meanColor[1];
 			pArray[2*N+i] -= meanColor[2];
 		}
-		const int min_frq = 3;
+		const int min_frq = 4;
 		return utility::getFrequencyScore(colorArray(cv::Rect(0,0,arrayInd,3)), min_frq);
 	}
 
