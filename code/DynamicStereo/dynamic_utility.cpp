@@ -187,6 +187,8 @@ namespace dynamic_stereo {
 
 		double getFrequencyScore(const cv::Mat& colorArray, const int min_frq){
 			const int N = colorArray.cols;
+			if(N/2 <= min_frq)
+				return 0;
 			float min_colorDiff = 15;
 			float max_mag = -1;
 			for(auto i=0; i<colorArray.rows; ++i){
@@ -215,17 +217,9 @@ namespace dynamic_stereo {
 
 			const Mat& frqMag = planes[0];
 
-//			cout << "+++++++++++++++++++++++++++++++++" << endl;
-//			for(auto i=0; i<colorArray.rows; ++i){
-//				for(auto j=0; j<N; ++j){
-//					printf("%.2f ", colorArray.at<float>(i,j));
-//				}
-//				cout << endl;
-//			}
 			vector<double> frqConfs((size_t)frqMag.rows);
 			const double epsilon = 1e-05;
 			//only consider magnitude peak higher than a specific frequency
-			vector<int> frqLoc((size_t)frqMag.rows, 0);
 			for(auto i=0; i<frqMag.rows; ++i){
 				const float* rowPtr = frqMag.ptr<float>(i);
 				float mag = 0.0;
@@ -241,15 +235,14 @@ namespace dynamic_stereo {
 					}
 					if(j >= min_frq && rowPtr[j] >= peak2){
 						peak2 = rowPtr[j];
-						frqLoc[i] = j;
 					}
-//					sum += rowPtr[j];
 				}
-//				if(sum < epsilon)
-//					continue;
 				if(peak1 < epsilon)
-					return 1.0;
-				frqConfs[i] = peak2 / peak1;
+					frqConfs[i] = 1000;
+				else
+					frqConfs[i] = peak2 / peak1;
+
+//				CHECK_GT(frqConfs[i], 0) << peak1 << ' ' << peak2 << ' ' << frqMag.cols / 2 << ' ' << min_frq;
 //				frqConfs[i] = peak * 2 / (double)N / (double)mag;
 //				printf("peak at %d, mag: %.2f (%.2f), ratio: %.2f\n", frqLoc[i], peak*2/(double)N, mag, frqConfs[i]);
 			}

@@ -154,122 +154,123 @@ namespace dynamic_stereo{
 		const int width = warppedImg[0].cols;
 		const int height = warppedImg[0].rows;
 
-		result = Mat(height, width, CV_8UC1, Scalar(255));
-		vector<Mat> intensityRaw(warppedImg.size());
-		for(auto i=0; i<warppedImg.size(); ++i)
-			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
-
-		auto isInside = [&](int x, int y){
-			return x>=0 && y >= 0 && x < width && y < height;
-		};
-
-		vector<vector<double> > intensity((size_t)width * height);
-		for(auto & i: intensity)
-			i.resize(warppedImg.size(), 0.0);
-
-		const int pR = 0;
-
-		//box filter with invalid pixel handling
-		for(auto i=0; i<warppedImg.size(); ++i) {
-			printf("frame %d\n", i+offset);
-			for (auto y = 0; y < height; ++y) {
-				for (auto x = 0; x < width; ++x) {
-					double curI = 0.0;
-					double count = 0.0;
-					for (auto dx = -1 * pR; dx <= pR; ++dx) {
-						for (auto dy = -1 * pR; dy <= pR; ++dy) {
-							const int curx = x + dx;
-							const int cury = y + dy;
-							if(isInside(curx, cury)){
-								uchar gv = intensityRaw[i].at<uchar>(cury,curx);
-								if(gv == (uchar)0)
-									continue;
-								count = count + 1.0;
-								curI += (double)gv;
-							}
-						}
-					}
-					if(count < 1)
-						continue;
-					intensity[y*width+x][i] = curI / count;
-				}
-			}
-		}
-
-//		for(auto i=0; i<warppedImg.size(); ++i){
-//			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
-//			ofstream fout(buffer);
-//			CHECK(fout.is_open());
-//			for(auto y=0; y<height; ++y){
-//				for(auto x=0; x<width; ++x)
-//					fout << intensity[y*width+x][i] << ' ';
-//				//fout << colorDiff[y*width+x][i] << ' ';
-//				fout << endl;
-//			}
-//			fout.close();
-//		}
-
-
-		//brightness confidence dynamicness confidence
-		Depth brightness(width, height, 0.0), dynamicness(width, height, 0.0);
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				vector<double>& pixIntensity = intensity[y*width+x];
-				CHECK_GT(pixIntensity.size(), 0);
-				double count = 0.0;
-				//take median as brightness
-				const size_t kth = pixIntensity.size() / 2;
-				nth_element(pixIntensity.begin(), pixIntensity.begin()+kth, pixIntensity.end());
-				brightness(x,y) = pixIntensity[kth];
-
-				double averageIntensity = 0.0;
-				for(auto i=0; i<pixIntensity.size(); ++i){
-					if(pixIntensity[i] > 0){
-						//brightness(x,y) += pixIntensity[i];
-						averageIntensity += pixIntensity[i];
-						count += 1.0;
-					}
-				}
-				if(count < 2){
-					continue;
-				}
-//				averageIntensity /= count;
-//				for(auto i=0; i<pixIntensity.size(); ++i){
-//					if(pixIntensity[i] > 0)
-//						dynamicness(x,y) += (pixIntensity[i] - averageIntensity) * (pixIntensity[i] - averageIntensity);
+		result = Mat(height, width, CV_8UC1, Scalar(0));
+		uchar* pResult = result.data;
+//		vector<Mat> intensityRaw(warppedImg.size());
+//		for(auto i=0; i<warppedImg.size(); ++i)
+//			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
+//
+//		auto isInside = [&](int x, int y){
+//			return x>=0 && y >= 0 && x < width && y < height;
+//		};
+//
+//		vector<vector<double> > intensity((size_t)width * height);
+//		for(auto & i: intensity)
+//			i.resize(warppedImg.size(), 0.0);
+//
+//		const int pR = 0;
+//
+//		//box filter with invalid pixel handling
+//		for(auto i=0; i<warppedImg.size(); ++i) {
+//			printf("frame %d\n", i+offset);
+//			for (auto y = 0; y < height; ++y) {
+//				for (auto x = 0; x < width; ++x) {
+//					double curI = 0.0;
+//					double count = 0.0;
+//					for (auto dx = -1 * pR; dx <= pR; ++dx) {
+//						for (auto dy = -1 * pR; dy <= pR; ++dy) {
+//							const int curx = x + dx;
+//							const int cury = y + dy;
+//							if(isInside(curx, cury)){
+//								uchar gv = intensityRaw[i].at<uchar>(cury,curx);
+//								if(gv == (uchar)0)
+//									continue;
+//								count = count + 1.0;
+//								curI += (double)gv;
+//							}
+//						}
+//					}
+//					if(count < 1)
+//						continue;
+//					intensity[y*width+x][i] = curI / count;
 //				}
-//				if(dynamicness(x,y) > 0)
-//					dynamicness(x,y) = std::sqrt(dynamicness(x,y)/(count - 1));
-			}
-		}
-
-		//compute color difference pattern
-		vector<vector<double> > colorDiff((size_t)width*height);
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				Vec3b refPixv = warppedImg[anchor-offset].at<Vec3b>(y,x);
-				Vector3d refPix(refPixv[0], refPixv[1], refPixv[2]);
-				double count = 0.0;
-				for(auto i=0; i<warppedImg.size(); ++i){
-					if(i == anchor-offset)
-						continue;
-					Vec3b curPixv = warppedImg[i].at<Vec3b>(y,x);
-					if(curPixv == Vec3b(0,0,0)) {
-						colorDiff[y*width+x].push_back(0.0);
-						continue;
-					}
-					count += 1.0;
-					Vector3d curPix(curPixv[0], curPixv[1], curPixv[2]);
-					colorDiff[y*width+x].push_back((curPix - refPix).norm());
-				}
-				if(count < 1)
-					continue;
-//				const size_t kth = colorDiff[y*width+x].size()/2;
-//				sort(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), std::less<double>());
-//				nth_element(colorDiff[y*width+x].begin(), colorDiff[y*width+x].begin() + kth, colorDiff[y*width+x].end());
-				dynamicness(x,y) = accumulate(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), 0.0) / count;
-			}
-		}
+//			}
+//		}
+//
+////		for(auto i=0; i<warppedImg.size(); ++i){
+////			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
+////			ofstream fout(buffer);
+////			CHECK(fout.is_open());
+////			for(auto y=0; y<height; ++y){
+////				for(auto x=0; x<width; ++x)
+////					fout << intensity[y*width+x][i] << ' ';
+////				//fout << colorDiff[y*width+x][i] << ' ';
+////				fout << endl;
+////			}
+////			fout.close();
+////		}
+//
+//
+//		//brightness confidence dynamicness confidence
+//		Depth brightness(width, height, 0.0), dynamicness(width, height, 0.0);
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				vector<double>& pixIntensity = intensity[y*width+x];
+//				CHECK_GT(pixIntensity.size(), 0);
+//				double count = 0.0;
+//				//take median as brightness
+//				const size_t kth = pixIntensity.size() / 2;
+//				nth_element(pixIntensity.begin(), pixIntensity.begin()+kth, pixIntensity.end());
+//				brightness(x,y) = pixIntensity[kth];
+//
+//				double averageIntensity = 0.0;
+//				for(auto i=0; i<pixIntensity.size(); ++i){
+//					if(pixIntensity[i] > 0){
+//						//brightness(x,y) += pixIntensity[i];
+//						averageIntensity += pixIntensity[i];
+//						count += 1.0;
+//					}
+//				}
+//				if(count < 2){
+//					continue;
+//				}
+////				averageIntensity /= count;
+////				for(auto i=0; i<pixIntensity.size(); ++i){
+////					if(pixIntensity[i] > 0)
+////						dynamicness(x,y) += (pixIntensity[i] - averageIntensity) * (pixIntensity[i] - averageIntensity);
+////				}
+////				if(dynamicness(x,y) > 0)
+////					dynamicness(x,y) = std::sqrt(dynamicness(x,y)/(count - 1));
+//			}
+//		}
+//
+//		//compute color difference pattern
+//		vector<vector<double> > colorDiff((size_t)width*height);
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				Vec3b refPixv = warppedImg[anchor-offset].at<Vec3b>(y,x);
+//				Vector3d refPix(refPixv[0], refPixv[1], refPixv[2]);
+//				double count = 0.0;
+//				for(auto i=0; i<warppedImg.size(); ++i){
+//					if(i == anchor-offset)
+//						continue;
+//					Vec3b curPixv = warppedImg[i].at<Vec3b>(y,x);
+//					if(curPixv == Vec3b(0,0,0)) {
+//						colorDiff[y*width+x].push_back(0.0);
+//						continue;
+//					}
+//					count += 1.0;
+//					Vector3d curPix(curPixv[0], curPixv[1], curPixv[2]);
+//					colorDiff[y*width+x].push_back((curPix - refPix).norm());
+//				}
+//				if(count < 1)
+//					continue;
+////				const size_t kth = colorDiff[y*width+x].size()/2;
+////				sort(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), std::less<double>());
+////				nth_element(colorDiff[y*width+x].begin(), colorDiff[y*width+x].begin() + kth, colorDiff[y*width+x].end());
+//				dynamicness(x,y) = accumulate(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), 0.0) / count;
+//			}
+//		}
 
 		//repetative pattern
 		printf("Computing frequency confidence...\n");
@@ -279,27 +280,68 @@ namespace dynamic_stereo{
 
 		{
 			//test for grabuct segmentation
-			Mat fgmask(height, width, CV_8UC1, Scalar::all(0));
-			for(auto y=0; y<height; ++y){
-				for(auto x=0; x<width; ++x){
-					
+			printf("Segmentation based on frequency...\n");
+			Mat bwmask(height, width, CV_8UC1, Scalar::all(0));
+			uchar *pBwmask = bwmask.data;
+			const int rdilate = 5;
+			const int rerode = 3;
+			const int min_area = 150;
+			for(auto i=0; i<width * height; ++i)
+				pBwmask[i] = frequency[i] > 0.5 ? (uchar)255 : (uchar)0;
+			cv::dilate(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rdilate, rdilate)));
+			cv::erode(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rerode, rerode)));
+			sprintf(buffer, "%s/temp/mask_frqbw%05d.jpg", file_io.getDirectory().c_str(), anchor);
+			imwrite(buffer, bwmask);
+
+			//connected component analysis
+			Mat labels, stats, centroids;
+			int nCom = cv::connectedComponentsWithStats(bwmask, labels, stats, centroids);
+			const int *pLabel = (int *)labels.data;
+			printf("%d connected component\n", nCom);
+			//Note: label = 0 represents background
+			for(auto l=1; l<nCom; ++l){
+				//Drop components with area < min_area.
+				//For each remaining component, perform grabcut seperately
+				printf("Component %d ", l);
+				if(stats.at<int>(l,CC_STAT_AREA) < min_area) {
+					printf("Area too small(%d), drop\n", stats.at<int>(l,CC_STAT_AREA));
+					continue;
+				}
+				Mat gcmask(height, width, CV_8UC1, Scalar::all(GC_PR_BGD));
+				uchar *pGcmask = gcmask.data;
+				for(auto i=0; i<width * height; ++i) {
+					if(pLabel[i] == l)
+						pGcmask[i] = GC_FGD;
+					else {
+						if (frequency[i] < 0.3)
+							pGcmask[i] = GC_BGD;
+					}
+
+				}
+				printf("Grabcut...\n");
+				grabCut(warppedImg[anchor-offset], gcmask, cv::Rect(), cv::Mat(), cv::Mat(), GC_INIT_WITH_MASK);
+				for(auto i=0; i<width * height; ++i){
+					if(pGcmask[i] == GC_FGD || pGcmask[i] == GC_PR_FGD)
+						pResult[i] = (uchar)255;
 				}
 			}
+
+
 		}
 
 
-		Depth unaryTerm(width, height, 0.0);
-		for(auto i=0; i<width * height; ++i)
-			unaryTerm[i] = min(dynamicness[i] * brightness[i] / 255.0 * 3, 255.0);
-
-		sprintf(buffer, "%s/temp/conf_brightness%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		brightness.saveImage(string(buffer));
-		sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		dynamicness.saveImage(string(buffer),5);
-		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		unaryTerm.saveImage(string(buffer));
-		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		frequency.saveImage(string(buffer), 255);
+//		Depth unaryTerm(width, height, 0.0);
+//		for(auto i=0; i<width * height; ++i)
+//			unaryTerm[i] = min(dynamicness[i] * brightness[i] / 255.0 * 3, 255.0);
+//
+//		sprintf(buffer, "%s/temp/conf_brightness%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		brightness.saveImage(string(buffer));
+//		sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		dynamicness.saveImage(string(buffer),5);
+//		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		unaryTerm.saveImage(string(buffer));
+//		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
+//		frequency.saveImage(string(buffer), 255);
 
 //		unaryTerm.updateStatics();
 //		double static_threshold = unaryTerm.getMedianDepth() / 255.0;
@@ -363,7 +405,7 @@ namespace dynamic_stereo{
 //		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
 //		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
 //
-//		uchar* pResult = result.data;
+
 //		for(auto i=0; i<width*height; ++i){
 //			if(mrf.getLabel(i) > 0)
 //				pResult[i] = (uchar)255;

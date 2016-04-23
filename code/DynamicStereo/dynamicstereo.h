@@ -53,7 +53,7 @@ namespace dynamic_stereo {
 
         void assignDataTerm();
 	    void assignSmoothWeight();
-		void computeFrequencyConfidence(const double alpha = 50, const double beta = 0.25);
+		void computeFrequencyConfidence(const double alpha = 3, const double beta = 2.0);
 
 	    //analysis the
 	    double getFrequencyConfidence(const int fid, const int x, const int y, const int d) const;
