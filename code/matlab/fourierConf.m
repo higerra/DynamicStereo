@@ -11,7 +11,7 @@ end
 
 conf = zeros(h,w);
 disp('Computing confidence...');
-min_colordiff=30;
+min_colordiff=15;
 for y=1:h
     for x=1:w
         seq = reshape(Is(:,y,x,:), N, c);
@@ -31,7 +31,7 @@ for y=1:h
         ratio1 = median(v);
         %ratio2 = median(peak ./ median(mag));
         conf(y,x) = 1/(1+exp(-1*alpha*(ratio1-beta)));% * 1/(1+exp(-1*alpha*(ratio2-beta)));
-        if x==415 && y==127
+        if x==522 && y==292
             disp('Debug...');
             disp(seq);
             figure; hold on;

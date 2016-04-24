@@ -14,12 +14,12 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(tWindow, 60, "tWindow");
+DEFINE_int32(tWindow, 80, "tWindow");
 DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
 DEFINE_int32(stereo_interval, 10, "interval for stereo");
-DEFINE_double(weight_smooth, 0.05, "smoothness weight for stereo");
+DEFINE_double(weight_smooth, 0.1, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
 
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 	Mat segMaskImg = imread(buffer);
 	CHECK(segMaskImg.data) << buffer;
 	cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0, INTER_NEAREST);
-	vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192)};
+	vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192), Vec3b(128,128,128), Vec3b(0,128,128)};
 	Mat segMask(height, width, CV_8UC1, Scalar(255));
 	for(auto y=0; y<height; ++y){
 		for(auto x=0; x<width; ++x){
@@ -121,12 +121,12 @@ int main(int argc, char **argv) {
 	CHECK_EQ(warpMask.cols, refDepthMask.cols);
 	CHECK_EQ(warpMask.rows, refDepthMask.rows);
 
-	for(auto y=0; y<height; ++y){
-		for(auto x=0; x<width; ++x){
-			if(refDepthMask.at<uchar>(y,x) < 200)
-				warpMask.at<uchar>(y,x) = 0;
-		}
-	}
+//	for(auto y=0; y<height; ++y){
+//		for(auto x=0; x<width; ++x){
+//			if(refDepthMask.at<uchar>(y,x) < 200)
+//				warpMask.at<uchar>(y,x) = 0;
+//		}
+//	}
 
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();

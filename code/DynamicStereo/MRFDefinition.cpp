@@ -282,12 +282,11 @@ namespace dynamic_stereo {
 		}
 
 		CHECK_EQ(frqConf.size(), model->unary.size());
-		const double weight_frq = 0.5;
+		const double weight_frq = 0.4;
 		for(auto i=0; i<frqConf.size(); ++i){
 			double w = 1 - weight_frq / (1 + std::exp(-1*alpha*(frqConf[i] - beta)));
 			CHECK_GE(w, weight_frq) << frqConf[i] << ' ' << w;
 			CHECK_LE(w,1.0) << frqConf[i] << ' ' << w;
-
 			model->unary[i] *= w;
 		}
 

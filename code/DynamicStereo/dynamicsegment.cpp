@@ -101,7 +101,7 @@ namespace dynamic_stereo{
 		const double alpha = 2, beta = 2.0;
 		const float epsilon = 1e-05;
 		const int min_frq = 3;
-		const int tx = -1, ty=-1;
+		const int tx = 228, ty=71;
 
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
@@ -312,10 +312,10 @@ namespace dynamic_stereo{
 				for(auto i=0; i<width * height; ++i) {
 					if(pLabel[i] == l)
 						pGcmask[i] = GC_FGD;
-					else {
-						if (frequency[i] < 0.3)
-							pGcmask[i] = GC_BGD;
-					}
+//					else {
+//						if (frequency[i] < 0.1)
+//							pGcmask[i] = GC_BGD;
+//					}
 
 				}
 				printf("Grabcut...\n");
@@ -340,8 +340,8 @@ namespace dynamic_stereo{
 //		dynamicness.saveImage(string(buffer),5);
 //		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
 //		unaryTerm.saveImage(string(buffer));
-//		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//		frequency.saveImage(string(buffer), 255);
+		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		frequency.saveImage(string(buffer), 255);
 
 //		unaryTerm.updateStatics();
 //		double static_threshold = unaryTerm.getMedianDepth() / 255.0;
