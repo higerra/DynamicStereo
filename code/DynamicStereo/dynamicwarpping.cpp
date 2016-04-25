@@ -145,8 +145,8 @@ namespace dynamic_stereo {
                 warpped[i] = Mat(height, width, CV_8UC3, Scalar(0, 0, 0));
             }
             const theia::Camera &cam2 = sfmModel.getCamera(i + offset);
-            for (auto y = downsample; y < height - downsample; ++y) {
-                for (auto x = downsample; x < width - downsample; ++x) {
+            for (auto y = 0; y < height - downsample; ++y) {
+                for (auto x = 0; x < width - downsample; ++x) {
                     if (mask.at<uchar>(y, x) < 200) {
                         warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
                         continue;

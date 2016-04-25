@@ -282,16 +282,28 @@ namespace dynamic_stereo{
 			//test for grabuct segmentation
 			printf("Segmentation based on frequency...\n");
 			Mat bwmask(height, width, CV_8UC1, Scalar::all(0));
+			Mat bgmask(height, width, CV_8UC1, Scalar::all(0));
 			uchar *pBwmask = bwmask.data;
-			const int rdilate = 5;
-			const int rerode = 3;
-			const int min_area = 150;
+			uchar *pBgmask = bgmask.data;
+
+			//initial mask
+			const double tl = 0.2, th = 0.5;
 			for(auto i=0; i<width * height; ++i)
-				pBwmask[i] = frequency[i] > 0.5 ? (uchar)255 : (uchar)0;
-			cv::dilate(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rdilate, rdilate)));
-			cv::erode(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rerode, rerode)));
-			sprintf(buffer, "%s/temp/mask_frqbw%05d.jpg", file_io.getDirectory().c_str(), anchor);
+				pBwmask[i] = frequency[i] > th ? (uchar)255 : (uchar)0;
+			for(auto i=0; i<width * height; ++i)
+				pBgmask[i] = frequency[i] < tl ? (uchar)255 : (uchar)0;
+			const int rh = 5;
+			const int rl = 3;
+			const int min_area = 150;
+
+			cv::dilate(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
+			cv::erode(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
+			cv::erode(bgmask, bgmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(15, 15)));
+
+			sprintf(buffer, "%s/temp/mask_frqfg%05d.jpg", file_io.getDirectory().c_str(), anchor);
 			imwrite(buffer, bwmask);
+			sprintf(buffer, "%s/temp/mask_frqbg%05d.jpg", file_io.getDirectory().c_str(), anchor);
+			imwrite(buffer, bgmask);
 
 			//connected component analysis
 			Mat labels, stats, centroids;
@@ -312,10 +324,9 @@ namespace dynamic_stereo{
 				for(auto i=0; i<width * height; ++i) {
 					if(pLabel[i] == l)
 						pGcmask[i] = GC_FGD;
-//					else {
-//						if (frequency[i] < 0.1)
-//							pGcmask[i] = GC_BGD;
-//					}
+					else if(pBgmask[i] > 200){
+						pGcmask[i] = GC_BGD;
+					}
 
 				}
 				printf("Grabcut...\n");

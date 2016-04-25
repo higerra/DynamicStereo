@@ -110,7 +110,7 @@ namespace dynamic_stereo{
 			//ray.normalize();
 
 //			int tdisp = (int) dispUnary(dtx, dty);
-			int tdisp = 124;
+			int tdisp = 14;
 			double td = model->dispToDepth(tdisp);
 			cout << "Cost at d=" << tdisp << ": " << (int)model->operator()(dty * width + dtx, tdisp) << endl;
 
