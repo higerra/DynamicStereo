@@ -287,7 +287,7 @@ namespace dynamic_stereo{
 			uchar *pBgmask = bgmask.data;
 
 			//initial mask
-			const double tl = 0.2, th = 0.5;
+			const double tl = 0.1, th = 0.5;
 			for(auto i=0; i<width * height; ++i)
 				pBwmask[i] = frequency[i] > th ? (uchar)255 : (uchar)0;
 			for(auto i=0; i<width * height; ++i)
@@ -298,7 +298,7 @@ namespace dynamic_stereo{
 
 			cv::dilate(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
 			cv::erode(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
-			cv::erode(bgmask, bgmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(15, 15)));
+			cv::erode(bgmask, bgmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(11, 11)));
 
 			sprintf(buffer, "%s/temp/mask_frqfg%05d.jpg", file_io.getDirectory().c_str(), anchor);
 			imwrite(buffer, bwmask);

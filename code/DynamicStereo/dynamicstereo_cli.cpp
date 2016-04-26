@@ -55,12 +55,13 @@ int main(int argc, char **argv) {
 	Mat segMaskImg = imread(buffer);
 	CHECK(segMaskImg.data) << buffer;
 	cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0, INTER_NEAREST);
-	vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192), Vec3b(128,128,128), Vec3b(0,128,128)};
+	//vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192), Vec3b(128,128,128), Vec3b(0,128,128)};
+	vector<Vec3b> invalidColor{Vec3b(128,0,64), Vec3b(128,64,128), Vec3b(0,64,64), Vec3b(222,40,60)};
 	Mat segMask(height, width, CV_8UC1, Scalar(255));
 	for(auto y=0; y<height; ++y){
 		for(auto x=0; x<width; ++x){
 			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
-			if(std::find(validColor.begin(), validColor.end(), pix) == validColor.end())
+			if(std::find(invalidColor.begin(), invalidColor.end(), pix) != invalidColor.end())
 				segMask.at<uchar>(y,x) = 0;
 		}
 	}
@@ -80,7 +81,7 @@ int main(int argc, char **argv) {
 //				const int tf1 = FLAGS_testFrame;
 //				Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
-				Vector2d pt(595, 113);
+				Vector2d pt(1068, 108);
 				stereo.dbtx = pt[0];
 				stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);

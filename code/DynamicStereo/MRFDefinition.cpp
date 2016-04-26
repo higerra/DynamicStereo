@@ -197,18 +197,7 @@ namespace dynamic_stereo {
             fout.close();
         }
 
-	    for(auto y=0; y<height; ++y){
-		    for(auto x=0; x<width; ++x){
-			    EnergyType min_energy = numeric_limits<EnergyType>::max();
-			    for (int d = 0; d < dispResolution; ++d) {
-				    const EnergyType curEnergy = model->operator()(y*width+x, d);
-				    if ((double) curEnergy < min_energy) {
-					    dispUnary.setDepthAtInt(x, y, (double) d);
-					    min_energy = curEnergy;
-				    }
-			    }
-		    }
-	    }
+
 
     }
 
@@ -281,13 +270,59 @@ namespace dynamic_stereo {
 			fout.close();
 		}
 
+		const auto remap = [alpha, beta](const double conf, const double weight){
+			return 1 - weight / (1 + std::exp(-1*alpha*(conf - beta)));
+		};
+
+		const double weight_frq = 1;
+
+		if(dbtx >=0 && dbty >= 0){
+			printf("====================\n");
+			printf("alpha:%.3f, beta:%.3f\n", alpha, beta);
+			printf("unary term for (%d,%d) before reweight:\n", (int)dbtx, (int)dbty);
+			double min_cost = numeric_limits<double>::max();
+			int optDisp = -1;
+			const int pixId = (int)dbtx / downsample + (int)dbty / downsample * width;
+			for(auto d=0; d<dispResolution; ++d){
+				EnergyType c = model->operator()(pixId, d);
+				double frq = frqConf[dispResolution*pixId+d];
+				printf("disp: %03d\tmatching:%.3f\tfrq:%.3f\n", d, c, remap(frq, weight_frq));
+				if(c < min_cost){
+					min_cost = c;
+					optDisp = d;
+				}
+			}
+			cout << endl;
+			printf("min cost %.2f at disparity %d\n", min_cost, optDisp);
+			printf("====================\n");
+		}
+
 		CHECK_EQ(frqConf.size(), model->unary.size());
-		const double weight_frq = 0.4;
+
 		for(auto i=0; i<frqConf.size(); ++i){
-			double w = 1 - weight_frq / (1 + std::exp(-1*alpha*(frqConf[i] - beta)));
-			CHECK_GE(w, weight_frq) << frqConf[i] << ' ' << w;
+			double w = remap(frqConf[i], weight_frq);
+			CHECK_GE(w, 1-weight_frq) << frqConf[i] << ' ' << w;
 			CHECK_LE(w,1.0) << frqConf[i] << ' ' << w;
 			model->unary[i] *= w;
+		}
+
+		if(dbtx >=0 && dbty >= 0){
+			printf("====================\n");
+			printf("unary term for (%d,%d) after reweight:\n", (int)dbtx, (int)dbty);
+			double min_cost = numeric_limits<double>::max();
+			int optDisp = -1;
+			const int pixId = (int)dbtx / downsample + (int)dbty / downsample * width;
+			for(auto d=0; d<dispResolution; ++d){
+				EnergyType c = model->operator()(pixId, d);
+				printf("disp: %03d\tmatching:%.3f\tfrq:%.3f\n", d, c, remap(frqConf[dispResolution*pixId+d], weight_frq));
+				if(c < min_cost){
+					min_cost = c;
+					optDisp = d;
+				}
+			}
+			cout << endl;
+			printf("min cost %.2f at disparity %d\n", min_cost, optDisp);
+			printf("====================\n");
 		}
 
 	}

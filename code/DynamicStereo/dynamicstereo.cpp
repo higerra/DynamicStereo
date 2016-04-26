@@ -60,6 +60,19 @@ namespace dynamic_stereo{
 
 		initMRF();
 
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				EnergyType min_energy = numeric_limits<EnergyType>::max();
+				for (int d = 0; d < dispResolution; ++d) {
+					const EnergyType curEnergy = model->operator()(y*width+x, d);
+					if ((double) curEnergy < min_energy) {
+						dispUnary.setDepthAtInt(x, y, (double) d);
+						min_energy = curEnergy;
+					}
+				}
+			}
+		}
+
 		//read semantic mask
 		sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), anchor);
 		Mat segMaskImg = imread(buffer);
@@ -97,20 +110,13 @@ namespace dynamic_stereo{
 			int dtx = (int)dbtx / downsample;
 			int dty = (int)dbty / downsample;
 
-			printf("Unary term for (%d,%d)\n", (int)dbtx, (int)dbty);
-			for (auto d = 0; d < dispResolution; ++d) {
-				cout << (int)model->operator()(dty * width + dtx, d) << ' ';
-			}
-			cout << endl;
-			printf("noisyDisp(%d,%d): %.2f\n", (int)dbtx, (int)dbty, dispUnary[dty*width+dtx]);
-
 			//const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
 			const theia::Camera &cam = sfmModel.getCamera(anchor);
 			Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
 			//ray.normalize();
 
-//			int tdisp = (int) dispUnary(dtx, dty);
-			int tdisp = 14;
+			int tdisp = (int) dispUnary(dtx, dty);
+//			int tdisp = 142;
 			double td = model->dispToDepth(tdisp);
 			cout << "Cost at d=" << tdisp << ": " << (int)model->operator()(dty * width + dtx, tdisp) << endl;
 
@@ -137,15 +143,15 @@ namespace dynamic_stereo{
 		}
 
 
-		if(dbtx >= 0 && dbty >= 0){
-			//debug for frequency confidence
-			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
-				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
-				double alpha = 3, beta=2;
-				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
-				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
-			}
-		}
+//		if(dbtx >= 0 && dbty >= 0){
+//			//debug for frequency confidence
+//			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
+//				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
+//				double alpha = 3, beta=2;
+//				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
+//				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
+//			}
+//		}
 
 
 		cout << "Solving with first order smoothness..." << endl;
@@ -178,6 +184,10 @@ namespace dynamic_stereo{
 //		depth_firstOrder_filtered.updateStatics();
 //		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
 //		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
+
+		if(dbtx >=0 && dbty >= 0){
+			printf("Result disparity for (%d,%d): %d\n", (int)dbtx, (int)dbty, (int)result_firstOrder((int)dbtx/downsample, (int)dbty/downsample));
+		}
 	}
 
 

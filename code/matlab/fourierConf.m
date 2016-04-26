@@ -31,7 +31,7 @@ for y=1:h
         ratio1 = median(v);
         %ratio2 = median(peak ./ median(mag));
         conf(y,x) = 1/(1+exp(-1*alpha*(ratio1-beta)));% * 1/(1+exp(-1*alpha*(ratio2-beta)));
-        if x==522 && y==292
+        if x==382 && y==131
             disp('Debug...');
             disp(seq);
             figure; hold on;
