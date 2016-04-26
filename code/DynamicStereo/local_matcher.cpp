@@ -84,10 +84,10 @@ namespace local_matcher {
         //if the patch is not visible in >50% frames, assign large penalty.
         if (mCost.size() < 2)
             return -1;
-//        if(mCost.size() == 2)
-//            return std::min(phid(mCost[0]), phid(mCost[1]));
-//        sort(mCost.begin(), mCost.end());
-        const size_t kth = mCost.size();
+        if(mCost.size() == 2)
+            return std::min(phid(mCost[0]), phid(mCost[1]));
+        sort(mCost.begin(), mCost.end());
+        const size_t kth = mCost.size() / 2;
         double res = 0.0;
         for(auto i=0; i<kth; ++i){
             res += phid(mCost[i]);
