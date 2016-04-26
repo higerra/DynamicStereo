@@ -22,7 +22,7 @@ namespace dynamic_stereo {
 		model->max_disp = 1.0 / min_depth;
         cout << "Assigning data term..." << endl << flush;
         assignDataTerm();
-		computeFrequencyConfidence();
+		//computeFrequencyConfidence();
         assignSmoothWeight();
     }
 
@@ -171,8 +171,8 @@ namespace dynamic_stereo {
 	                    getPatchArray((double)x,(double)y,d, pR, cam1, anchor-stereoOffset, anchor-stereoOffset+tWindowStereo-1, patches);
                         double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
                         //double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
-	                    model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
-                        //MRF_data[dispResolution * (y * width + x) + d] = (EnergyType) ((1 - mCost) * MRFRatio);
+	                    //model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
+						model->operator()(y*width+x, d) = (EnergyType) ((1 - mCost) * model->MRFRatio);
                     }
                 }
             }
@@ -215,16 +215,34 @@ namespace dynamic_stereo {
 					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
 					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
 					double diff = (dpix1 - dpix2).squaredNorm();
-					vCue[y*width+x] = (EnergyType) std::log(1+std::exp(-1*diff/(t*t)));
+					vCue[y*width+x] = (EnergyType) std::max(0.15, std::log(1+std::exp(-1*diff/(t*t))));
 				}
 				if (x < width - 1) {
 					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
 					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
 					double diff = (dpix1 - dpix2).squaredNorm();
-					hCue[y*width+x] = (EnergyType) std::log(1+std::exp(-1*diff/(t*t)));
+					hCue[y*width+x] = (EnergyType) std::max(0.15, std::log(1+std::exp(-1*diff/(t*t))));
 				}
 			}
 		}
+
+		char buffer[1024] ={};
+		Mat outimgv(height, width, CV_8UC1);
+		uchar* pOutimgv = outimgv.data;
+		for(auto i=0; i<width * height; ++i) {
+			pOutimgv[i] = (uchar) (256 * vCue[i]);
+		}
+
+		sprintf(buffer, "%s/temp/cueV.png", file_io.getDirectory().c_str());
+		imwrite(buffer, outimgv);
+
+		Mat outimgh(height, width, CV_8UC1);
+		uchar* pOutimgh = outimgh.data;
+		for(auto i=0; i<width * height; ++i){
+			pOutimgh[i] = (uchar)(256 * hCue[i]);
+		}
+		sprintf(buffer, "%s/temp/cueH.png", file_io.getDirectory().c_str());
+		imwrite(buffer, outimgh);
 	}
 
 	void DynamicStereo::computeFrequencyConfidence(const double alpha, const double beta) {

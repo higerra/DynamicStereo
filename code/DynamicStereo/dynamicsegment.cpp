@@ -278,6 +278,33 @@ namespace dynamic_stereo{
 		computeFrequencyConfidence(warppedImg, frequency);
 		printf("Done\n");
 
+
+		//compute anisotropic weight
+		const double t = 100;
+		const double min_diffusion = 0.15;
+		const cv::Mat& img = warppedImg[anchor-offset];
+		vector<double> hCue((size_t)width * height), vCue((size_t)width * height);
+		for (auto y = 0; y < height; ++y) {
+			for (auto x = 0; x < width; ++x) {
+				Vec3b pix1 = img.at<Vec3b>(y, x);
+				//pixel value range from 0 to 1, not 255!
+				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
+				if (y < height - 1) {
+					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+					double diff = (dpix1 - dpix2).squaredNorm();
+					vCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
+				}
+				if (x < width - 1) {
+					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
+					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+					double diff = (dpix1 - dpix2).squaredNorm();
+					hCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
+				}
+			}
+		}
+
+
 		{
 			//test for grabuct segmentation
 			printf("Segmentation based on frequency...\n");
@@ -288,12 +315,11 @@ namespace dynamic_stereo{
 
 			//initial mask
 			const double tl = 0.1, th = 0.5;
-			for(auto i=0; i<width * height; ++i)
-				pBwmask[i] = frequency[i] > th ? (uchar)255 : (uchar)0;
-			for(auto i=0; i<width * height; ++i)
-				pBgmask[i] = frequency[i] < tl ? (uchar)255 : (uchar)0;
+			for (auto i = 0; i < width * height; ++i)
+				pBwmask[i] = frequency[i] > th ? (uchar) 255 : (uchar) 0;
+			for (auto i = 0; i < width * height; ++i)
+				pBgmask[i] = frequency[i] < tl ? (uchar) 255 : (uchar) 0;
 			const int rh = 5;
-			const int rl = 3;
 			const int min_area = 150;
 
 			cv::dilate(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
@@ -308,48 +334,98 @@ namespace dynamic_stereo{
 			//connected component analysis
 			Mat labels, stats, centroids;
 			int nCom = cv::connectedComponentsWithStats(bwmask, labels, stats, centroids);
-			const int *pLabel = (int *)labels.data;
+			const int *pLabel = (int *) labels.data;
 			printf("%d connected component\n", nCom);
 			//Note: label = 0 represents background
-			for(auto l=1; l<nCom; ++l){
+			for (auto l = 1; l < nCom; ++l) {
 				//Drop components with area < min_area.
 				//For each remaining component, perform grabcut seperately
 				printf("Component %d ", l);
-				if(stats.at<int>(l,CC_STAT_AREA) < min_area) {
-					printf("Area too small(%d), drop\n", stats.at<int>(l,CC_STAT_AREA));
+				if (stats.at<int>(l, CC_STAT_AREA) < min_area) {
+					printf("Area too small(%d), drop\n", stats.at<int>(l, CC_STAT_AREA));
 					continue;
 				}
 
-				const int left = stats.at<int>(l,CC_STAT_LEFT);
-				const int top = stats.at<int>(l,CC_STAT_TOP);
-				const int roiw = stats.at<int>(l,CC_STAT_WIDTH);
-				const int roih = stats.at<int>(l,CC_STAT_HEIGHT);
-				Mat roi = warppedImg[anchor-offset](cv::Rect(left, top, roiw, roih));
+//				const int left = stats.at<int>(l, CC_STAT_LEFT);
+//				const int top = stats.at<int>(l, CC_STAT_TOP);
+//				const int roiw = stats.at<int>(l, CC_STAT_WIDTH);
+//				const int roih = stats.at<int>(l, CC_STAT_HEIGHT);
+				const int left = 0;
+				const int top = 0;
+				const int roiw = width;
+				const int roih = height;
 
-				Mat gcmask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
-				uchar *pGcmask = gcmask.data;
-				for(auto y=0; y<roih; ++y){
-					for(auto x=0; x<roiw; ++x){
-						int oriId = (y+top) * width + x + left;
-						if(pLabel[oriId] == l)
-							pGcmask[y*roiw + x] = GC_FGD;
-						else if(pBgmask[oriId] > 200)
-							pGcmask[y*roiw + x] = GC_BGD;
+//				Mat roi = warppedImg[anchor-offset](cv::Rect(left, top, roiw, roih));
+//
+//				Mat gcmask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
+//				uchar *pGcmask = gcmask.data;
+//				for(auto y=0; y<roih; ++y){
+//					for(auto x=0; x<roiw; ++x){
+//						int oriId = (y+top) * width + x + left;
+//						if(pLabel[oriId] == l)
+//							pGcmask[y*roiw + x] = GC_FGD;
+//						else if(pBgmask[oriId] > 200)
+//							pGcmask[y*roiw + x] = GC_BGD;
+//					}
+//				}
+//				printf("Grabcut...\n");
+//				grabCut(roi, gcmask, cv::Rect(), cv::Mat(), cv::Mat(), GC_INIT_WITH_MASK);
+//
+//				for(auto y=0; y<roih; ++y){
+//					for(auto x=0; x<roiw; ++x){
+//						int oriId = (y+top) * width + x + left;
+//						if(pGcmask[y*roiw+x] == GC_FGD || pGcmask[y*roiw+x] == GC_PR_FGD)
+//							pResult[oriId] = (uchar)255;
+//					}
+//				}
+
+
+				//estimate GMM
+				cv::ml::EM gmm_positive, gmm_negative;
+				vector<Vector3d> psamples;
+				//collect training sample
+				for (auto y = top; y < top + roih; ++y) {
+					for (auto x = left; x < left + roiw; ++x) {
+						if (pLabel[(y + top) * width + x + left] == l) {
+							for (auto v = 0; v < warppedImg.size(); ++v) {
+								Vec3b pix = warppedImg[v].at<Vec3b>(y + top, x + left);
+								psamples.push_back(Vector3d((double) pix[0], (double) pix[1], (double) pix[2]));
+							}
+						}
 					}
 				}
-				printf("Grabcut...\n");
-				grabCut(roi, gcmask, cv::Rect(), cv::Mat(), cv::Mat(), GC_INIT_WITH_MASK);
+				Mat ptrainSample((int)psamples.size(), 3, CV_64F);
+				for(auto i=0; i<psamples.size(); ++i){
+					ptrainSample.at<double>(i,0) = psamples[i][0];
+					ptrainSample.at<double>(i,1) = psamples[i][1];
+					ptrainSample.at<double>(i,2) = psamples[i][2];
+				}
+				gmm_positive.trainEM(ptrainSample);
 
-				for(auto y=0; y<roih; ++y){
-					for(auto x=0; x<roiw; ++x){
-						int oriId = (y+top) * width + x + left;
-						if(pGcmask[y*roiw+x] == GC_FGD || pGcmask[y*roiw+x] == GC_PR_FGD)
-							pResult[oriId] = (uchar)255;
+				//collect negative sample
+				vector<Vector3d> nsamples;
+				for(auto y=0; y<height; ++y){
+					for(auto x=0; x<width; ++x){
+						if(pLabel[y*width+x] < 200 && frequency(x,y) < tl){
+							for(auto v=0; v<warppedImg.size(); ++v){
+								Vec3b pix = warppedImg[v].at<Vec3b>(y,x);
+								nsamples.push_back(Vector3d((double)pix[0], (double)pix[1], (double)pix[2]));
+							}
+						}
 					}
 				}
+				Mat ntrainSample((int)nsamples.size(), 3, CV_64F);
+				for(auto i=0; i<nsamples.size(); ++i){
+					ntrainSample.at<double>(i,0) = nsamples[i][0];
+					ntrainSample.at<double>(i,1) = nsamples[i][1];
+					ntrainSample.at<double>(i,2) = nsamples[i][2];
+				}
+				gmm_negative.trainEM(ntrainSample);
+
+				vector<double> unary;
+				assignColorTerm(warppedImg, gmm_positive, gmm_negative, unary);
+
 			}
-
-
 		}
 
 
@@ -374,7 +450,36 @@ namespace dynamic_stereo{
 		//label 1: animate
 //		printf("Solving by MRF\n");
 //		std::vector<double> MRF_data((size_t)width*height*2);
-//		std::vector<double> hCue((size_t)width*height), vCue((size_t)width*height);
+
+	}
+
+	void DynamicSegment::assignColorTerm(const std::vector<cv::Mat> &warped, const cv::ml::EM &fgModel,
+										 const cv::ml::EM &bgModel, std::vector<double> &colorTerm)const {
+		CHECK(!warped.empty());
+		const int width = warped[0].cols;
+		const int height = warped[0].rows;
+		colorTerm.resize((size_t)width * height * 2);
+		for(auto v=0; v<warped.size(); ++v){
+			const uchar* pImg = warped[v].data;
+			for(auto i=0; i<width * height; ++i){
+				Mat x(3,1,CV_64F);
+				double* pX = (double*) x.data;
+				pX[0] = pImg[3*i];
+				pX[1] = pImg[3*i+1];
+				pX[2] = pImg[3*i+2];
+				Vec2d predfg = fgModel.predict2(x, Mat());
+				Vec2d predbg = bgModel.predict2(x, Mat());
+				//use negative log likelihood for energy
+				colorTerm[2*i] = -1 * predbg[0];
+				colorTerm[2*i+1] = -1 * predfg[0];
+			}
+		}
+	}
+
+	void DynamicSegment::solveMRF(const std::vector<double> &unary,
+								  const std::vector<double>& vCue,
+								  const std::vector<double>& hCue,
+								  const cv::Mat& img, const double weight_smooth) const {
 //		for(auto i=0; i<width*height; ++i){
 ////			if(unaryTerm[i]/255.0 < static_threshold)
 ////				MRF_data[2*i] = 0;
@@ -388,27 +493,7 @@ namespace dynamic_stereo{
 //			MRF_data[2*i+1] = 1-frequency[i];
 //		}
 //
-//		const double t = 100;
-//		const Mat &img = warppedImg[anchor-offset];
-//		for (auto y = 0; y < height; ++y) {
-//			for (auto x = 0; x < width; ++x) {
-//				Vec3b pix1 = img.at<Vec3b>(y, x);
-//				//pixel value range from 0 to 1, not 255!
-//				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
-//				if (y < height - 1) {
-//					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
-//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-//					double diff = (dpix1 - dpix2).squaredNorm();
-//					vCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
-//				}
-//				if (x < width - 1) {
-//					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
-//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-//					double diff = (dpix1 - dpix2).squaredNorm();
-//					hCue[y*width+x] = std::log(1+std::exp(-1*diff/(t*t)));
-//				}
-//			}
-//		}
+
 //
 //		double weight_smooth = 0.5;
 //		vector<double> MRF_smooth{0,weight_smooth,weight_smooth,0};

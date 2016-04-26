@@ -74,23 +74,27 @@ namespace local_matcher {
     double sumMatchingCost(const vector<vector<double> > &patches, const int refId) {
         CHECK_GE(refId, 0);
         CHECK_LT(refId, patches.size());
-        const double theta = 100;
-        auto phid = [theta](const double v){
-            return -1 * std::log2(1 + std::exp(-1 * v / theta));
+        const double thetassh = 100;
+        const double thetancc = 0.3;
+//        auto phidssd = [theta](const double v){
+//            return -1 * std::log2(1 + std::exp(-1 * v / theta));
+//        };
+        auto phidncc = [thetancc](const double v){
+            return std::max(thetancc, v);
         };
         vector<double> mCost;
-        getSSDArray(patches, refId, mCost);
-        //getNCCArray(patches, refId, mCost);
+        //getSSDArray(patches, refId, mCost);
+        getNCCArray(patches, refId, mCost);
         //if the patch is not visible in >50% frames, assign large penalty.
         if (mCost.size() < 2)
             return -1;
         if(mCost.size() == 2)
-            return std::min(phid(mCost[0]), phid(mCost[1]));
+            return std::min(phidncc(mCost[0]), phidncc(mCost[1]));
         sort(mCost.begin(), mCost.end());
         const size_t kth = mCost.size() / 2;
         double res = 0.0;
         for(auto i=0; i<kth; ++i){
-            res += phid(mCost[i]);
+            res += phidncc(mCost[i]);
         }
         return res / (double)kth;
     }

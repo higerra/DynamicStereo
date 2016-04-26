@@ -118,6 +118,9 @@ namespace dynamic_stereo{
 			int tdisp = (int) dispUnary(dtx, dty);
 //			int tdisp = 142;
 			double td = model->dispToDepth(tdisp);
+			for(auto d=0; d<dispResolution; ++d)
+				cout << (int)model->operator()(dty*width + dtx, d) << ' ';
+			cout<< endl;
 			cout << "Cost at d=" << tdisp << ": " << (int)model->operator()(dty * width + dtx, tdisp) << endl;
 
 			Vector3d spt = cam.GetPosition() + ray * td;

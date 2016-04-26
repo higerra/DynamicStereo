@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 //				const int tf1 = FLAGS_testFrame;
 //				Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
-				Vector2d pt(1068, 108);
+				Vector2d pt(1586, 539);
 				stereo.dbtx = pt[0];
 				stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
