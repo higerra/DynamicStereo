@@ -274,7 +274,7 @@ namespace dynamic_stereo {
 			return 1 - weight / (1 + std::exp(-1*alpha*(conf - beta)));
 		};
 
-		const double weight_frq = 1;
+		const double weight_frq = 0.0;
 
 		if(dbtx >=0 && dbty >= 0){
 			printf("====================\n");

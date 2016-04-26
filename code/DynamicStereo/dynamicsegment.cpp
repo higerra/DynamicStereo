@@ -101,7 +101,7 @@ namespace dynamic_stereo{
 		const double alpha = 2, beta = 2.0;
 		const float epsilon = 1e-05;
 		const int min_frq = 3;
-		const int tx = 228, ty=71;
+		const int tx = -1, ty= -1;
 
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
@@ -319,21 +319,33 @@ namespace dynamic_stereo{
 					printf("Area too small(%d), drop\n", stats.at<int>(l,CC_STAT_AREA));
 					continue;
 				}
-				Mat gcmask(height, width, CV_8UC1, Scalar::all(GC_PR_BGD));
-				uchar *pGcmask = gcmask.data;
-				for(auto i=0; i<width * height; ++i) {
-					if(pLabel[i] == l)
-						pGcmask[i] = GC_FGD;
-					else if(pBgmask[i] > 200){
-						pGcmask[i] = GC_BGD;
-					}
 
+				const int left = stats.at<int>(l,CC_STAT_LEFT);
+				const int top = stats.at<int>(l,CC_STAT_TOP);
+				const int roiw = stats.at<int>(l,CC_STAT_WIDTH);
+				const int roih = stats.at<int>(l,CC_STAT_HEIGHT);
+				Mat roi = warppedImg[anchor-offset](cv::Rect(left, top, roiw, roih));
+
+				Mat gcmask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
+				uchar *pGcmask = gcmask.data;
+				for(auto y=0; y<roih; ++y){
+					for(auto x=0; x<roiw; ++x){
+						int oriId = (y+top) * width + x + left;
+						if(pLabel[oriId] == l)
+							pGcmask[y*roiw + x] = GC_FGD;
+						else if(pBgmask[oriId] > 200)
+							pGcmask[y*roiw + x] = GC_BGD;
+					}
 				}
 				printf("Grabcut...\n");
-				grabCut(warppedImg[anchor-offset], gcmask, cv::Rect(), cv::Mat(), cv::Mat(), GC_INIT_WITH_MASK);
-				for(auto i=0; i<width * height; ++i){
-					if(pGcmask[i] == GC_FGD || pGcmask[i] == GC_PR_FGD)
-						pResult[i] = (uchar)255;
+				grabCut(roi, gcmask, cv::Rect(), cv::Mat(), cv::Mat(), GC_INIT_WITH_MASK);
+
+				for(auto y=0; y<roih; ++y){
+					for(auto x=0; x<roiw; ++x){
+						int oriId = (y+top) * width + x + left;
+						if(pGcmask[y*roiw+x] == GC_FGD || pGcmask[y*roiw+x] == GC_PR_FGD)
+							pResult[oriId] = (uchar)255;
+					}
 				}
 			}
 
