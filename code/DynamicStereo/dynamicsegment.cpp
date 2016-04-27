@@ -331,6 +331,29 @@ namespace dynamic_stereo{
 			sprintf(buffer, "%s/temp/mask_frqbg%05d.jpg", file_io.getDirectory().c_str(), anchor);
 			imwrite(buffer, bgmask);
 
+			cv::Ptr<cv::ml::EM> gmm_negative = cv::ml::EM::create();
+			//collect negative sample
+			vector<Vector3d> nsamples;
+			for(auto y=0; y<height; ++y){
+				for(auto x=0; x<width; ++x){
+					if(pBgmask[y*width+x] > 200){
+						for(auto v=0; v<warppedImg.size(); ++v){
+							Vec3b pix = warppedImg[v].at<Vec3b>(y,x);
+							nsamples.push_back(Vector3d((double)pix[0], (double)pix[1], (double)pix[2]));
+						}
+					}
+				}
+			}
+			Mat ntrainSample((int)nsamples.size(), 3, CV_64F);
+			for(auto i=0; i<nsamples.size(); ++i){
+				ntrainSample.at<double>(i,0) = nsamples[i][0];
+				ntrainSample.at<double>(i,1) = nsamples[i][1];
+				ntrainSample.at<double>(i,2) = nsamples[i][2];
+			}
+			cout << "Estimating background color model..." << endl;
+			gmm_negative->trainEM(ntrainSample);
+
+
 			//connected component analysis
 			Mat labels, stats, centroids;
 			int nCom = cv::connectedComponentsWithStats(bwmask, labels, stats, centroids);
@@ -381,7 +404,8 @@ namespace dynamic_stereo{
 
 
 				//estimate GMM
-				cv::ml::EM gmm_positive, gmm_negative;
+				cv::Ptr<cv::ml::EM> gmm_positive = cv::ml::EM::create();
+
 				vector<Vector3d> psamples;
 				//collect training sample
 				for (auto y = top; y < top + roih; ++y) {
@@ -400,27 +424,10 @@ namespace dynamic_stereo{
 					ptrainSample.at<double>(i,1) = psamples[i][1];
 					ptrainSample.at<double>(i,2) = psamples[i][2];
 				}
-				gmm_positive.trainEM(ptrainSample);
 
-				//collect negative sample
-				vector<Vector3d> nsamples;
-				for(auto y=0; y<height; ++y){
-					for(auto x=0; x<width; ++x){
-						if(pLabel[y*width+x] < 200 && frequency(x,y) < tl){
-							for(auto v=0; v<warppedImg.size(); ++v){
-								Vec3b pix = warppedImg[v].at<Vec3b>(y,x);
-								nsamples.push_back(Vector3d((double)pix[0], (double)pix[1], (double)pix[2]));
-							}
-						}
-					}
-				}
-				Mat ntrainSample((int)nsamples.size(), 3, CV_64F);
-				for(auto i=0; i<nsamples.size(); ++i){
-					ntrainSample.at<double>(i,0) = nsamples[i][0];
-					ntrainSample.at<double>(i,1) = nsamples[i][1];
-					ntrainSample.at<double>(i,2) = nsamples[i][2];
-				}
-				gmm_negative.trainEM(ntrainSample);
+				cout << "Estimating foreground color model..." << endl;
+				gmm_positive->trainEM(ptrainSample);
+
 
 				vector<double> unary;
 				assignColorTerm(warppedImg, gmm_positive, gmm_negative, unary);
@@ -453,8 +460,8 @@ namespace dynamic_stereo{
 
 	}
 
-	void DynamicSegment::assignColorTerm(const std::vector<cv::Mat> &warped, const cv::ml::EM &fgModel,
-										 const cv::ml::EM &bgModel, std::vector<double> &colorTerm)const {
+	void DynamicSegment::assignColorTerm(const std::vector<cv::Mat> &warped, const Ptr<cv::ml::EM> fgModel,
+										 const cv::Ptr<cv::ml::EM> bgModel, std::vector<double> &colorTerm)const {
 		CHECK(!warped.empty());
 		const int width = warped[0].cols;
 		const int height = warped[0].rows;
@@ -467,8 +474,8 @@ namespace dynamic_stereo{
 				pX[0] = pImg[3*i];
 				pX[1] = pImg[3*i+1];
 				pX[2] = pImg[3*i+2];
-				Vec2d predfg = fgModel.predict2(x, Mat());
-				Vec2d predbg = bgModel.predict2(x, Mat());
+				Vec2d predfg = fgModel->predict2(x, Mat());
+				Vec2d predbg = bgModel->predict2(x, Mat());
 				//use negative log likelihood for energy
 				colorTerm[2*i] = -1 * predbg[0];
 				colorTerm[2*i+1] = -1 * predfg[0];
@@ -479,51 +486,40 @@ namespace dynamic_stereo{
 	void DynamicSegment::solveMRF(const std::vector<double> &unary,
 								  const std::vector<double>& vCue,
 								  const std::vector<double>& hCue,
-								  const cv::Mat& img, const double weight_smooth) const {
-//		for(auto i=0; i<width*height; ++i){
-////			if(unaryTerm[i]/255.0 < static_threshold)
-////				MRF_data[2*i] = 0;
-////			else
-////				MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
-////			MRF_data[2*i] = (unaryTerm[i]/255.0 - 1.0) * (unaryTerm[i]/255.0 - 1.0);
-////			MRF_data[2*i+1] = (unaryTerm[i]/255.0) * (unaryTerm[i]/255.0);
-////			MRF_data[2*i] = unaryTerm[i]/255.0;
-////			MRF_data[2*i+1] = max(0.0, 0.6 - unaryTerm[i]/255.0);
-//			MRF_data[2*i] = frequency[i];
-//			MRF_data[2*i+1] = 1-frequency[i];
-//		}
-//
+								  const cv::Mat& img, const double weight_smooth,
+								  cv::Mat& result) const {
+		const int width = img.cols;
+		const int height = img.rows;
 
-//
-//		double weight_smooth = 0.5;
-//		vector<double> MRF_smooth{0,weight_smooth,weight_smooth,0};
-//		DataCost *dataCost = new DataCost(MRF_data.data());
-//		SmoothnessCost *smoothnessCost = new SmoothnessCost(MRF_smooth.data(), hCue.data(), vCue.data());
-//		EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
-//
-//		Expansion mrf(width,height,2,energy_function);
-//		mrf.initialize();
-//		mrf.clearAnswer();
-//		for(auto i=0; i<width*height; ++i)
-//			mrf.setLabel(i,0);
-//		double initDataE = mrf.dataEnergy();
-//		double initSmoothE = mrf.smoothnessEnergy();
-//		float mrf_time;
-//		mrf.optimize(10, mrf_time);
-//		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
-//		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
-//
+		double MRF_smooth[] = {0,weight_smooth,weight_smooth,0};
 
-//		for(auto i=0; i<width*height; ++i){
-//			if(mrf.getLabel(i) > 0)
-//				pResult[i] = (uchar)255;
-//			else
-//				pResult[i] = (uchar)0;
-//		}
-//
-//		delete dataCost;
-//		delete smoothnessCost;
-//		delete energy_function;
+		DataCost *dataCost = new DataCost(const_cast<double*>(unary.data()));
+		SmoothnessCost *smoothnessCost = new SmoothnessCost(MRF_smooth, const_cast<double*>(hCue.data()), const_cast<double*>(vCue.data()));
+		EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
+
+		Expansion mrf(width,height,2,energy_function);
+		mrf.initialize();
+		mrf.clearAnswer();
+		for(auto i=0; i<width*height; ++i)
+			mrf.setLabel(i,0);
+		double initDataE = mrf.dataEnergy();
+		double initSmoothE = mrf.smoothnessEnergy();
+		float mrf_time;
+		mrf.optimize(10, mrf_time);
+		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
+		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
+
+		result = Mat(height, width, CV_8UC1);
+		uchar* pResult = result.data;
+		for(auto i=0; i<width*height; ++i){
+			if(mrf.getLabel(i) > 0)
+				pResult[i] = (uchar)255;
+			else
+				pResult[i] = (uchar)0;
+		}
+		delete dataCost;
+		delete smoothnessCost;
+		delete energy_function;
 
 	}
 

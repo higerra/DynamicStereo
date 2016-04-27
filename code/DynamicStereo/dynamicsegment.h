@@ -24,12 +24,14 @@ namespace dynamic_stereo {
 	    void segment(const std::vector<cv::Mat>& warppedImg, cv::Mat& result) const;
     private:
 		void computeFrequencyConfidence(const std::vector<cv::Mat>& warppedImg, Depth& result) const;
-		void assignColorTerm(const std::vector<cv::Mat>& warped, const cv::ml::EM& fgModel, const cv::ml::EM& bgModel,
+
+	    void assignColorTerm(const std::vector<cv::Mat>& warped, const cv::Ptr<cv::ml::EM> fgModel, const cv::Ptr<cv::ml::EM> bgModel,
 							 std::vector<double>& colorTerm) const;
 
 		void solveMRF(const std::vector<double>& unary,
 					  const std::vector<double>& vCue, const std::vector<double>& hCue,
-					  const cv::Mat& img, const double weight_smooth) const;
+					  const cv::Mat& img, const double weight_smooth,
+					  cv::Mat& result) const;
 
         const FileIO& file_io;
         SfMModel sfmModel;
