@@ -280,7 +280,7 @@ namespace dynamic_stereo{
 
 
 		//compute anisotropic weight
-		const double t = 100;
+		const double t = 80;
 		const double min_diffusion = 0.15;
 		const cv::Mat& img = warppedImg[anchor-offset];
 		vector<double> hCue((size_t)width * height), vCue((size_t)width * height);
@@ -331,7 +331,10 @@ namespace dynamic_stereo{
 			sprintf(buffer, "%s/temp/mask_frqbg%05d.jpg", file_io.getDirectory().c_str(), anchor);
 			imwrite(buffer, bgmask);
 
+			sprintf(buffer, "%s/midres/gmm_negative%05d.gmm", file_io.getDirectory().c_str(), anchor);
 			cv::Ptr<cv::ml::EM> gmm_negative = cv::ml::EM::create();
+
+
 			//collect negative sample
 			vector<Vector3d> nsamples;
 			for(auto y=0; y<height; ++y){

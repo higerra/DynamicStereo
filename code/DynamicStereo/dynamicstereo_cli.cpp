@@ -61,10 +61,16 @@ int main(int argc, char **argv) {
 	for(auto y=0; y<height; ++y){
 		for(auto x=0; x<width; ++x){
 			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
-			if(std::find(invalidColor.begin(), invalidColor.end(), pix) != invalidColor.end())
+			if(std::find(invalidColor.begin(), invalidColor.end(), pix) < invalidColor.end())
 				segMask.at<uchar>(y,x) = 0;
 		}
 	}
+	Mat segnetOverlay;
+	cv::addWeighted(refImage, 0.4, segMaskImg, 0.6, 0.0, segnetOverlay);
+	sprintf(buffer, "%s/temp/segnetOverlay%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	imwrite(buffer, segnetOverlay);
+	sprintf(buffer, "%s/temp/segnetMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	imwrite(buffer, segMask);
 
 	int refId;
 	//run stereo
@@ -81,7 +87,7 @@ int main(int argc, char **argv) {
 //				const int tf1 = FLAGS_testFrame;
 //				Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
-				Vector2d pt(742, 278);
+				Vector2d pt(958, 287);
 				stereo.dbtx = pt[0];
 				stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
@@ -99,12 +105,21 @@ int main(int argc, char **argv) {
 
 			Depth curdepth;
 			Mat curDepthMask;
-			printf("Running stereo for frame %d\n", tf);
-			stereo.runStereo(curdepth, curDepthMask);
+			sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
+			if(!curdepth.readDepthFromFile(string(buffer))) {
+				printf("Running stereo for frame %d\n", tf);
+				stereo.runStereo(segMask, curdepth, curDepthMask);
+				curdepth.saveDepthFile(string(buffer));
+				sprintf(buffer, "%s/midres/depthMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+				imwrite(buffer, curDepthMask);
+			}else{
+				sprintf(buffer, "%s/midres/depthMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+				curDepthMask = imread(string(buffer), false);
+				CHECK(curDepthMask.data);
+			}
 			depths.push_back(curdepth);
 			depthInd.push_back(tf);
 			depthMask.push_back(curDepthMask);
-
 			refId = (int)depths.size() - 1;
 		} else{
 			depths.push_back(Depth());
@@ -119,7 +134,7 @@ int main(int argc, char **argv) {
 	imwrite(buffer, refDepthMask);
 
 	Mat warpMask = segMask.clone();
-	CHECK_EQ(warpMask.cols, refDepthMask.cols);
+ 	CHECK_EQ(warpMask.cols, refDepthMask.cols);
 	CHECK_EQ(warpMask.rows, refDepthMask.rows);
 
 //	for(auto y=0; y<height; ++y){
@@ -131,8 +146,8 @@ int main(int argc, char **argv) {
 
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();
-	vector<Mat> warpped;
-	warpping->warpToAnchor(warpMask, warpped, false);
+//	vector<Mat> warpped;
+//	warpping->warpToAnchor(warpMask, warpped, false);
 
 	vector<Mat> prewarp;
 	warpping->preWarping(warpMask, prewarp);
@@ -174,19 +189,19 @@ int main(int argc, char **argv) {
 	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 	imwrite(buffer, seg_overlay);
 
-	for(auto i=0; i<warpped.size(); ++i){
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				if(seg_result.at<uchar>(y,x) < 200){
-					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
-				}
-			}
-		}
-	}
-
-	for(auto i=0; i<warpped.size(); ++i){
-		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-		imwrite(buffer, warpped[i]);
-	}
+//	for(auto i=0; i<warpped.size(); ++i){
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				if(seg_result.at<uchar>(y,x) < 200){
+//					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
+//				}
+//			}
+//		}
+//	}
+//
+//	for(auto i=0; i<warpped.size(); ++i){
+//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+//		imwrite(buffer, warpped[i]);
+//	}
 	return 0;
 }

@@ -20,7 +20,7 @@ namespace dynamic_stereo {
 	void FirstOrderOptimize::optimize(Depth &result, const int max_iter) const {
 		const int nLabel = model->nLabel;
 		DataCost *dataCost = new DataCost(const_cast<EnergyType *>(model->unary.data()));
-		SmoothnessCost *smoothnessCost = new SmoothnessCost(1, 4, model->weight_smooth * model->MRFRatio,
+		SmoothnessCost *smoothnessCost = new SmoothnessCost(1, 15, model->weight_smooth * model->MRFRatio,
 		                                                    const_cast<EnergyType *>(model->hCue.data()),
 		                                                    const_cast<EnergyType *>(model->vCue.data()));
 		EnergyFunction *energy_function = new EnergyFunction(dataCost, smoothnessCost);

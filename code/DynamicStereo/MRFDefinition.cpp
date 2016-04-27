@@ -204,7 +204,7 @@ namespace dynamic_stereo {
 	void DynamicStereo::assignSmoothWeight() {
 		vector<EnergyType> &vCue = model->vCue;
 		vector<EnergyType> &hCue = model->hCue;
-		const double t = 100;
+		const double t = 80;
 		const Mat &img = model->image;
 		for (auto y = 0; y < height; ++y) {
 			for (auto x = 0; x < width; ++x) {
@@ -226,23 +226,23 @@ namespace dynamic_stereo {
 			}
 		}
 
-		char buffer[1024] ={};
-		Mat outimgv(height, width, CV_8UC1);
-		uchar* pOutimgv = outimgv.data;
-		for(auto i=0; i<width * height; ++i) {
-			pOutimgv[i] = (uchar) (256 * vCue[i]);
-		}
-
-		sprintf(buffer, "%s/temp/cueV.png", file_io.getDirectory().c_str());
-		imwrite(buffer, outimgv);
-
-		Mat outimgh(height, width, CV_8UC1);
-		uchar* pOutimgh = outimgh.data;
-		for(auto i=0; i<width * height; ++i){
-			pOutimgh[i] = (uchar)(256 * hCue[i]);
-		}
-		sprintf(buffer, "%s/temp/cueH.png", file_io.getDirectory().c_str());
-		imwrite(buffer, outimgh);
+//		char buffer[1024] ={};
+//		Mat outimgv(height, width, CV_8UC1);
+//		uchar* pOutimgv = outimgv.data;
+//		for(auto i=0; i<width * height; ++i) {
+//			pOutimgv[i] = (uchar) (256 * vCue[i]);
+//		}
+//
+//		sprintf(buffer, "%s/temp/cueV.png", file_io.getDirectory().c_str());
+//		imwrite(buffer, outimgv);
+//
+//		Mat outimgh(height, width, CV_8UC1);
+//		uchar* pOutimgh = outimgh.data;
+//		for(auto i=0; i<width * height; ++i){
+//			pOutimgh[i] = (uchar)(256 * hCue[i]);
+//		}
+//		sprintf(buffer, "%s/temp/cueH.png", file_io.getDirectory().c_str());
+//		imwrite(buffer, outimgh);
 	}
 
 	void DynamicStereo::computeFrequencyConfidence(const double alpha, const double beta) {
