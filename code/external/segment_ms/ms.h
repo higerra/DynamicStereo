@@ -57,23 +57,9 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 //Include Debugging Constant
 //#define	DEBUG
 
-//Define Prompt - Prompts user on progress of Mean Shift algorithm
-//#define	PROMPT
-
-//Define Show Progress - Prompts user on percent complete of a given
-//                       mean shift algorithm
-//#define SHOW_PROGRESS
-
-//Define Progress Rate - Indicates the number of convergences before
-//						 checking progress
-
 namespace meanshift {
-#define PROGRESS_RATE    100
-
 // Define Macros
-#define    SWAP(d_a, d_b) temp=(d_a);(d_a)=(d_b);(d_b)=temp;
-
-// Define Structures 
+// Define Structures
 
 	//k-Dimensional Binary Search Tree
 	struct tree {
@@ -102,24 +88,6 @@ namespace meanshift {
 		bool OUTPUT_DEFINED;
 	};
 
-// Define Constants
-
-	// Threshold
-	const double EPSILON = 0.01;            // define threshold (approx. Value of Mh at a peak or plateau)
-	const double MU = 0.05;        // define threshold required that window is near convergence
-	const double TC_DIST_FACTOR = 0.5;        // cluster search windows near convergence that are a distance
-	// h[i]*TC_DIST_FACTOR of one another (transitive closure)
-	const double SQ_TC_DFACTOR = 0.0625;    // (TC_DIST_FACTOR)^2
-	const int LIMIT = 100;        // define max. # of iterations to find mode
-
-	// Gaussian Lookup Table
-	const int GAUSS_NUM_ELS = 16;        // take 16 samples of exp(-u/2)
-	const double GAUSS_LIMIT = 2.9;        // GAUSS_LIMIT     = c
-	const double GAUSS_INCREMENT = GAUSS_LIMIT * GAUSS_LIMIT / GAUSS_NUM_ELS;
-	// GAUSS_INCREMENT = (c^2)/(# of samples)
-
-	// Numerical Analysis
-	const double DELTA = 0.00001;    // used for floating point to integer conversion
 
 //MeanShift Prototype
 	class MeanShift {
@@ -649,6 +617,23 @@ namespace meanshift {
 
 		ErrorLevel ErrorStatus;
 
+		static const double MU; // define threshold required that window is near convergence
+		static const double TC_DIST_FACTOR;        // cluster search windows near convergence that are a distance
+		// h[i]*TC_DIST_FACTOR of one another (transitive closure)
+		static const double SQ_TC_DFACTOR;    // (TC_DIST_FACTOR)^2
+		static const double EPSILON;            // define threshold (approx. Value of Mh at a peak or plateau)
+		static const int LIMIT = 100;        // define max. # of iterations to find mode
+
+		// Gaussian Lookup Table
+		static const int GAUSS_NUM_ELS = 16;        // take 16 samples of exp(-u/2)
+		static const double GAUSS_LIMIT;        // GAUSS_LIMIT     = c
+		static const double GAUSS_INCREMENT;
+		static const int PROGRESS_RATE = 100;
+		// GAUSS_INCREMENT = (c^2)/(# of samples)
+
+		// Numerical Analysis
+		static const double DELTA;    // used for floating point to integer conversion
+
 	protected:
 
 		//==========================
@@ -929,5 +914,8 @@ namespace meanshift {
 		// in the y dimension
 
 	};
+
+
+
 }
 #endif

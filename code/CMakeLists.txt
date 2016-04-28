@@ -5,7 +5,8 @@ project(DynamicStereo)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++11 -Wno-deprecated-declarations -Wno-deprecated-register")
 set(CMAKE_BUILD_TYPE Release)
-set(BUILD_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
+set(ROOT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+set(BUILD_DIRECTORY "${ROOT_DIRECTORY}/build")
 
 find_package(OpenCV REQUIRED)
 find_package(Ceres REQUIRED)
@@ -30,11 +31,15 @@ endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base)
-#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/MRF2.2)
+#supporting code
+add_subdirectory(${ROOT_DIRECTORY}/base)
+add_subdirectory(${ROOT_DIRECTORY}/external/MRF2.2)
+add_subdirectory(${ROOT_DIRECTORY}/external/segment_ms)
+
+#main code
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/SfM)
+add_subdirectory(${ROOT_DIRECTORY}/SfM)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Line)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DynamicStereo)
+add_subdirectory(${ROOT_DIRECTORY}/DynamicStereo)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DynamicConfidence)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+add_subdirectory(${ROOT_DIRECTORY}/test)

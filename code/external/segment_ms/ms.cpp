@@ -58,6 +58,18 @@ namespace meanshift {
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 
+	const double MeanShift::MU = 0.05;        // define threshold required that window is near convergence
+	const double MeanShift::TC_DIST_FACTOR = 0.5;        // cluster search windows near convergence that are a distance
+	// h[i]*TC_DIST_FACTOR of one another (transitive closure)
+	const double MeanShift::SQ_TC_DFACTOR = 0.0625;    // (TC_DIST_FACTOR)^2
+	const double MeanShift::EPSILON = 0.01;            // define threshold (approx. Value of Mh at a peak or plateau)
+	// Gaussian Lookup Table
+	const double MeanShift::GAUSS_LIMIT = 2.9;        // GAUSS_LIMIT     = c
+	const double MeanShift::GAUSS_INCREMENT = MeanShift::GAUSS_LIMIT * MeanShift::GAUSS_LIMIT / MeanShift::GAUSS_NUM_ELS;
+
+	// Numerical Analysis
+	const double MeanShift::DELTA = 0.00001;    // used for floating point to integer conversion
+
 	/*/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
 	/*** Constructor/Destructor ***/
 	/*\/\/\/\/\/\/\/\/\/\/\/\/\/\/*/
@@ -1494,25 +1506,31 @@ namespace meanshift {
 		k = n / 2 + 1;
 		unsigned long i, ir, j, l, mid;
 
+		auto SWAP = [](float* ptr1, float* ptr2){
+			float* ptr3 = ptr1;
+			ptr1 = ptr2;
+			ptr2 = ptr3;
+		};
+
 		l = 1;
 		ir = n;
 		for (; ;) {
 			if (ir <= l + 1) {
 				if (ir == l + 1 && arr[ir - 1].x[d] < arr[l - 1].x[d]) {
-					SWAP(arr[l - 1].x, arr[ir - 1].x)
+					SWAP(arr[l - 1].x, arr[ir - 1].x);
 				}
 				return;
 			} else {
 				mid = (l + ir) >> 1;
-				SWAP(arr[mid - 1].x, arr[l + 1 - 1].x)
+				SWAP(arr[mid - 1].x, arr[l + 1 - 1].x);
 				if (arr[l - 1].x[d] > arr[ir - 1].x[d]) {
-					SWAP(arr[l - 1].x, arr[ir - 1].x)
+					SWAP(arr[l - 1].x, arr[ir - 1].x);
 				}
 				if (arr[l + 1 - 1].x[d] > arr[ir - 1].x[d]) {
-					SWAP(arr[l + 1 - 1].x, arr[ir - 1].x)
+					SWAP(arr[l + 1 - 1].x, arr[ir - 1].x);
 				}
 				if (arr[l - 1].x[d] > arr[l + 1 - 1].x[d]) {
-					SWAP(arr[l - 1].x, arr[l + 1 - 1].x)
+					SWAP(arr[l - 1].x, arr[l + 1 - 1].x);
 				}
 				i = l + 1;
 				j = ir;
@@ -1521,7 +1539,7 @@ namespace meanshift {
 					do i++; while (arr[i - 1].x[d] < a[d]);
 					do j--; while (arr[j - 1].x[d] > a[d]);
 					if (j < i) break;
-					SWAP(arr[i - 1].x, arr[j - 1].x)
+					SWAP(arr[i - 1].x, arr[j - 1].x);
 				}
 				arr[l + 1 - 1].x = arr[j - 1].x;
 				arr[j - 1].x = a;

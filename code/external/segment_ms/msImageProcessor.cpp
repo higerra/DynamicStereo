@@ -45,6 +45,26 @@ Implemented by Chris M. Christoudias, Bogdan Georgescu
 
 namespace segment_ms {
 	using namespace meanshift;
+	//data space conversion...
+	const double Xn = 0.95050;
+	const double Yn = 1.00000;
+	const double Zn = 1.08870;
+//const double Un_prime	= 0.19780;
+//const double Vn_prime	= 0.46830;
+	const double Un_prime = 0.19784977571475;
+	const double Vn_prime = 0.46834507665248;
+	const double Lt = 0.008856;
+
+	//RGB to LUV conversion
+	const double XYZ[3][3] = {{0.4125, 0.3576, 0.1804},
+							  {0.2125, 0.7154, 0.0721},
+							  {0.0193, 0.1192, 0.9502}};
+
+	//LUV to RGB conversion
+	const double RGB[3][3] = {{3.2405,  -1.5371, -0.4985},
+							  {-0.9693, 1.8760,  0.0416},
+							  {0.0556,  -0.2040, 1.0573}};
+
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
 /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      PUBLIC METHODS     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/

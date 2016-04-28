@@ -5,6 +5,7 @@
 #include "dynamicstereo.h"
 #include "external/MRF2.2/GCoptimization.h"
 #include "local_matcher.h"
+#include "../base/thread_guard.h"
 using namespace std;
 using namespace cv;
 using namespace Eigen;
@@ -155,27 +156,42 @@ namespace dynamic_stereo {
             //const theia::Camera& cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
 
 			const theia::Camera& cam1 = sfmModel.getCamera(anchor);
-            int index = 0;
-            int unit = width * height / 10;
+            int unit = height / 10;
             const int stereoOffset = anchor - tWindowStereo / 2;
             printf("Stereo Offset: %d, stereo frame range: %d->%d\n", stereoOffset, anchor-stereoOffset, anchor-stereoOffset+tWindowStereo);
-            //Be careful about down sample ratio!!!!!
+
+			//compute matching cost in multiple threads
+			//Be careful about down sample ratio!!!!!
+			auto threadFun = [&](int y, int offset, const int N){
+				for(auto x=offset; x<offset+N; ++x) {
+					for (auto d = 0; d < dispResolution; ++d) {
+						vector<vector<double> > patches;
+						getPatchArray((double) x, (double) y, d, pR, cam1, anchor - stereoOffset,
+									  anchor - stereoOffset + tWindowStereo - 1, patches);
+						double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
+						//double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
+						//model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
+						model->operator()(y * width + x, d) = (EnergyType)((1 - mCost) * model->MRFRatio);
+					}
+				}
+			};
+
+			const int num_threads = 6;
             for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width; ++x, ++index) {
-                    if (index % unit == 0)
-                        cout << '.' << flush;
-#pragma omp parallel for
-                    for (int d = 0; d < dispResolution; ++d) {
-                        //compute 3D point
-	                    vector<vector<double> > patches;
-	                    getPatchArray((double)x,(double)y,d, pR, cam1, anchor-stereoOffset, anchor-stereoOffset+tWindowStereo-1, patches);
-                        double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
-                        //double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
-	                    //model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
-						model->operator()(y*width+x, d) = (EnergyType) ((1 - mCost) * model->MRFRatio);
-                    }
-                }
-            }
+				vector<thread_guard> threads((size_t)num_threads);
+				const int numPerThreads = width / num_threads;
+				if (y % unit == 0)
+					cout << '.' << flush;
+				for(auto tid=0; tid<num_threads-1; ++tid){
+					std::thread t(threadFun,y,tid*numPerThreads,numPerThreads);
+					threads[tid].bind(t);
+				}
+				std::thread residualT(threadFun, y, (num_threads-1)*numPerThreads, width - numPerThreads*(num_threads-1));
+				threads[num_threads-1].bind(residualT);
+				for(auto &t: threads)
+					t.join();
+			}
+
             cout << "done" << endl;
             //caching
             ofstream fout(buffer, ios::binary);

@@ -212,7 +212,7 @@ namespace dynamic_stereo{
 //
 //
 //		//brightness confidence dynamicness confidence
-//		Depth brightness(width, height, 0.0), dynamicness(width, height, 0.0);
+//		Depth brightness(width, height, 0.0);
 //		for(auto y=0; y<height; ++y){
 //			for(auto x=0; x<width; ++x){
 //				vector<double>& pixIntensity = intensity[y*width+x];
@@ -244,33 +244,49 @@ namespace dynamic_stereo{
 //			}
 //		}
 //
-//		//compute color difference pattern
-//		vector<vector<double> > colorDiff((size_t)width*height);
-//		for(auto y=0; y<height; ++y){
-//			for(auto x=0; x<width; ++x){
-//				Vec3b refPixv = warppedImg[anchor-offset].at<Vec3b>(y,x);
-//				Vector3d refPix(refPixv[0], refPixv[1], refPixv[2]);
-//				double count = 0.0;
-//				for(auto i=0; i<warppedImg.size(); ++i){
-//					if(i == anchor-offset)
-//						continue;
-//					Vec3b curPixv = warppedImg[i].at<Vec3b>(y,x);
-//					if(curPixv == Vec3b(0,0,0)) {
-//						colorDiff[y*width+x].push_back(0.0);
-//						continue;
-//					}
-//					count += 1.0;
-//					Vector3d curPix(curPixv[0], curPixv[1], curPixv[2]);
-//					colorDiff[y*width+x].push_back((curPix - refPix).norm());
-//				}
-//				if(count < 1)
-//					continue;
-////				const size_t kth = colorDiff[y*width+x].size()/2;
-////				sort(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), std::less<double>());
-////				nth_element(colorDiff[y*width+x].begin(), colorDiff[y*width+x].begin() + kth, colorDiff[y*width+x].end());
-//				dynamicness(x,y) = accumulate(colorDiff[y*width+x].begin(), colorDiff[y*width+x].end(), 0.0) / count;
-//			}
-//		}
+		//compute color difference pattern
+		cout << "Computing dynamic confidence..." << endl;
+		Depth dynamicness(width, height, 0.0);
+		//search in a 7 by 7 window
+		const int pR = 3;
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				double count = 0.0;
+				vector<double> colorDiff;
+				colorDiff.reserve(warppedImg.size());
+				for(auto i=0; i<warppedImg.size(); ++i){
+					if(i == anchor-offset)
+						continue;
+					Vec3b curPix = warppedImg[i].at<Vec3b>(y,x);
+					if(curPix == Vec3b(0,0,0)) {
+						continue;
+					}
+					double min_dis = numeric_limits<double>::max();
+					for(auto dx=-1*pR; dx<=pR; ++dx) {
+						for (auto dy = -1 * pR; dy <= pR; ++dy) {
+							const int curx = x + dx;
+							const int cury = y + dy;
+							if (curx < 0 || cury < 0 || curx >= width || cury >= height)
+								continue;
+							Vec3b refPix = warppedImg[anchor - offset].at<Vec3b>(cury, curx);
+							min_dis = std::min(cv::norm(refPix - curPix), min_dis);
+						}
+					}
+					colorDiff.push_back(min_dis);
+					count += 1.0;
+				}
+				if(count < 1)
+					continue;
+				const size_t kth = colorDiff.size() / 2;
+//				sort(colorDiff.begin(), colorDiff.end(), std::less<double>());
+				nth_element(colorDiff.begin(), colorDiff.begin() + kth, colorDiff.end());
+//				dynamicness(x,y) = accumulate(colorDiff.begin(), colorDiff.end(), 0.0) / count;
+				dynamicness(x,y) = colorDiff[kth];
+			}
+		}
+
+		sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		dynamicness.saveImage(string(buffer),5);
 
 		//repetative pattern
 		printf("Computing frequency confidence...\n");
@@ -445,8 +461,6 @@ namespace dynamic_stereo{
 //
 //		sprintf(buffer, "%s/temp/conf_brightness%05d.jpg", file_io.getDirectory().c_str(), anchor);
 //		brightness.saveImage(string(buffer));
-//		sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//		dynamicness.saveImage(string(buffer),5);
 //		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
 //		unaryTerm.saveImage(string(buffer));
 		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
