@@ -131,19 +131,42 @@ namespace dynamic_stereo{
 		Depth result_firstOrder;
 		optimizer_firstorder.optimize(result_firstOrder, 100);
 
-		//masking out invalid region
 		for(auto y=0; y<height; ++y) {
 			for (auto x = 0; x < width; ++x) {
-				if (stereoMask.at<uchar>(y, x) < 200)
+				if (stereoMask.at<uchar>(y, x) < 200) {
 					result_firstOrder(x, y) = 0;
-				if(result_firstOrder(x,y) < 1)
-					depthMask.at<uchar>(y,x) = 0;
+					continue;
+				}
 			}
 		}
 
 //		Depth depth_firstOrder;
 		printf("Saving depth to point cloud...\n");
 		disparityToDepth(result_firstOrder, depth_firstOrder);
+
+
+		//masking out invalid region
+		//remove pixel where half disparity project outof half frames
+		const theia::Camera& refCam = sfmModel.getCamera(anchor);
+		const double invisThreshold = 0.3;
+
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
+				Vector3d spt = refCam.GetPosition() + depth_firstOrder(x,y) * ray;
+				double invisCount = 0.0;
+				for(auto v=0; v < images.size(); ++v){
+					Vector2d imgpt;
+					sfmModel.getCamera(v+offset).ProjectPoint(spt.homogeneous(), &imgpt);
+					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width * downsample || imgpt[1] >= height * downsample)
+						invisCount += 1.0;
+				}
+				if(invisCount / (double)images.size()> invisThreshold)
+					depthMask.at<uchar>(y,x) = (uchar)0;
+			}
+		}
+
+
 
 		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
 		utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], sfmModel.getCamera(anchor), downsample);

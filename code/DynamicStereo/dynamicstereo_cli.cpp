@@ -137,12 +137,12 @@ int main(int argc, char **argv) {
  	CHECK_EQ(warpMask.cols, refDepthMask.cols);
 	CHECK_EQ(warpMask.rows, refDepthMask.rows);
 
-//	for(auto y=0; y<height; ++y){
-//		for(auto x=0; x<width; ++x){
-//			if(refDepthMask.at<uchar>(y,x) < 200)
-//				warpMask.at<uchar>(y,x) = 0;
-//		}
-//	}
+	for(auto y=0; y<height; ++y){
+		for(auto x=0; x<width; ++x){
+			if(refDepthMask.at<uchar>(y,x) < 200)
+				warpMask.at<uchar>(y,x) = 0;
+		}
+	}
 
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();

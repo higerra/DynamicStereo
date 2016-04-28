@@ -228,7 +228,7 @@ namespace dynamic_stereo {
                     Vector2d imgpt;
                     double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
                     imgpt = imgpt / (double)downsample;
-                    if(imgpt[0]>=0 && imgpt[1] >= 0 && imgpt[0] < dw-1 && imgpt[1] < dh-1){
+                    if(curd > 0 && imgpt[0]>=0 && imgpt[1] >= 0 && imgpt[0] < dw-1 && imgpt[1] < dh-1){
                         double zDepth = zBuffers[i].getDepthAt(imgpt);
                         if(zDepth > 0){
                             double curdisp = depthToDisp(curd, min_depths[i], max_depths[i]);
