@@ -70,9 +70,11 @@ namespace dynamic_stereo {
 			CHECK(!input.empty());
 			const int h = input[0].rows;
 			const int w = input[0].cols;
-			output.resize(input.size(), cv::Mat(h,w,CV_8UC3,Scalar(1,1,1)));
+//			output.clear();
+			output.resize(input.size());
 			printf("Applying median filter, r = %d\n", r);
 			for(auto i=0; i<input.size(); ++i) {
+				output[i] = Mat(h,w,CV_8UC3, Scalar(0,0,0));
 				int s, e;
 				if (i - r < 0) {
 					s = 0;
@@ -81,23 +83,34 @@ namespace dynamic_stereo {
 				else if (i + r >= input.size()) {
 					s = (int)input.size() - 2 * r - 2;
 					e = (int)input.size() - 1;
+					continue;
 				} else {
 					s = i - r;
 					e = i + r;
 				}
+				printf("i:%d, s:%d, e:%d\n", i, s, e);
+				vector<uchar> rc,gc,bc;
 				for(auto y=0; y<h; ++y){
 					for(auto x=0; x<w; ++x){
-						vector<int> rc,gc,bc;
+						rc.clear(); gc.clear(); bc.clear();
 						for(auto t = s; t <= e; ++t){
 							Vec3b pix = input[t].at<Vec3b>(y,x);
+							if(pix == Vec3b(0,0,0))
+								continue;
 							rc.push_back(pix[0]);
 							gc.push_back(pix[1]);
 							bc.push_back(pix[2]);
 						}
-						nth_element(rc.begin(), rc.begin()+r, rc.end());
-						nth_element(gc.begin(), gc.begin()+r, gc.end());
-						nth_element(bc.begin(), bc.begin()+r, bc.end());
-						output[i].at<Vec3b>(y,x) = Vec3b((uchar)rc[r], (uchar)gc[r], (uchar)bc[r]);
+						if(rc.size() < 3){
+							output[i].at<Vec3b>(y,x) = Vec3b(0,0,0);
+						}else {
+ 							nth_element(rc.begin(), rc.begin() + r, rc.end());
+							nth_element(gc.begin(), gc.begin() + r, gc.end());
+							nth_element(bc.begin(), bc.begin() + r, bc.end());
+//							printf("rc.size():%d, r:%d\n", (int)rc.size(), r);
+							output[i].at<Vec3b>(y, x) = Vec3b(rc[r], gc[r], bc[r]);
+//							output[i].at<Vec3b>(y, x) = input[i].at<Vec3b>(y,x);
+						}
 					}
 				}
 			}

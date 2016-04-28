@@ -149,8 +149,9 @@ int main(int argc, char **argv) {
 //	vector<Mat> warpped;
 //	warpping->warpToAnchor(warpMask, warpped, false);
 
-	vector<Mat> prewarp;
-	warpping->preWarping(warpMask, prewarp);
+	vector<Mat> prewarp1, prewarp;
+	warpping->preWarping(warpMask, prewarp1);
+	utility::temporalMedianFilter(prewarp1, prewarp, 3);
 
 	warpping.reset();
 
@@ -158,8 +159,8 @@ int main(int argc, char **argv) {
 //	utility::temporalMedianFilter(warpped, warped_filtered, 2);
 
 	for(auto i=0; i<prewarp.size(); ++i){
-//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-//		imwrite(buffer, warpped[i]);
+//		sprintf(buffer, "%s/temp/prewarpbnom%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+//		imwrite(buffer, prewarp1[i]);
 		sprintf(buffer, "%s/temp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 		imwrite(buffer, prewarp[i]);
 	}
