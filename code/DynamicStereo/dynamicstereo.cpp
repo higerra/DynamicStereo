@@ -55,7 +55,7 @@ namespace dynamic_stereo{
 	}
 
 
-	void DynamicStereo::runStereo(const cv::Mat& inputMask, Depth& depth_firstOrder, cv::Mat& depthMask) {
+	void DynamicStereo::runStereo(const cv::Mat& inputMask, Depth& depth_firstOrder, cv::Mat& depthMask, bool dryrun) {
 		char buffer[1024] = {};
 		initMRF();
 		for(auto y=0; y<height; ++y){
@@ -125,6 +125,9 @@ namespace dynamic_stereo{
 //				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
 //			}
 //		}
+
+		if(dryrun)
+			return;
 
 		cout << "Solving with first order smoothness..." << endl;
 		FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);

@@ -4,6 +4,7 @@
 
 #include "dynamicwarpping.h"
 #include "../base/utility.h"
+#include "../base/thread_guard.h"
 
 using namespace std;
 using namespace Eigen;
@@ -59,18 +60,18 @@ namespace dynamic_stereo {
         CHECK_EQ(depth.getHeight(), zb.getHeight());
         const int w = depth.getWidth();
         const int h = depth.getHeight();
-        for (auto y = downsample; y < height-downsample; ++y) {
-            for (auto x = downsample; x < width - downsample; ++x) {
-	            Vector2d refPt((double)x/(double)downsample, (double)y/(double)downsample);
+        for (auto y = 0; y < h; ++y) {
+            for (auto x = 0; x < w; ++x) {
+	            Vector2d refPt((double)x, (double)y);
                 Vector3d spt = cam1.PixelToUnitDepthRay(refPt * downsample) * depth.getDepthAt(refPt) +
                                cam1.GetPosition();
                 Vector2d imgpt;
                 double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
                 imgpt /= (double) downsample;
-                int intx = (int) imgpt[0];
-                int inty = (int) imgpt[1];
+                int intx = round(imgpt[0]+0.5);
+                int inty = round(imgpt[1]+0.5);
                 if (curd > 0 && intx >= 0 && inty >= 0 && intx < w && inty < h) {
-                    if (zb(intx, inty) < 0 || (zb(intx, inty) >= 0 && curd < zb(intx, inty)))
+                    if (zb(intx, inty) < 0 || (zb(intx, inty) >= 0 && curd <= zb(intx, inty)))
                         zb(intx, inty) = curd;
                 }
             }
@@ -86,9 +87,10 @@ namespace dynamic_stereo {
 	    max_depths.resize(images.size());
 	    cout << endl;
 	    char buffer[1024] = {};
-#pragma omp parallel for
-        for (auto i = 0; i < images.size(); ++i) {
-            zBuffers[i].initialize(width / downsample, height / downsample, std::numeric_limits<double>::max());
+
+	    auto createZBuffer = [&](int tid, int nThread){
+		    for(auto i=tid; i<zBuffers.size(); i = i+nThread){
+			    zBuffers[i].initialize(width / downsample, height / downsample, -1);
 //            if (i + offset <= depthind[0]) {
 //                updateZBuffer(depths[0], zBuffers[i], sfmModel.getCamera(depthind[0]), sfmModel.getCamera(i + offset));
 //                printf("Update zBuffer %d with %d\n", i+offset, depthind[0]);
@@ -109,15 +111,32 @@ namespace dynamic_stereo {
 //	            }
 //            }
 
-	        updateZBuffer(refDepth, zBuffers[i], sfmModel.getCamera(anchor), sfmModel.getCamera(i+offset));
+			    updateZBuffer(refDepth, zBuffers[i], sfmModel.getCamera(anchor), sfmModel.getCamera(i+offset));
 
 //	        sprintf(buffer, "%s/temp/zBuffer%05d.ply", file_io.getDirectory().c_str(), i+offset);
 //	        Mat dimg;
 //	        cv::resize(images[i], dimg, cv::Size(zBuffers[i].getWidth(), zBuffers[i].getHeight()));
 //	        utility::saveDepthAsPly(string(buffer), zBuffers[i], dimg, sfmModel.getCamera(i+offset), downsample);
-	        utility::computeMinMaxDepth(sfmModel, i+offset, min_depths[i], max_depths[i]);
-        }
+			    utility::computeMinMaxDepth(sfmModel, i+offset, min_depths[i], max_depths[i]);
+		    }
+	    };
 
+	    const int num_thread = 6;
+	    vector<thread_guard> threads(num_thread);
+	    for(auto tid=0; tid<num_thread; ++tid){
+		    std::thread t(createZBuffer, tid, num_thread);
+		    threads[tid].bind(t);
+	    }
+	    for(auto& t: threads)
+		    t.join();
+
+	    for(auto i=0; i<zBuffers.size(); ++i){
+		    sprintf(buffer, "%s/temp/zBufferb%05d_%05d.ply", file_io.getDirectory().c_str(), anchor, i+offset);
+		    Mat tex;
+		    cv::resize(images[i],tex,cv::Size(zBuffers[i].getWidth(), zBuffers[i].getHeight()));
+		    printf("Saving point cloud %d\n", i+offset);
+		    utility::saveDepthAsPly(string(buffer), zBuffers[i], tex, sfmModel.getCamera(i+offset), downsample);
+	    }
     }
 
     void DynamicWarpping::warpToAnchor(const cv::Mat &mask, std::vector<cv::Mat> &warpped,
@@ -132,7 +151,7 @@ namespace dynamic_stereo {
 
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
 
-	    double dispMargin = 10;
+	    double dispMargin = 20;
 
 	    const int tx = -1;
 	    const int ty = -1;

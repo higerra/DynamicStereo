@@ -14,7 +14,7 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(tWindow, 80, "tWindow");
+DEFINE_int32(tWindow, 60, "tWindow");
 DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 //				const int tf1 = FLAGS_testFrame;
 //				Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
-				Vector2d pt(958, 287);
+				Vector2d pt(-1, -1);
 				stereo.dbtx = pt[0];
 				stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
@@ -113,6 +113,9 @@ int main(int argc, char **argv) {
 				sprintf(buffer, "%s/midres/depthMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 				imwrite(buffer, curDepthMask);
 			}else{
+				Depth tempdepth;
+				Mat tempMask;
+				stereo.runStereo(segMask, tempdepth, tempMask, true);
 				sprintf(buffer, "%s/midres/depthMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 				curDepthMask = imread(string(buffer), false);
 				CHECK(curDepthMask.data);
@@ -151,18 +154,18 @@ int main(int argc, char **argv) {
 
 	vector<Mat> prewarp1, prewarp;
 	warpping->preWarping(warpMask, prewarp1);
-	utility::temporalMedianFilter(prewarp1, prewarp, 3);
+//	utility::temporalMedianFilter(prewarp1, prewarp, 3);
 
 	warpping.reset();
 
 //	vector<Mat> warped_filtered;
 //	utility::temporalMedianFilter(warpped, warped_filtered, 2);
 
-	for(auto i=0; i<prewarp.size(); ++i){
+	for(auto i=0; i<prewarp1.size(); ++i){
 //		sprintf(buffer, "%s/temp/prewarpbnom%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 //		imwrite(buffer, prewarp1[i]);
 		sprintf(buffer, "%s/temp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-		imwrite(buffer, prewarp[i]);
+		imwrite(buffer, prewarp1[i]);
 	}
 
 //
