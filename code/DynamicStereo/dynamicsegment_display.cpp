@@ -93,6 +93,7 @@ namespace dynamic_stereo{
 
         const int width = input[0].cols;
         const int height = input[0].rows;
+        result = Mat(height, width, CV_8UC1, Scalar::all(0));
 
         Depth dynamicness;
         computeColorConfidence(input, dynamicness);
@@ -165,6 +166,7 @@ namespace dynamic_stereo{
 
             //estimate foreground histogram and background histogram
             vector<Vec3b> psample, nsample;
+            const int fR = 5;
             for(auto x=cx-br; x<=cx+br; ++x){
                 for(auto y=cy-br; y<=cy+br; ++y) {
                     if (x >= 0 && y >= 0 && x < width && y < height) {
@@ -174,7 +176,8 @@ namespace dynamic_stereo{
                         }
                         if (staticCan.at<uchar>(y, x) > 200) {
                             //for (auto v = 0; v < input.size(); ++v)
-                            nsample.push_back(input[anchor-offset].at<Vec3b>(y, x));
+                            for(auto v=-1*fR; v<=fR; ++v)
+                                nsample.push_back(input[anchor-offset+v].at<Vec3b>(y, x));
                         }
                     }
                 }
@@ -222,6 +225,13 @@ namespace dynamic_stereo{
 
             pbg /= (double)psample.size();
             printf("Probability of being background: %.3f\n", pbg);
+
+            if(pbg < -15){
+                for(auto i=0; i<width * height; ++i){
+                    if(pLabel[i] == l)
+                        result.data[i] = 255;
+                }
+            }
         }
     }
 }//namespace dynamic_stereo
