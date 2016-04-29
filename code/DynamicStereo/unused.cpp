@@ -285,3 +285,95 @@
 //		result_TRWS.saveImage(buffer, 255.0 / (double)dispResolution);
 //		warpToAnchor(result_TRWS, "TRWS");
 
+
+//////////////////////////////////////////////////////
+//Used in DynamicSegment
+//////////////////////////////////////////////////////
+//		vector<Mat> intensityRaw(warppedImg.size());
+//		for(auto i=0; i<warppedImg.size(); ++i)
+//			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
+//
+//		auto isInside = [&](int x, int y){
+//			return x>=0 && y >= 0 && x < width && y < height;
+//		};
+//
+//		vector<vector<double> > intensity((size_t)width * height);
+//		for(auto & i: intensity)
+//			i.resize(warppedImg.size(), 0.0);
+//
+//		const int pR = 0;
+//
+//		//box filter with invalid pixel handling
+//		for(auto i=0; i<warppedImg.size(); ++i) {
+//			printf("frame %d\n", i+offset);
+//			for (auto y = 0; y < height; ++y) {
+//				for (auto x = 0; x < width; ++x) {
+//					double curI = 0.0;
+//					double count = 0.0;
+//					for (auto dx = -1 * pR; dx <= pR; ++dx) {
+//						for (auto dy = -1 * pR; dy <= pR; ++dy) {
+//							const int curx = x + dx;
+//							const int cury = y + dy;
+//							if(isInside(curx, cury)){
+//								uchar gv = intensityRaw[i].at<uchar>(cury,curx);
+//								if(gv == (uchar)0)
+//									continue;
+//								count = count + 1.0;
+//								curI += (double)gv;
+//							}
+//						}
+//					}
+//					if(count < 1)
+//						continue;
+//					intensity[y*width+x][i] = curI / count;
+//				}
+//			}
+//		}
+//
+////		for(auto i=0; i<warppedImg.size(); ++i){
+////			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
+////			ofstream fout(buffer);
+////			CHECK(fout.is_open());
+////			for(auto y=0; y<height; ++y){
+////				for(auto x=0; x<width; ++x)
+////					fout << intensity[y*width+x][i] << ' ';
+////				//fout << colorDiff[y*width+x][i] << ' ';
+////				fout << endl;
+////			}
+////			fout.close();
+////		}
+//
+//
+//		//brightness confidence dynamicness confidence
+//		Depth brightness(width, height, 0.0);
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				vector<double>& pixIntensity = intensity[y*width+x];
+//				CHECK_GT(pixIntensity.size(), 0);
+//				double count = 0.0;
+//				//take median as brightness
+//				const size_t kth = pixIntensity.size() / 2;
+//				nth_element(pixIntensity.begin(), pixIntensity.begin()+kth, pixIntensity.end());
+//				brightness(x,y) = pixIntensity[kth];
+//
+//				double averageIntensity = 0.0;
+//				for(auto i=0; i<pixIntensity.size(); ++i){
+//					if(pixIntensity[i] > 0){
+//						//brightness(x,y) += pixIntensity[i];
+//						averageIntensity += pixIntensity[i];
+//						count += 1.0;
+//					}
+//				}
+//				if(count < 2){
+//					continue;
+//				}
+////				averageIntensity /= count;
+////				for(auto i=0; i<pixIntensity.size(); ++i){
+////					if(pixIntensity[i] > 0)
+////						dynamicness(x,y) += (pixIntensity[i] - averageIntensity) * (pixIntensity[i] - averageIntensity);
+////				}
+////				if(dynamicness(x,y) > 0)
+////					dynamicness(x,y) = std::sqrt(dynamicness(x,y)/(count - 1));
+//			}
+//		}
+//

@@ -14,7 +14,7 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(tWindow, 60, "tWindow");
+DEFINE_int32(tWindow, 80, "tWindow");
 DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
@@ -140,12 +140,12 @@ int main(int argc, char **argv) {
  	CHECK_EQ(warpMask.cols, refDepthMask.cols);
 	CHECK_EQ(warpMask.rows, refDepthMask.rows);
 
-	for(auto y=0; y<height; ++y){
-		for(auto x=0; x<width; ++x){
-			if(refDepthMask.at<uchar>(y,x) < 200)
-				warpMask.at<uchar>(y,x) = 0;
-		}
-	}
+//	for(auto y=0; y<height; ++y){
+//		for(auto x=0; x<width; ++x){
+//			if(refDepthMask.at<uchar>(y,x) < 200)
+//				warpMask.at<uchar>(y,x) = 0;
+//		}
+//	}
 
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();
@@ -177,21 +177,21 @@ int main(int argc, char **argv) {
 //	sprintf(buffer, "%s/temp/geoConf%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 //	geoConf.saveImage(string(buffer), 5.0);
 //	segment->segment(warpped, seg_result);
-	segment->segment(prewarp, seg_result_small);
-	segment.reset();
-	Mat seg_result;
-	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);
-	Mat seg_overlay(height, width, CV_8UC3, Scalar(0,0,0));
-	for(auto y=0; y<height; ++y){
-		for(auto x=0; x<width; ++x){
-			if(seg_result.at<uchar>(y,x) > 200)
-				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(255,0,0) * 0.6;
-			else
-				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(0,0,255) * 0.6;
-		}
-	}
-	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	imwrite(buffer, seg_overlay);
+	segment->segmentDisplay(prewarp1, seg_result_small);
+//	segment.reset();
+//	Mat seg_result;
+//	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);
+//	Mat seg_overlay(height, width, CV_8UC3, Scalar(0,0,0));
+//	for(auto y=0; y<height; ++y){
+//		for(auto x=0; x<width; ++x){
+//			if(seg_result.at<uchar>(y,x) > 200)
+//				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(255,0,0) * 0.6;
+//			else
+//				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(0,0,255) * 0.6;
+//		}
+//	}
+//	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//	imwrite(buffer, seg_overlay);
 
 //	for(auto i=0; i<warpped.size(); ++i){
 //		for(auto y=0; y<height; ++y){

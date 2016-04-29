@@ -27,32 +27,6 @@ namespace dynamic_stereo{
 		    CHECK_GE(offset, 0);
 	    } else
 		    offset = anchor - tWindow_ / 2;
-
-//	    images.resize((size_t) tWindow_);
-//	    for (auto i = 0; i < images.size(); ++i) {
-//		    images[i] = imread(file_io.getImage(i + offset));
-//		    for (auto y = 0; y < images[i].rows; ++y) {
-//			    for (auto x = 0; x < images[i].cols; ++x) {
-//				    if (images[i].at<Vec3b>(y, x) == Vec3b(0, 0, 0))
-//					    images[i].at<Vec3b>(y, x) = Vec3b(1, 1, 1);
-//			    }
-//		    }
-//	    }
-
-//	    CHECK(!images.empty());
-//	    width = images[0].cols;
-//	    height = images[0].rows;
-//
-//	    CHECK_EQ(depths.size(), depthInd.size());
-//	    for(auto i=0; i<depthInd.size(); ++i){
-//			depths[i].updateStatics();
-//		    if(depthInd[i] == anchor){
-//			    refDepth = depths[i];
-//		    }
-//	    }
-//
-//	    CHECK_EQ(refDepth.getWidth(), width / downsample);
-//	    CHECK_EQ(refDepth.getHeight(), height / downsample);
     }
 
 //	void DynamicSegment::getGeometryConfidence(Depth &geoConf) const {
@@ -148,157 +122,28 @@ namespace dynamic_stereo{
 	}
 
 
-	void DynamicSegment::segment(const std::vector<cv::Mat> &warppedImg, cv::Mat &result) const {
+	void DynamicSegment::segmentFlashy(const std::vector<cv::Mat> &input, cv::Mat &result) const {
 		char buffer[1024] = {};
 
-		const int width = warppedImg[0].cols;
-		const int height = warppedImg[0].rows;
+		const int width = input[0].cols;
+		const int height = input[0].rows;
 
 		result = Mat(height, width, CV_8UC1, Scalar(0));
 		uchar* pResult = result.data;
-//		vector<Mat> intensityRaw(warppedImg.size());
-//		for(auto i=0; i<warppedImg.size(); ++i)
-//			cvtColor(warppedImg[i], intensityRaw[i], CV_BGR2GRAY);
-//
-//		auto isInside = [&](int x, int y){
-//			return x>=0 && y >= 0 && x < width && y < height;
-//		};
-//
-//		vector<vector<double> > intensity((size_t)width * height);
-//		for(auto & i: intensity)
-//			i.resize(warppedImg.size(), 0.0);
-//
-//		const int pR = 0;
-//
-//		//box filter with invalid pixel handling
-//		for(auto i=0; i<warppedImg.size(); ++i) {
-//			printf("frame %d\n", i+offset);
-//			for (auto y = 0; y < height; ++y) {
-//				for (auto x = 0; x < width; ++x) {
-//					double curI = 0.0;
-//					double count = 0.0;
-//					for (auto dx = -1 * pR; dx <= pR; ++dx) {
-//						for (auto dy = -1 * pR; dy <= pR; ++dy) {
-//							const int curx = x + dx;
-//							const int cury = y + dy;
-//							if(isInside(curx, cury)){
-//								uchar gv = intensityRaw[i].at<uchar>(cury,curx);
-//								if(gv == (uchar)0)
-//									continue;
-//								count = count + 1.0;
-//								curI += (double)gv;
-//							}
-//						}
-//					}
-//					if(count < 1)
-//						continue;
-//					intensity[y*width+x][i] = curI / count;
-//				}
-//			}
-//		}
-//
-////		for(auto i=0; i<warppedImg.size(); ++i){
-////			sprintf(buffer, "%s/temp/patternb%05d_%05d.txt", file_io.getDirectory().c_str(), anchor, i+offset);
-////			ofstream fout(buffer);
-////			CHECK(fout.is_open());
-////			for(auto y=0; y<height; ++y){
-////				for(auto x=0; x<width; ++x)
-////					fout << intensity[y*width+x][i] << ' ';
-////				//fout << colorDiff[y*width+x][i] << ' ';
-////				fout << endl;
-////			}
-////			fout.close();
-////		}
-//
-//
-//		//brightness confidence dynamicness confidence
-//		Depth brightness(width, height, 0.0);
-//		for(auto y=0; y<height; ++y){
-//			for(auto x=0; x<width; ++x){
-//				vector<double>& pixIntensity = intensity[y*width+x];
-//				CHECK_GT(pixIntensity.size(), 0);
-//				double count = 0.0;
-//				//take median as brightness
-//				const size_t kth = pixIntensity.size() / 2;
-//				nth_element(pixIntensity.begin(), pixIntensity.begin()+kth, pixIntensity.end());
-//				brightness(x,y) = pixIntensity[kth];
-//
-//				double averageIntensity = 0.0;
-//				for(auto i=0; i<pixIntensity.size(); ++i){
-//					if(pixIntensity[i] > 0){
-//						//brightness(x,y) += pixIntensity[i];
-//						averageIntensity += pixIntensity[i];
-//						count += 1.0;
-//					}
-//				}
-//				if(count < 2){
-//					continue;
-//				}
-////				averageIntensity /= count;
-////				for(auto i=0; i<pixIntensity.size(); ++i){
-////					if(pixIntensity[i] > 0)
-////						dynamicness(x,y) += (pixIntensity[i] - averageIntensity) * (pixIntensity[i] - averageIntensity);
-////				}
-////				if(dynamicness(x,y) > 0)
-////					dynamicness(x,y) = std::sqrt(dynamicness(x,y)/(count - 1));
-//			}
-//		}
-//
-		//compute color difference pattern
-		cout << "Computing dynamic confidence..." << endl;
-		Depth dynamicness(width, height, 0.0);
-		//search in a 7 by 7 window
-		const int pR = 3;
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				double count = 0.0;
-				vector<double> colorDiff;
-				colorDiff.reserve(warppedImg.size());
-				for(auto i=0; i<warppedImg.size(); ++i){
-					if(i == anchor-offset)
-						continue;
-					Vec3b curPix = warppedImg[i].at<Vec3b>(y,x);
-					if(curPix == Vec3b(0,0,0)) {
-						continue;
-					}
-					double min_dis = numeric_limits<double>::max();
-					for(auto dx=-1*pR; dx<=pR; ++dx) {
-						for (auto dy = -1 * pR; dy <= pR; ++dy) {
-							const int curx = x + dx;
-							const int cury = y + dy;
-							if (curx < 0 || cury < 0 || curx >= width || cury >= height)
-								continue;
-							Vec3b refPix = warppedImg[anchor - offset].at<Vec3b>(cury, curx);
-							min_dis = std::min(cv::norm(refPix - curPix), min_dis);
-						}
-					}
-					colorDiff.push_back(min_dis);
-					count += 1.0;
-				}
-				if(count < 1)
-					continue;
-				const size_t kth = colorDiff.size() / 2;
-//				sort(colorDiff.begin(), colorDiff.end(), std::less<double>());
-				nth_element(colorDiff.begin(), colorDiff.begin() + kth, colorDiff.end());
-//				dynamicness(x,y) = accumulate(colorDiff.begin(), colorDiff.end(), 0.0) / count;
-				dynamicness(x,y) = colorDiff[kth];
-			}
-		}
 
-		sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		dynamicness.saveImage(string(buffer),5);
+
 
 		//repetative pattern
 		printf("Computing frequency confidence...\n");
 		Depth frequency;
-		computeFrequencyConfidence(warppedImg, frequency);
+		computeFrequencyConfidence(input, frequency);
 		printf("Done\n");
 
 
 		//compute anisotropic weight
 		const double t = 80;
 		const double min_diffusion = 0.15;
-		const cv::Mat& img = warppedImg[anchor-offset];
+		const cv::Mat& img = input[anchor-offset];
 		vector<double> hCue((size_t)width * height), vCue((size_t)width * height);
 		for (auto y = 0; y < height; ++y) {
 			for (auto x = 0; x < width; ++x) {
@@ -356,8 +201,8 @@ namespace dynamic_stereo{
 			for(auto y=0; y<height; ++y){
 				for(auto x=0; x<width; ++x){
 					if(pBgmask[y*width+x] > 200){
-						for(auto v=0; v<warppedImg.size(); ++v){
-							Vec3b pix = warppedImg[v].at<Vec3b>(y,x);
+						for(auto v=0; v<input.size(); ++v){
+							Vec3b pix = input[v].at<Vec3b>(y,x);
 							nsamples.push_back(Vector3d((double)pix[0], (double)pix[1], (double)pix[2]));
 						}
 					}
@@ -423,33 +268,33 @@ namespace dynamic_stereo{
 
 
 				//estimate GMM
-				cv::Ptr<cv::ml::EM> gmm_positive = cv::ml::EM::create();
-
-				vector<Vector3d> psamples;
-				//collect training sample
-				for (auto y = top; y < top + roih; ++y) {
-					for (auto x = left; x < left + roiw; ++x) {
-						if (pLabel[(y + top) * width + x + left] == l) {
-							for (auto v = 0; v < warppedImg.size(); ++v) {
-								Vec3b pix = warppedImg[v].at<Vec3b>(y + top, x + left);
-								psamples.push_back(Vector3d((double) pix[0], (double) pix[1], (double) pix[2]));
-							}
-						}
-					}
-				}
-				Mat ptrainSample((int)psamples.size(), 3, CV_64F);
-				for(auto i=0; i<psamples.size(); ++i){
-					ptrainSample.at<double>(i,0) = psamples[i][0];
-					ptrainSample.at<double>(i,1) = psamples[i][1];
-					ptrainSample.at<double>(i,2) = psamples[i][2];
-				}
-
-				cout << "Estimating foreground color model..." << endl;
-				gmm_positive->trainEM(ptrainSample);
-
-
-				vector<double> unary;
-				assignColorTerm(warppedImg, gmm_positive, gmm_negative, unary);
+//				cv::Ptr<cv::ml::EM> gmm_positive = cv::ml::EM::create();
+//
+//				vector<Vector3d> psamples;
+//				//collect training sample
+//				for (auto y = top; y < top + roih; ++y) {
+//					for (auto x = left; x < left + roiw; ++x) {
+//						if (pLabel[(y + top) * width + x + left] == l) {
+//							for (auto v = 0; v < input.size(); ++v) {
+//								Vec3b pix = input[v].at<Vec3b>(y + top, x + left);
+//								psamples.push_back(Vector3d((double) pix[0], (double) pix[1], (double) pix[2]));
+//							}
+//						}
+//					}
+//				}
+//				Mat ptrainSample((int)psamples.size(), 3, CV_64F);
+//				for(auto i=0; i<psamples.size(); ++i){
+//					ptrainSample.at<double>(i,0) = psamples[i][0];
+//					ptrainSample.at<double>(i,1) = psamples[i][1];
+//					ptrainSample.at<double>(i,2) = psamples[i][2];
+//				}
+//
+//				cout << "Estimating foreground color model..." << endl;
+//				gmm_positive->trainEM(ptrainSample);
+//
+//
+//				vector<double> unary;
+//				assignColorTerm(input, gmm_positive, gmm_negative, unary);
 
 			}
 		}
@@ -500,44 +345,44 @@ namespace dynamic_stereo{
 		}
 	}
 
-	void DynamicSegment::solveMRF(const std::vector<double> &unary,
-								  const std::vector<double>& vCue,
-								  const std::vector<double>& hCue,
-								  const cv::Mat& img, const double weight_smooth,
-								  cv::Mat& result) const {
-		const int width = img.cols;
-		const int height = img.rows;
-
-		double MRF_smooth[] = {0,weight_smooth,weight_smooth,0};
-
-		DataCost *dataCost = new DataCost(const_cast<double*>(unary.data()));
-		SmoothnessCost *smoothnessCost = new SmoothnessCost(MRF_smooth, const_cast<double*>(hCue.data()), const_cast<double*>(vCue.data()));
-		EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
-
-		Expansion mrf(width,height,2,energy_function);
-		mrf.initialize();
-		mrf.clearAnswer();
-		for(auto i=0; i<width*height; ++i)
-			mrf.setLabel(i,0);
-		double initDataE = mrf.dataEnergy();
-		double initSmoothE = mrf.smoothnessEnergy();
-		float mrf_time;
-		mrf.optimize(10, mrf_time);
-		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
-		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
-
-		result = Mat(height, width, CV_8UC1);
-		uchar* pResult = result.data;
-		for(auto i=0; i<width*height; ++i){
-			if(mrf.getLabel(i) > 0)
-				pResult[i] = (uchar)255;
-			else
-				pResult[i] = (uchar)0;
-		}
-		delete dataCost;
-		delete smoothnessCost;
-		delete energy_function;
-
-	}
+//	void DynamicSegment::solveMRF(const std::vector<double> &unary,
+//								  const std::vector<double>& vCue,
+//								  const std::vector<double>& hCue,
+//								  const cv::Mat& img, const double weight_smooth,
+//								  cv::Mat& result) const {
+//		const int width = img.cols;
+//		const int height = img.rows;
+//
+//		double MRF_smooth[] = {0,weight_smooth,weight_smooth,0};
+//
+//		DataCost *dataCost = new DataCost(const_cast<double*>(unary.data()));
+//		SmoothnessCost *smoothnessCost = new SmoothnessCost(MRF_smooth, const_cast<double*>(hCue.data()), const_cast<double*>(vCue.data()));
+//		EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
+//
+//		Expansion mrf(width,height,2,energy_function);
+//		mrf.initialize();
+//		mrf.clearAnswer();
+//		for(auto i=0; i<width*height; ++i)
+//			mrf.setLabel(i,0);
+//		double initDataE = mrf.dataEnergy();
+//		double initSmoothE = mrf.smoothnessEnergy();
+//		float mrf_time;
+//		mrf.optimize(10, mrf_time);
+//		printf("Inital energy: (%.3f,%.3f,%.3f), final energy: (%.3f,%.3f,%.3f), time:%.2fs\n", initDataE, initSmoothE, initDataE+initSmoothE,
+//		       mrf.dataEnergy(), mrf.smoothnessEnergy(), mrf.dataEnergy()+mrf.smoothnessEnergy(), mrf_time);
+//
+//		result = Mat(height, width, CV_8UC1);
+//		uchar* pResult = result.data;
+//		for(auto i=0; i<width*height; ++i){
+//			if(mrf.getLabel(i) > 0)
+//				pResult[i] = (uchar)255;
+//			else
+//				pResult[i] = (uchar)0;
+//		}
+//		delete dataCost;
+//		delete smoothnessCost;
+//		delete energy_function;
+//
+//	}
 
 }//namespace dynamic_stereo

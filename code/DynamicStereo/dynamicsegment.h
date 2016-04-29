@@ -14,24 +14,28 @@
 #include <glog/logging.h>
 #include "model.h"
 namespace dynamic_stereo {
-    class DynamicSegment {
+    class DynamicSegment{
     public:
         DynamicSegment(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_,
                        const std::vector<Depth>& depths_, const std::vector<int>& depthInd_);
 
 	    //void getGeometryConfidence(Depth& geoConf) const;
 
-	    void segment(const std::vector<cv::Mat>& warppedImg, cv::Mat& result) const;
-    private:
-		void computeFrequencyConfidence(const std::vector<cv::Mat>& warppedImg, Depth& result) const;
+	    void segmentFlashy(const std::vector<cv::Mat>& input, cv::Mat& result) const;
+		void segmentDisplay(const std::vector<cv::Mat>& input, cv::Mat& result) const;
 
+    private:
+		void computeColorConfidence(const std::vector<cv::Mat>& input, Depth& result) const;
+		void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result) const;
+
+		void getHistogram(const std::vector<cv::Vec3b>& samples, std::vector<double>& hist, const int nBin) const;
 	    void assignColorTerm(const std::vector<cv::Mat>& warped, const cv::Ptr<cv::ml::EM> fgModel, const cv::Ptr<cv::ml::EM> bgModel,
 							 std::vector<double>& colorTerm) const;
 
-		void solveMRF(const std::vector<double>& unary,
-					  const std::vector<double>& vCue, const std::vector<double>& hCue,
-					  const cv::Mat& img, const double weight_smooth,
-					  cv::Mat& result) const;
+//		void solveMRF(const std::vector<double>& unary,
+//					  const std::vector<double>& vCue, const std::vector<double>& hCue,
+//					  const cv::Mat& img, const double weight_smooth,
+//					  cv::Mat& result) const;
 
         const FileIO& file_io;
         SfMModel sfmModel;

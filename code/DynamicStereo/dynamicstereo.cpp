@@ -56,6 +56,10 @@ namespace dynamic_stereo{
 
 
 	void DynamicStereo::runStereo(const cv::Mat& inputMask, Depth& depth_firstOrder, cv::Mat& depthMask, bool dryrun) {
+
+		if(dryrun && dbtx < 0 && dbty < 0)
+			return;
+
 		char buffer[1024] = {};
 		initMRF();
 		for(auto y=0; y<height; ++y){

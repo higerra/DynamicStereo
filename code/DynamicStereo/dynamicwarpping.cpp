@@ -70,9 +70,11 @@ namespace dynamic_stereo {
                 imgpt /= (double) downsample;
                 int intx = round(imgpt[0]+0.5);
                 int inty = round(imgpt[1]+0.5);
-                if (curd > 0 && intx >= 0 && inty >= 0 && intx < w && inty < h) {
-                    if (zb(intx, inty) < 0 || (zb(intx, inty) >= 0 && curd <= zb(intx, inty)))
-                        zb(intx, inty) = curd;
+                if (curd > 0 && imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < w-1 && imgpt[1] < h-1) {
+                    if (zb(intx, inty) < 0 || (zb.getDepthAt(imgpt) >= 0 && curd <= zb.getDepthAt(imgpt))) {
+                        zb.setDepthAt(imgpt, curd);
+                        //zb(intx, inty) = curd;
+                    }
                 }
             }
         }
@@ -130,13 +132,13 @@ namespace dynamic_stereo {
 	    for(auto& t: threads)
 		    t.join();
 
-	    for(auto i=0; i<zBuffers.size(); ++i){
-		    sprintf(buffer, "%s/temp/zBufferb%05d_%05d.ply", file_io.getDirectory().c_str(), anchor, i+offset);
-		    Mat tex;
-		    cv::resize(images[i],tex,cv::Size(zBuffers[i].getWidth(), zBuffers[i].getHeight()));
-		    printf("Saving point cloud %d\n", i+offset);
-		    utility::saveDepthAsPly(string(buffer), zBuffers[i], tex, sfmModel.getCamera(i+offset), downsample);
-	    }
+//	    for(auto i=0; i<zBuffers.size(); ++i){
+//		    sprintf(buffer, "%s/temp/zBufferb%05d_%05d.ply", file_io.getDirectory().c_str(), anchor, i+offset);
+//		    Mat tex;
+//		    cv::resize(images[i],tex,cv::Size(zBuffers[i].getWidth(), zBuffers[i].getHeight()));
+//		    printf("Saving point cloud %d\n", i+offset);
+//		    utility::saveDepthAsPly(string(buffer), zBuffers[i], tex, sfmModel.getCamera(i+offset), downsample);
+//	    }
     }
 
     void DynamicWarpping::warpToAnchor(const cv::Mat &mask, std::vector<cv::Mat> &warpped,
@@ -231,11 +233,9 @@ namespace dynamic_stereo {
         for(int i=0; i<dimages.size(); ++i) {
             cout << i+offset << ' ' << flush;
             const theia::Camera& cam2 = sfmModel.getCamera(i+offset);
+            warped[i] = dimages[anchor-offset].clone();
             if(i == anchor - offset){
-                warped[i] = dimages[anchor-offset].clone();
                 continue;
-            }else{
-                warped[i] = Mat(dh,dw,CV_8UC3, Scalar(0,0,0));
             }
             for (int y = 0; y < dh; ++y) {
                 for (int x = 0; x < dw; ++x) {
