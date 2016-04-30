@@ -7,6 +7,7 @@
 #include <stlplus3/file_system.hpp>
 #include "dynamicwarpping.h"
 #include "dynamicsegment.h"
+#include "dynamicregularizer.h"
 
 using namespace std;
 using namespace cv;
@@ -158,6 +159,12 @@ int main(int argc, char **argv) {
 
 	warpping.reset();
 
+	//test for regularizer
+
+
+	vector<Mat> regulared;
+	dynamicRegularization(prewarp1, regulared, 0.5);
+	CHECK_EQ(regulared.size(), prewarp1.size());
 //	vector<Mat> warped_filtered;
 //	utility::temporalMedianFilter(warpped, warped_filtered, 2);
 
@@ -166,6 +173,8 @@ int main(int argc, char **argv) {
 //		imwrite(buffer, prewarp1[i]);
 		sprintf(buffer, "%s/temp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 		imwrite(buffer, prewarp1[i]);
+		sprintf(buffer, "%s/temp/prewarp_regularedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+		imwrite(buffer, regulared[i]);
 	}
 
 //
