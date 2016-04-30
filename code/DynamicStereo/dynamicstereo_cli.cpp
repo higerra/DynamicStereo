@@ -160,10 +160,11 @@ int main(int argc, char **argv) {
 	warpping.reset();
 
 	//test for regularizer
-
-
+	printf("Running regularizaion\n");
 	vector<Mat> regulared;
+	float reg_t = (float)cv::getTickCount();
 	dynamicRegularization(prewarp1, regulared, 0.5);
+	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
 	CHECK_EQ(regulared.size(), prewarp1.size());
 //	vector<Mat> warped_filtered;
 //	utility::temporalMedianFilter(warpped, warped_filtered, 2);
