@@ -21,12 +21,16 @@ namespace dynamic_stereo{
 	    for(auto i=0; i<input.size(); ++i)
 		    inputPtr[i] = input[i].data;
 
+	    //prepare output
+	    output.resize(input.size());
+	    for(auto& o: output)
+		    o = Mat(height, width, CV_8UC3, Scalar::all(0));
 	    const double huber_theta = 10;
         auto threadFun = [&](const int tid, const int num_thread){
-	        vector<vector<float> > DP(N);
+	        vector<vector<double> > DP(N);
 	        for(auto &d: DP)
 		        d.resize(256,0.0);
-	        vector<vector<unsigned int> > backTrack(N);
+	        vector<vector<int> > backTrack(N);
 	        for(auto& b: backTrack)
 		        b.resize(256, 0);
 
@@ -42,11 +46,24 @@ namespace dynamic_stereo{
 					        for (auto &bb: b)
 						        bb = 0;
 				        }
+				        //start DP
 				        for(auto p=0; p<256; ++p)
-					        DP[0][p] = (float)math_util::huberNorm((double)inputPtr[0][channel*(y*width+x)+c] - (double)p, huber_theta);
+					        DP[0][p] = math_util::huberNorm((double)inputPtr[0][channel*(y*width+x)+c] - (double)p, huber_theta);
 				        for(auto v=1; v<input.size(); ++v){
-
+					        for(auto p=0; p<256; ++p){
+						        DP[v][p] = numeric_limits<double>::max();
+						        double mdata = math_util::huberNorm((double)inputPtr[v][channel*(y*width+x)+c]-(double)p, huber_theta);
+						        for(auto pf=0; pf<256; ++pf){
+							        double curv = DP[v-1][pf] + mdata + math_util::huberNorm((double)pf-(double)p, huber_theta);
+							        if(curv < DP[v][p]){
+								        DP[v][p] = curv;
+								        backTrack[v][p] = pf;
+							        }
+						        }
+					        }
 				        }
+				        //back track
+				        
 			        }
 		        }
 	        }
