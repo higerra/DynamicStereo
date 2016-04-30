@@ -5,9 +5,10 @@ project(DynamicStereo)
 
 set(SOURCE_FILES dynamicstereo.cpp dynamicstereo_cli.cpp MRFDefinition.cpp warpping.cpp
         local_matcher.cpp optimization_firstorder.cpp dynamic_utility.cpp
-        dynamicwarpping.cpp dynamicsegment_flashy.cpp dynamicsegment_display.cpp)
+        dynamicwarpping.cpp dynamicsegment_flashy.cpp dynamicsegment_display.cpp
+        dynamicregularizer.cpp)
 set(HEADER_FILES dynamicstereo.h optimization.h local_matcher.h model.h dynamicsegment.h
-        dynamicwarpping.h dynamic_utility.h)
+        dynamicwarpping.h dynamic_utility.h dynamicregularizer.h)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/DynamicStereo)
 
 include_directories(/usr/local/include/eigen3 ${THEIA_INCLUDE_DIRS})

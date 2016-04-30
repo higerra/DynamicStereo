@@ -123,6 +123,13 @@ namespace math_util {
 		return std::exp(-1 * (v-m)*(v-m) / (2 * sigma * sigma));
 	}
 
+	inline double huberNorm(const double v, const double alpha){
+		if(std::abs(v) < alpha)
+			return 0.5 * v * v;
+		else
+			return alpha * (std::abs(v) - 0.5*alpha);
+	}
+
 
 
 }//namespace math_util

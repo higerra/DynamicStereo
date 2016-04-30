@@ -7,10 +7,12 @@
 
 #include <opencv2/opencv.hpp>
 #include <vector>
+#include <string>
+#include <glog/logging.h>
 
 namespace dynamic_stereo{
 
-    void dynamicRegularization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output);
+    void dynamicRegularization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double weight_smooth);
 
 }//namespace dynamic_stereo
 
