@@ -9,7 +9,6 @@ using namespace std;
 using namespace cv;
 
 namespace dynamic_stereo{
-
     void DynamicSegment::computeColorConfidence(const std::vector<cv::Mat> &input, Depth &result) const {
         //compute color difference pattern
         cout << "Computing dynamic confidence..." << endl;
@@ -87,12 +86,102 @@ namespace dynamic_stereo{
             h /= sum;
     }
 
-    void DynamicSegment::segmentDisplay(const std::vector<cv::Mat> &input, cv::Mat &result) const {
+    //estimate nLog value based on masked region (pedestrian...)
+    double DynamicSegment::computeNlogThreshold(const std::vector<cv::Mat> &input, const cv::Mat &inputMask, const int K) const {
         CHECK(!input.empty());
+        const int width = input[0].cols;
+        const int height = input[0].rows;
+        CHECK_EQ(inputMask.cols, width);
+        CHECK_EQ(inputMask.rows, height);
+        CHECK_EQ(inputMask.channels(), 1);
+
+        Mat mask = 255 - inputMask;
+        const uchar* pMask = mask.data;
+        //process inside patches. For each patch, randomly choose half pixels for negative samples
+        const int pR = 50;
+        const int fR = 5;
+        const double nRatio = 0.5;
+
+        double threshold = 0.0;
+        double count = 0.0;
+        Mat labels, stats, centroids;
+        const int nLabel = cv::connectedComponentsWithStats(mask, labels, stats, centroids);
+        const int min_area = 150;
+        const int min_kSample = 1000;
+
+        for(auto l=1; l<nLabel; ++l){
+            printf("Component %d/%d\n", l, nLabel-1);
+            const int area = stats.at<int>(l,CC_STAT_AREA);
+            if(area < min_area)
+                continue;
+            const int left = stats.at<int>(l,CC_STAT_LEFT);
+            const int top = stats.at<int>(l, CC_STAT_TOP);
+            const int comW = stats.at<int>(l, CC_STAT_WIDTH);
+            const int comH = stats.at<int>(l, CC_STAT_HEIGHT);
+
+            for(auto cy=top+pR; cy<top+comH-pR; cy+=pR){
+                for(auto cx=left+pR; cx<left+comW-pR; cx+=pR){
+                    vector<Vec3b> samples;
+
+                    for(auto x=cx-pR; x<=cx+pR; ++x){
+                        for(auto y=cy-pR; y<=cy+pR; ++y){
+                            if(x<0 || y<0 || x >=width || y>=height)
+                                continue;
+                            if(pMask[y*width+x] > 200){
+                                for(auto v=-1*fR; v<=fR; ++v)
+                                    samples.push_back(input[anchor-offset+v].at<Vec3b>(y,x));
+                            }
+                        }
+                    }
+                    if(samples.size() < min_kSample)
+                        continue;
+                    std::random_shuffle(samples.begin(), samples.end());
+                    const int boundry = (int)(samples.size() * nRatio);
+                    cv::Ptr<cv::ml::EM> gmmbg = cv::ml::EM::create();
+                    CHECK(gmmbg.get());
+                    gmmbg->setClustersNumber(K);
+                    Mat nSamples(boundry, 3, CV_64F);
+                    for(auto i=0; i<boundry; ++i){
+                        nSamples.at<double>(i,0) = (double)samples[i][0];
+                        nSamples.at<double>(i,1) = (double)samples[i][1];
+                        nSamples.at<double>(i,2) = (double)samples[i][2];
+                    }
+                    printf("Training at (%d,%d)... Number of samples: %d\n", cx, cy, boundry);
+                    gmmbg->trainEM(nSamples);
+
+                    double curnLog = 0.0;
+                    double curCount = 0.0;
+                    for(auto i=boundry; i<samples.size(); ++i){
+                        Mat s(1,3,CV_64F);
+                        for(auto j=0; j<3; ++j)
+                            s.at<double>(0,j) = (double)samples[i][j];
+                        Mat prob(1, gmmbg->getClustersNumber(), CV_64F);
+                        Vec2d pre = gmmbg->predict2(s, prob);
+                        curnLog -= pre[0];
+                        curCount += 1.0;
+                    }
+                    printf("Done, nLog: %.3f\n", curnLog/curCount);
+                    threshold += curnLog / curCount;
+                    count += 1.0;
+                }
+            }
+        }
+        CHECK_GT(count,0.9);
+        return threshold / count;
+    }
+
+    void DynamicSegment::segmentDisplay(const std::vector<cv::Mat> &input, const cv::Mat& inputMask, cv::Mat &result) const {
+        CHECK(!input.empty());
+        CHECK(inputMask.data);
+        CHECK_EQ(inputMask.channels(), 1);
         char buffer[1024] = {};
 
         const int width = input[0].cols;
         const int height = input[0].rows;
+
+        Mat segnetMask;
+        cv::resize(inputMask, segnetMask, cv::Size(width, height), INTER_NEAREST);
+
         result = Mat(height, width, CV_8UC1, Scalar::all(0));
 
         Depth dynamicness;
@@ -135,6 +224,10 @@ namespace dynamic_stereo{
         const int min_area = 150;
         const int* pLabel = (int*) labels.data;
         const int min_multi = 2;
+        const int kComponent = 3;
+        //compute nLog threshold
+        printf("Computing nLog threshold...\n");
+        //const double nLogThres = computeNlogThreshold(input, segnetMask, kComponent);
 
         Depth regionConfidence(width, height, 0.0);
         for(auto l=1; l<nLabel; ++l){
@@ -160,19 +253,20 @@ namespace dynamic_stereo{
                 }
                 if(nStatic > min_multi * area)
                     break;
-                br += 50;
+                br += 20;
             }
             printf("br:%d\n", br);
 
             //estimate foreground histogram and background histogram
-            vector<Vec3b> psample, nsample;
+            vector<Vec3b> nsample;
+            vector<vector<Vec3b> > psample(input.size());
             const int fR = 5;
             for(auto x=cx-br; x<=cx+br; ++x){
                 for(auto y=cy-br; y<=cy+br; ++y) {
                     if (x >= 0 && y >= 0 && x < width && y < height) {
                         if (regionCan.at<uchar>(y, x) > 200) {
                             for (auto v = 0; v < input.size(); ++v)
-                                psample.push_back(input[v].at<Vec3b>(y, x));
+                                psample[v].push_back(input[v].at<Vec3b>(y, x));
                         }
                         if (staticCan.at<uchar>(y, x) > 200) {
                             //for (auto v = 0; v < input.size(); ++v)
@@ -202,7 +296,7 @@ namespace dynamic_stereo{
 //                printf("%.3f ", histbg[i]);
 //            cout << endl;
 
-	        if(l == 6){
+	        if(l == -1){
 		        printf("Dummping out samples...\n");
 		        sprintf(buffer, "%s/temp/sample_train%05d_com%05d.txt", file_io.getDirectory().c_str(), anchor, l);
 		        ofstream fout(buffer);
@@ -214,11 +308,13 @@ namespace dynamic_stereo{
 		        fout.open(buffer);
 		        CHECK(fout.is_open());
 		        for(auto i=0; i<psample.size(); ++i)
-			        fout << (int)psample[i][0] << ' ' << (int)psample[i][1] << ' ' << (int)psample[i][2] << endl;
+                    for(auto j=0; j<psample[i].size(); ++j)
+                        fout << (int)psample[i][j][0] << ' ' << (int)psample[i][j][1] << ' ' << (int)psample[i][j][2] << endl;
 		        fout.close();
 	        }
 
             Ptr<cv::ml::EM> gmmbg = cv::ml::EM::create();
+            gmmbg->setClustersNumber(kComponent);
             Mat nsampleMat((int)nsample.size(), 3, CV_64F);
             for(auto i=0; i<nsample.size(); ++i){
                 nsampleMat.at<double>(i,0) = nsample[i][0];
@@ -234,21 +330,24 @@ namespace dynamic_stereo{
 		        printf("(%.2f,%.2f,%.2f)\n", means.at<double>(i,0), means.at<double>(i,1), means.at<double>(i,2));
 	        }
             printf("Done\n");
-            double pbg = 0.0;
+            vector<double> pnLogs(psample.size());
             for(auto i=0; i<psample.size(); ++i){
-                Mat sample(1,3, CV_64F);
-                Mat prob(1, gmmbg->getClustersNumber(), CV_64F);
-                sample.at<double>(0,0) = (double)psample[i][0];
-                sample.at<double>(0,1) = (double)psample[i][1];
-                sample.at<double>(0,2) = (double)psample[i][2];
-                Vec2d pre = gmmbg->predict2(sample, prob);
-                pbg += pre[0];
+                double pbg = 0.0;
+                for(auto j=0; j<psample[i].size(); ++j) {
+                    Mat sample(1, 3, CV_64F);
+                    Mat prob(1, gmmbg->getClustersNumber(), CV_64F);
+                    sample.at<double>(0, 0) = (double) psample[i][j][0];
+                    sample.at<double>(0, 1) = (double) psample[i][j][1];
+                    sample.at<double>(0, 2) = (double) psample[i][j][2];
+                    Vec2d pre = gmmbg->predict2(sample, prob);
+                    pbg -= pre[0];
+                }
+                pnLogs[i] = pbg / (double)psample[i].size();
             }
-
-            pbg /= (double)psample.size();
-            printf("Probability of being background: %.3f\n", pbg);
-
-            if(pbg < -15){
+            const size_t pProbth = pnLogs.size() * 0.8;
+            nth_element(pnLogs.begin(), pnLogs.begin()+pProbth, pnLogs.end());
+            printf("Probability of being background: %.3f\n", pnLogs[pProbth]);
+            if(pnLogs[pProbth] > 16){
                 for(auto i=0; i<width * height; ++i){
                     if(pLabel[i] == l)
                         result.data[i] = 255;

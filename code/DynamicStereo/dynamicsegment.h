@@ -22,11 +22,14 @@ namespace dynamic_stereo {
 	    //void getGeometryConfidence(Depth& geoConf) const;
 
 	    void segmentFlashy(const std::vector<cv::Mat>& input, cv::Mat& result) const;
-		void segmentDisplay(const std::vector<cv::Mat>& input, cv::Mat& result) const;
+		void segmentDisplay(const std::vector<cv::Mat>& input, const cv::Mat& segnetMask, cv::Mat& result) const;
 
     private:
 		void computeColorConfidence(const std::vector<cv::Mat>& input, Depth& result) const;
 		void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result) const;
+
+		//compute threshold for nlog
+		double computeNlogThreshold(const std::vector<cv::Mat>& input, const cv::Mat& inputMask, const int K) const;
 
 		void getHistogram(const std::vector<cv::Vec3b>& samples, std::vector<double>& hist, const int nBin) const;
 	    void assignColorTerm(const std::vector<cv::Mat>& warped, const cv::Ptr<cv::ml::EM> fgModel, const cv::Ptr<cv::ml::EM> bgModel,

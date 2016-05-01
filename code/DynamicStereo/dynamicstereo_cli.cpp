@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
 //	sprintf(buffer, "%s/temp/geoConf%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 //	geoConf.saveImage(string(buffer), 5.0);
 //	segment->segment(warpped, seg_result);
-	segment->segmentDisplay(prewarp1, seg_result_small);
+	segment->segmentDisplay(prewarp1, segMask, seg_result_small);
 	segment.reset();
 	Mat seg_result;
 	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);

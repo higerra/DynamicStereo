@@ -138,14 +138,17 @@ namespace dynamic_stereo{
 		Depth result_firstOrder;
 		optimizer_firstorder.optimize(result_firstOrder, 100);
 
-		for(auto y=0; y<height; ++y) {
-			for (auto x = 0; x < width; ++x) {
-				if (stereoMask.at<uchar>(y, x) < 200) {
-					result_firstOrder(x, y) = 0;
-					continue;
-				}
-			}
-		}
+		sprintf(buffer, "%s/temp/disparity%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		result_firstOrder.saveImage(string(buffer), 256.0/(double)dispResolution);
+
+//		for(auto y=0; y<height; ++y) {
+//			for (auto x = 0; x < width; ++x) {
+//				if (stereoMask.at<uchar>(y, x) < 200) {
+//					result_firstOrder(x, y) = 0;
+//					continue;
+//				}
+//			}
+//		}
 
 //		Depth depth_firstOrder;
 		printf("Saving depth to point cloud...\n");
