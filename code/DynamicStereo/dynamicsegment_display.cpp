@@ -102,7 +102,7 @@ namespace dynamic_stereo{
         sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
         dynamicness.saveImage(string(buffer));
 
-        const double dynamic_thres = dynamicness.getAverageDepth() + 3 * dynamicness.getDepthVariance();
+        const double dynamic_thres = dynamicness.getAverageDepth() + 2 * dynamicness.getDepthVariance();
         const double static_thres = dynamicness.getAverageDepth();
 
         printf("Dynamic threshold: %.3f\n", dynamic_thres);
@@ -202,6 +202,22 @@ namespace dynamic_stereo{
 //                printf("%.3f ", histbg[i]);
 //            cout << endl;
 
+	        if(l == 6){
+		        printf("Dummping out samples...\n");
+		        sprintf(buffer, "%s/temp/sample_train%05d_com%05d.txt", file_io.getDirectory().c_str(), anchor, l);
+		        ofstream fout(buffer);
+		        CHECK(fout.is_open());
+		        for(auto i=0; i<nsample.size(); ++i)
+			        fout << (int)nsample[i][0] << ' ' << (int)nsample[i][1] << ' ' << (int)nsample[i][2] << endl;
+		        fout.close();
+		        sprintf(buffer, "%s/temp/sample_test%05d_com%05d.txt", file_io.getDirectory().c_str(), anchor, l);
+		        fout.open(buffer);
+		        CHECK(fout.is_open());
+		        for(auto i=0; i<psample.size(); ++i)
+			        fout << (int)psample[i][0] << ' ' << (int)psample[i][1] << ' ' << (int)psample[i][2] << endl;
+		        fout.close();
+	        }
+
             Ptr<cv::ml::EM> gmmbg = cv::ml::EM::create();
             Mat nsampleMat((int)nsample.size(), 3, CV_64F);
             for(auto i=0; i<nsample.size(); ++i){
@@ -211,6 +227,12 @@ namespace dynamic_stereo{
             }
             printf("Training local background color model, number of samples:%d...\n", nsampleMat.rows);
             gmmbg->trainEM(nsampleMat);
+
+	        printf("Done. Means of component gaussian models:\n");
+	        Mat means = gmmbg->getMeans();
+	        for(auto i=0; i<means.rows; ++i){
+		        printf("(%.2f,%.2f,%.2f)\n", means.at<double>(i,0), means.at<double>(i,1), means.at<double>(i,2));
+	        }
             printf("Done\n");
             double pbg = 0.0;
             for(auto i=0; i<psample.size(); ++i){
