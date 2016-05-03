@@ -225,7 +225,7 @@ namespace dynamic_stereo{
         const int min_area = 300;
         const int fR = 10;
         const int* pLabel = (int*) labels.data;
-        const int min_multi = 1;
+        const int min_multi = 2;
         const int kComponent = 5;
         const int min_nSample = 1000;
 
@@ -235,7 +235,7 @@ namespace dynamic_stereo{
         const double nLogThres = 20;
         //const double probThres = 0.2;
 
-        const int testL = -1;
+        const int testL = 36;
 
         Depth regionConfidence(width, height, 0.0);
         for(auto l=1; l<nLabel; ++l){
