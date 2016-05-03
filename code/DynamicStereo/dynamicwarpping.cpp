@@ -210,16 +210,24 @@ namespace dynamic_stereo {
     void DynamicWarpping::preWarping(const cv::Mat &mask, std::vector<cv::Mat> &warped) const {
 
         vector<Mat> dimages(images.size());
+        const int nLevel = (int)std::log2((double)downsample) + 1;
         for(auto i=0; i<images.size(); ++i){
-            const int nLevel = (int)std::log2((double)downsample) + 1;
             vector<Mat> pyramid(nLevel);
             pyramid[0] = images[i].clone();
             for(auto k=1; k<nLevel; ++k)
                 pyrDown(pyramid[k-1], pyramid[k]);
             dimages[i] = pyramid.back().clone();
+            for(auto y=0; y<dimages[i].rows; ++y){
+                for(auto x=0; x<dimages[i].cols; ++x){
+                    if(dimages[i].at<Vec3b>(y,x) == Vec3b(0,0,0))
+                        dimages[i].at<Vec3b>(y,x) = Vec3b(1,1,1);
+                }
+            }
         }
         const int dw = dimages[0].cols;
         const int dh = dimages[0].rows;
+        CHECK_EQ(refDepth.getWidth(), dw);
+        CHECK_EQ(refDepth.getHeight(), dh);
 
         Mat maskd;
         cv::resize(mask, maskd, cv::Size(dw, dh), 0, 0, INTER_NEAREST);
@@ -253,12 +261,15 @@ namespace dynamic_stereo {
                         if(zDepth > 0){
                             double curdisp = depthToDisp(curd, min_depths[i], max_depths[i]);
                             double zdisp = depthToDisp(zDepth, min_depths[i], max_depths[i]);
-                            if(zdisp - curdisp >= disparity_margin)
-                                continue;
-                        }else
-                            continue;
-                        Vector3d pix2 = interpolation_util::bilinear<uchar,3>(dimages[i].data, dw, dh, imgpt);
-                        warped[i].at<Vec3b>(y,x) = Vec3b((uchar)pix2[0], (uchar)pix2[1], (uchar)pix2[2]);
+                            if(zdisp - curdisp >= disparity_margin) {
+                                warped[i].at<Vec3b>(y,x) = Vec3b(0,0,0);
+                            }else{
+                                Vector3d pix2 = interpolation_util::bilinear<uchar,3>(dimages[i].data, dw, dh, imgpt);
+                                warped[i].at<Vec3b>(y,x) = Vec3b((uchar)pix2[0], (uchar)pix2[1], (uchar)pix2[2]);
+                            }
+                        }else {
+                            warped[i].at<Vec3b>(y,x) = Vec3b(0,0,0);
+                        }
                     }
                 }
             }

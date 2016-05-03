@@ -47,7 +47,7 @@ namespace dynamic_stereo{
                     }
                     if (count < 1)
                         continue;
-                    const size_t kth = colorDiff.size() * 0.8;
+                    const size_t kth = colorDiff.size() * 0.9;
 //				sort(colorDiff.begin(), colorDiff.end(), std::less<double>());
                     nth_element(colorDiff.begin(), colorDiff.begin() + kth, colorDiff.end());
 //				dynamicness(x,y) = accumulate(colorDiff.begin(), colorDiff.end(), 0.0) / count;
@@ -223,14 +223,17 @@ namespace dynamic_stereo{
         Mat labels, stats, centroid;
         int nLabel = cv::connectedComponentsWithStats(regionCan, labels, stats, centroid);
         const int min_area = 300;
+        const int fR = 10;
         const int* pLabel = (int*) labels.data;
-        const int min_multi = 2;
+        const int min_multi = 1;
         const int kComponent = 5;
+        const int min_nSample = 1000;
+
         //compute nLog threshold
         printf("Computing nLog threshold...\n");
         //const double nLogThres = computeNlogThreshold(input, segnetMask, kComponent);
-        //const double nLogThres = 17;
-        const double probThres = 0.2;
+        const double nLogThres = 20;
+        //const double probThres = 0.2;
 
         const int testL = -1;
 
@@ -260,7 +263,7 @@ namespace dynamic_stereo{
                 for(auto x=cx-br; x<=cx+br; ++x){
                     for(auto y=cy-br; y<=cy+br; ++y){
                         if(x >= 0 && x < width && y >= 0 && y < height) {
-                            if (dynamicness(x, y) < static_thres)
+                            if (staticCan.at<uchar>(x, y) > 200)
                                 nStatic += 1.0;
                         }
                     }
@@ -274,23 +277,30 @@ namespace dynamic_stereo{
             //estimate foreground histogram and background histogram
             vector<Vec3b> nsample;
             vector<vector<Vec3b> > psample(input.size());
-            const int fR = 5;
+
             for(auto x=cx-br; x<=cx+br; ++x){
                 for(auto y=cy-br; y<=cy+br; ++y) {
                     if (x >= 0 && y >= 0 && x < width && y < height) {
-                        if (regionCan.at<uchar>(y, x) > 200) {
-                            for (auto v = 0; v < input.size(); ++v)
-                                psample[v].push_back(input[v].at<Vec3b>(y, x));
+                        if (labels.at<int>(y,x) == l) {
+                            for (auto v = 0; v < input.size(); ++v) {
+                                Vec3b pix = input[v].at<Vec3b>(y,x);
+                                if(pix != Vec3b(0,0,0))
+                                    psample[v].push_back(pix);
+                            }
                         }
                         if (staticCan.at<uchar>(y, x) > 200) {
                             //for (auto v = 0; v < input.size(); ++v)
-                            for(auto v=-1*fR; v<=fR; ++v)
-                                nsample.push_back(input[anchor-offset+v].at<Vec3b>(y, x));
+                            for(auto v=-1*fR; v<=fR; ++v) {
+                                Vec3b pix = input[anchor - offset + v].at<Vec3b>(y, x);
+                                if(pix != Vec3b(0,0,0))
+                                    nsample.push_back(pix);
+                            }
                         }
                     }
                 }
             }
-
+            if(nsample.size() < min_nSample)
+                continue;
 //            const int nBin = 4;
 //            vector<double> histfg, histbg;
 //            getHistogram(psample, histfg, nBin);
@@ -310,18 +320,23 @@ namespace dynamic_stereo{
 //                printf("%.3f ", histbg[i]);
 //            cout << endl;
 
-            Mat tempMat = input[anchor-offset].clone();
-            cv::rectangle(tempMat, cv::Point(cx-br,cy-br), cv::Point(cx+br, cy+br), cv::Scalar(0,0,255));
-            sprintf(buffer, "%s/temp/sample_region%05d_com%05d.jpg", file_io.getDirectory().c_str(), anchor, l);
-            imwrite(buffer, tempMat);
 
             if(l == testL){
-		        printf("Dummping out samples...\n");
-                Mat tempMat = input[anchor-offset].clone();
-                cv::rectangle(tempMat, cv::Point(cx-br,cy-br), cv::Point(cx+br, cy+br), cv::Scalar(0,0,255));
-                sprintf(buffer, "%s/temp/sample_region%05d_com%05d.jpg", file_io.getDirectory().c_str(), anchor, l);
-                imwrite(buffer, tempMat);
+                for(auto v=-1*fR; v<=fR; ++v) {
+                    Mat tempMat = input[anchor - offset+v].clone();
+                    for (auto y = 0; y < height; ++y) {
+                        for (auto x = 0; x < width; ++x) {
+                            if (labels.at<int>(y, x) == l)
+                                tempMat.at<Vec3b>(y, x) = tempMat.at<Vec3b>(y, x) * 0.4 + Vec3b(0, 0, 255) * 0.6;
+                        }
+                    }
+                    cv::rectangle(tempMat, cv::Point(cx - br, cy - br), cv::Point(cx + br, cy + br),
+                                  cv::Scalar(0, 0, 255));
+                    sprintf(buffer, "%s/temp/sample_region%05d_com%d_f%05d.jpg", file_io.getDirectory().c_str(), anchor, l, anchor-offset+v);
+                    imwrite(buffer, tempMat);
+                }
 
+                printf("Dummping out samples...\n");
 		        sprintf(buffer, "%s/temp/sample_train%05d_com%05d.txt", file_io.getDirectory().c_str(), anchor, l);
 		        ofstream fout(buffer);
 		        CHECK(fout.is_open());
@@ -347,15 +362,26 @@ namespace dynamic_stereo{
             }
             printf("Training local background color model, number of samples:%d...\n", nsampleMat.rows);
             gmmbg->trainEM(nsampleMat);
-	        printf("Done. Means of component gaussian models:\n");
+	        printf("Done.\n");
 	        Mat means = gmmbg->getMeans();
             Mat weights = gmmbg->getWeights();
             const double* pGmmWeights = (double*) weights.data;
-
+            printf("Means of component gaussian models:\n");
 	        for(auto i=0; i<means.rows; ++i){
 		        printf("(%.2f,%.2f,%.2f)\n", means.at<double>(i,0), means.at<double>(i,1), means.at<double>(i,2));
 	        }
-            printf("Done\n");
+            printf("Weights of components:\n");
+            for(auto i=0; i<gmmbg->getClustersNumber(); ++i)
+                printf("%.2f ", pGmmWeights[i]);
+            printf("\n");
+
+            if(l == testL){
+                Mat toysample(1,3,CV_64F, cv::Scalar::all((uchar)100));
+                Mat toyProb(1,gmmbg->getClustersNumber(), CV_64F, cv::Scalar::all(0));
+                Vec2d toyRes = gmmbg->predict2(toysample, toyProb);
+                printf("nLog for toy example: %.3f\n", -1 * toyRes[0]);
+            }
+
             vector<double> pnLogs(psample.size());
             for(auto i=0; i<psample.size(); ++i){
                 double pbg = 0.0;
@@ -366,19 +392,24 @@ namespace dynamic_stereo{
                     sample.at<double>(0, 1) = (double) psample[i][j][1];
                     sample.at<double>(0, 2) = (double) psample[i][j][2];
                     Vec2d pre = gmmbg->predict2(sample, prob);
-                    double curProb = 0.0;
-                    for(auto clu=0; clu<gmmbg->getClustersNumber(); ++clu){
-                        curProb += prob.at<double>(0, clu) * pGmmWeights[clu];
-                    }
-                    //pbg -= pre[0];
-                    pbg += curProb;
+//                    double curProb = 0.0;
+//                    for(auto clu=0; clu<gmmbg->getClustersNumber(); ++clu){
+//                        curProb += prob.at<double>(0, clu) * pGmmWeights[clu];
+//                    }
+                    pbg -= pre[0];
+//                    pbg += curProb;
                 }
                 pnLogs[i] = pbg / (double)psample[i].size();
+                if(l == testL){
+                    printf("frame %d(%d), num: %d, value: %.3f\n", i+offset, i, (int)psample[i].size(), pnLogs[i]);
+                }
             }
-            const size_t pProbth = pnLogs.size() * 0.8;
+            const size_t pProbth = pnLogs.size() * 0.9;
             nth_element(pnLogs.begin(), pnLogs.begin()+pProbth, pnLogs.end());
-            printf("Probability: %.3f\n", pnLogs[pProbth]);
-            if(pnLogs[pProbth] < probThres ){
+            //const double res = *max_element(pnLogs.begin(), pnLogs.end());
+            const double res = pnLogs[pProbth];
+            printf("result: %.3f\n", res);
+            if(res > nLogThres ){
                 for(auto i=0; i<width * height; ++i){
                     if(pLabel[i] == l)
                         result.data[i] = 255;

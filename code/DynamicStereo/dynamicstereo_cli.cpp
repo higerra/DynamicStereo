@@ -52,26 +52,28 @@ int main(int argc, char **argv) {
 	const int height = refImage.rows;
 
 	//segnet mask for reference frame
-	sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	Mat segMaskImg = imread(buffer);
-	CHECK(segMaskImg.data) << buffer;
-	cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0, INTER_NEAREST);
-	//vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192), Vec3b(128,128,128), Vec3b(0,128,128)};
-	vector<Vec3b> invalidColor{Vec3b(128,0,64), Vec3b(128,64,128), Vec3b(0,64,64), Vec3b(222,40,60)};
-	Mat segMask(height, width, CV_8UC1, Scalar(255));
-	for(auto y=0; y<height; ++y){
-		for(auto x=0; x<width; ++x){
-			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
-			if(std::find(invalidColor.begin(), invalidColor.end(), pix) < invalidColor.end())
-				segMask.at<uchar>(y,x) = 0;
-		}
-	}
-	Mat segnetOverlay;
-	cv::addWeighted(refImage, 0.4, segMaskImg, 0.6, 0.0, segnetOverlay);
-	sprintf(buffer, "%s/temp/segnetOverlay%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	imwrite(buffer, segnetOverlay);
-	sprintf(buffer, "%s/temp/segnetMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	imwrite(buffer, segMask);
+//	sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//	Mat segMaskImg = imread(buffer);
+//	CHECK(segMaskImg.data) << buffer;
+//	cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0, INTER_NEAREST);
+//	//vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192), Vec3b(128,128,128), Vec3b(0,128,128)};
+//	vector<Vec3b> invalidColor{Vec3b(128,0,64), Vec3b(128,64,128), Vec3b(0,64,64), Vec3b(222,40,60)};
+//	Mat segMask(height, width, CV_8UC1, Scalar(255));
+//	for(auto y=0; y<height; ++y){
+//		for(auto x=0; x<width; ++x){
+//			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
+//			if(std::find(invalidColor.begin(), invalidColor.end(), pix) < invalidColor.end())
+//				segMask.at<uchar>(y,x) = 0;
+//		}
+//	}
+//	Mat segnetOverlay;
+//	cv::addWeighted(refImage, 0.4, segMaskImg, 0.6, 0.0, segnetOverlay);
+//	sprintf(buffer, "%s/temp/segnetOverlay%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//	imwrite(buffer, segnetOverlay);
+//	sprintf(buffer, "%s/temp/segnetMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//	imwrite(buffer, segMask);
+
+	Mat segMask = Mat(height, width, CV_8UC1, Scalar(255));
 
 	int refId;
 	//run stereo
@@ -174,6 +176,7 @@ int main(int argc, char **argv) {
 //		imwrite(buffer, prewarp1[i]);
 		sprintf(buffer, "%s/temp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 		imwrite(buffer, prewarp1[i]);
+
 //		sprintf(buffer, "%s/temp/prewarp_regularedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 //		imwrite(buffer, regulared[i]);
 	}
