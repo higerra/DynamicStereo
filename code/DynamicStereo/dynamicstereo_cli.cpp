@@ -52,28 +52,28 @@ int main(int argc, char **argv) {
 	const int height = refImage.rows;
 
 	//segnet mask for reference frame
-//	sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//	Mat segMaskImg = imread(buffer);
-//	CHECK(segMaskImg.data) << buffer;
-//	cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0, INTER_NEAREST);
-//	//vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192), Vec3b(128,128,128), Vec3b(0,128,128)};
-//	vector<Vec3b> invalidColor{Vec3b(128,0,64), Vec3b(128,64,128), Vec3b(0,64,64), Vec3b(222,40,60)};
-//	Mat segMask(height, width, CV_8UC1, Scalar(255));
-//	for(auto y=0; y<height; ++y){
-//		for(auto x=0; x<width; ++x){
-//			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
-//			if(std::find(invalidColor.begin(), invalidColor.end(), pix) < invalidColor.end())
-//				segMask.at<uchar>(y,x) = 0;
-//		}
-//	}
-//	Mat segnetOverlay;
-//	cv::addWeighted(refImage, 0.4, segMaskImg, 0.6, 0.0, segnetOverlay);
-//	sprintf(buffer, "%s/temp/segnetOverlay%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//	imwrite(buffer, segnetOverlay);
-//	sprintf(buffer, "%s/temp/segnetMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//	imwrite(buffer, segMask);
+	sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	Mat segMaskImg = imread(buffer);
+	CHECK(segMaskImg.data) << buffer;
+	cv::resize(segMaskImg, segMaskImg, cv::Size(width, height), 0,0, INTER_NEAREST);
+	//vector<Vec3b> validColor{Vec3b(0,0,128), Vec3b(128,192,192), Vec3b(128,128,192), Vec3b(128,128,128), Vec3b(0,128,128)};
+	vector<Vec3b> invalidColor{Vec3b(128,0,64), Vec3b(128,64,128), Vec3b(0,64,64), Vec3b(222,40,60)};
+	Mat segMask(height, width, CV_8UC1, Scalar(255));
+	for(auto y=0; y<height; ++y){
+		for(auto x=0; x<width; ++x){
+			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
+			if(std::find(invalidColor.begin(), invalidColor.end(), pix) < invalidColor.end())
+				segMask.at<uchar>(y,x) = 0;
+		}
+	}
+	Mat segnetOverlay;
+	cv::addWeighted(refImage, 0.4, segMaskImg, 0.6, 0.0, segnetOverlay);
+	sprintf(buffer, "%s/temp/segnetOverlay%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	imwrite(buffer, segnetOverlay);
+	sprintf(buffer, "%s/temp/segnetMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	imwrite(buffer, segMask);
 
-	Mat segMask = Mat(height, width, CV_8UC1, Scalar(255));
+//	Mat segMask = Mat(height, width, CV_8UC1, Scalar(255));
 
 	int refId;
 	//run stereo
@@ -152,8 +152,9 @@ int main(int argc, char **argv) {
 
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();
-//	vector<Mat> warpped;
-//	warpping->warpToAnchor(warpMask, warpped, false);
+
+	vector<Mat> warpped;
+	warpping->warpToAnchor(warpMask, warpped, false);
 
 	vector<Mat> prewarp1, prewarp;
 	warpping->preWarping(warpMask, prewarp1);
@@ -207,19 +208,19 @@ int main(int argc, char **argv) {
 	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 	imwrite(buffer, seg_overlay);
 
-//	for(auto i=0; i<warpped.size(); ++i){
-//		for(auto y=0; y<height; ++y){
-//			for(auto x=0; x<width; ++x){
-//				if(seg_result.at<uchar>(y,x) < 200){
-//					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
-//				}
-//			}
-//		}
-//	}
-//
-//	for(auto i=0; i<warpped.size(); ++i){
-//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-//		imwrite(buffer, warpped[i]);
-//	}
+	for(auto i=0; i<warpped.size(); ++i){
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				if(seg_result.at<uchar>(y,x) < 200){
+					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
+				}
+			}
+		}
+	}
+
+	for(auto i=0; i<warpped.size(); ++i){
+		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+		imwrite(buffer, warpped[i]);
+	}
 	return 0;
 }

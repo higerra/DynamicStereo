@@ -47,7 +47,7 @@ namespace dynamic_stereo{
                     }
                     if (count < 1)
                         continue;
-                    const size_t kth = colorDiff.size() * 0.9;
+                    const size_t kth = colorDiff.size() * 0.95;
 //				sort(colorDiff.begin(), colorDiff.end(), std::less<double>());
                     nth_element(colorDiff.begin(), colorDiff.begin() + kth, colorDiff.end());
 //				dynamicness(x,y) = accumulate(colorDiff.begin(), colorDiff.end(), 0.0) / count;
@@ -228,14 +228,15 @@ namespace dynamic_stereo{
         const int min_multi = 2;
         const int kComponent = 5;
         const int min_nSample = 1000;
+        const double max_areagain = 3.0;
 
         //compute nLog threshold
         printf("Computing nLog threshold...\n");
         //const double nLogThres = computeNlogThreshold(input, segnetMask, kComponent);
-        const double nLogThres = 20;
+        //const double nLogThres = 20;
         //const double probThres = 0.2;
 
-        const int testL = 36;
+        const int testL = -1;
 
         Depth regionConfidence(width, height, 0.0);
         for(auto l=1; l<nLabel; ++l){
@@ -256,165 +257,32 @@ namespace dynamic_stereo{
             if(area < min_area)
                 continue;
 
-            int br = std::max(stats.at<int>(l,CC_STAT_WIDTH)/2, stats.at<int>(l,CC_STAT_HEIGHT)/2);
-            printf("Init br: %d\n", br);
-            while(br < 500){
-                double nStatic = 0.0;
-                for(auto x=cx-br; x<=cx+br; ++x){
-                    for(auto y=cy-br; y<=cy+br; ++y){
-                        if(x >= 0 && x < width && y >= 0 && y < height) {
-                            if (staticCan.at<uchar>(x, y) > 200)
-                                nStatic += 1.0;
-                        }
-                    }
-                }
-                if(nStatic > min_multi * area)
-                    break;
-                br += 5;
-            }
-            printf("br:%d\n", br);
-
-            //estimate foreground histogram and background histogram
-            vector<Vec3b> nsample;
-            vector<vector<Vec3b> > psample(input.size());
-
-            for(auto x=cx-br; x<=cx+br; ++x){
-                for(auto y=cy-br; y<=cy+br; ++y) {
-                    if (x >= 0 && y >= 0 && x < width && y < height) {
-                        if (labels.at<int>(y,x) == l) {
-                            for (auto v = 0; v < input.size(); ++v) {
-                                Vec3b pix = input[v].at<Vec3b>(y,x);
-                                if(pix != Vec3b(0,0,0))
-                                    psample[v].push_back(pix);
-                            }
-                        }
-                        if (staticCan.at<uchar>(y, x) > 200) {
-                            //for (auto v = 0; v < input.size(); ++v)
-                            for(auto v=-1*fR; v<=fR; ++v) {
-                                Vec3b pix = input[anchor - offset + v].at<Vec3b>(y, x);
-                                if(pix != Vec3b(0,0,0))
-                                    nsample.push_back(pix);
-                            }
-                        }
-                    }
-                }
-            }
-            if(nsample.size() < min_nSample)
-                continue;
-//            const int nBin = 4;
-//            vector<double> histfg, histbg;
-//            getHistogram(psample, histfg, nBin);
-//            getHistogram(nsample, histbg, nBin);
-//            CHECK_EQ(histfg.size(), histbg.size());
-//            //calculate distance between histogram
-//            double disHist = 0.0;
-//            for(auto i=0; i<histfg.size(); ++i)
-//                disHist += (histfg[i]-histbg[i]) * (histfg[i]-histbg[i]);
-//
-//            printf("disHist: %.3f\n", disHist);
-//            cout << "Histogram:" << endl;
-//            for(auto i=0; i<histfg.size(); ++i)
-//                printf("%.3f ", histfg[i]);
-//            cout << endl;
-//            for(auto i=0; i<histfg.size(); ++i)
-//                printf("%.3f ", histbg[i]);
-//            cout << endl;
-
-
             if(l == testL){
-                for(auto v=-1*fR; v<=fR; ++v) {
-                    Mat tempMat = input[anchor - offset+v].clone();
-                    for (auto y = 0; y < height; ++y) {
-                        for (auto x = 0; x < width; ++x) {
-                            if (labels.at<int>(y, x) == l)
-                                tempMat.at<Vec3b>(y, x) = tempMat.at<Vec3b>(y, x) * 0.4 + Vec3b(0, 0, 255) * 0.6;
-                        }
+                Mat tempMat = input[anchor-offset].clone();
+                for(auto y=0; y<height; ++y){
+                    for(auto x=0; x<width; ++x){
+                        if(pLabel[y*width+x] == l)
+                            tempMat.at<Vec3b>(y,x) = tempMat.at<Vec3b>(y,x) * 0.5 + Vec3b(0,0,128);
+                        else
+                            tempMat.at<Vec3b>(y,x) = tempMat.at<Vec3b>(y,x) * 0.5 + Vec3b(128,0,0);
                     }
-                    cv::rectangle(tempMat, cv::Point(cx - br, cy - br), cv::Point(cx + br, cy + br),
-                                  cv::Scalar(0, 0, 255));
-                    sprintf(buffer, "%s/temp/sample_region%05d_com%d_f%05d.jpg", file_io.getDirectory().c_str(), anchor, l, anchor-offset+v);
-                    imwrite(buffer, tempMat);
                 }
-
-                printf("Dummping out samples...\n");
-		        sprintf(buffer, "%s/temp/sample_train%05d_com%05d.txt", file_io.getDirectory().c_str(), anchor, l);
-		        ofstream fout(buffer);
-		        CHECK(fout.is_open());
-		        for(auto i=0; i<nsample.size(); ++i)
-			        fout << (int)nsample[i][0] << ' ' << (int)nsample[i][1] << ' ' << (int)nsample[i][2] << endl;
-		        fout.close();
-		        sprintf(buffer, "%s/temp/sample_test%05d_com%05d.txt", file_io.getDirectory().c_str(), anchor, l);
-		        fout.open(buffer);
-		        CHECK(fout.is_open());
-		        for(auto i=0; i<psample.size(); ++i)
-                    for(auto j=0; j<psample[i].size(); ++j)
-                        fout << (int)psample[i][j][0] << ' ' << (int)psample[i][j][1] << ' ' << (int)psample[i][j][2] << endl;
-		        fout.close();
-	        }
-
-            Ptr<cv::ml::EM> gmmbg = cv::ml::EM::create();
-            gmmbg->setClustersNumber(kComponent);
-            Mat nsampleMat((int)nsample.size(), 3, CV_64F);
-            for(auto i=0; i<nsample.size(); ++i){
-                nsampleMat.at<double>(i,0) = nsample[i][0];
-                nsampleMat.at<double>(i,1) = nsample[i][1];
-                nsampleMat.at<double>(i,2) = nsample[i][2];
-            }
-            printf("Training local background color model, number of samples:%d...\n", nsampleMat.rows);
-            gmmbg->trainEM(nsampleMat);
-	        printf("Done.\n");
-	        Mat means = gmmbg->getMeans();
-            Mat weights = gmmbg->getWeights();
-            const double* pGmmWeights = (double*) weights.data;
-            printf("Means of component gaussian models:\n");
-	        for(auto i=0; i<means.rows; ++i){
-		        printf("(%.2f,%.2f,%.2f)\n", means.at<double>(i,0), means.at<double>(i,1), means.at<double>(i,2));
-	        }
-            printf("Weights of components:\n");
-            for(auto i=0; i<gmmbg->getClustersNumber(); ++i)
-                printf("%.2f ", pGmmWeights[i]);
-            printf("\n");
-
-            if(l == testL){
-                Mat toysample(1,3,CV_64F, cv::Scalar::all((uchar)100));
-                Mat toyProb(1,gmmbg->getClustersNumber(), CV_64F, cv::Scalar::all(0));
-                Vec2d toyRes = gmmbg->predict2(toysample, toyProb);
-                printf("nLog for toy example: %.3f\n", -1 * toyRes[0]);
+                sprintf(buffer, "%s/temp/component%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, l);
+                imwrite(buffer, tempMat);
             }
 
-            vector<double> pnLogs(psample.size());
-            for(auto i=0; i<psample.size(); ++i){
-                double pbg = 0.0;
-                for(auto j=0; j<psample[i].size(); ++j) {
-                    Mat sample(1, 3, CV_64F);
-                    Mat prob(1, gmmbg->getClustersNumber(), CV_64F);
-                    sample.at<double>(0, 0) = (double) psample[i][j][0];
-                    sample.at<double>(0, 1) = (double) psample[i][j][1];
-                    sample.at<double>(0, 2) = (double) psample[i][j][2];
-                    Vec2d pre = gmmbg->predict2(sample, prob);
-//                    double curProb = 0.0;
-//                    for(auto clu=0; clu<gmmbg->getClustersNumber(); ++clu){
-//                        curProb += prob.at<double>(0, clu) * pGmmWeights[clu];
-//                    }
-                    pbg -= pre[0];
-//                    pbg += curProb;
-                }
-                pnLogs[i] = pbg / (double)psample[i].size();
-                if(l == testL){
-                    printf("frame %d(%d), num: %d, value: %.3f\n", i+offset, i, (int)psample[i].size(), pnLogs[i]);
+            Mat segRes = input[anchor-offset].clone();
+            for(auto y=0; y<height; ++y){
+                for(auto x=0; x<width; ++x){
+                    if(labels.at<int>(y,x) == l){
+                        segRes.at<Vec3b>(y,x) = segRes.at<Vec3b>(y,x) * 0.5 + Vec3b(0,0,255) * 0.5;
+                        result.at<uchar>(y,x) = (uchar)255;
+                    }else
+                        segRes.at<Vec3b>(y,x) = segRes.at<Vec3b>(y,x) * 0.5 + Vec3b(255,0,0) * 0.5;
                 }
             }
-            const size_t pProbth = pnLogs.size() * 0.9;
-            nth_element(pnLogs.begin(), pnLogs.begin()+pProbth, pnLogs.end());
-            //const double res = *max_element(pnLogs.begin(), pnLogs.end());
-            const double res = pnLogs[pProbth];
-            printf("result: %.3f\n", res);
-            if(res > nLogThres ){
-                for(auto i=0; i<width * height; ++i){
-                    if(pLabel[i] == l)
-                        result.data[i] = 255;
-                }
-            }
+//            sprintf(buffer, "%s/temp/segmask_b%05d_com%03d.jpg", file_io.getDirectory().c_str(), anchor, l);
+//            imwrite(buffer, segRes);
         }
     }
 }//namespace dynamic_stereo
