@@ -22,7 +22,8 @@ namespace dynamic_stereo {
 	    //void getGeometryConfidence(Depth& geoConf) const;
 
 	    void segmentFlashy(const std::vector<cv::Mat>& input, cv::Mat& result) const;
-		void segmentDisplay(const std::vector<cv::Mat>& input, const cv::Mat& segnetMask, cv::Mat& result) const;
+		void segmentDisplay(const std::vector<cv::Mat>& input, const cv::Mat& segnetMask, cv::Mat& displayLabels,
+							std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay) const;
 
     private:
 		void computeColorConfidence(const std::vector<cv::Mat>& input, Depth& result) const;

@@ -7,6 +7,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace Eigen;
 
 namespace dynamic_stereo{
     void DynamicSegment::computeColorConfidence(const std::vector<cv::Mat> &input, Depth &result) const {
@@ -24,6 +25,7 @@ namespace dynamic_stereo{
                     double count = 0.0;
                     vector<double> colorDiff;
                     colorDiff.reserve(input.size());
+
                     for (auto i = 0; i < input.size(); ++i) {
                         if (i == anchor - offset)
                             continue;
@@ -170,7 +172,8 @@ namespace dynamic_stereo{
         return threshold / count;
     }
 
-    void DynamicSegment::segmentDisplay(const std::vector<cv::Mat> &input, const cv::Mat& inputMask, cv::Mat &result) const {
+    void DynamicSegment::segmentDisplay(const std::vector<cv::Mat> &input, const cv::Mat& inputMask, cv::Mat& displayLabels,
+                                        std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay) const {
         CHECK(!input.empty());
         CHECK(inputMask.data);
         CHECK_EQ(inputMask.channels(), 1);
@@ -181,8 +184,6 @@ namespace dynamic_stereo{
 
         Mat segnetMask;
         cv::resize(inputMask, segnetMask, cv::Size(width, height), INTER_NEAREST);
-
-        result = Mat(height, width, CV_8UC1, Scalar::all(0));
 
         Depth dynamicness;
         computeColorConfidence(input, dynamicness);
@@ -205,7 +206,7 @@ namespace dynamic_stereo{
                 staticCan.data[i] = 255;
         }
         //morphological operation
-        const int r1 = 3, r2 = 7, r3 = 11;
+        const int r1 = 3, r2 = 9, r3 = 11;
         cv::erode(regionCan,regionCan,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(r1,r1)));
         cv::dilate(regionCan,regionCan,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(r2,r2)));
 
@@ -218,7 +219,6 @@ namespace dynamic_stereo{
         sprintf(buffer, "%s/temp/conf_staRegion%05d.jpg", file_io.getDirectory().c_str(), anchor);
         imwrite(buffer, staticCan);
 
-
         //connect component analysis
         Mat labels, stats, centroid;
         int nLabel = cv::connectedComponentsWithStats(regionCan, labels, stats, centroid);
@@ -229,6 +229,10 @@ namespace dynamic_stereo{
         const int kComponent = 5;
         const int min_nSample = 1000;
         const double max_areagain = 3.0;
+        const double maxRatioOcclu = 0.3;
+
+        displayLabels = Mat(height, width, labels.type(), Scalar::all(0));
+        int kOutputLabel = 0;
 
         //compute nLog threshold
         printf("Computing nLog threshold...\n");
@@ -250,12 +254,37 @@ namespace dynamic_stereo{
             const int cx = stats.at<int>(l,CC_STAT_LEFT) + stats.at<int>(l,CC_STAT_WIDTH) / 2;
             const int cy = stats.at<int>(l,CC_STAT_TOP) + stats.at<int>(l,CC_STAT_HEIGHT) / 2;
 
+
             printf("========================\n");
             printf("label:%d/%d, centroid:(%d,%d), area:%d\n", l, nLabel, cx, cy, area);
             if(segnetMask.at<uchar>(cy,cx) < 200)
                 continue;
-            if(area < min_area)
+            if(area < min_area) {
+                printf("Area too small\n");
                 continue;
+            }
+
+            int nOcclu = 0;
+            for(auto y=0; y<height; ++y){
+                for(auto x=0; x<width; ++x){
+                    if(pLabel[y*width+x] != l)
+                        continue;
+                    int pixOcclu = 0;
+                    for(auto v=0; v<input.size(); ++v){
+                        if(input[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
+                            pixOcclu++;
+                    }
+                    if(pixOcclu > (int)input.size() / 3)
+                        nOcclu++;
+                }
+            }
+            if(testL == l){
+                printf("nOcclu:%d\n", nOcclu);
+            }
+            if(nOcclu > maxRatioOcclu * area) {
+                printf("Violate occlusion constraint\n");
+                continue;
+            }
 
             if(l == testL){
                 Mat tempMat = input[anchor-offset].clone();
@@ -275,14 +304,28 @@ namespace dynamic_stereo{
             for(auto y=0; y<height; ++y){
                 for(auto x=0; x<width; ++x){
                     if(labels.at<int>(y,x) == l){
+                        displayLabels.at<int>(y,x) = kOutputLabel;
                         segRes.at<Vec3b>(y,x) = segRes.at<Vec3b>(y,x) * 0.5 + Vec3b(0,0,255) * 0.5;
-                        result.at<uchar>(y,x) = (uchar)255;
                     }else
                         segRes.at<Vec3b>(y,x) = segRes.at<Vec3b>(y,x) * 0.5 + Vec3b(255,0,0) * 0.5;
                 }
             }
+            kOutputLabel++;
 //            sprintf(buffer, "%s/temp/segmask_b%05d_com%03d.jpg", file_io.getDirectory().c_str(), anchor, l);
 //            imwrite(buffer, segRes);
+        }
+
+        Mat labelsLarge;
+        cv::resize(displayLabels, labelsLarge, cv::Size(width * downsample, height * downsample), 0, 0, INTER_NEAREST);
+        segmentsDisplay.resize((size_t)kOutputLabel);
+        for(auto y=0; y<labelsLarge.rows; ++y){
+            for(auto x=0; x<labelsLarge.cols; ++x){
+                int l = labelsLarge.at<int>(y,x);
+                CHECK_LE(l, segmentsDisplay.size());
+                if(l > 0){
+                    segmentsDisplay[l-1].push_back(Vector2d(x,y));
+                }
+            }
         }
     }
 }//namespace dynamic_stereo

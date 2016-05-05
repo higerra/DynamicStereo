@@ -141,70 +141,108 @@ namespace dynamic_stereo {
 //	    }
     }
 
-    void DynamicWarpping::warpToAnchor(const cv::Mat &mask, std::vector<cv::Mat> &warpped,
-                                       const bool earlyTerminate) const {
-        cout << "Warpping..." << endl;
-        warpped.resize(images.size());
-        CHECK_EQ(mask.cols, width);
-        CHECK_EQ(mask.rows, height);
-        CHECK_EQ(mask.channels(), 1);
-
-	    char buffer[1024] = {};
+    void DynamicWarpping::warpToAnchor(const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
+                                       const std::vector<std::vector<Eigen::Vector2d> >& segmentsFlashy,
+                                       std::vector<cv::Mat> &output,
+                                       const int kFrame) const {
+        printf("Warpping...\n");
+        output.resize((size_t)kFrame);
+        char buffer[1024] = {};
 
         const theia::Camera &cam1 = sfmModel.getCamera(anchor);
 
-	    double dispMargin = 20;
+	    double dispMargin = 10;
+        const double epsilon = 1e-5;
+        const double min_visibleRatio = 0.4;
 
 	    const int tx = -1;
 	    const int ty = -1;
 
-        for (auto i = 0; i < images.size(); ++i) {
-            cout << i + offset << ' ' << flush;
-            if (i == anchor - offset) {
-                warpped[i] = images[i].clone();
-                continue;
-            } else {
-                warpped[i] = Mat(height, width, CV_8UC3, Scalar(0, 0, 0));
-            }
-            const theia::Camera &cam2 = sfmModel.getCamera(i + offset);
-            for (auto y = 0; y < height - downsample; ++y) {
-                for (auto x = 0; x < width - downsample; ++x) {
-                    if (mask.at<uchar>(y, x) < 200) {
-                        warpped[i].at<Vec3b>(y, x) = images[anchor - offset].at <Vec3b>(y, x);
-                        continue;
-                    }
-                    Vector2d refPt(x,y);
-                    Vector3d ray = cam1.PixelToUnitDepthRay(refPt);
-                    //ray.normalize();
-                    Vector3d spt = cam1.GetPosition() + ray * refDepth.getDepthAt(refPt / (double)downsample);
-                    Vector2d imgpt;
-                    double curdepth = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
-	                Vector2d dimgpt = imgpt / (double)downsample;
+        for(auto i=0; i<output.size(); ++i){
+            output[i] = images[anchor-offset].clone();
+        }
 
-	                //visibility test. Note: the margin is defined on inverse depth domain
-                    if (dimgpt[0] >= 0 && dimgpt[0] < zBuffers[i].getWidth() - 1 && dimgpt[1] >= 0 && dimgpt[1] < zBuffers[i].getHeight()-1) {
-	                    double zDepth = zBuffers[i].getDepthAt(dimgpt);
-	                    if(zDepth > 0){
-		                    double curdisp = depthToDisp(curdepth, min_depths[i], max_depths[i]);
-		                    double zdisp = depthToDisp(zDepth, min_depths[i], max_depths[i]);
-		                    if(x == tx && y == ty) {
-			                    printf("frame: %d, (%d,%d)->(%.2f,%.2f), curdisp: %.2f, zdisp: %.2f\n", i+offset, tx, ty, imgpt[0], imgpt[1],
-			                           curdisp, zdisp);
-		                    }
-		                    if(zdisp - curdisp >= dispMargin)
-			                    continue;
-	                    }else
-                            continue;
+        const Vector3d occlToken(0,0,0);
+        const Vector3d outToken(-1,-1,-1);
+
+        auto projectPoint = [&](const Vector3d& spt, const int v){
+            //return (-1,-1,-1) if out of bound, (0,0,0) if occluded
+            const theia::Camera& cam2 = sfmModel.getCamera(v+offset);
+            Vector2d imgpt;
+            double d2 = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
+            if(d2 < 0)
+                return outToken;
+            Vector2d dimgpt = imgpt / downsample;
+            if(dimgpt[0] < 0 || dimgpt[1] < 0 || dimgpt[0] >= zBuffers[v].getWidth()-1 || dimgpt[1] >= zBuffers[v].getHeight()-1)
+                return outToken;
+            double zdepth = zBuffers[v].getDepthAt(dimgpt);
+            double curdisp = depthToDisp(d2, min_depths[v], max_depths[v]);
+            double zdisp = depthToDisp(zdepth, min_depths[v], max_depths[v]);
+            if(zdisp - curdisp >= dispMargin)
+                return occlToken;
+            return interpolation_util::bilinear<uchar,3>(images[v].data, width, height, imgpt);
+        };
+
+
+        auto threadFuncDisplay = [&](const int tid, const int num_thread){
+            for(auto sid=tid; sid<segmentsDisplay.size(); sid+=num_thread){
+                printf("Segment %d on thread %d\n", sid, tid);
+                const vector<Vector2d>& curSeg = segmentsDisplay[sid];
+                //end frame and start frame
+                int startFrame = 0, endFrame = (int)images.size() - 1;
+                vector<vector<Vector3d> > segColors(curSeg.size());
+                for(auto& segc:segColors)
+                    segc.resize(images.size(), Vector3d(0,0,0));
+                for(auto i=0; i<curSeg.size(); ++i){
+                    Vector3d spt = cam1.GetPosition() + refDepth.getDepthAt(curSeg[i]/downsample) * cam1.PixelToUnitDepthRay(curSeg[i]);
+                    for(auto fid=anchor-offset-1; fid >= 0; --fid){
+                        segColors[i][fid] = projectPoint(spt, fid);
+                        if((segColors[i][fid]-outToken).norm() < epsilon){
+                            startFrame = std::max(startFrame, fid);
+                            break;
+                        }
                     }
-                    if (imgpt[0] >= 1 && imgpt[1] >= 1 && imgpt[0] < width - 1 && imgpt[1] < height - 1) {
-                        Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(images[i].data, width, height,
-                                                                               imgpt);
-                        warpped[i].at<Vec3b>(y, x) = Vec3b(pix2[0], pix2[1], pix2[2]);
+                    for(auto fid=anchor-offset; fid < images.size(); ++fid){
+                        segColors[i][fid] = projectPoint(spt, fid);
+                        if((segColors[i][fid]-outToken).norm() < epsilon){
+                            endFrame = std::min(endFrame, fid);
+                            break;
+                        }
+                    }
+                }
+                printf("start:%d, end:%d\n", startFrame, endFrame);
+//                startFrame = 0;
+//                endFrame = images.size() - 1;
+                if(endFrame - startFrame < min_visibleRatio * images.size())
+                    continue;
+                for(auto i=0; i<curSeg.size(); ++i) {
+                    for (auto v = 0; v < kFrame; ++v) {
+                        if(v == anchor-offset)
+                            continue;
+                        int id = v % (endFrame-startFrame+1);
+                        Vec3b pix;
+                        if(segColors[i][id][0] < 0)
+                            pix = Vec3b(0,0,0);
+                        else
+                            pix = Vec3b(segColors[i][id][0], segColors[i][id][1], segColors[i][id][2]);
+                        output[v].at<Vec3b>((int)curSeg[i][1], (int)curSeg[i][0]) = pix;
                     }
                 }
             }
+        };
+
+        const int num_thread = 1;
+        vector<thread_guard> threads_display((size_t)num_thread);
+        for(auto i=0; i<num_thread; ++i){
+            std::thread t(threadFuncDisplay, i, num_thread);
+            threads_display[i].bind(t);
         }
-        cout << endl;
+        for(auto& t: threads_display)
+            t.join();
+//        auto threadFuncFlashy = [&](const int tid, const int num_thread){
+//
+//        };
+
     }
 
     void DynamicWarpping::preWarping(const cv::Mat &mask, std::vector<cv::Mat> &warped) const {

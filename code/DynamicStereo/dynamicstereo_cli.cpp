@@ -143,24 +143,12 @@ int main(int argc, char **argv) {
  	CHECK_EQ(warpMask.cols, refDepthMask.cols);
 	CHECK_EQ(warpMask.rows, refDepthMask.rows);
 
-//	for(auto y=0; y<height; ++y){
-//		for(auto x=0; x<width; ++x){
-//			if(refDepthMask.at<uchar>(y,x) < 200)
-//				warpMask.at<uchar>(y,x) = 0;
-//		}
-//	}
-
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
 	const int warpping_offset = warpping->getOffset();
-
-	vector<Mat> warpped;
-	warpping->warpToAnchor(warpMask, warpped, false);
 
 	vector<Mat> prewarp1, prewarp;
 	warpping->preWarping(warpMask, prewarp1);
 //	utility::temporalMedianFilter(prewarp1, prewarp, 3);
-
-	warpping.reset();
 
 	//test for regularizer
 //	printf("Running regularizaion\n");
@@ -185,42 +173,50 @@ int main(int argc, char **argv) {
 //
 	//segmentation
 	printf("Segmenting...\n");
+	vector<vector<Vector2d> > segmentsDisplay;
+	vector<vector<Vector2d> > segmentsFlashy;
 	shared_ptr<DynamicSegment> segment(new DynamicSegment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd));
+
 	Mat seg_result_small;
-//	segment.getGeometryConfidence(geoConf);
-//	sprintf(buffer, "%s/temp/geoConf%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//	geoConf.saveImage(string(buffer), 5.0);
-//	segment->segment(warpped, seg_result);
-	segment->segmentDisplay(prewarp1, segMask, seg_result_small);
+
+	segment->segmentDisplay(prewarp1, segMask, seg_result_small, segmentsDisplay);
 	segment.reset();
 	Mat seg_result;
 	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);
 	Mat seg_overlay(height, width, CV_8UC3, Scalar(0,0,0));
 	for(auto y=0; y<height; ++y){
 		for(auto x=0; x<width; ++x){
-			if(seg_result.at<uchar>(y,x) > 200)
+			if(seg_result.at<int>(y,x) > 0)
 				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(255,0,0) * 0.6;
 			else
 				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(0,0,255) * 0.6;
 		}
 	}
-
 	sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 	imwrite(buffer, seg_overlay);
 
-	for(auto i=0; i<warpped.size(); ++i){
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				if(seg_result.at<uchar>(y,x) < 200){
-					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
-				}
-			}
-		}
+	vector<Mat> finalResult;
+	printf("Full warping...\n");
+	warpping->warpToAnchor(segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);
+	printf("Done\n");
+	for(auto i=0; i<finalResult.size(); ++i){
+		sprintf(buffer, "%s/temp/warped%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());
+		imwrite(buffer, finalResult[i]);
 	}
 
-	for(auto i=0; i<warpped.size(); ++i){
-		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-		imwrite(buffer, warpped[i]);
-	}
+//	for(auto i=0; i<warpped.size(); ++i){
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				if(seg_result.at<uchar>(y,x) < 200){
+//					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
+//				}
+//			}
+//		}
+//	}
+//
+//	for(auto i=0; i<warpped.size(); ++i){
+//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+//		imwrite(buffer, warpped[i]);
+//	}
 	return 0;
 }
