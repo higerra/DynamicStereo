@@ -5,9 +5,13 @@
 #include "dynamicregularizer.h"
 #include "../base/utility.h"
 #include "../base/thread_guard.h"
+#include <Eigen/SparseCore>
+#include <Eigen/Sparse>
+#include <Eigen/SparseCholesky>
 
 using namespace std;
 using namespace cv;
+using namespace Eigen;
 
 namespace dynamic_stereo{
 
@@ -98,4 +102,32 @@ namespace dynamic_stereo{
 		    t.join();
     }
 
+
+	void regularizationPoisson(const vector<Mat>& input,
+							   const vector<vector<Eigen::Vector2d> >& segments, const cv::Mat& inputMask,
+							   vector<Mat>& output, const double weight_smooth){
+		CHECK(!input.empty());
+		CHECK_EQ(inputMask.cols, input[0].cols);
+		CHECK_EQ(inputMask.rows, input[0].rows);
+
+		output.resize(input.size());
+		for(auto i=0; i<output.size(); ++i)
+			output[i] = input[i].clone();
+		Vec3b invalidToken(0,0,0);
+
+		for(auto sid=0; sid<segments.size(); ++sid){
+			const vector<Vector2d>& curSeg = segments[sid];
+			const int kVar = (int)(curSeg.size() * input.size());
+			printf("Smoothing segment %d, kVar:%d\n", sid, kVar);
+			SparseMatrix<double> A(kVar, kVar);
+			VectorXd b(kVar);
+			vector<Triplet<double> > triplets;
+			triplets.reserve((size_t)kVar * 4);
+			for(auto i=0; i<curSeg.size(); ++i){
+				double leftv = 0, rightv = 0;
+
+			}
+		}
+
+	}
 }//namespace dynamic_stereo
