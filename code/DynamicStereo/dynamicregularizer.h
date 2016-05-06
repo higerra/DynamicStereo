@@ -13,7 +13,9 @@
 
 namespace dynamic_stereo{
 
-    void dynamicRegularization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double weight_smooth);
+    void dynamicRegularization(const std::vector<cv::Mat>& input,
+                               const std::vector<std::vector<Eigen::Vector2d> >& segments,
+                               std::vector<cv::Mat>& output, const double weight_smooth);
 
     void regularizationPoisson(const std::vector<cv::Mat>& input,
                                const std::vector<std::vector<Eigen::Vector2d> >& segments, const cv::Mat& inputMask,

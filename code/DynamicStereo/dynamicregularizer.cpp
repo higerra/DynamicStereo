@@ -15,7 +15,9 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 
-    void dynamicRegularization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double weight_smooth){
+    void dynamicRegularization(const std::vector<cv::Mat>& input,
+                               const std::vector<std::vector<Eigen::Vector2d> >& segments,
+                               std::vector<cv::Mat>& output, const double weight_smooth){
 	    CHECK(!input.empty());
 	    const int width = input[0].cols;
 	    const int height = input[0].rows;
@@ -36,18 +38,20 @@ namespace dynamic_stereo{
 	    //prepare output
 
 	    const double huber_theta = 10;
-        auto threadFun = [&](const int tid, const int num_thread){
+        auto threadFun = [&](const int tid, const int num_thread) {
 	        vector<vector<double> > DP(N);
-	        for(auto &d: DP)
-		        d.resize(256,0.0);
+	        for (auto &d: DP)
+		        d.resize(256, 0.0);
 	        vector<vector<int> > backTrack(N);
-	        for(auto& b: backTrack)
+	        for (auto &b: backTrack)
 		        b.resize(256, 0);
-
-	        for(auto y=tid; y<height; y+=num_thread) {
-		        for (auto x = 0; x < width; ++x) {
+	        for (auto sid = tid; sid < segments.size(); sid += num_thread) {
+		        printf("Smoothing segment %d on thread %d, kPix:%d\n", sid, tid, (int)segments[sid].size());
+		        for (auto i = 0; i < segments[sid].size(); ++i) {
+			        const int x = (int)segments[sid][i][0];
+			        const int y = (int)segments[sid][i][1];
 			        for (auto c = 0; c < channel; ++c) {
-				        const int pixId = channel * (y*width+x) + c;
+				        const int pixId = channel * (y * width + x) + c;
 				        //reinitialize tables
 				        for (auto &d: DP) {
 					        for (auto &dd: d)
@@ -58,15 +62,23 @@ namespace dynamic_stereo{
 						        bb = 0;
 				        }
 				        //start DP
-				        for(auto p=0; p<256; ++p)
-					        DP[0][p] = math_util::huberNorm((double)inputPtr[0][pixId] - (double)p, huber_theta);
-				        for(auto v=1; v<input.size(); ++v){
-					        for(auto p=0; p<256; ++p){
+				        for (auto p = 0; p < 256; ++p)
+					        DP[0][p] = math_util::huberNorm((double) inputPtr[0][pixId] - (double) p,
+					                                        huber_theta);
+				        for (auto v = 1; v < input.size(); ++v) {
+					        for (auto p = 0; p < 256; ++p) {
 						        DP[v][p] = numeric_limits<double>::max();
-						        double mdata = math_util::huberNorm((double)inputPtr[v][pixId]-(double)p, huber_theta);
-						        for(auto pf=0; pf<256; ++pf){
-							        double curv = DP[v-1][pf] + mdata + weight_smooth * math_util::huberNorm((double)pf-(double)p, huber_theta);
-							        if(curv < DP[v][p]){
+						        double mdata;
+						        if(input[v].at<Vec3b>(y,x) != Vec3b(0,0,0)) {
+							        mdata = math_util::huberNorm((double) inputPtr[v][pixId] - (double) p,
+							                                     huber_theta);
+						        }
+						        else
+							        mdata = 0;
+						        for (auto pf = 0; pf < 256; ++pf) {
+							        double curv = DP[v - 1][pf] + mdata + weight_smooth * math_util::huberNorm(
+									        (double) pf - (double) p, huber_theta);
+							        if (curv < DP[v][p]) {
 								        DP[v][p] = curv;
 								        backTrack[v][p] = pf;
 							        }
@@ -76,15 +88,15 @@ namespace dynamic_stereo{
 				        //back track
 				        //last frame
 				        double minE = std::numeric_limits<double>::max();
-				        for(auto p=0; p<256; ++p){
-					        if(DP[N-1][p] < minE){
-						        minE = DP[N-1][p];
-						        outputPtr[N-1][pixId] = (uchar)p;
+				        for (auto p = 0; p < 256; ++p) {
+					        if (DP[N - 1][p] < minE) {
+						        minE = DP[N - 1][p];
+						        outputPtr[N - 1][pixId] = (uchar) p;
 					        }
 				        }
-				        for(auto v=N-2; v>=0; --v){
+				        for (auto v = N - 2; v >= 0; --v) {
 					        outputPtr[v][pixId] =
-							        (uchar)backTrack[v+1][outputPtr[v+1][pixId]];
+							        (uchar) backTrack[v + 1][outputPtr[v + 1][pixId]];
 				        }
 			        }
 		        }

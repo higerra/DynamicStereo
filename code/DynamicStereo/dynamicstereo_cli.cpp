@@ -148,26 +148,14 @@ int main(int argc, char **argv) {
 
 	vector<Mat> prewarp1, prewarp;
 	warpping->preWarping(warpMask, prewarp1);
-//	utility::temporalMedianFilter(prewarp1, prewarp, 3);
 
 	//test for regularizer
-//	printf("Running regularizaion\n");
-//	vector<Mat> regulared;
-//	float reg_t = (float)cv::getTickCount();
-//	dynamicRegularization(prewarp1, regulared, 0.5);
-//	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
-//	CHECK_EQ(regulared.size(), prewarp1.size());
-//	vector<Mat> warped_filtered;
-//	utility::temporalMedianFilter(warpped, warped_filtered, 2);
 
 	for(auto i=0; i<prewarp1.size(); ++i){
 //		sprintf(buffer, "%s/temp/prewarpbnom%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 //		imwrite(buffer, prewarp1[i]);
 		sprintf(buffer, "%s/temp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
 		imwrite(buffer, prewarp1[i]);
-
-//		sprintf(buffer, "%s/temp/prewarp_regularedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-//		imwrite(buffer, regulared[i]);
 	}
 
 //
@@ -203,6 +191,21 @@ int main(int argc, char **argv) {
 		sprintf(buffer, "%s/temp/warped%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());
 		imwrite(buffer, finalResult[i]);
 	}
+
+	printf("Running regularizaion\n");
+	vector<Mat> regulared;
+	float reg_t = (float)cv::getTickCount();
+	dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
+	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
+	CHECK_EQ(regulared.size(), finalResult.size());
+	//vector<Mat> warped_filtered;
+	//utility::temporalMedianFilter(warpped, warped_filtered, 2);
+
+	for(auto i=0; i<regulared.size(); ++i){
+		sprintf(buffer, "%s/temp/regulared%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());
+		imwrite(buffer, regulared[i]);
+	}
+
 
 //	for(auto i=0; i<warpped.size(); ++i){
 //		for(auto y=0; y<height; ++y){
