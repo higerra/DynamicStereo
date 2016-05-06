@@ -25,8 +25,8 @@ namespace dynamic_stereo{
 	    const int N = (int)input.size();
 
 	    output.resize(input.size());
-	    for(auto& o: output)
-		    o = Mat(height, width, CV_8UC3, Scalar::all(0));
+	    for(auto i=0; i<input.size(); ++i)
+		    output[i] = input[i].clone();
 
         vector<uchar *> inputPtr(input.size(), NULL);
 	    vector<uchar *> outputPtr(output.size(), NULL);
