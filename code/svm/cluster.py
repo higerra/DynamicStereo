@@ -35,7 +35,13 @@ cap.release()
 print "Meanshift clustering..."
 
 
-print "Estimating bandwidth..."
-bw = estimate_bandwidth(samples, n_samples=height * width / 10)
+#print "Estimating bandwidth..."
+#bw = estimate_bandwidth(samples, quantile=0.1, n_samples=height * width / 10)
+bw = 2.0
 print "Done. bw:{}".format(bw)
 ms = MeanShift(bandwidth=bw)
+
+print "Clustering..."
+ms.fit(samples)
+labels = ms.labels_
+print "Done. Number of clusters: {}".format(len(np.unique(labels)))
