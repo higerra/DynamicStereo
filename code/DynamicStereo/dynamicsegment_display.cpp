@@ -18,7 +18,7 @@ namespace dynamic_stereo{
         result.initialize(width, height, 0.0);
 
         //search in a 7 by 7 window
-        const int pR = 3;
+        const int pR = 2;
         auto threadFunc = [&](int tid, int numt){
             for(auto y=tid; y<height; y+=numt) {
                 for (auto x = 0; x < width; ++x) {
@@ -299,6 +299,11 @@ namespace dynamic_stereo{
                 sprintf(buffer, "%s/temp/component%05d_%03d.jpg", file_io.getDirectory().c_str(), anchor, l);
                 imwrite(buffer, tempMat);
             }
+
+
+            //refine segmentation
+
+
 
             Mat segRes = input[anchor-offset].clone();
             for(auto y=0; y<height; ++y){
