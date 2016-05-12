@@ -8,8 +8,8 @@ import argparse
 parser = argparse.ArgumentParser(prog='cluster', description='Cluster the time sequence')
 parser.add_argument('input')
 
-max_frame = 50
-downsample = 4
+max_frame = 1
+downsample = 8
 
 args = parser.parse_args()
 
@@ -38,22 +38,24 @@ cap.release()
 print "Meanshift clustering..."
 
 
-#print "Estimating bandwidth..."
-#bw = estimate_bandwidth(samples, quantile=0.1, n_samples=height * width / 10)
-bw = 2.0
+print "Estimating bandwidth..."
+bw = estimate_bandwidth(samples, quantile=0.1)
+#bw = 2.0
 print "Done. bw:{}".format(bw)
 
 ms = MeanShift(bandwidth=bw)
 
 print "Clustering..."
-c1 = cv2.getTickCount();
+c1 = cv2.getTickCount()
 ms.fit(samples)
 labels = ms.labels_
 n_cluster = len(np.unique(labels))
 print "Done. Number of clusters: {}, time usage:{:.3f}".format(n_cluster, (cv2.getTickCount()-c1)/cv2.getTickFrequency())
 
 colorTable = np.random.rand(n_cluster, 3)
-resultVis = np.zeros(height, width, 3)
+resultVis = np.zeros((height, width, 3))
 for y in range(0,height):
     for x in range(0, width):
-        resultVis[y, x, :] = colorTable[labels[y*width+x], :]
+        resultVis[y, x, :] = colorTable[labels[y*width+x], :] * 255
+
+cv2.imwrite('result.jpg', resultVis)
