@@ -46,10 +46,11 @@ print "Done. bw:{}".format(bw)
 ms = MeanShift(bandwidth=bw)
 
 print "Clustering..."
+c1 = cv2.getTickCount();
 ms.fit(samples)
 labels = ms.labels_
 n_cluster = len(np.unique(labels))
-print "Done. Number of clusters: {}".format(n_cluster)
+print "Done. Number of clusters: {}, time usage:{:.3f}".format(n_cluster, (cv2.getTickCount()-c1)/cv2.getTickFrequency())
 
 colorTable = np.random.rand(n_cluster, 3)
 resultVis = np.zeros(height, width, 3)
