@@ -7,12 +7,14 @@ prefix = "../../data/svmTrain/samples"
 
 
 downsample = 4
-negative_stride = 16
+negative_stride = 8
 
 index = 1
 
 features = []
 labels = []
+
+train_all = open(prefix+'/train_all.txt', 'a')
 
 while True:
     print "Processing sample {}".format(index)
@@ -38,23 +40,29 @@ while True:
         ret, curimg = cap.read()
         pixs[:,:,3*i:3*(i+1)] = cv2.resize(curimg, (width, height))
 
+    #normalization
     print "Extracing sample..."
+    posCount = 0.0
+    negCount = 0.0
     for y in range(0, height):
         for x in range(0, width):
+            pixs[y,x,:] = pixs[y,x,:] - np.mean(pixs[y,x,:])
             if gtimg[y,x] > 200:
                 for i in range(0, kFrame-tWindow, tWindow/2):
                     features.append(pixs[y,x,i*3:(i+tWindow)*3])
                     labels.append(1)
-            else:
+                    posCount += 1
+            elif gtimg[y,x] < 20:
                 if x % negative_stride == 0 and y % negative_stride == 0:
                     for i in range(0, kFrame - tWindow, tWindow / 2):
                         features.append(pixs[y, x, i * 3:(i + tWindow) * 3])
                         labels.append(-1)
+                        negCount += 1
 
+    print "Saving, total number of samples:{}, ratio of positive:{:.2f}, ratio of negative:{:.2f}...".format(len(features), posCount/(posCount+negCount), negCount/(posCount+negCount))
+    traindata = open(prefix + '/train{}.txt'.format(index), 'w')
     index += 1
-    break
+    dump_svmlight_file(features, labels, traindata)
+    dump_svmlight_file(features, labels, train_all)
 
-print "Saving, total number of samples:{}...".format(len(features))
-traindata = open(prefix+'/train.txt','w')
-dump_svmlight_file(features, labels, traindata)
 print "All done"
