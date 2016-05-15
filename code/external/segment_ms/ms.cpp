@@ -210,8 +210,7 @@ namespace meanshift {
 			return;
 		}
 
-		//Populate h, P and kernel, also use P to calculate
-		//the dimension (N_) of the potential input data set x
+
 		kN = 0;
 		for (i = 0; i < kp; i++) {
 			if ((h[i] = h_[i]) <= 0) {

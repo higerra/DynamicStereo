@@ -393,7 +393,7 @@ namespace segment_ms {
 
 		//start timer
 #ifdef PROMPT
-																																double timer;
+        double timer;
 	msSys.StartTimer();
 #endif
 

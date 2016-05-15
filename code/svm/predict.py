@@ -53,5 +53,5 @@ np.reshape(outputVis, (height, width))
 outputVis[outputVis < 0] = 0
 outputVis[outputVis > 0] = 255
 
-cv2.imwrite(outputVis, args.output)
+cv2.imwrite(args.output, outputVis)
 
