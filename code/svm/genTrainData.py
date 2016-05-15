@@ -3,11 +3,11 @@ import numpy as np
 from sklearn.datasets import dump_svmlight_file
 
 tWindow = 100
-prefix = "../../data/svmTrain/samples"
+prefix = "../../data/svmTrain/"
 
 
 downsample = 4
-negative_stride = 8
+negative_stride = 4
 
 index = 1
 
@@ -16,9 +16,11 @@ labels = []
 
 train_all = open(prefix+'/train_all.txt', 'a')
 
+max_sample = 2
+
 while True:
     print "Processing sample {}".format(index)
-    gtimg = cv2.imread('{}/gt{}.png'.format(prefix, index), cv2.IMREAD_GRAYSCALE)
+    gtimg = cv2.imread('{}/samples/gt{}.png'.format(prefix, index), cv2.IMREAD_GRAYSCALE)
     if gtimg is None:
         break
 
@@ -28,7 +30,7 @@ while True:
     gtimg = cv2.resize(gtimg, (width, height),interpolation=cv2.INTER_NEAREST)
 
     print "frame size: {},{}".format(int(width), int(height))
-    cap = cv2.VideoCapture('{}/sample{}.mp4'.format(prefix, index))
+    cap = cv2.VideoCapture('{}/samples/sample{}.mp4'.format(prefix, index))
     assert(not cap is None)
 
     kFrame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -61,8 +63,11 @@ while True:
 
     print "Saving, total number of samples:{}, ratio of positive:{:.2f}, ratio of negative:{:.2f}...".format(len(features), posCount/(posCount+negCount), negCount/(posCount+negCount))
     traindata = open(prefix + '/train{}.txt'.format(index), 'w')
-    index += 1
     dump_svmlight_file(features, labels, traindata)
     dump_svmlight_file(features, labels, train_all)
+
+    index += 1
+    if index > max_sample:
+        break
 
 print "All done"
