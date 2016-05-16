@@ -49,7 +49,7 @@ namespace dynamic_stereo{
                     }
                     if (count < 1)
                         continue;
-                    const size_t kth = colorDiff.size() * 0.95;
+                    const size_t kth = colorDiff.size() * 0.8;
 //				sort(colorDiff.begin(), colorDiff.end(), std::less<double>());
                     nth_element(colorDiff.begin(), colorDiff.begin() + kth, colorDiff.end());
 //				dynamicness(x,y) = accumulate(colorDiff.begin(), colorDiff.end(), 0.0) / count;

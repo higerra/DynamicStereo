@@ -23,7 +23,6 @@ namespace dynamic_stereo {
             CHECK_GE(offset, 0);
         } else
             offset = anchor - tWindow_ / 2;
-
         //reading images. Set (0,0,0) to (1,1,1);
         images.resize((size_t) tWindow_);
         for (auto i = 0; i < images.size(); ++i) {
@@ -285,18 +284,18 @@ namespace dynamic_stereo {
             }
             for (int y = 0; y < dh; ++y) {
                 for (int x = 0; x < dw; ++x) {
-//                    if (maskd.at<uchar>(y, x) < 200) {
-//                        warped[i].at<Vec3b>(y,x) = dimages[anchor-offset].at<Vec3b>(y,x);
-//                        continue;
-//                    }
+                    if (maskd.at<uchar>(y, x) < 200) {
+                        warped[i].at<Vec3b>(y,x) = dimages[anchor-offset].at<Vec3b>(y,x);
+                        continue;
+                    }
                     Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
                     Vector3d spt = cam1.GetPosition() + ray * refDepth(x,y);
                     Vector2d imgpt;
                     double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
                     imgpt = imgpt / (double)downsample;
-                    if(curd > 0 && imgpt[0]>=0 && imgpt[1] >= 0 && imgpt[0] < dw-1 && imgpt[1] < dh-1){
+                    if(imgpt[0]>=0 && imgpt[1] >= 0 && imgpt[0] < dw-1 && imgpt[1] < dh-1){
                         double zDepth = zBuffers[i].getDepthAt(imgpt);
-                        if(zDepth > 0){
+                        if(zDepth > 0 && curd > 0){
                             double curdisp = depthToDisp(curd, min_depths[i], max_depths[i]);
                             double zdisp = depthToDisp(zDepth, min_depths[i], max_depths[i]);
                             if(zdisp - curdisp >= disparity_margin) {

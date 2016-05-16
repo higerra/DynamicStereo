@@ -19,7 +19,7 @@ DEFINE_int32(tWindow, 80, "tWindow");
 DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
-DEFINE_int32(stereo_interval, 10, "interval for stereo");
+DEFINE_int32(stereo_interval, 5, "interval for stereo");
 DEFINE_double(weight_smooth, 0.1, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
@@ -135,6 +135,7 @@ int main(int argc, char **argv) {
 	}
 	//warpping
 	Mat refDepthMask;
+	CHECK(depthMask[refId].data);
 	cv::resize(depthMask[refId], refDepthMask, cv::Size(width, height), 0, 0, INTER_NEAREST);
 	sprintf(buffer, "%s/temp/depthMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
 	imwrite(buffer, refDepthMask);
