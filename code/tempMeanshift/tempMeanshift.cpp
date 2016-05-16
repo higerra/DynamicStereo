@@ -3,12 +3,13 @@
 //
 
 #include "tempMeanshift.h"
+#include "../external/segment_ms/ms.h"
 
 using namespace std;
 using namespace cv;
 
 namespace dynamic_stereo{
-    void importData(const std::string& path, std::vector<std::vector<float> >& array, const int downsample, const int tWindow){
+    cv::Size importData(const std::string& path, std::vector<std::vector<float> >& array, const int downsample, const int tWindow){
         VideoCapture cap(path);
         CHECK(cap.isOpened());
         int width = (int)cap.get(CV_CAP_PROP_FRAME_WIDTH) / downsample;
@@ -33,5 +34,14 @@ namespace dynamic_stereo{
                 array[i][fid*3+2] = pFrame[3*i+2];
             }
         }
+
+	    return dsize;
     }
+
+	cv::Mat segment(const std::vector<std::vector<float> >& array, const cv::Size& size){
+		meanshift::MeanShift ms;
+		//define data
+
+	}
+
 }//namespace dynamic_stereo
