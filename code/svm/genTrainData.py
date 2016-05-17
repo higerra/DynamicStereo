@@ -9,14 +9,14 @@ prefix = "../../data/svmTrain/"
 downsample = 4
 negative_stride = 4
 
-index = 1
+index = 3
 
 features = []
 labels = []
 
 train_all = open(prefix+'/train_all.txt', 'a')
 
-max_sample = 2
+max_sample = 1
 
 while True:
     print "Processing sample {}".format(index)
