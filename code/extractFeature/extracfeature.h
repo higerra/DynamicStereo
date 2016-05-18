@@ -13,8 +13,8 @@
 namespace dynamic_stereo{
     cv::Size importData(const std::string& path, std::vector<std::vector<float> >& array, const int downsample, const int tWindow);
 
-	cv::Mat segment(const std::vector<std::vector<float> >& array, const cv::Size& size);
-
+	//kBin: numbers of bin in each channel
+	void extractFeatureRGBCat(const std::vector<std::vector<float> >& array, const cv::Size& dims, std::vector<std::vector<float> >& features, const int kBin);
 }//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_TEMPMEANSHIFT_H
