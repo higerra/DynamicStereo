@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
     if (FLAGS_trainData) {
         string list_path = string(argv[1]);
         size_t dashPos;
-        for(dashPos = list_path.size()-1; dashPos>=0 ;--dashPos){
+        for(dashPos = list_path.size()-1; dashPos>=0; --dashPos){
             if(list_path[dashPos] == '/')
                 break;
         }
@@ -65,6 +65,8 @@ int main(int argc, char** argv) {
 
     printf("Saving...\n");
     data_all.dumpData_libsvm(string(argv[2]));
+	printf("Done\n");
+	data_all.printStat();
 
     return 0;
 }

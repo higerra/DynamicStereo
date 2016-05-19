@@ -28,13 +28,16 @@ namespace dynamic_stereo{
         vector<float> feat_intensity((size_t)kBinIntensity, 0.0f);
 
         Vector3f RGB2Gray(0.299, 0.587, 0.114);
-        for(auto t=0; t<array.size()/3 - 1; ++t){
+	    //compare first half with the second half
+	    const int stride = array.size() / 3 / 2;
+
+        for(auto t=0; t<stride; ++t){
             Vector3f pix1(array[t*3],array[t*3+1],array[t*3+2]);
-            Vector3f pix2(array[(t+1)*3],array[(t+1)*3+1],array[(t+1)*3+2]);
+            Vector3f pix2(array[(t+stride)*3],array[(t+stride)*3+1],array[(t+stride)*3+2]);
 
             //intensity
             float intensity = pix1.dot(RGB2Gray);
-            int bidInt = floor(intensity / 256);
+            int bidInt = floor(intensity / binUnitIntensity);
             CHECK_LT(bidInt, kBinIntensity);
             feat_intensity[bidInt] += 1.0;
 
@@ -100,25 +103,33 @@ namespace dynamic_stereo{
             CHECK(cap.isOpened());
             int width = (int)cap.get(CV_CAP_PROP_FRAME_WIDTH) / downsample;
             int height = (int)cap.get(CV_CAP_PROP_FRAME_HEIGHT) / downsample;
+	        const int kFrame = (int)cap.get(CV_CAP_PROP_FRAME_COUNT);
+
+	        int kNum;
+	        if(tWindow > 0 && tWindow <= kFrame)
+		        kNum = tWindow;
+	        else
+		        kNum = kFrame;
+
             array.resize(width * height);
             for(auto& a: array)
-                a.resize(tWindow * 3);
+                a.resize(kFrame * 3);
 
             cv::Size dsize(width, height);
 
-            const int stride = width * height * 3;
-            for(auto fid=0; fid<tWindow; ++fid){
+            for(auto fid=0; fid<kNum; ++fid){
                 Mat frame;
-                if(cap.read(frame))
-                    break;
+                if(!cap.read(frame)) {
+	                break;
+                }
                 cv::resize(frame, frame, dsize);
                 //cvtColor(frame, frame, CV_BGR2Luv);
                 cvtColor(frame, frame, CV_BGR2RGB);
                 const uchar* pFrame = frame.data;
                 for(auto i=0; i<width * height; ++i){
-                    array[i][fid*3] = pFrame[3*i];
-                    array[i][fid*3+1] = pFrame[3*i+1];
-                    array[i][fid*3+2] = pFrame[3*i+2];
+                    array[i][fid*3] = (float)pFrame[3*i];
+                    array[i][fid*3+1] = (float)pFrame[3*i+1];
+                    array[i][fid*3+2] = (float)pFrame[3*i+2];
                 }
             }
 

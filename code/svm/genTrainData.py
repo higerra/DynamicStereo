@@ -9,7 +9,7 @@ prefix = "../../data/svmTrain/"
 downsample = 4
 negative_stride = 4
 
-index = 3
+index = 7
 
 features = []
 labels = []

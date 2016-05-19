@@ -28,6 +28,17 @@ namespace dynamic_stereo{
 
 		void dumpData_libsvm(const std::string& path) const;
 		void dumpData_table(const std::string& path) const{}
+
+		void printStat() const{
+			if(features.size() == 1){
+				printf("Number of samples: %d\n", (int)features[0].size());
+			}else if(features.size() == 2) {
+				float kPos = (float) features[1].size();
+				float kNeg = (float) features[0].size();
+				CHECK_GT(kPos+kNeg, 1);
+				printf("Positive: %d(%.2f), negative: %d(%.2f)\n", (int)kPos, kPos/(kPos+kNeg), (int)kNeg, kNeg/(kPos+kNeg));
+			}
+		}
 	private:
 		FeatureSet features;
 	};
