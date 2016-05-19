@@ -9,10 +9,11 @@ using namespace cv;
 using namespace dynamic_stereo;
 
 DEFINE_int32(downsample, 4, "downsample ratio");
-DEFINE_int32(tWindow, 100, "tWindow");
-DEFINE_bool(trainData, true, "training data");
+DEFINE_int32(tWindow, -1, "tWindow");
+DEFINE_bool(trainData, true, "classifier data");
 DEFINE_int32(kBin, 8, "kBin");
 DEFINE_double(min_diff, 10, "min_diff");
+DEFINE_bool(csv, true, "dump out csv file");
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -25,6 +26,7 @@ int main(int argc, char** argv) {
     CHECK_EQ(argc, 3);
 
     DataSet data_all;
+    char buffer[1024] = {};
 
     if (FLAGS_trainData) {
         string list_path = string(argv[1]);
@@ -54,6 +56,17 @@ int main(int argc, char** argv) {
             printf("Extracting...\n");
             Feature::extractFeature(data, dim, gt, curData, FLAGS_kBin, (float)FLAGS_min_diff, Feature::RGB_CAT);
             data_all.appendDataSet(curData);
+
+            //also create a test set
+            DataSet data_test;
+            Feature::extractFeature(data, dim, Mat(), data_test, FLAGS_kBin, (float)FLAGS_min_diff, Feature::RGB_CAT);
+            if(FLAGS_csv) {
+                sprintf(buffer, "%s/testFromTrain_%s.csv", directory.c_str(), video_path.c_str());
+                data_test.dumpData_csv(string(buffer));
+            }else{
+                sprintf(buffer, "%s/testFromTrain_%s.txt", directory.c_str(), video_path.c_str());
+                data_test.dumpData_libsvm(string(buffer));
+            }
         }
     } else {
         vector<vector<float> > data;
@@ -64,7 +77,12 @@ int main(int argc, char** argv) {
     }
 
     printf("Saving...\n");
-    data_all.dumpData_libsvm(string(argv[2]));
+    if(FLAGS_csv){
+        data_all.dumpData_csv(string(argv[2]));
+    }else{
+        data_all.dumpData_libsvm(string(argv[2]));
+    }
+
 	printf("Done\n");
 	data_all.printStat();
 

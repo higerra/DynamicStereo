@@ -27,7 +27,7 @@ namespace dynamic_stereo{
 		void appendDataSet(const DataSet& newData);
 
 		void dumpData_libsvm(const std::string& path) const;
-		void dumpData_table(const std::string& path) const{}
+		void dumpData_csv(const std::string& path) const;
 
 		void printStat() const{
 			if(features.size() == 1){
@@ -74,7 +74,7 @@ namespace dynamic_stereo{
 		cv::Size importData(const std::string &path, std::vector<std::vector<float> > &array, const int downsample,
 							const int tWindow);
 
-		//samples: when extracting training samples (gt is not empty), samples have the size 2;
+		//samples: when extracting classifier samples (gt is not empty), samples have the size 2;
 		// when extracing testing samples (gt is empty), samples have the size 1
 		void extractFeature(const std::vector<std::vector<float> > &array, const cv::Size &dims, const cv::Mat &gt,
 							DataSet& samples, const int kBin, const float min_diff, const FeatureType method);

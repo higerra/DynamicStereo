@@ -34,7 +34,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 #supporting code
 add_subdirectory(${ROOT_DIRECTORY}/base)
 add_subdirectory(${ROOT_DIRECTORY}/external/MRF2.2)
-add_subdirectory(${ROOT_DIRECTORY}/external/segment_ms)
+#add_subdirectory(${ROOT_DIRECTORY}/external/segment_ms)
 
 #main code
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)
@@ -44,3 +44,4 @@ add_subdirectory(${ROOT_DIRECTORY}/DynamicStereo)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DynamicConfidence)
 add_subdirectory(${ROOT_DIRECTORY}/test)
 add_subdirectory(${ROOT_DIRECTORY}/extractFeature)
+add_subdirectory(${ROOT_DIRECTORY}/classifier)

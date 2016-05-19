@@ -2,7 +2,7 @@ from sklearn import svm, grid_search, datasets
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-i', '--input', required=True, help='path to training data')
+parser.add_argument('-i', '--input', required=True, help='path to classifier data')
 parser.add_argument('-cv', default=5, type=int)
 
 args = parser.parse_args()

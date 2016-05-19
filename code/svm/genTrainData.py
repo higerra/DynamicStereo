@@ -62,7 +62,7 @@ while True:
                         negCount += 1
 
     print "Saving, total number of samples:{}, ratio of positive:{:.2f}, ratio of negative:{:.2f}...".format(len(features), posCount/(posCount+negCount), negCount/(posCount+negCount))
-    traindata = open(prefix + '/train{}.txt'.format(index), 'w')
+    traindata = open(prefix + '/classifier{}.txt'.format(index), 'w')
     dump_svmlight_file(features, labels, traindata)
     dump_svmlight_file(features, labels, train_all)
 

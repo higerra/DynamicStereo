@@ -271,7 +271,7 @@ namespace dynamic_stereo{
 //				cv::Ptr<cv::ml::EM> gmm_positive = cv::ml::EM::create();
 //
 //				vector<Vector3d> psamples;
-//				//collect training sample
+//				//collect classifier sample
 //				for (auto y = top; y < top + roih; ++y) {
 //					for (auto x = left; x < left + roiw; ++x) {
 //						if (pLabel[(y + top) * width + x + left] == l) {

@@ -23,7 +23,6 @@ namespace dynamic_stereo{
 
     void RGBCat::constructFeature(const std::vector<float>& array, std::vector<float>& feat) const{
         CHECK_EQ((int)array.size() % 3, 0);
-        feat.resize((size_t)kBin * 3 + kBinIntensity, 0.0f);
         vector<float> feat_diff((size_t)kBin*3, 0.0f);
         vector<float> feat_intensity((size_t)kBinIntensity, 0.0f);
 
@@ -46,7 +45,7 @@ namespace dynamic_stereo{
             if(diff.norm() >= min_diff) {
                 for (auto c = 0; c < 3; ++c) {
                     int bid = floor((diff[c] + 256) / binUnit);
-                    CHECK_LT(kBin * c + bid, feat.size());
+                    CHECK_LT(kBin * c + bid, feat_diff.size());
                     feat_diff[kBin * c + bid] += 1.0;
                 }
             }
@@ -70,6 +69,10 @@ namespace dynamic_stereo{
     }
 
     void DataSet::dumpData_libsvm(const std::string &path) const {
+        if(features.empty()) {
+            cerr << "Empty dataset" << endl;
+            return;
+        }
         ofstream fout(path.c_str());
         CHECK(fout.is_open());
         char buffer[1024] = {};
@@ -83,6 +86,27 @@ namespace dynamic_stereo{
                     }
                 }
                 fout << endl;
+            }
+        }
+        fout.close();
+    }
+
+    void DataSet::dumpData_csv(const std::string &path) const {
+        if(features.empty()) {
+            cerr << "Empty dataset" << endl;
+            return;
+        }
+        ofstream fout(path.c_str());
+        CHECK(fout.is_open());
+        //header
+        for(auto i=0; i<features[0][0].size(); ++i)
+            fout << 'v' << i << ',';
+        fout << "label" << endl;
+        for(auto i=0; i<features.size(); ++i){
+            for(auto j=0; j<features[i].size(); ++j){
+                for(auto k=0; k<features[i][j].size(); ++k)
+                    fout << features[i][j][k] << ',';
+                fout << i << endl;
             }
         }
         fout.close();
