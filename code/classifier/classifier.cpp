@@ -17,28 +17,35 @@ namespace dynamic_stereo{
 //        ml::ParamGrid gridG(pow(2.0,-3), pow(2.0,3), 2);
 //        ml::ParamGrid emptyGrid(0,0,0);
 //
-//        svm->trainAuto(trainData, 5);
-        svm->setC(1);
-        svm->setGamma(2.0);
-        svm->setType(ml::SVM::C_SVC);
-        svm->setKernel(ml::SVM::RBF);
-        svm->train(trainData);
+	    svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 5000, FLT_EPSILON));
+        svm->trainAuto(trainData, 5);
+//	    svm->setType(ml::SVM::C_SVC);
+//	    svm->setKernel(ml::SVM::RBF);
+//        svm->setC(1.0);
+//        svm->setGamma(2.0);
+
+//        svm->train(trainData);
 
         Mat predictLabel;
         Mat gtLabel = trainData->getResponses();
         svm->predict(trainData->getSamples(), predictLabel);
-        float error = 0.0;
+        float acc = 0.0;
+	    float kPos = 0.0;
         for(auto i=0; i<trainData->getNSamples(); ++i){
-            double diff = gtLabel.at<float>(i,0) - predictLabel.at<float>(i,0);
-            if(diff > 0.1)
-                error += 1.0;
+	        CHECK(predictLabel.at<float>(i,0) < 0.001 || predictLabel.at<float>(i,0) > 0.999) << predictLabel.at<float>(i,0);
+
+            float diff = gtLabel.at<float>(i,0) - predictLabel.at<float>(i,0);
+            if(abs(diff) < 0.1)
+	            acc += 1.0;
+	        if(gtLabel.at<float>(i,0) > 0.9)
+		        kPos += 1.0;
         }
-        printf("Training error: %.3f\n", error / (float)trainData->getNSamples());
+        printf("Ratio of positive samples: %.3f, Training accuracy: %.3f\n", kPos / (float)trainData->getNSamples(), acc / (float)trainData->getNSamples());
         svm->save(output_path);
     }
 
     Mat predictSVM(const string& model_path, const string& data_path, const int width, const int height){
-        Ptr<ml::SVM> svm = ml::SVM::load<ml::SVM>(model_path);
+        Ptr<ml::SVM> svm = ml::SVM::load(model_path);
         CHECK(svm.get()) << "Can not load trained model: " << model_path;
         Ptr<ml::TrainData> testData = ml::TrainData::loadFromCSV(data_path, 1);
         CHECK(testData.get()) << "Can not load test data: " << data_path;

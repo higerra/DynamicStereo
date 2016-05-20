@@ -65,7 +65,7 @@ namespace dynamic_stereo{
         normalizel2(feat_diff);
 
         feat.insert(feat.end(), feat_diff.begin(), feat_diff.end());
-        feat.insert(feat.end(), feat_intensity.begin(), feat_intensity.end());
+        //feat.insert(feat.end(), feat_intensity.begin(), feat_intensity.end());
     }
 
     void DataSet::dumpData_libsvm(const std::string &path) const {
@@ -165,7 +165,7 @@ namespace dynamic_stereo{
                             const int kBin, const float min_diff, const FeatureType method) {
             CHECK(!array.empty());
             vector<vector<int> > pixInds;
-            const int negStride = 4;
+            const int negStride = 2;
             const int width = dims.width;
             const int height = dims.height;
 

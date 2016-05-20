@@ -45,7 +45,7 @@ namespace dynamic_stereo{
 
 	class FeatureConstructor{
 	public:
-		FeatureConstructor(const int kBin_ = 8, const float min_diff_ = 10): kBin(kBin_), kBinIntensity(kBin_/2), min_diff(min_diff_), cut_thres(0.25){
+		FeatureConstructor(const int kBin_ = 8, const float min_diff_ = 10): kBin(kBin_), kBinIntensity(kBin_/2), min_diff(min_diff_), cut_thres(0.1){
 			CHECK_GT(kBin, 0);
 			CHECK_GT(kBinIntensity, 0);
 			binUnit = 512 / (float)kBin;
