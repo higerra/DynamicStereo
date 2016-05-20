@@ -17,13 +17,13 @@ namespace dynamic_stereo{
 //        ml::ParamGrid gridG(pow(2.0,-3), pow(2.0,3), 2);
 //        ml::ParamGrid emptyGrid(0,0,0);
 //
-	    svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 5000, FLT_EPSILON));
+	    svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 20000, FLT_EPSILON));
 //        svm->trainAuto(trainData, 5);
 
 	    svm->setType(ml::SVM::C_SVC);
 	    svm->setKernel(ml::SVM::RBF);
         svm->setC(1.0);
-        svm->setGamma(2.0);
+        svm->setGamma(2);
 
         svm->train(trainData);
 
@@ -46,7 +46,8 @@ namespace dynamic_stereo{
     }
 
     Mat predictSVM(const string& model_path, const string& data_path, const int width, const int height){
-        Ptr<ml::SVM> svm = ml::SVM::load(model_path);
+        //Ptr<ml::SVM> svm = ml::SVM::load(model_path);
+        Ptr<ml::SVM> svm = ml::SVM::load<ml::SVM>(model_path);
         CHECK(svm.get()) << "Can not load trained model: " << model_path;
         Ptr<ml::TrainData> testData = ml::TrainData::loadFromCSV(data_path, 1);
         CHECK(testData.get()) << "Can not load test data: " << data_path;
