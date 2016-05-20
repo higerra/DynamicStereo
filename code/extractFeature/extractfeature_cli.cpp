@@ -12,7 +12,7 @@ DEFINE_int32(downsample, 4, "downsample ratio");
 DEFINE_int32(tWindow, -1, "tWindow");
 DEFINE_bool(trainData, true, "classifier data");
 DEFINE_int32(kBin, 8, "kBin");
-DEFINE_double(min_diff, 10, "min_diff");
+DEFINE_double(min_diff, -1, "min_diff");
 DEFINE_bool(csv, true, "dump out csv file");
 
 int main(int argc, char** argv) {

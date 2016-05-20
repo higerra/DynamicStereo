@@ -65,7 +65,7 @@ namespace dynamic_stereo{
         normalizel2(feat_diff);
 
         feat.insert(feat.end(), feat_diff.begin(), feat_diff.end());
-        //feat.insert(feat.end(), feat_intensity.begin(), feat_intensity.end());
+        feat.insert(feat.end(), feat_intensity.begin(), feat_intensity.end());
     }
 
     void DataSet::dumpData_libsvm(const std::string &path) const {

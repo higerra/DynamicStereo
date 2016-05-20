@@ -18,13 +18,14 @@ namespace dynamic_stereo{
 //        ml::ParamGrid emptyGrid(0,0,0);
 //
 	    svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 5000, FLT_EPSILON));
-        svm->trainAuto(trainData, 5);
-//	    svm->setType(ml::SVM::C_SVC);
-//	    svm->setKernel(ml::SVM::RBF);
-//        svm->setC(1.0);
-//        svm->setGamma(2.0);
+//        svm->trainAuto(trainData, 5);
 
-//        svm->train(trainData);
+	    svm->setType(ml::SVM::C_SVC);
+	    svm->setKernel(ml::SVM::RBF);
+        svm->setC(1.0);
+        svm->setGamma(2.0);
+
+        svm->train(trainData);
 
         Mat predictLabel;
         Mat gtLabel = trainData->getResponses();
