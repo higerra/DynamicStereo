@@ -322,28 +322,7 @@ namespace dynamic_stereo{
 
 	}
 
-	void DynamicSegment::assignColorTerm(const std::vector<cv::Mat> &warped, const Ptr<cv::ml::EM> fgModel,
-										 const cv::Ptr<cv::ml::EM> bgModel, std::vector<double> &colorTerm)const {
-		CHECK(!warped.empty());
-		const int width = warped[0].cols;
-		const int height = warped[0].rows;
-		colorTerm.resize((size_t)width * height * 2);
-		for(auto v=0; v<warped.size(); ++v){
-			const uchar* pImg = warped[v].data;
-			for(auto i=0; i<width * height; ++i){
-				Mat x(3,1,CV_64F);
-				double* pX = (double*) x.data;
-				pX[0] = pImg[3*i];
-				pX[1] = pImg[3*i+1];
-				pX[2] = pImg[3*i+2];
-				Vec2d predfg = fgModel->predict2(x, Mat());
-				Vec2d predbg = bgModel->predict2(x, Mat());
-				//use negative log likelihood for energy
-				colorTerm[2*i] = -1 * predbg[0];
-				colorTerm[2*i+1] = -1 * predfg[0];
-			}
-		}
-	}
+
 
 //	void DynamicSegment::solveMRF(const std::vector<double> &unary,
 //								  const std::vector<double>& vCue,

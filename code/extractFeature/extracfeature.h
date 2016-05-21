@@ -12,6 +12,7 @@
 #include <Eigen/Eigen>
 #include <iostream>
 #include <fstream>
+#include "descriptor.h"
 
 namespace dynamic_stereo{
 
@@ -43,38 +44,10 @@ namespace dynamic_stereo{
 		FeatureSet features;
 	};
 
-	class FeatureConstructor{
-	public:
-		FeatureConstructor(const int kBin_ = 8, const float min_diff_ = 10): kBin(kBin_), kBinIntensity(kBin_/2), min_diff(min_diff_), cut_thres(0.1){
-			CHECK_GT(kBin, 0);
-			CHECK_GT(kBinIntensity, 0);
-			binUnit = 512 / (float)kBin;
-			binUnitIntensity = 256 / (float)kBinIntensity;
-		}
-		virtual void constructFeature(const std::vector<float>& array, std::vector<float>& feat) const = 0;
-
-		void normalizel2(std::vector<float>& array) const;
-	protected:
-		const int kBin;
-		const int kBinIntensity;
-		float binUnit;
-		float binUnitIntensity;
-		const float min_diff;
-		const float cut_thres;
-	};
-
-	class RGBCat: public FeatureConstructor{
-	public:
-		RGBCat(const int kBin_ = 8, const float min_diff_ = 10): FeatureConstructor(kBin_, min_diff_){}
-		virtual void constructFeature(const std::vector<float>& array, std::vector<float>& feat) const;
-	};
-
 	namespace Feature {
-		enum FeatureType {RGB_CAT};
 		cv::Size importData(const std::string &path, std::vector<std::vector<float> > &array, const int downsample,
 							const int tWindow);
-
-		//samples: when extracting classifier samples (gt is not empty), samples have the size 2;
+		//samples: when extracting training samples (gt is not empty), samples have the size 2;
 		// when extracing testing samples (gt is empty), samples have the size 1
 		void extractFeature(const std::vector<std::vector<float> > &array, const cv::Size &dims, const cv::Mat &gt,
 							DataSet& samples, const int kBin, const float min_diff, const FeatureType method);

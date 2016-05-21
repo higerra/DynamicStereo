@@ -525,4 +525,212 @@
 //result.data[i] = 255;
 //}
 //}
+//}
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////
+//From: dynamicSegment.h
+//unsed function for segmenting displays
+//05/21/2016
+//////////////////////////////////////////////////////////////////////////
+void computeColorConfidence(const std::vector<cv::Mat>& input, Depth& result) const;
+//compute threshold for nlog
+double computeNlogThreshold(const std::vector<cv::Mat>& input, const cv::Mat& inputMask, const int K) const;
+
+void getHistogram(const std::vector<cv::Vec3b>& samples, std::vector<double>& hist, const int nBin) const;
+void assignColorTerm(const std::vector<cv::Mat>& warped, const cv::Ptr<cv::ml::EM> fgModel, const cv::Ptr<cv::ml::EM> bgModel,
+                     std::vector<double>& colorTerm) const;
+
+//		void solveMRF(const std::vector<double>& unary,
+//					  const std::vector<double>& vCue, const std::vector<double>& hCue,
+//					  const cv::Mat& img, const double weight_smooth,
+//					  cv::Mat& result) const;
+
+void DynamicSegment::computeColorConfidence(const std::vector<cv::Mat> &input, Depth &result) const {
+    //compute color difference pattern
+    cout << "Computing dynamic confidence..." << endl;
+    const int width = input[0].cols;
+    const int height = input[0].rows;
+    result.initialize(width, height, 0.0);
+
+    //search in a 7 by 7 window
+    const int pR = 2;
+    auto threadFunc = [&](int tid, int numt){
+        for(auto y=tid; y<height; y+=numt) {
+            for (auto x = 0; x < width; ++x) {
+                double count = 0.0;
+                vector<double> colorDiff;
+                colorDiff.reserve(input.size());
+
+                for (auto i = 0; i < input.size(); ++i) {
+                    if (i == anchor - offset)
+                        continue;
+                    Vec3b curPix = input[i].at<Vec3b>(y, x);
+                    if (curPix == Vec3b(0, 0, 0)) {
+                        continue;
+                    }
+                    double min_dis = numeric_limits<double>::max();
+                    for (auto dx = -1 * pR; dx <= pR; ++dx) {
+                        for (auto dy = -1 * pR; dy <= pR; ++dy) {
+                            const int curx = x + dx;
+                            const int cury = y + dy;
+                            if (curx < 0 || cury < 0 || curx >= width || cury >= height)
+                                continue;
+                            Vec3b refPix = input[anchor - offset].at<Vec3b>(cury, curx);
+                            min_dis = std::min(cv::norm(refPix - curPix), min_dis);
+                        }
+                    }
+                    colorDiff.push_back(min_dis);
+                    count += 1.0;
+                }
+                if (count < 1)
+                    continue;
+                const size_t kth = colorDiff.size() * 0.8;
+//				sort(colorDiff.begin(), colorDiff.end(), std::less<double>());
+                nth_element(colorDiff.begin(), colorDiff.begin() + kth, colorDiff.end());
+//				dynamicness(x,y) = accumulate(colorDiff.begin(), colorDiff.end(), 0.0) / count;
+                result(x, y) = colorDiff[kth];
+            }
+        }
+    };
+
+
+    const int num_thread = 6;
+    vector<thread_guard> threads((size_t)num_thread);
+    for(auto tid=0; tid<num_thread; ++tid){
+        std::thread t(threadFunc, tid, num_thread);
+        threads[tid].bind(t);
+    }
+    for(auto &t: threads)
+        t.join();
 }
+
+void DynamicSegment::getHistogram(const std::vector<cv::Vec3b> &samples, std::vector<double> &hist,
+                                  const int nBin) const {
+    CHECK_EQ(256%nBin, 0);
+    hist.resize((size_t)nBin*3, 0.0);
+    const int rBin = 256 / nBin;
+    for(auto& s: samples){
+        vector<int> ind{(int)s[0]/rBin, (int)s[1]/rBin, (int)s[2]/rBin};
+        hist[ind[0]] += 1.0;
+        hist[ind[1]+nBin] += 1.0;
+        hist[ind[2]+2*nBin] += 1.0;
+    }
+    //normalize
+    const double sum = std::accumulate(hist.begin(), hist.end(), 0.0);
+    //const double sum = *max_element(hist.begin(), hist.end());
+    CHECK_GT(sum, 0);
+    for(auto &h: hist)
+        h /= sum;
+}
+
+//estimate nLog value based on masked region (pedestrian...)
+double DynamicSegment::computeNlogThreshold(const std::vector<cv::Mat> &input, const cv::Mat &inputMask, const int K) const {
+    CHECK(!input.empty());
+    const int width = input[0].cols;
+    const int height = input[0].rows;
+    CHECK_EQ(inputMask.cols, width);
+    CHECK_EQ(inputMask.rows, height);
+    CHECK_EQ(inputMask.channels(), 1);
+
+    Mat mask = 255 - inputMask;
+    const uchar* pMask = mask.data;
+    //process inside patches. For each patch, randomly choose half pixels for negative samples
+    const int pR = 50;
+    const int fR = 5;
+    const double nRatio = 0.5;
+
+    double threshold = 0.0;
+    double count = 0.0;
+    Mat labels, stats, centroids;
+    const int nLabel = cv::connectedComponentsWithStats(mask, labels, stats, centroids);
+    const int min_area = 150;
+    const int min_kSample = 1000;
+
+    for(auto l=1; l<nLabel; ++l){
+        printf("Component %d/%d\n", l, nLabel-1);
+        const int area = stats.at<int>(l,CC_STAT_AREA);
+        if(area < min_area)
+            continue;
+        const int left = stats.at<int>(l,CC_STAT_LEFT);
+        const int top = stats.at<int>(l, CC_STAT_TOP);
+        const int comW = stats.at<int>(l, CC_STAT_WIDTH);
+        const int comH = stats.at<int>(l, CC_STAT_HEIGHT);
+
+        for(auto cy=top+pR; cy<top+comH-pR; cy+=pR){
+            for(auto cx=left+pR; cx<left+comW-pR; cx+=pR){
+                vector<Vec3b> samples;
+
+                for(auto x=cx-pR; x<=cx+pR; ++x){
+                    for(auto y=cy-pR; y<=cy+pR; ++y){
+                        if(x<0 || y<0 || x >=width || y>=height)
+                            continue;
+                        if(pMask[y*width+x] > 200){
+                            for(auto v=-1*fR; v<=fR; ++v)
+                                samples.push_back(input[anchor-offset+v].at<Vec3b>(y,x));
+                        }
+                    }
+                }
+                if(samples.size() < min_kSample)
+                    continue;
+                std::random_shuffle(samples.begin(), samples.end());
+                const int boundry = (int)(samples.size() * nRatio);
+                cv::Ptr<cv::ml::EM> gmmbg = cv::ml::EM::create();
+                CHECK(gmmbg.get());
+                gmmbg->setClustersNumber(K);
+                Mat nSamples(boundry, 3, CV_64F);
+                for(auto i=0; i<boundry; ++i){
+                    nSamples.at<double>(i,0) = (double)samples[i][0];
+                    nSamples.at<double>(i,1) = (double)samples[i][1];
+                    nSamples.at<double>(i,2) = (double)samples[i][2];
+                }
+                printf("Training at (%d,%d)... Number of samples: %d\n", cx, cy, boundry);
+                gmmbg->trainEM(nSamples);
+
+                double curnLog = 0.0;
+                double curCount = 0.0;
+                for(auto i=boundry; i<samples.size(); ++i){
+                    Mat s(1,3,CV_64F);
+                    for(auto j=0; j<3; ++j)
+                        s.at<double>(0,j) = (double)samples[i][j];
+                    Mat prob(1, gmmbg->getClustersNumber(), CV_64F);
+                    Vec2d pre = gmmbg->predict2(s, prob);
+                    curnLog -= pre[0];
+                    curCount += 1.0;
+                }
+                printf("Done, nLog: %.3f\n", curnLog/curCount);
+                threshold += curnLog / curCount;
+                count += 1.0;
+            }
+        }
+    }
+    CHECK_GT(count,0.9);
+    return threshold / count;
+}
+
+void DynamicSegment::assignColorTerm(const std::vector<cv::Mat> &warped, const Ptr<cv::ml::EM> fgModel,
+                                     const cv::Ptr<cv::ml::EM> bgModel, std::vector<double> &colorTerm)const {
+    CHECK(!warped.empty());
+    const int width = warped[0].cols;
+    const int height = warped[0].rows;
+    colorTerm.resize((size_t)width * height * 2);
+    for(auto v=0; v<warped.size(); ++v){
+        const uchar* pImg = warped[v].data;
+        for(auto i=0; i<width * height; ++i){
+            Mat x(3,1,CV_64F);
+            double* pX = (double*) x.data;
+            pX[0] = pImg[3*i];
+            pX[1] = pImg[3*i+1];
+            pX[2] = pImg[3*i+2];
+            Vec2d predfg = fgModel->predict2(x, Mat());
+            Vec2d predbg = bgModel->predict2(x, Mat());
+            //use negative log likelihood for energy
+            colorTerm[2*i] = -1 * predbg[0];
+            colorTerm[2*i+1] = -1 * predfg[0];
+        }
+    }
+}
+
