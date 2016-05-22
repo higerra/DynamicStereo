@@ -22,7 +22,7 @@ namespace dynamic_stereo {
         public:
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const = 0;
             void normalizel2(std::vector<float> &array) const;
-
+            void normalizeSum(std::vector<float> &array) const;
             inline int getDim() const{return dim;}
         protected:
             int dim;
@@ -30,12 +30,12 @@ namespace dynamic_stereo {
 
         class RGBCat : public FeatureConstructor {
         public:
-            RGBCat(const int kBin_ = 8, const float min_diff_ = 10) : kBin(kBin_), kBinIntensity(kBin/2), min_diff(min_diff_), cut_thres(0.1){
+            RGBCat(const int kBin_ = 8, const float min_diff_ = 10) : kBin(kBin_), kBinIntensity(kBin), min_diff(min_diff_), cut_thres(0.1){
                 CHECK_GT(kBin, 0);
                 CHECK_GT(kBinIntensity, 0);
                 binUnit = 512 / (float) kBin;
                 binUnitIntensity = 256 / (float) kBinIntensity;
-                dim = kBin * 3 + kBinIntensity;
+                dim = (kBin + kBinIntensity) * 3;
             }
 
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const;

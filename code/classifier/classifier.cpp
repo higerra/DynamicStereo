@@ -17,13 +17,13 @@ namespace dynamic_stereo{
 //        ml::ParamGrid gridG(pow(2.0,-3), pow(2.0,3), 2);
 //        ml::ParamGrid emptyGrid(0,0,0);
 //
-	    svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 20000, FLT_EPSILON));
+	    svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 10000, FLT_EPSILON));
 //        svm->trainAuto(trainData, 5);
 
 	    svm->setType(ml::SVM::C_SVC);
 	    svm->setKernel(ml::SVM::RBF);
         svm->setC(1.0);
-        svm->setGamma(2);
+        svm->setGamma(4.0);
 
         svm->train(trainData);
 

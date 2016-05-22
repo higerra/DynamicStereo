@@ -23,6 +23,7 @@ DEFINE_int32(stereo_interval, 5, "interval for stereo");
 DEFINE_double(weight_smooth, 0.1, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
+DEFINE_string(classifierPath, "../../../data/svmTrain/model_newyork.svm", "Path to classifier model");
 
 int main(int argc, char **argv) {
 	if (argc < 2) {
@@ -168,7 +169,7 @@ int main(int argc, char **argv) {
 
 	Mat seg_result_small;
 
-	segment->segmentDisplay(prewarp1, segMask, seg_result_small, segmentsDisplay);
+	segment->segmentDisplay(prewarp1, segMask, FLAGS_classifierPath, seg_result_small, segmentsDisplay);
 	segment.reset();
 	Mat seg_result;
 	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);
