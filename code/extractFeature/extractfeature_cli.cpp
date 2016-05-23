@@ -11,7 +11,7 @@ using namespace dynamic_stereo;
 
 DEFINE_int32(downsample, 4, "downsample ratio");
 DEFINE_int32(tWindow, -1, "tWindow");
-DEFINE_bool(trainData, true, "classifier data");
+DEFINE_string(mode, "train", "mode selection: train or test");
 DEFINE_int32(kBin, 8, "kBin");
 DEFINE_double(min_diff, -1, "min_diff");
 DEFINE_bool(csv, true, "dump out csv file");
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     DataSet data_all;
     char buffer[1024] = {};
 
-    if (FLAGS_trainData) {
+    if (FLAGS_mode == "train") {
         string list_path = string(argv[1]);
         size_t dashPos;
         for(dashPos = list_path.size()-1; dashPos>=0; --dashPos){
@@ -82,17 +82,24 @@ int main(int argc, char** argv) {
                 data_test.dumpData_libsvm(string(buffer));
             }
         }
-    } else {
+    } else if(FLAGS_mode == "test") {
+        printf("Preparing testing data: %s\n", argv[1]);
         if(FLAGS_type == "pixel") {
             vector<vector<float> > data;
-            printf("Preparing testing data: %s\n", argv[1]);
             cv::Size dim = Feature::importData(string(argv[1]), data, FLAGS_downsample, FLAGS_tWindow);
             printf("Extracting...\n");
             Feature::extractFeature(data, dim, Mat(), data_all, FLAGS_kBin, (float) FLAGS_min_diff, Feature::RGB_CAT);
         }else if(FLAGS_type == "region"){
-            cerr << "Not implemented..." << endl;
+            vector<cv::Mat> input;
+            cv::Size dim = Feature::importDataMat(string(argv[1]), input, FLAGS_downsample, FLAGS_tWindow);
+            vector<vector<Vector2i> > cluster;
+            Feature::clusterRGBStat(input, cluster);
+            cerr << "Not fininshed..." << endl;
             return 1;
         }
+    }else{
+        cerr << "Unsupported mode" << endl;
+        return 1;
     }
 
     printf("Saving...\n");

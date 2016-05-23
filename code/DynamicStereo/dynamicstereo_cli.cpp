@@ -195,18 +195,19 @@ int main(int argc, char **argv) {
 	}
 
 //	printf("Running regularizaion\n");
-//	vector<Mat> regulared;
+	vector<Mat> regulared;
 //	float reg_t = (float)cv::getTickCount();
 //	dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
 //	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
 //	CHECK_EQ(regulared.size(), finalResult.size());
 //	vector<Mat> medianResult;
 //	utility::temporalMedianFilter(finalResult, medianResult, 2);
+	utility::temporalMedianFilter(finalResult, regulared, 3);
 
-//	for(auto i=0; i<regulared.size(); ++i){
-//		sprintf(buffer, "%s/temp/regulared%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());
-//		imwrite(buffer, regulared[i]);
-//	}
+	for(auto i=0; i<regulared.size(); ++i){
+		sprintf(buffer, "%s/temp/regulared%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());
+		imwrite(buffer, regulared[i]);
+	}
 
 //	for(auto i=0; i<medianResult.size(); ++i){
 //		sprintf(buffer, "%s/temp/median%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());

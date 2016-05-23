@@ -55,6 +55,10 @@ namespace dynamic_stereo {
             float binUnitIntensity;
         };
 
+        cv::Mat visualizeSegment(const cv::Mat& labels);
+
+        void meanshiftCluster(const cv::Mat& input, cv::Mat& output, const int hs, const float hr, const int min_a);
+
         void clusterRGBHist(const std::vector<cv::Mat>& input, std::vector<std::vector<Eigen::Vector2i> >& cluster, const int kBin = 8);
 
         void clusterRGBStat(const std::vector<cv::Mat>& input, std::vector<std::vector<Eigen::Vector2i> >& cluster);

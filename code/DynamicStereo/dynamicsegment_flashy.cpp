@@ -131,8 +131,6 @@ namespace dynamic_stereo{
 		result = Mat(height, width, CV_8UC1, Scalar(0));
 		uchar* pResult = result.data;
 
-
-
 		//repetative pattern
 		printf("Computing frequency confidence...\n");
 		Depth frequency;

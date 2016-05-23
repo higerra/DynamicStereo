@@ -26,7 +26,6 @@ namespace dynamic_stereo{
 
         const int kFrame = (int)input.size();
         const int nSamples = width * height / stride / stride;
-        vector<vector<float> > samplesf((size_t)nSamples);
 
         int index = 0;
         //Notice: input images are in BGR color space!!!
@@ -62,6 +61,7 @@ namespace dynamic_stereo{
             else
                 CHECK(true) << pResult[i];
         }
+        cv::resize(res, res,input[0].size(),INTER_NEAREST);
         return res;
     }
 
@@ -83,6 +83,9 @@ namespace dynamic_stereo{
         cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
         printf("Running classification...\n");
         Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
+
+        sprintf(buffer, "%s/temp/classification%05d.jpg", file_io.getDirectory().c_str(), anchor);
+        imwrite(buffer, preSeg);
 
         cv::erode(preSeg, preSeg, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(5,5)));
         cv::dilate(preSeg, preSeg, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(5,5)));

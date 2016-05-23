@@ -123,15 +123,21 @@ namespace dynamic_stereo{
 
             cv::Size dsize(width, height);
 
+            const int nLevel = (int)std::log2((double)downsample) + 1;
             for(auto fid=0; fid<kNum; ++fid){
                 Mat frame;
                 if(!cap.read(frame)) {
                     break;
                 }
-                cv::resize(frame, frame, dsize,0,0,INTER_CUBIC);
+                vector<Mat> pyramid(nLevel);
+                pyramid[0] = frame.clone();
+                for(auto l=1; l<nLevel; ++l)
+                    cv::pyrDown(pyramid[l-1],pyramid[l]);
+                CHECK_EQ(pyramid.back().cols, width);
+                CHECK_EQ(pyramid.back().rows, height);
                 //cvtColor(frame, frame, CV_BGR2Luv);
-                cvtColor(frame, frame, CV_BGR2RGB);
-                output.push_back(frame);
+                cvtColor(pyramid.back(), pyramid.back(), CV_BGR2RGB);
+                output.push_back(pyramid.back());
             }
             return dsize;
         }
