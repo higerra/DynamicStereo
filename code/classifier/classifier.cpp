@@ -23,7 +23,7 @@ namespace dynamic_stereo{
             svm->setType(ml::SVM::C_SVC);
             svm->setKernel(ml::SVM::RBF);
             svm->setC(1);
-            svm->setGamma(4);
+            svm->setGamma(6);
         }else if(type == "GBT"){
             printf("Training GBT...\n");
             classifier = ml::Boost::create();
