@@ -28,25 +28,36 @@ namespace dynamic_stereo {
             int dim;
         };
 
-        class RGBCat : public FeatureConstructor {
+        class ColorHist: public FeatureConstructor{
         public:
-            RGBCat(const int kBin_ = 8, const float min_diff_ = 10) : kBin(kBin_), kBinIntensity(kBin), min_diff(min_diff_), cut_thres(0.1){
+            ColorHist(const int kBin_ = 8, const float min_diff_ = -1) : kBin(kBin_), min_diff(min_diff_), cut_thres(0.1){
                 CHECK_GT(kBin, 0);
+            }
+            virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const = 0;
+        protected:
+            const int kBin;
+            float binUnit;
+            const float min_diff;
+            const float cut_thres;
+        };
+
+        class RGBHist : public ColorHist {
+        public:
+            RGBHist(const int kBin_ = 8, const float min_diff_ = -1) : ColorHist(kBin_, min_diff_), kBinIntensity(kBin_){
                 CHECK_GT(kBinIntensity, 0);
                 binUnit = 512 / (float) kBin;
                 binUnitIntensity = 256 / (float) kBinIntensity;
                 dim = (kBin + kBinIntensity) * 3;
             }
-
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const;
         private:
-            const int kBin;
             const int kBinIntensity;
-            float binUnit;
             float binUnitIntensity;
-            const float min_diff;
-            const float cut_thres;
         };
+
+        void clusterRGBHist(const std::vector<cv::Mat>& input, std::vector<std::vector<Eigen::Vector2i> >& cluster, const int kBin = 8);
+
+        void clusterRGBStat(const std::vector<cv::Mat>& input, std::vector<std::vector<Eigen::Vector2i> >& cluster);
 
     }//namespace Feature
 }//namespace dynamic_stereo

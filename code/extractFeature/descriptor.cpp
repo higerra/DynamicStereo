@@ -3,6 +3,8 @@
 //
 
 #include "descriptor.h"
+#include "../external/segment_ms/msImageProcessor.h"
+#include "../base/thread_guard.h"
 
 using namespace std;
 using namespace cv;
@@ -30,7 +32,7 @@ namespace dynamic_stereo{
                 f /= sum;
         }
 
-        void RGBCat::constructFeature(const std::vector<float> &array, std::vector<float> &feat) const {
+        void RGBHist::constructFeature(const std::vector<float> &array, std::vector<float> &feat) const {
             CHECK_EQ((int) array.size() % 3, 0);
             vector<float> feat_diff((size_t) kBin * 3, 0.0f);
             vector<float> feat_intensity((size_t) kBinIntensity * 3, 0.0f);
@@ -65,10 +67,10 @@ namespace dynamic_stereo{
                 }
             }
             //normalize, cut and renormalize
-//            normalizel2(feat_intensity);
-//            normalizel2(feat_diff);
-            normalizeSum(feat_diff);
-            normalizeSum(feat_intensity);
+            normalizel2(feat_intensity);
+            normalizel2(feat_diff);
+//            normalizeSum(feat_diff);
+//            normalizeSum(feat_intensity);
             for (auto &f: feat_intensity) {
                 if (f < cut_thres)
                     f = 0;
@@ -77,13 +79,57 @@ namespace dynamic_stereo{
                 if (f < cut_thres)
                     f = 0;
             }
-            normalizeSum(feat_diff);
-            normalizeSum(feat_intensity);
-//            normalizel2(feat_intensity);
-//            normalizel2(feat_diff);
+//            normalizeSum(feat_diff);
+//            normalizeSum(feat_intensity);
+            normalizel2(feat_intensity);
+            normalizel2(feat_diff);
 
             feat.insert(feat.end(), feat_diff.begin(), feat_diff.end());
             feat.insert(feat.end(), feat_intensity.begin(), feat_intensity.end());
         }
+
+        void clusterRGBHist(const std::vector<cv::Mat>& input, std::vector<std::vector<Eigen::Vector2i> >& cluster, const int kBin){
+
+        }
+
+        void clusterRGBStat(const std::vector<cv::Mat>& input, std::vector<std::vector<Eigen::Vector2i> >& cluster){
+            //cluster the mean median color using meanshift
+            CHECK(!input.empty());
+            const int width = input[0].cols;
+            const int height = input[0].rows;
+            const int chn = input[0].channels();
+
+            Mat medImage(height, width, CV_8UC3, Scalar::all(0));
+            printf("Computing median image...\n");
+            const size_t kth = input.size() / 2;
+            auto threadFun = [&](const int tid, const int nt){
+                for(auto y=tid; y < height; y+=nt){
+                    for(auto x=0; x < width; ++x){
+                        vector<vector<uchar> > pv(3, vector<uchar>(input.size(),0));
+                        for(auto c=0; c<chn; ++c){
+                            for(auto v=0; v<input.size(); ++v)
+                                pv[c][v] = input[v].at<Vec3b>(y,x)[c];
+                            nth_element(pv[c].begin(), pv[c].begin()+kth, pv[c].end());
+                            medImage.at<Vec3b>(y,x)[c] = pv[c][kth];
+                        }
+                    }
+                }
+            };
+
+            const int num_thread = 6;
+            vector<thread_guard> threads(num_thread);
+            for(auto tid=0; tid < num_thread; ++tid){
+                std::thread t(threadFun, tid, num_thread);
+                threads[tid].bind(t);
+            }
+            for(auto &t: threads)
+                t.join();
+
+            Mat vis;
+            cvtColor(medImage, vis, CV_RGB2BGR);
+            imshow("Median image", vis);
+            waitKey(0);
+        }
+
     }//namespace Feature
 }//namespace dynamic_stereo

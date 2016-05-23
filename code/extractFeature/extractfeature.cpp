@@ -80,6 +80,8 @@ namespace dynamic_stereo{
             for(auto& a: array)
                 a.resize(kFrame * 3);
 
+            const int nLevel = (int)std::log2((double)downsample) + 1;
+
             cv::Size dsize(width, height);
 
             for(auto fid=0; fid<kNum; ++fid){
@@ -87,10 +89,15 @@ namespace dynamic_stereo{
                 if(!cap.read(frame)) {
 	                break;
                 }
-                cv::resize(frame, frame, dsize);
+                vector<Mat> pyramid(nLevel);
+                pyramid[0] = frame.clone();
+                for(auto l=1; l<nLevel; ++l)
+                    cv::pyrDown(pyramid[l-1],pyramid[l]);
+                CHECK_EQ(pyramid.back().cols, width);
+                CHECK_EQ(pyramid.back().rows, height);
                 //cvtColor(frame, frame, CV_BGR2Luv);
                 cvtColor(frame, frame, CV_BGR2RGB);
-                const uchar* pFrame = frame.data;
+                const uchar* pFrame = pyramid.back().data;
                 for(auto i=0; i<width * height; ++i){
                     array[i][fid*3] = (float)pFrame[3*i];
                     array[i][fid*3+1] = (float)pFrame[3*i+1];
@@ -98,6 +105,34 @@ namespace dynamic_stereo{
                 }
             }
 
+            return dsize;
+        }
+
+        cv::Size importDataMat(const std::string& path, std::vector<cv::Mat>& output, const int downsample, const int tWindow){
+            VideoCapture cap(path);
+            CHECK(cap.isOpened());
+            int width = (int)cap.get(CV_CAP_PROP_FRAME_WIDTH) / downsample;
+            int height = (int)cap.get(CV_CAP_PROP_FRAME_HEIGHT) / downsample;
+            const int kFrame = (int)cap.get(CV_CAP_PROP_FRAME_COUNT);
+
+            int kNum;
+            if(tWindow > 0 && tWindow <= kFrame)
+                kNum = tWindow;
+            else
+                kNum = kFrame;
+
+            cv::Size dsize(width, height);
+
+            for(auto fid=0; fid<kNum; ++fid){
+                Mat frame;
+                if(!cap.read(frame)) {
+                    break;
+                }
+                cv::resize(frame, frame, dsize,0,0,INTER_CUBIC);
+                //cvtColor(frame, frame, CV_BGR2Luv);
+                cvtColor(frame, frame, CV_BGR2RGB);
+                output.push_back(frame);
+            }
             return dsize;
         }
 
@@ -140,7 +175,7 @@ namespace dynamic_stereo{
             shared_ptr<FeatureConstructor> featureConstructor(NULL);
             switch (method){
                 case RGB_CAT:
-                    featureConstructor.reset(new RGBCat(kBin, min_diff));
+                    featureConstructor.reset(new RGBHist(kBin, min_diff));
                     break;
                 default:
                     CHECK(true) << "Unsupported method";

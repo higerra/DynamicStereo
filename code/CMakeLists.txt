@@ -34,7 +34,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 #supporting code
 add_subdirectory(${ROOT_DIRECTORY}/base)
 add_subdirectory(${ROOT_DIRECTORY}/external/MRF2.2)
-#add_subdirectory(${ROOT_DIRECTORY}/external/segment_ms)
+add_subdirectory(${ROOT_DIRECTORY}/external/segment_ms)
 
 #main code
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)

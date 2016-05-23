@@ -11,6 +11,7 @@ using namespace cv;
 
 DEFINE_int32(downsample, 4, "downsample");
 DEFINE_string(mode, "test", "mode: classifier or test");
+DEFINE_string(type, "SVM", "type of classifier");
 DEFINE_int32(width, -1, "output width");
 DEFINE_int32(height, -1, "output height");
 
@@ -25,7 +26,7 @@ int main(int argc, char** argv){
         }
         printf("Training...\n");
         float start_t = (float)cv::getTickCount();
-        trainSVM(string(argv[1]), string(argv[2]));
+        train(string(argv[1]), string(argv[2]), FLAGS_type);
         printf("Done. Time usage:%.2fs\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
     }else if(FLAGS_mode == "test"){
         if(argc < 4){
@@ -38,7 +39,7 @@ int main(int argc, char** argv){
         CHECK_GT(height, 0);
         float start_t = (float)cv::getTickCount();
         printf("Predicting...\n");
-        Mat result = predictSVM(string(argv[2]), string(argv[1]), width, height);
+        Mat result = predict(string(argv[2]), string(argv[1]), width, height, FLAGS_type);
         printf("Done. Time usage:%.2fs\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
         imwrite(argv[3], result);
     }else{

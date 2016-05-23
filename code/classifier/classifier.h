@@ -14,9 +14,8 @@
 
 namespace dynamic_stereo{
 
-    void trainSVM(const std::string& input_path, const std::string& output_path);
-
-    cv::Mat predictSVM(const std::string& model_path, const std::string& data_path, const int width, const int height);
+    void train(const std::string& input_path, const std::string& output_path, const std::string& type);
+    cv::Mat predict(const std::string& model_path, const std::string& data_path, const int width, const int height, const std::string& type);
 
 }//namespace dynamic_stereo
 
