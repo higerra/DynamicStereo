@@ -2,6 +2,7 @@
 // Created by yanhang on 5/21/16.
 //
 
+#include <random>
 #include "descriptor.h"
 #include "../external/segment_ms/msImageProcessor.h"
 #include "../base/thread_guard.h"
@@ -111,24 +112,19 @@ namespace dynamic_stereo{
         void meanshiftCluster(const cv::Mat& input, cv::Mat& output, const int hs, const float hr, const int min_a){
 //            printf("Clustering...\n");
 //            //meanshift cluster
-//            CHECK_EQ(input.dims, 3);
-//            const int height = input.size[0];
-//            const int width = input.size[1];
-//            const int N = input.size[2];
-//            Mat inputF;
-//            input.convertTo(inputF, CV_32F);
-//            segment_ms::msImageProcessor ms_segmentator;
-//            ms_segmentator.DefineLInput((float*)input.data, height, width, N);
-//
-//            ms_segmentator.Segment(hs, hr, min_a, meanshift::SpeedUpLevel::MED_SPEEDUP);
-//            vector<int> labels(medImage.cols * medImage.rows, 0);
-//            for(auto i=0; i<medImage.cols * medImage.rows; ++i){
-//                labels[i] = ms_segmentator.GetLabels()[i];
-//            }
-//
-//            Mat segVis = visualizeSegment(labels, medImage.cols, medImage.rows);
-//            imshow("Meanshift segmentation", segVis);
-//            waitKey();
+            const int height = input.rows;
+            const int width = input.cols;
+            const int N = input.size[2];
+	        output = Mat(height, width, CV_32S, Scalar::all(0));
+	        int* pOutput = (int*) output.data;
+
+            segment_ms::msImageProcessor ms_segmentator;
+	        ms_segmentator.DefineImage(input.data, segment_ms::COLOR, height, width);
+            ms_segmentator.Segment(hs, hr, min_a, meanshift::SpeedUpLevel::MED_SPEEDUP);
+
+            for(auto i=0; i<width * height; ++i){
+                pOutput[i] = ms_segmentator.GetLabels()[i];
+            }
         }
 
         void clusterRGBHist(const std::vector<cv::Mat>& input, std::vector<std::vector<Eigen::Vector2i> >& cluster, const int kBin){
@@ -142,39 +138,53 @@ namespace dynamic_stereo{
             const int height = input[0].rows;
             const int chn = input[0].channels();
 
-            Mat medImage(height, width, CV_8UC3, Scalar::all(0));
-            printf("Computing median image...\n");
-            const size_t kth = input.size() / 2;
-            auto threadFun = [&](const int tid, const int nt){
-                for(auto y=tid; y < height; y+=nt){
-                    for(auto x=0; x < width; ++x){
-                        vector<Vector3f> pv(input.size(), Vector3f(0,0,0));
-                        for(auto c=0; c<chn; ++c){
-                            for(auto v=0; v<input.size(); ++v)
-                                pv[v][c] = (float)input[v].at<Vec3b>(y,x)[c];
-                            //nth_element(pv[c].begin(), pv[c].begin()+kth, pv[c].end());
-                            //medImage.at<Vec3b>(y,x)[c] = pv[c][kth];
-                        }
-                        Vector3f ave = std::accumulate(pv.begin(), pv.end(), Vector3f(0,0,0)) / (float)input.size();
-                        medImage.at<Vec3b>(y,x)[0] = (uchar)ave[0];
-                        medImage.at<Vec3b>(y,x)[1] = (uchar)ave[1];
-                        medImage.at<Vec3b>(y,x)[2] = (uchar)ave[2];
-                    }
-                }
-            };
+	        char buffer[1024] = {};
+//            Mat medImage(height, width, CV_8UC3, Scalar::all(0));
+//            printf("Computing median image...\n");
+//            const size_t kth = input.size() / 2;
+//            auto threadFun = [&](const int tid, const int nt){
+//                for(auto y=tid; y < height; y+=nt){
+//                    for(auto x=0; x < width; ++x){
+//                        vector<Vector3f> pv(input.size(), Vector3f(0,0,0));
+//                        for(auto c=0; c<chn; ++c){
+//                            for(auto v=0; v<input.size(); ++v)
+//                                pv[v][c] = (float)input[v].at<Vec3b>(y,x)[c];
+//                            //nth_element(pv[c].begin(), pv[c].begin()+kth, pv[c].end());
+//                            //medImage.at<Vec3b>(y,x)[c] = pv[c][kth];
+//                        }
+//                        Vector3f ave = std::accumulate(pv.begin(), pv.end(), Vector3f(0,0,0)) / (float)input.size();
+//                        medImage.at<Vec3b>(y,x)[0] = (uchar)ave[0];
+//                        medImage.at<Vec3b>(y,x)[1] = (uchar)ave[1];
+//                        medImage.at<Vec3b>(y,x)[2] = (uchar)ave[2];
+//                    }
+//                }
+//            };
+//
+//            const int num_thread = 6;
+//            vector<thread_guard> threads(num_thread);
+//            for(auto tid=0; tid < num_thread; ++tid){
+//                std::thread t(threadFun, tid, num_thread);
+//                threads[tid].bind(t);
+//            }
+//            for(auto &t: threads)
+//                t.join();
+//
+//            Mat vis;
+//            cvtColor(medImage, vis, CV_RGB2BGR);
+//            imshow("Average image", vis);
 
-            const int num_thread = 6;
-            vector<thread_guard> threads(num_thread);
-            for(auto tid=0; tid < num_thread; ++tid){
-                std::thread t(threadFun, tid, num_thread);
-                threads[tid].bind(t);
-            }
-            for(auto &t: threads)
-                t.join();
-
-            Mat vis;
-            cvtColor(medImage, vis, CV_RGB2BGR);
-            imshow("Average image", vis);
+	        //perform meanshift on every image
+	        const int hs = 5;
+	        const float hr = 10;
+	        const int min_a = 70;
+	        for(auto v=0; v<input.size(); ++v){
+		        printf("Segment %d\n", v);
+		        Mat msOutput, msVis;
+		        meanshiftCluster(input[v], msOutput, hs, hr, min_a);
+		        msVis = visualizeSegment(msOutput);
+		        sprintf(buffer, "seg%05d.jpg", v);
+		        imwrite(buffer, msVis);
+	        }
 
 
         }

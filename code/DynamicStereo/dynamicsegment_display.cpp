@@ -80,7 +80,7 @@ namespace dynamic_stereo{
         cv::resize(inputMask, segnetMask, cv::Size(width, height), INTER_NEAREST);
 
         shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::RGBHist());
-        cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
+        cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
         printf("Running classification...\n");
         Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
 
