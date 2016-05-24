@@ -196,7 +196,7 @@ using theia::ReconstructionBuilder;
 using theia::ReconstructionBuilderOptions;
 using namespace dynamic_stereo;
 // Sets the feature extraction, matching, and reconstruction options based on
-// the command line flags. There are many more options beside just these located
+// the command line_util flags. There are many more options beside just these located
 // in //theia/vision/sfm/reconstruction_builder.h
 ReconstructionBuilderOptions SetReconstructionBuilderOptions(const FileIO& file_io) {
     ReconstructionBuilderOptions options;

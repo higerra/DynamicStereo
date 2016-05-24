@@ -41,10 +41,10 @@ namespace dynamic_stereo {
 //		Mat oriGrid = Mat(height, width, CV_8UC3, Scalar(0,0,0));
 		img = Mat(height, width, CV_8UC3, Scalar(0,0,0));
 //		for (auto x = 0; x < width; x += getBlockW()) {
-//			cv::line(oriGrid, cv::Point(x, 0), cv::Point(x, height - 1), Scalar(255, 255, 255), 1);
+//			cv::line_util(oriGrid, cv::Point(x, 0), cv::Point(x, height - 1), Scalar(255, 255, 255), 1);
 //		}
 //		for (auto y = 0; y < height; y += getBlockH()) {
-//			cv::line(oriGrid, cv::Point(0, y), cv::Point(width - 1, y), Scalar(255, 255, 255), 1);
+//			cv::line_util(oriGrid, cv::Point(0, y), cv::Point(width - 1, y), Scalar(255, 255, 255), 1);
 //		}
 //		for (auto y = 0; y < height; ++y) {
 //			for (auto x = 0; x < width; ++x) {

@@ -875,7 +875,7 @@ void RE::Init(const char* regex) {
 
 const char kUnknownFile[] = "unknown file";
 
-// Formats a source file path and a line number as they would appear
+// Formats a source file path and a line_util number as they would appear
 // in an error message from the compiler used to compile this code.
 GTEST_API_ ::std::string FormatFileLocation(const char* file, int line) {
   const std::string file_name(file == NULL ? kUnknownFile : file);
@@ -884,7 +884,7 @@ GTEST_API_ ::std::string FormatFileLocation(const char* file, int line) {
     return file_name + ":";
   }
 #ifdef _MSC_VER
-  return file_name + "(" + StreamableToString(line) + "):";
+  return file_name + "(" + StreamableToString(line_util) + "):";
 #else
   return file_name + ":" + StreamableToString(line) + ":";
 #endif  // _MSC_VER
@@ -1242,7 +1242,7 @@ std::string StringFromGTestEnv(const char* flag, const char* default_value) {
   // "xml:" prefix of GTEST_OUTPUT.
   //
   // The net priority order after flag processing is thus:
-  //   --gtest_output command line flag
+  //   --gtest_output command line_util flag
   //   GTEST_OUTPUT environment variable
   //   XML_OUTPUT_FILE environment variable
   //   'default_value'

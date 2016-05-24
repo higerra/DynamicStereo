@@ -245,10 +245,10 @@
 //                  - integers of known sizes.
 //   BiggestInt     - the biggest signed integer type.
 //
-// Command-line utilities:
+// Command-line_util utilities:
 //   GTEST_DECLARE_*()  - declares a flag.
 //   GTEST_DEFINE_*()   - defines a flag.
-//   GetInjectableArgvs() - returns the command line as a vector of strings.
+//   GetInjectableArgvs() - returns the command line_util as a vector of strings.
 //
 // Environment variable utilities:
 //   GetEnv()             - gets the value of an environment variable.
@@ -1225,7 +1225,7 @@ class GTEST_API_ RE {
   GTEST_DISALLOW_ASSIGN_(RE);
 };
 
-// Formats a source file path and a line number as they would appear
+// Formats a source file path and a line_util number as they would appear
 // in an error message from the compiler used to compile this code.
 GTEST_API_ ::std::string FormatFileLocation(const char* file, int line);
 
@@ -1427,7 +1427,7 @@ GTEST_API_ size_t GetFileSize(FILE* file);
 // Reads the entire content of a file as a string.
 GTEST_API_ std::string ReadEntireFile(FILE* file);
 
-// All command line arguments.
+// All command line_util arguments.
 GTEST_API_ const ::std::vector<testing::internal::string>& GetArgvs();
 
 #if GTEST_HAS_DEATH_TEST
@@ -2497,7 +2497,7 @@ typedef TypeWithSize<8>::Int Int64;
 typedef TypeWithSize<8>::UInt UInt64;
 typedef TypeWithSize<8>::Int TimeInMillis;  // Represents time in milliseconds.
 
-// Utilities for command line flags and environment variables.
+// Utilities for command line_util flags and environment variables.
 
 // Macro for referencing flags.
 #if !defined(GTEST_FLAG)

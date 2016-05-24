@@ -184,7 +184,7 @@ namespace internal {
 const char kStackTraceMarker[] = "\nStack trace:\n";
 
 // g_help_flag is true iff the --help flag or an equivalent form is
-// specified on the command line.
+// specified on the command line_util.
 bool g_help_flag = false;
 
 }  // namespace internal
@@ -300,7 +300,7 @@ GTEST_DEFINE_bool_(
 GTEST_DEFINE_string_(
     flagfile,
     internal::StringFromGTestEnv("flagfile", ""),
-    "This flag specifies the flagfile to read command-line flags from.");
+    "This flag specifies the flagfile to read command-line_util flags from.");
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_
 
 namespace internal {
@@ -383,7 +383,7 @@ void AssertHelper::operator=(const Message& message) const {
 // Mutex for linked pointers.
 GTEST_API_ GTEST_DEFINE_STATIC_MUTEX_(g_linked_ptr_mutex);
 
-// A copy of all command line arguments.  Set by InitGoogleTest().
+// A copy of all command line_util arguments.  Set by InitGoogleTest().
 ::std::vector<testing::internal::string> g_argvs;
 
 const ::std::vector<testing::internal::string>& GetArgvs() {
@@ -1215,7 +1215,7 @@ std::string CreateUnifiedDiff(const std::vector<std::string>& left,
       ++edit_i;
     }
 
-    // Find the first line to include in the hunk.
+    // Find the first line_util to include in the hunk.
     const size_t prefix_context = std::min(l_i, context);
     Hunk hunk(l_i - prefix_context + 1, r_i - prefix_context + 1);
     for (size_t i = prefix_context; i > 0; --i) {
@@ -1681,7 +1681,7 @@ AssertionResult HRESULTFailureHelper(const char* expr,
   DWORD message_length = ::FormatMessageA(kFlags,
                                           0,  // no source, we're asking system
                                           hr,  // the error
-                                          0,  // no line width restrictions
+                                          0,  // no line_util width restrictions
                                           error_text,  // output buffer
                                           kBufSize,  // buf size
                                           NULL);  // no arguments for inserts
@@ -2254,7 +2254,7 @@ void ReportFailureInUnknownLocation(TestPartResult::Type result_type,
   UnitTest::GetInstance()->AddTestPartResult(
       result_type,
       NULL,  // No info about the source file where the exception occurred.
-      -1,    // We have no info on which line caused the exception.
+      -1,    // We have no info on which line_util caused the exception.
       message,
       "");   // No stack trace, either.
 }
@@ -4141,7 +4141,7 @@ void UnitTest::AddTestPartResult(
     // gtest_throw_on_failure.  This allows a user to set the latter
     // in the code (perhaps in order to use Google Test assertions
     // with another testing framework) and specify the former on the
-    // command line for debugging.
+    // command line_util for debugging.
     if (GTEST_FLAG(break_on_failure)) {
 #if GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_PHONE && !GTEST_OS_WINDOWS_RT
       // Using DebugBreak on Windows allows gtest to still break into a debugger
@@ -4839,7 +4839,7 @@ int UnitTestImpl::FilterTests(ReactionToSharding shard_tests) {
   return num_selected_tests;
 }
 
-// Prints the given C-string on a single line by replacing all '\n'
+// Prints the given C-string on a single line_util by replacing all '\n'
 // characters with string "\\n".  If the output takes more than
 // max_length characters, only prints the first max_length characters
 // and "...".
@@ -4879,7 +4879,7 @@ void UnitTestImpl::ListTestsMatchingFilter() {
           printf("%s.", test_case->name());
           if (test_case->type_param() != NULL) {
             printf("  # %s = ", kTypeParamLabel);
-            // We print the type parameter on a single line to make
+            // We print the type parameter on a single line_util to make
             // the output easy to parse by a program.
             PrintOnOneLine(test_case->type_param(), kMaxParamLength);
           }
@@ -4888,7 +4888,7 @@ void UnitTestImpl::ListTestsMatchingFilter() {
         printf("  %s", test_info->name());
         if (test_info->value_param() != NULL) {
           printf("  # %s = ", kValueParamLabel);
-          // We print the value parameter on a single line to make the
+          // We print the value parameter on a single line_util to make the
           // output easy to parse by a program.
           PrintOnOneLine(test_info->value_param(), kMaxParamLength);
         }
@@ -5007,7 +5007,7 @@ bool SkipPrefix(const char* prefix, const char** pstr) {
   return false;
 }
 
-// Parses a string as a command line flag.  The string should have
+// Parses a string as a command line_util flag.  The string should have
 // the format "--flag=value".  When def_optional is true, the "=value"
 // part can be omitted.
 //
@@ -5098,7 +5098,7 @@ bool ParseStringFlag(const char* str, const char* flag, std::string* value) {
 
 // Determines whether a string has a prefix that Google Test uses for its
 // flags, i.e., starts with GTEST_FLAG_PREFIX_ or GTEST_FLAG_PREFIX_DASH_.
-// If Google Test detects that a command line flag has its prefix but is not
+// If Google Test detects that a command line_util flag has its prefix but is not
 // recognized, it will print its help message. Flags starting with
 // GTEST_INTERNAL_PREFIX_ followed by "internal_" are considered Google Test
 // internal flags and do not trigger the help message.
@@ -5158,7 +5158,7 @@ static void PrintColorEncoded(const char* str) {
 
 static const char kColorEncodedHelpMessage[] =
 "This program contains tests written using " GTEST_NAME_ ". You can use the\n"
-"following command line flags to control its behavior:\n"
+"following command line_util flags to control its behavior:\n"
 "\n"
 "Test Selection:\n"
 "  @G--" GTEST_FLAG_PREFIX_ "list_tests@D\n"
@@ -5272,7 +5272,7 @@ void LoadFlagsFromFile(const std::string& path) {
 }
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_
 
-// Parses the command line for Google Test flags, without initializing
+// Parses the command line_util for Google Test flags, without initializing
 // other parts of Google Test.  The type parameter CharType can be
 // instantiated to either char or wchar_t.
 template <typename CharType>
@@ -5327,7 +5327,7 @@ void ParseGoogleTestFlagsOnlyImpl(int* argc, CharType** argv) {
   }
 }
 
-// Parses the command line for Google Test flags, without initializing
+// Parses the command line_util for Google Test flags, without initializing
 // other parts of Google Test.
 void ParseGoogleTestFlagsOnly(int* argc, char** argv) {
   ParseGoogleTestFlagsOnlyImpl(argc, argv);
@@ -5359,7 +5359,7 @@ void InitGoogleTestImpl(int* argc, CharType** argv) {
 }  // namespace internal
 
 // Initializes Google Test.  This must be called before calling
-// RUN_ALL_TESTS().  In particular, it parses a command line for the
+// RUN_ALL_TESTS().  In particular, it parses a command line_util for the
 // flags that Google Test recognizes.  Whenever a Google Test flag is
 // seen, it is removed from argv, and *argc is decremented.
 //

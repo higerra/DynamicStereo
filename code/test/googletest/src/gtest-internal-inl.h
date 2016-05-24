@@ -106,7 +106,7 @@ const char kFlagfileFlag[] = "flagfile";
 const int kMaxRandomSeed = 99999;
 
 // g_help_flag is true iff the --help flag or an equivalent form is
-// specified on the command line.
+// specified on the command line_util.
 GTEST_API_ extern bool g_help_flag;
 
 // Returns the current time in milliseconds.
@@ -366,7 +366,7 @@ class TestPropertyKeyIs {
 // specifies when running the tests.  It has only static members.
 //
 // In most cases, the user can specify an option using either an
-// environment variable or a command line flag.  E.g. you can set the
+// environment variable or a command line_util flag.  E.g. you can set the
 // test filter using either GTEST_FILTER or --gtest_filter.  If both
 // the variable and the flag are present, the latter overrides the
 // former.
@@ -948,7 +948,7 @@ GTEST_API_ bool MatchRegexAnywhere(const char* regex, const char* str);
 
 #endif  // GTEST_USES_SIMPLE_RE
 
-// Parses the command line for Google Test flags, without initializing
+// Parses the command line_util for Google Test flags, without initializing
 // other parts of Google Test.
 GTEST_API_ void ParseGoogleTestFlagsOnly(int* argc, char** argv);
 GTEST_API_ void ParseGoogleTestFlagsOnly(int* argc, wchar_t** argv);
@@ -1156,7 +1156,7 @@ class GTEST_API_ StreamingListener : public EmptyTestEventListener {
     if (file_name == NULL)
       file_name = "";
     SendLn("event=TestPartResult&file=" + UrlEncode(file_name) +
-           "&line=" + StreamableToString(test_part_result.line_number()) +
+           "&line_util=" + StreamableToString(test_part_result.line_number()) +
            "&message=" + UrlEncode(test_part_result.message()));
   }
 

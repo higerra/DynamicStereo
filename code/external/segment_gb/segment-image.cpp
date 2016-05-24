@@ -143,4 +143,5 @@ namespace segment_gb{
 		u.reset();
 		return nLabels;
 	}
-}
+
+}//namespace segment_gb

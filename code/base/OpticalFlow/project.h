@@ -2,7 +2,7 @@
 #include "stdio.h"
 #include <vector>
 
-// if the files are compiled in linux or mac os then uncomment the following line, otherwise comment it if you compile using visual studio in windows
+// if the files are compiled in linux or mac os then uncomment the following line_util, otherwise comment it if you compile using visual studio in windows
 #define _LINUX_MAC
 #define _OPENCV
 

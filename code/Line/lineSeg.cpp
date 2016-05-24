@@ -79,7 +79,7 @@ namespace dynamic_stereo{
 //            sprintf(buffer, "%s/temp/undistored%05d.jpg", file_io.getDirectory().c_str(), i);
 //            imwrite(buffer, undis);
             Mat img = imread(file_io.getImage(i));
-            printf("Detecting line on frame %d\n", i);
+            printf("Detecting line_util on frame %d\n", i);
             Ptr<LineSegmentDetector> ls = createLineSegmentDetector(LSD_REFINE_STD);
             Mat grayimg;
             cvtColor(img, grayimg, CV_RGB2GRAY);
@@ -94,10 +94,10 @@ namespace dynamic_stereo{
                     continue;
                 cv::line(outImg, cv::Point(startpt[0], startpt[1]), cv::Point(endpt[0], endpt[1]), Scalar(0,0,255), 2);
             }
-            sprintf(buffer, "%s/line", file_io.getDirectory().c_str());
+            sprintf(buffer, "%s/line_util", file_io.getDirectory().c_str());
             if(!stlplus::folder_exists(string(buffer)))
                 stlplus::folder_create(string(buffer));
-            sprintf(buffer, "%s/line/line%05d.jpg", file_io.getDirectory().c_str(), i);
+            sprintf(buffer, "%s/line_util/line_util%05d.jpg", file_io.getDirectory().c_str(), i);
             imwrite(buffer, outImg);
         }
     }

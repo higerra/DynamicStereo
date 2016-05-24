@@ -574,11 +574,11 @@ class ParameterizedTestCaseInfo : public ParameterizedTestCaseInfoBase {
           GTEST_CHECK_(IsValidParamName(param_name))
               << "Parameterized test name '" << param_name
               << "' is invalid, in " << file
-              << " line " << line << std::endl;
+              << " line_util " << line << std::endl;
 
           GTEST_CHECK_(test_param_names.count(param_name) == 0)
               << "Duplicate parameterized test name '" << param_name
-              << "', in " << file << " line " << line << std::endl;
+              << "', in " << file << " line_util " << line << std::endl;
 
           test_param_names.insert(param_name);
 
@@ -616,7 +616,7 @@ class ParameterizedTestCaseInfo : public ParameterizedTestCaseInfoBase {
   typedef ::std::vector<linked_ptr<TestInfo> > TestInfoContainer;
   // Records data received from INSTANTIATE_TEST_CASE_P macros:
   //  <Instantiation name, Sequence generator creation function,
-  //     Name generator function, Source file, Source line>
+  //     Name generator function, Source file, Source line_util>
   struct InstantiationInfo {
       InstantiationInfo(const std::string &name_in,
                         GeneratorCreationFunc* generator_in,

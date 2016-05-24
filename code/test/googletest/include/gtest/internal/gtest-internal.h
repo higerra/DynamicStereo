@@ -71,7 +71,7 @@
 //   foo ## __LINE__
 //
 // will result in the token foo__LINE__, instead of foo followed by
-// the current line number.  For more details, see
+// the current line_util number.  For more details, see
 // http://www.parashift.com/c++-faq-lite/misc-technical-issues.html#faq-39.6
 #define GTEST_CONCAT_TOKEN_(foo, bar) GTEST_CONCAT_TOKEN_IMPL_(foo, bar)
 #define GTEST_CONCAT_TOKEN_IMPL_(foo, bar) foo ## bar

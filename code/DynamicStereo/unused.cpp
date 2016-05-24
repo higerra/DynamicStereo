@@ -74,12 +74,12 @@
 ////				cvtColor(graySrc, colorSrc, CV_GRAY2RGB);
 //
 ////				for (auto x = 0; x < fullImg[0].cols; x += gridWarpping.getBlockW()) {
-////					cv::line(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
-////					cv::line(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+////					cv::line_util(colorRef, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
+////					cv::line_util(colorSrc, cv::Point(x, 0), cv::Point(x, fullImg[0].rows - 1), Scalar(255, 255, 255), 1);
 ////				}
 ////				for (auto y = 0; y < fullImg[0].rows; y += gridWarpping.getBlockH()) {
-////					cv::line(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
-////					cv::line(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+////					cv::line_util(colorRef, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
+////					cv::line_util(colorSrc, cv::Point(0, y), cv::Point(fullImg[0].cols - 1, y), Scalar(255, 255, 255), 1);
 ////				}
 //				Mat tgtImg = fullImg[testF].clone();
 //				drawKeyPoints(tgtImg, srcPt);

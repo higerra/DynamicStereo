@@ -107,7 +107,7 @@ GTEST_DEFINE_bool_(
 namespace internal {
 GTEST_DEFINE_string_(
     internal_run_death_test, "",
-    "Indicates the file, line number, temporal index of "
+    "Indicates the file, line_util number, temporal index of "
     "the single death test to run, and a file descriptor to "
     "which a success code may be sent, all separated by "
     "the '|' characters.  This flag is specified if and only if the current "
@@ -621,8 +621,8 @@ class WindowsDeathTest : public DeathTestImpl {
   WindowsDeathTest(const char* a_statement,
                    const RE* a_regex,
                    const char* file,
-                   int line)
-      : DeathTestImpl(a_statement, a_regex), file_(file), line_(line) {}
+                   int line_util)
+      : DeathTestImpl(a_statement, a_regex), file_(file), line_(line_util) {}
 
   // All of these virtual functions are inherited from DeathTest.
   virtual int Wait();
@@ -631,7 +631,7 @@ class WindowsDeathTest : public DeathTestImpl {
  private:
   // The name of the file in which the death test is located.
   const char* const file_;
-  // The line number on which the death test is located.
+  // The line_util number on which the death test is located.
   const int line_;
   // Handle to the write end of the pipe to the child process.
   AutoHandle write_handle_;
@@ -874,7 +874,7 @@ DeathTest::TestRole NoExecDeathTest::AssumeRole() {
 }
 
 // A concrete death test class that forks and re-executes the main
-// program from the beginning, with command-line flags set that cause
+// program from the beginning, with command-line_util flags set that cause
 // only this specific death test to be run.
 class ExecDeathTest : public ForkingDeathTest {
  public:
@@ -895,11 +895,11 @@ class ExecDeathTest : public ForkingDeathTest {
   }
   // The name of the file in which the death test is located.
   const char* const file_;
-  // The line number on which the death test is located.
+  // The line_util number on which the death test is located.
   const int line_;
 };
 
-// Utility class for accumulating command-line arguments.
+// Utility class for accumulating command-line_util arguments.
 class Arguments {
  public:
   Arguments() {
@@ -935,7 +935,7 @@ class Arguments {
 // A struct that encompasses the arguments to the child process of a
 // threadsafe-style death test process.
 struct ExecDeathTestArgs {
-  char* const* argv;  // Command-line arguments for the child's call to exec
+  char* const* argv;  // Command-line_util arguments for the child's call to exec
   int close_fd;       // File descriptor to close; the read end of a pipe
 };
 
@@ -1149,7 +1149,7 @@ DeathTest::TestRole ExecDeathTest::AssumeRole() {
   DeathTest::set_last_death_test_message("");
 
   CaptureStderr();
-  // See the comment in NoExecDeathTest::AssumeRole for why the next line
+  // See the comment in NoExecDeathTest::AssumeRole for why the next line_util
   // is necessary.
   FlushInfoLog();
 
@@ -1197,7 +1197,7 @@ bool DefaultDeathTestFactory::Create(const char* statement, const RE* regex,
 
   if (GTEST_FLAG(death_test_style) == "threadsafe" ||
       GTEST_FLAG(death_test_style) == "fast") {
-    *test = new WindowsDeathTest(statement, regex, file, line);
+    *test = new WindowsDeathTest(statement, regex, file, line_util);
   }
 
 # else
@@ -1309,7 +1309,7 @@ InternalRunDeathTestFlag* ParseInternalRunDeathTestFlag() {
   size_t event_handle_as_size_t = 0;
 
   if (fields.size() != 6
-      || !ParseNaturalNumber(fields[1], &line)
+      || !ParseNaturalNumber(fields[1], &line_util)
       || !ParseNaturalNumber(fields[2], &index)
       || !ParseNaturalNumber(fields[3], &parent_process_id)
       || !ParseNaturalNumber(fields[4], &write_handle_as_size_t)

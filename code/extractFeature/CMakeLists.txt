@@ -7,8 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/extractFeature)
 include_directories(/usr/local/include/eigen3)
 
 add_library(featureModule descriptor.h descriptor.cpp)
-target_link_libraries(featureModule segment_ms)
+target_link_libraries(featureModule line_util segment_ms segment_gb)
 
 add_executable(extractFeature extractfeature_cli.cpp extracfeature.h extractfeature.cpp)
-
 target_link_libraries(extractFeature gflags glog featureModule base)

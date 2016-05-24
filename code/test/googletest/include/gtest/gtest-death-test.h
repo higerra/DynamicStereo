@@ -134,8 +134,8 @@ GTEST_API_ bool InDeathTestChild();
 //     A?    matches 0 or 1 occurrences of A
 //     A*    matches 0 or many occurrences of A
 //     A+    matches 1 or many occurrences of A
-//     ^     matches the beginning of a string (not that of each line)
-//     $     matches the end of a string (not that of each line)
+//     ^     matches the beginning of a string (not that of each line_util)
+//     $     matches the end of a string (not that of each line_util)
 //     xy    matches x followed by y
 //
 //   If you accidentally use PCRE or POSIX extended regex features

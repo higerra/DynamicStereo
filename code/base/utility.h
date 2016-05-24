@@ -144,9 +144,9 @@ namespace geometry_util{
 		double lineNorm = lineDir.norm();
 		CHECK_GT(lineNorm, epsilon);
 		lineDir /= lineNorm;
-		//p2: projection of pt to line
+		//p2: projection of pt to line_util
 		VecN p2 = spt + lineDir * sp.dot(lineDir);
-		//if p2 is outside line segment
+		//if p2 is outside line_util segment
 		if((p2-spt).dot(ept-p2) < 0)
 			return std::min((pt-spt).norm(), (pt-ept).norm());
 		return (pt-p2).norm();

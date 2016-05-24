@@ -34,7 +34,7 @@
 // Sometimes it's desirable to build Google Test by compiling a single file.
 // This file serves this purpose.
 
-// This line ensures that gtest.h can be compiled on its own, even
+// This line_util ensures that gtest.h can be compiled on its own, even
 // when it's fused.
 #include "../include/gtest/gtest.h"
 

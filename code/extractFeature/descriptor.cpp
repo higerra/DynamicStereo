@@ -5,6 +5,8 @@
 #include <random>
 #include "descriptor.h"
 #include "../external/segment_ms/msImageProcessor.h"
+#include "../external/segment_gb/segment-image.h"
+#include "../external/line_util/line_util.h"
 #include "../base/thread_guard.h"
 
 using namespace std;
@@ -173,19 +175,34 @@ namespace dynamic_stereo{
 //            cvtColor(medImage, vis, CV_RGB2BGR);
 //            imshow("Average image", vis);
 
-	        //perform meanshift on every image
-	        const int hs = 5;
-	        const float hr = 10;
-	        const int min_a = 70;
-	        for(auto v=0; v<input.size(); ++v){
-		        printf("Segment %d\n", v);
-		        Mat msOutput, msVis;
-		        meanshiftCluster(input[v], msOutput, hs, hr, min_a);
-		        msVis = visualizeSegment(msOutput);
-		        sprintf(buffer, "seg%05d.jpg", v);
-		        imwrite(buffer, msVis);
-	        }
+	        //test line clustering
+//            for(auto v=0; v<input.size(); ++v) {
+//                printf("Processing lines of frame %d\n", v);
+//                vector<LineUtil::KeyLine> lines;
+//                vector<vector<LineUtil::KeyLine> > lineCluster;
+//                vector<Vector3d> vp;
+//                printf("Detecting...\n");
+//                LineUtil::detectLineSegments(input[v], lines, 20);
+//                printf("Clustering...\n");
+//                LineUtil::vpDetection(lines, lineCluster, vp, 4, 10);
+//                Mat lineVis = input[v].clone();
+//                printf("Drawing...\n");
+//                LineUtil::drawLineGroups(lineVis, lineCluster);
+//                cvtColor(lineVis, lineVis, CV_RGB2BGR);
+//                sprintf(buffer, "lines%05d.jpg", v);
+//                imwrite(buffer, lineVis);
+//            }
 
+            //test segment_gb
+            for(auto v=0; v<input.size(); ++v){
+                printf("Segment frame %d\n", v);
+                Mat visSegGB;
+                vector<vector<int> > seg;
+                segment_gb::segment_image(input[v], visSegGB, seg, 0.8, 300, 100);
+                cvtColor(visSegGB, visSegGB, CV_RGB2BGR);
+                sprintf(buffer, "lines%05d.jpg", v);
+                imwrite(buffer, visSegGB);
+            }
 
         }
 
