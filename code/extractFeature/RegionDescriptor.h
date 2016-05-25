@@ -10,24 +10,39 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <glog/logging.h>
+#include "../external/line_util/line_util.h"
 
-namespace Feature {
-    struct Region{
-        float area;
-        int kEdge;
-        float aspectRatio;
-        float area_chall;
-        Eigen::Vector4f bbox;
+namespace dynamic_stereo {
+	namespace Feature {
+		struct Region {
+			Region(const std::vector<cv::Point> &locs_, const cv::Mat &img_);
 
-        std::vector<cv::Point> locs;
-        std::vector<cv::Vec3b> pixs;
-        const cv::Mat& img;
-    };
+			float width;
+			float height;
 
-    class RegionDescriptor{
-    public:
+			float area;
+			int kEdge;
+			float aspectRatio;
+			float area_chall;
+			Eigen::Vector4f bbox;
+			std::vector<float> hist_diff;
+			std::vector<float> hist_color;
 
-    };
-}//namespace Feature
+			const int kBin;
+
+			std::vector<cv::Point> locs;
+			std::vector<Eigen::Vector3f> pixs;
+			const cv::Mat &img;
+
+			void computeFeatures();
+		};
+
+		class RegionDescriptor {
+		public:
+
+		};
+	}//namespace Feature
+}//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_REGIONDESCRIPTOR_H
