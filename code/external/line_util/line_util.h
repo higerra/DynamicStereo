@@ -69,6 +69,8 @@ namespace LineUtil{
                      const int min_line_num,
                      const int max_cluster_num);
 
+    void mergeLines(std::vector<KeyLine>& lines);
+
     void drawLines(cv::Mat& input, const std::vector<KeyLine>& lines,
                       const cv::Scalar c = cv::Scalar(0,0,255), const int thickness = 2);
 

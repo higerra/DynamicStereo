@@ -46,12 +46,15 @@ namespace dynamic_stereo{
 
 	namespace Feature {
 		cv::Size importData(const std::string &path, std::vector<std::vector<float> > &array, const int downsample,
-							const int tWindow);
+							const int tWindow, const bool contain_invalid);
 		cv::Size importDataMat(const std::string& path, std::vector<cv::Mat>& output, const int downsample, const int tWindow);
 		//samples: when extracting training samples (gt is not empty), samples have the size 2;
 		// when extracing testing samples (gt is empty), samples have the size 1
 		void extractFeature(const std::vector<std::vector<float> > &array, const cv::Size &dims, const cv::Mat &gt,
 							DataSet& samples, const int kBin, const float min_diff, const FeatureType method);
+
+		void extractTrainRegionFeature(const std::vector<cv::Mat>& images, const cv::Mat& gt, DataSet& samples);
+		void extractTestRegionFeature(const std::vector<cv::Mat>& images, DataSet& samples);
 	}
 
 }//namespace dynamic_stereo

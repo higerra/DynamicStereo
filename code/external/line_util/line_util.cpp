@@ -182,6 +182,10 @@ namespace LineUtil{
         }
     }
 
+    void mergeLines(std::vector<KeyLine>& lines){
+
+    }
+
     void drawLines(cv::Mat& input, const std::vector<KeyLine>& lines,
                       const cv::Scalar c, const int thickness){
         CHECK(input.data);

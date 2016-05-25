@@ -18,11 +18,13 @@ namespace dynamic_stereo {
             RGB_CAT
         };
 
+        void normalizel2(std::vector<float> &array);
+        void normalizeSum(std::vector<float> &array);
+
         class FeatureConstructor {
         public:
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const = 0;
-            void normalizel2(std::vector<float> &array) const;
-            void normalizeSum(std::vector<float> &array) const;
+
             inline int getDim() const{return dim;}
         protected:
             int dim;

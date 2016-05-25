@@ -3,6 +3,8 @@
 //
 
 #include "extracfeature.h"
+#include "regiondescriptor.h"
+#include "../external/segment_gb/segment-image.h"
 
 using namespace std;
 using namespace cv;
@@ -63,7 +65,8 @@ namespace dynamic_stereo{
     }
 
     namespace Feature {
-        cv::Size importData(const std::string& path, std::vector<std::vector<float> >& array, const int downsample, const int tWindow){
+        cv::Size importData(const std::string& path, std::vector<std::vector<float> >& array, const int downsample, const int tWindow,
+                            const bool contain_invalid){
             VideoCapture cap(path);
             CHECK(cap.isOpened());
             int width = (int)cap.get(CV_CAP_PROP_FRAME_WIDTH) / downsample;
@@ -78,7 +81,7 @@ namespace dynamic_stereo{
 
             array.resize(width * height);
             for(auto& a: array)
-                a.resize(kFrame * 3);
+                a.reserve(kFrame * 3);
 
             const int nLevel = (int)std::log2((double)downsample) + 1;
 
@@ -99,9 +102,12 @@ namespace dynamic_stereo{
                 cvtColor(frame, frame, CV_BGR2RGB);
                 const uchar* pFrame = pyramid.back().data;
                 for(auto i=0; i<width * height; ++i){
-                    array[i][fid*3] = (float)pFrame[3*i];
-                    array[i][fid*3+1] = (float)pFrame[3*i+1];
-                    array[i][fid*3+2] = (float)pFrame[3*i+2];
+                    Vector3f curpix((float)pFrame[3*i], (float)pFrame[3*i+1], (float)pFrame[3*i+2]);
+//                    if(contain_invalid && curpix.norm() < 0.1)
+//                        continue;
+                    array[i].push_back(curpix[0]);
+                    array[i].push_back(curpix[1]);
+                    array[i].push_back(curpix[2]);
                 }
             }
 
@@ -195,7 +201,17 @@ namespace dynamic_stereo{
             }
         }
 
-    }
+        void extractTrainRegionFeature(const std::vector<cv::Mat>& images, const cv::Mat& gt, DataSet& samples){
+            CHECK(!images.empty());
+
+        }
+
+        void extractTestRegionFeature(const std::vector<cv::Mat>& images, DataSet& samples){
+            CHECK(!images.empty());
+
+        }
+
+    }//namespace Feature
 
 
 

@@ -15,7 +15,7 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
     namespace Feature {
-        void FeatureConstructor::normalizel2(std::vector<float> &array) const {
+        void normalizel2(std::vector<float> &array){
             const float epsilon = 1e-3;
             float sqsum = 0.0;
             for (auto f: array)
@@ -26,7 +26,7 @@ namespace dynamic_stereo{
                 f /= std::sqrt(sqsum);
         }
 
-        void FeatureConstructor::normalizeSum(std::vector<float> &array) const {
+        void normalizeSum(std::vector<float> &array){
             const float epsilon = 1e-3;
             float sum = std::accumulate(array.begin(), array.end(), 0.0f);
             if(sum < epsilon)
@@ -198,9 +198,9 @@ namespace dynamic_stereo{
                 printf("Segment frame %d\n", v);
                 Mat visSegGB;
                 vector<vector<int> > seg;
-                segment_gb::segment_image(input[v], visSegGB, seg, 0.8, 300, 100);
+                segment_gb::segment_image(input[v], visSegGB, seg, 0.8, 200, 100);
                 cvtColor(visSegGB, visSegGB, CV_RGB2BGR);
-                sprintf(buffer, "lines%05d.jpg", v);
+                sprintf(buffer, "seg_bg%05d.jpg", v);
                 imwrite(buffer, visSegGB);
             }
 

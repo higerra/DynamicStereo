@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
             if(FLAGS_type == "pixel") {
                 vector<vector<float> > data;
                 printf("Reading...\n");
-                cv::Size dim = Feature::importData(directory + video_path, data, FLAGS_downsample, FLAGS_tWindow);
+                cv::Size dim = Feature::importData(directory + video_path, data, FLAGS_downsample, FLAGS_tWindow, false);
                 Mat gt = imread(directory + gt_path, false);
                 CHECK(gt.data);
                 cv::resize(gt, gt, dim, 0, 0, INTER_NEAREST);
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
         printf("Preparing testing data: %s\n", argv[1]);
         if(FLAGS_type == "pixel") {
             vector<vector<float> > data;
-            cv::Size dim = Feature::importData(string(argv[1]), data, FLAGS_downsample, FLAGS_tWindow);
+            cv::Size dim = Feature::importData(string(argv[1]), data, FLAGS_downsample, FLAGS_tWindow, true);
             printf("Extracting...\n");
             Feature::extractFeature(data, dim, Mat(), data_all, FLAGS_kBin, (float) FLAGS_min_diff, Feature::RGB_CAT);
         }else if(FLAGS_type == "region"){
