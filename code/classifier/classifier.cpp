@@ -27,7 +27,7 @@ namespace dynamic_stereo{
         }else if(type == "GBT"){
             printf("Training GBT...\n");
             classifier = ml::Boost::create();
-            //ml::Boost* gbt = dynamic_pointer_cast<ml::Boost>(classifier.get());
+            ml::Boost* gbt = dynamic_pointer_cast<ml::Boost>(classifier.get());
         }else{
             CHECK(true) << "Unsupported classifier type " << type;
         }
@@ -83,6 +83,7 @@ namespace dynamic_stereo{
                 visualize.at<Vec3b>(i/width, i%width) = Vec3b(255,255,255);
             else
                 CHECK(true) << "Unrecognized label: " << pLabels[i];
+
         }
 
         return visualize;
