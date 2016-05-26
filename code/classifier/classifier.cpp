@@ -63,7 +63,8 @@ namespace dynamic_stereo{
         Ptr<ml::StatModel> classifier;
         if(type == "SVM") {
             printf("Predicing with SVM...\n");
-            classifier = ml::SVM::load(model_path);
+//            classifier = ml::SVM::load(model_path);
+	    classifier = ml::SVM::load<ml::SVM>(model_path);
         }else if(type == "GBT"){
             printf("Predicting with GBT...\n");
             classifier = ml::Boost::load<ml::Boost>(model_path);

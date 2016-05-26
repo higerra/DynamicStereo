@@ -198,10 +198,11 @@ namespace meanshift {
 			DestroyKernel();
 
 		//Obtain kp...
-		if ((kp = kp_) <= 0) {
+		if(kp_ <= 0){
 			ErrorHandler("MeanShift", "CreateKernel", "Subspace count (kp) is zero or negative.");
 			return;
 		}
+		kp = kp_;
 
 		//Allocate memory for h, P, kernel, offset, and increment
 		if ((!(P = new int[kp])) || (!(h = new float[kp])) || (!(kernel = new kernelType[kp])) ||
@@ -1150,7 +1151,7 @@ namespace meanshift {
 /*      - uniformKernel is set to true if the kernel   */
 /*        to be used is uniform, false is returned     */
 /*        otherwise                                    */
-/*      - if a user defined weight function is requred */
+/*      - if a user defined weight function is required */
 /*        for a given subspace but not defined in the  */
 /*        user defined weight function list, an error  */
 /*        is flagged and the program is halted         */
