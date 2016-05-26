@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 	vector<Mat> depthMask;
 
 	Mat refImage = imread(file_io.getImage(FLAGS_testFrame));
-	CHECK(refImage.data);
+	CHECK(refImage.data) << file_io.getImage(FLAGS_testFrame);
 	const int width = refImage.cols;
 	const int height = refImage.rows;
 
@@ -168,8 +168,11 @@ int main(int argc, char **argv) {
 	shared_ptr<DynamicSegment> segment(new DynamicSegment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd));
 
 	Mat seg_result_small;
-
+	Mat seg_result_flashy;
 	segment->segmentDisplay(prewarp1, segMask, FLAGS_classifierPath, seg_result_small, segmentsDisplay);
+	segment->segmentFlashy(prewarp1, seg_result_flashy);
+
+
 	segment.reset();
 	Mat seg_result;
 	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);

@@ -27,7 +27,7 @@ namespace dynamic_stereo{
         }else if(type == "GBT"){
             printf("Training GBT...\n");
             classifier = ml::Boost::create();
-            ml::Boost* gbt = dynamic_pointer_cast<ml::Boost>(classifier.get());
+            //ml::Boost* gbt = dynamic_pointer_cast<ml::Boost>(classifier.get());
         }else{
             CHECK(true) << "Unsupported classifier type " << type;
         }
@@ -63,7 +63,7 @@ namespace dynamic_stereo{
         Ptr<ml::StatModel> classifier;
         if(type == "SVM") {
             printf("Predicing with SVM...\n");
-            classifier = ml::SVM::load<ml::SVM>(model_path);
+            classifier = ml::SVM::load(model_path);
         }else if(type == "GBT"){
             printf("Predicting with GBT...\n");
             classifier = ml::Boost::load<ml::Boost>(model_path);

@@ -139,29 +139,29 @@ namespace dynamic_stereo{
 
 
 		//compute anisotropic weight
-		const double t = 80;
-		const double min_diffusion = 0.15;
-		const cv::Mat& img = input[anchor-offset];
-		vector<double> hCue((size_t)width * height), vCue((size_t)width * height);
-		for (auto y = 0; y < height; ++y) {
-			for (auto x = 0; x < width; ++x) {
-				Vec3b pix1 = img.at<Vec3b>(y, x);
-				//pixel value range from 0 to 1, not 255!
-				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
-				if (y < height - 1) {
-					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-					double diff = (dpix1 - dpix2).squaredNorm();
-					vCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
-				}
-				if (x < width - 1) {
-					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
-					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-					double diff = (dpix1 - dpix2).squaredNorm();
-					hCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
-				}
-			}
-		}
+//		const double t = 80;
+//		const double min_diffusion = 0.15;
+//		const cv::Mat& img = input[anchor-offset];
+//		vector<double> hCue((size_t)width * height), vCue((size_t)width * height);
+//		for (auto y = 0; y < height; ++y) {
+//			for (auto x = 0; x < width; ++x) {
+//				Vec3b pix1 = img.at<Vec3b>(y, x);
+//				//pixel value range from 0 to 1, not 255!
+//				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
+//				if (y < height - 1) {
+//					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
+//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+//					double diff = (dpix1 - dpix2).squaredNorm();
+//					vCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
+//				}
+//				if (x < width - 1) {
+//					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
+//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
+//					double diff = (dpix1 - dpix2).squaredNorm();
+//					hCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
+//				}
+//			}
+//		}
 
 
 		{
@@ -195,25 +195,25 @@ namespace dynamic_stereo{
 
 
 			//collect negative sample
-			vector<Vector3d> nsamples;
-			for(auto y=0; y<height; ++y){
-				for(auto x=0; x<width; ++x){
-					if(pBgmask[y*width+x] > 200){
-						for(auto v=0; v<input.size(); ++v){
-							Vec3b pix = input[v].at<Vec3b>(y,x);
-							nsamples.push_back(Vector3d((double)pix[0], (double)pix[1], (double)pix[2]));
-						}
-					}
-				}
-			}
-			Mat ntrainSample((int)nsamples.size(), 3, CV_64F);
-			for(auto i=0; i<nsamples.size(); ++i){
-				ntrainSample.at<double>(i,0) = nsamples[i][0];
-				ntrainSample.at<double>(i,1) = nsamples[i][1];
-				ntrainSample.at<double>(i,2) = nsamples[i][2];
-			}
-			cout << "Estimating background color model..." << endl;
-			gmm_negative->trainEM(ntrainSample);
+//			vector<Vector3d> nsamples;
+//			for(auto y=0; y<height; ++y){
+//				for(auto x=0; x<width; ++x){
+//					if(pBgmask[y*width+x] > 200){
+//						for(auto v=0; v<input.size(); ++v){
+//							Vec3b pix = input[v].at<Vec3b>(y,x);
+//							nsamples.push_back(Vector3d((double)pix[0], (double)pix[1], (double)pix[2]));
+//						}
+//					}
+//				}
+//			}
+//			Mat ntrainSample((int)nsamples.size(), 3, CV_64F);
+//			for(auto i=0; i<nsamples.size(); ++i){
+//				ntrainSample.at<double>(i,0) = nsamples[i][0];
+//				ntrainSample.at<double>(i,1) = nsamples[i][1];
+//				ntrainSample.at<double>(i,2) = nsamples[i][2];
+//			}
+//			cout << "Estimating background color model..." << endl;
+//			gmm_negative->trainEM(ntrainSample);
 
 
 			//connected component analysis
@@ -231,38 +231,38 @@ namespace dynamic_stereo{
 					continue;
 				}
 
-//				const int left = stats.at<int>(l, CC_STAT_LEFT);
-//				const int top = stats.at<int>(l, CC_STAT_TOP);
-//				const int roiw = stats.at<int>(l, CC_STAT_WIDTH);
-//				const int roih = stats.at<int>(l, CC_STAT_HEIGHT);
-				const int left = 0;
-				const int top = 0;
-				const int roiw = width;
-				const int roih = height;
+				const int left = stats.at<int>(l, CC_STAT_LEFT);
+				const int top = stats.at<int>(l, CC_STAT_TOP);
+				const int roiw = stats.at<int>(l, CC_STAT_WIDTH);
+				const int roih = stats.at<int>(l, CC_STAT_HEIGHT);
+//				const int left = 0;
+//				const int top = 0;
+//				const int roiw = width;
+//				const int roih = height;
 
-//				Mat roi = warppedImg[anchor-offset](cv::Rect(left, top, roiw, roih));
+				Mat roi = input[anchor-offset](cv::Rect(left, top, roiw, roih));
 //
-//				Mat gcmask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
-//				uchar *pGcmask = gcmask.data;
-//				for(auto y=0; y<roih; ++y){
-//					for(auto x=0; x<roiw; ++x){
-//						int oriId = (y+top) * width + x + left;
-//						if(pLabel[oriId] == l)
-//							pGcmask[y*roiw + x] = GC_FGD;
-//						else if(pBgmask[oriId] > 200)
-//							pGcmask[y*roiw + x] = GC_BGD;
-//					}
-//				}
-//				printf("Grabcut...\n");
-//				grabCut(roi, gcmask, cv::Rect(), cv::Mat(), cv::Mat(), GC_INIT_WITH_MASK);
-//
-//				for(auto y=0; y<roih; ++y){
-//					for(auto x=0; x<roiw; ++x){
-//						int oriId = (y+top) * width + x + left;
-//						if(pGcmask[y*roiw+x] == GC_FGD || pGcmask[y*roiw+x] == GC_PR_FGD)
-//							pResult[oriId] = (uchar)255;
-//					}
-//				}
+				Mat gcmask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
+				uchar *pGcmask = gcmask.data;
+				for(auto y=0; y<roih; ++y){
+					for(auto x=0; x<roiw; ++x){
+						int oriId = (y+top) * width + x + left;
+						if(pLabel[oriId] == l)
+							pGcmask[y*roiw + x] = GC_FGD;
+						else if(pBgmask[oriId] > 200)
+							pGcmask[y*roiw + x] = GC_BGD;
+					}
+				}
+				printf("Grabcut...\n");
+				grabCut(roi, gcmask, cv::Rect(), cv::Mat(), cv::Mat(), GC_INIT_WITH_MASK);
+
+				for(auto y=0; y<roih; ++y){
+					for(auto x=0; x<roiw; ++x){
+						int oriId = (y+top) * width + x + left;
+						if(pGcmask[y*roiw+x] == GC_FGD || pGcmask[y*roiw+x] == GC_PR_FGD)
+							pResult[oriId] = (uchar)255;
+					}
+				}
 
 
 				//estimate GMM
