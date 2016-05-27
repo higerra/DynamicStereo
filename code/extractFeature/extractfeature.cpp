@@ -145,6 +145,7 @@ namespace dynamic_stereo{
                 cvtColor(pyramid.back(), pyramid.back(), CV_BGR2RGB);
                 output.push_back(pyramid.back());
             }
+
             return dsize;
         }
 

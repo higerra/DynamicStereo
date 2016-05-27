@@ -30,22 +30,10 @@ namespace dynamic_stereo {
             int dim;
         };
 
-        class ColorHist: public FeatureConstructor{
+        class RGBHist : public FeatureConstructor {
         public:
-            ColorHist(const int kBin_ = 8, const float min_diff_ = -1) : kBin(kBin_), min_diff(min_diff_), cut_thres(0.1){
-                CHECK_GT(kBin, 0);
-            }
-            virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const = 0;
-        protected:
-            const int kBin;
-            float binUnit;
-            const float min_diff;
-            const float cut_thres;
-        };
-
-        class RGBHist : public ColorHist {
-        public:
-            RGBHist(const int kBin_ = 8, const float min_diff_ = -1) : ColorHist(kBin_, min_diff_), kBinIntensity(kBin_){
+            RGBHist(const int kBin_ = 10, const float min_diff_ = -1) : kBin(kBin_), min_diff(min_diff_),
+                                                                        kBinIntensity(kBin_), cut_thres(0.1){
                 CHECK_GT(kBinIntensity, 0);
                 binUnit = 512 / (float) kBin;
                 binUnitIntensity = 256 / (float) kBinIntensity;
@@ -53,8 +41,37 @@ namespace dynamic_stereo {
             }
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const;
         private:
+            const int kBin;
+            float binUnit;
+            const float min_diff;
+            const float cut_thres;
             const int kBinIntensity;
             float binUnitIntensity;
+        };
+
+        class LUVHist : public FeatureConstructor {
+        public:
+            LUVHist(const std::vector<int>& kBins_) : kBins(kBins_), kBinsIntensity(kBins_), cut_thres(0.1) {
+                CHECK_EQ(kBins.size(), 3);
+                for (auto c = 0; c < 3; ++c)
+                    CHECK_GT(kBins[c], 0);
+                binUnits.resize(kBins.size());
+                binUnitsIntensity.resize(kBins.size());
+                binUnits[0] = 200 / kBins[0];
+                binUnits[1] = (220 + 134) * 2 / kBins[1];
+                binUnits[2] = (122 + 140) * 2 / kBins[2];
+                binUnitsIntensity[0] = 100 / kBins[0];
+                binUnitsIntensity[1] = (220 + 134) / kBins[1];
+                binUnitsIntensity[2] = (122 + 140) / kBins[2];
+                dim = kBins[0] + kBins[1] + kBins[2] + kBinsIntensity[0] + kBinsIntensity[1] + kBinsIntensity[2];
+            }
+            virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const;
+        private:
+            std::vector<int> kBins;
+            std::vector<float> binUnits;
+            std::vector<int> kBinsIntensity;
+            std::vector<float> binUnitsIntensity;
+            const float cut_thres;
         };
 
         cv::Mat visualizeSegment(const cv::Mat& labels);

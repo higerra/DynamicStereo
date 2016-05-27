@@ -91,6 +91,63 @@ namespace dynamic_stereo{
             feat.insert(feat.end(), feat_intensity.begin(), feat_intensity.end());
         }
 
+        void LUVHist::constructFeature(const std::vector<float> &array, std::vector<float> &feat) const {
+            CHECK_EQ((int) array.size() % 3, 0);
+            vector<float> feat_diff((size_t) kBins[0]+kBins[1]+kBins[2], 0.0f);
+            vector<float> feat_intensity((size_t) kBinsIntensity[0]+kBinsIntensity[1]+kBinsIntensity[2], 0.0f);
+
+            const int stride = array.size() / 3 / 2;
+            vector<int> binOffset{0, kBins[0], kBins[0]+kBins[1]};
+            vector<int> binIntensityOffset{0, kBinsIntensity[0], kBinsIntensity[0]+kBinsIntensity[1]};
+            vector<float> channelOffset{0,134,140};
+            vector<float> channelRange{100, 220+134, 122+140};
+            for (auto t = 0; t < stride; ++t) {
+                Vector3f pix1(array[t * 3], array[t * 3 + 1], array[t * 3 + 2]);
+                Vector3f pix2(array[(t + stride) * 3], array[(t + stride) * 3 + 1], array[(t + stride) * 3 + 2]);
+                //intensity
+//                float intensity = pix1.dot(RGB2Gray);
+//                int bidInt = floor(intensity / binUnitIntensity);
+//                CHECK_LT(bidInt, kBinIntensity);
+//                feat_intensity[bidInt] += 1.0;
+                for(auto c=0; c<3; ++c){
+                    int bid = floor((pix1[c]+channelOffset[c]) / binUnitsIntensity[c]);
+                    CHECK_GE(binIntensityOffset[c]+bid, 0);
+                    CHECK_LT(binIntensityOffset[c] + bid, feat_intensity.size());
+                    feat_intensity[binIntensityOffset[c] + bid] += 1.0;
+                }
+
+                //color change
+                Vector3f diff = pix2 - pix1;
+                for (auto c = 0; c < 3; ++c) {
+                    int bid = floor((diff[c] + channelRange[c] * 2) / binUnits[c]);
+                    CHECK_GE(binOffset[c] + bid, 0);
+                    CHECK_LT(binOffset[c] + bid, feat_diff.size());
+                    feat_diff[binOffset[c] + bid] += 1.0;
+                }
+            }
+            //normalize, cut and renormalize
+            normalizel2(feat_intensity);
+            normalizel2(feat_diff);
+//            normalizeSum(feat_diff);
+//            normalizeSum(feat_intensity);
+            for (auto &f: feat_intensity) {
+                if (f < cut_thres)
+                    f = 0;
+            }
+            for (auto &f: feat_diff) {
+                if (f < cut_thres)
+                    f = 0;
+            }
+//            normalizeSum(feat_diff);
+//            normalizeSum(feat_intensity);
+            normalizel2(feat_intensity);
+            normalizel2(feat_diff);
+
+            feat.insert(feat.end(), feat_diff.begin(), feat_diff.end());
+            feat.insert(feat.end(), feat_intensity.begin(), feat_intensity.end());
+
+        }
+
         cv::Mat visualizeSegment(const cv::Mat& labels){
             CHECK_EQ(labels.type(), CV_32S);
             const int& width = labels.cols;
