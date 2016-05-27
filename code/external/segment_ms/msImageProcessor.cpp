@@ -724,7 +724,7 @@ namespace segment_ms {
 		}
 
 #ifdef PROMPT
-																																msSys.Prompt("Applying transitive closure...");
+		msSys.Prompt("Applying transitive closure...");
 	msSys.StartTimer();
 #endif
 
@@ -3663,7 +3663,7 @@ namespace segment_ms {
 		// Allcocate memory for yk
 		double *yk = new double[lN];
 
-		// Allocate memory for Mh
+		// Allocate memory for Mhu
 		double *Mh = new double[lN];
 
 		// let's use some temporary data
@@ -3752,7 +3752,6 @@ namespace segment_ms {
 		double wsuml, weight;
 		double hiLTr = 80.0 / sigmaR;
 		// done indexing/hashing
-
 
 		// Initialize mode table used for basin of attraction
 		memset(modeTable, 0, width * height);
@@ -4171,14 +4170,12 @@ namespace segment_ms {
 		sMins = sMaxs[2] = sdata[2];
 		idxs = 2;
 		double cval;
-		for (i = 0; i < L; i++) {
+		for (i = 0; i < L; i++, idxs+=lN) {
 			cval = sdata[idxs];
 			if (cval < sMins)
 				sMins = cval;
 			else if (cval > sMaxs[2])
 				sMaxs[2] = cval;
-
-			idxs += lN;
 		}
 
 		int nBuck1, nBuck2, nBuck3;
@@ -4191,7 +4188,7 @@ namespace segment_ms {
 			buckets[i] = -1;
 
 		idxs = 0;
-		for (i = 0; i < L; i++) {
+		for (i = 0; i < L; i++, idxs+=lN) {
 			// find bucket for current data and add it to the list
 			cBuck1 = (int) sdata[idxs] + 1;
 			cBuck2 = (int) sdata[idxs + 1] + 1;
@@ -4200,8 +4197,6 @@ namespace segment_ms {
 
 			slist[i] = buckets[cBuck];
 			buckets[cBuck] = i;
-
-			idxs += lN;
 		}
 		// init bucNeigh
 		idxd = 0;
@@ -4230,6 +4225,7 @@ namespace segment_ms {
 			// initialized by createLattice to be the point
 			// data[i])
 			idxs = i * lN;
+
 			for (j = 0; j < lN; j++)
 				yk[j] = sdata[idxs + j];
 
