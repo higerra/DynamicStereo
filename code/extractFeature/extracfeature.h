@@ -46,7 +46,7 @@ namespace dynamic_stereo{
 
 	namespace Feature {
 		cv::Size importData(const std::string &path, std::vector<std::vector<float> > &array, const int downsample,
-							const int tWindow, const bool contain_invalid);
+							const int tWindow, const bool contain_invalid, const std::string& format);
 		cv::Size importDataMat(const std::string& path, std::vector<cv::Mat>& output, const int downsample, const int tWindow);
 		//samples: when extracting training samples (gt is not empty), samples have the size 2;
 		// when extracing testing samples (gt is empty), samples have the size 1

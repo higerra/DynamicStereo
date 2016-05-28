@@ -15,7 +15,8 @@ namespace dynamic_stereo {
 
     namespace Feature {
         enum FeatureType {
-            RGB_CAT
+            RGB_HIST,
+            LUV_HIST
         };
 
         void normalizel2(std::vector<float> &array);
@@ -24,7 +25,6 @@ namespace dynamic_stereo {
         class FeatureConstructor {
         public:
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const = 0;
-
             inline int getDim() const{return dim;}
         protected:
             int dim;
@@ -49,24 +49,52 @@ namespace dynamic_stereo {
             float binUnitIntensity;
         };
 
-        class LUVHist : public FeatureConstructor {
+        struct ColorSpace{
+            enum ColorType{RGB, LUV};
+            ColorSpace(const int channel_, const std::vector<float>& offsets_,
+                       const std::vector<float>& range_):
+                    channel(channel_), offset(offsets_), range(range_){
+                CHECK_LT(channel, 0);
+                CHECK_EQ(channel, offset.size());
+                CHECK_EQ(channel, range.size());
+            }
+            ColorSpace(const ColorType preset){
+                if(preset == RGB){
+                    channel = 3;
+                    offset.resize(3, 0);
+                    range.resize(3, 256);
+                }else if(preset == LUV){
+                    channel = 3;
+                    offset.resize(3); range.resize(3);
+                    offset[0] = 0; offset[1] = -134; offset[2] = -140;
+                    range[0] = 101; range[1]=355; range[2]=263;
+                }
+            }
+            int channel;
+            std::vector<float> offset;
+            std::vector<float> range;
+        };
+
+        class ColorHist : public FeatureConstructor {
         public:
-            LUVHist(const std::vector<int>& kBins_) : kBins(kBins_), kBinsIntensity(kBins_), cut_thres(0.1) {
-                CHECK_EQ(kBins.size(), 3);
-                for (auto c = 0; c < 3; ++c)
+            ColorHist(const ColorSpace& cspace, const std::vector<int>& kBins_):
+                    colorSpace(cspace), kBins(kBins_), kBinsIntensity(kBins_), cut_thres(0.1) {
+                CHECK_EQ(kBins.size(), colorSpace.channel);
+
+                for (auto c = 0; c < colorSpace.channel; ++c)
                     CHECK_GT(kBins[c], 0);
                 binUnits.resize(kBins.size());
                 binUnitsIntensity.resize(kBins.size());
-                binUnits[0] = 200 / kBins[0];
-                binUnits[1] = (220 + 134) * 2 / kBins[1];
-                binUnits[2] = (122 + 140) * 2 / kBins[2];
-                binUnitsIntensity[0] = 100 / kBins[0];
-                binUnitsIntensity[1] = (220 + 134) / kBins[1];
-                binUnitsIntensity[2] = (122 + 140) / kBins[2];
-                dim = kBins[0] + kBins[1] + kBins[2] + kBinsIntensity[0] + kBinsIntensity[1] + kBinsIntensity[2];
+                for(auto c=0; c<colorSpace.channel; ++c){
+                    binUnits[c] = 2*colorSpace.range[c] / kBins[c];
+                    binUnitsIntensity[c] = colorSpace.range[c] / kBinsIntensity[c];
+                    dim += kBins[c] + kBinsIntensity[c];
+                }
+                printf("Range:(%.2f,%.2f,%.2f)\n", colorSpace.range[0], colorSpace.range[1], colorSpace.range[2]);
             }
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const;
         private:
+            const ColorSpace& colorSpace;
             std::vector<int> kBins;
             std::vector<float> binUnits;
             std::vector<int> kBinsIntensity;

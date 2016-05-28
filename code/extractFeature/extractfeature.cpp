@@ -66,7 +66,7 @@ namespace dynamic_stereo{
 
     namespace Feature {
         cv::Size importData(const std::string& path, std::vector<std::vector<float> >& array, const int downsample, const int tWindow,
-                            const bool contain_invalid){
+                            const bool contain_invalid, const string& format){
             VideoCapture cap(path);
             CHECK(cap.isOpened());
             int width = (int)cap.get(CV_CAP_PROP_FRAME_WIDTH) / downsample;
@@ -93,16 +93,41 @@ namespace dynamic_stereo{
 	                break;
                 }
                 vector<Mat> pyramid(nLevel);
-                pyramid[0] = frame.clone();
+                if(format == "RGB") {
+                    cvtColor(frame, pyramid[0], CV_BGR2RGB);
+                }else if(format == "LUV"){
+                    Mat bgrFloat;
+                    frame.convertTo(bgrFloat, CV_32FC3);
+                    bgrFloat /= 255.0;
+                    cvtColor(bgrFloat, pyramid[0], CV_BGR2Luv);
+                }else
+                    CHECK(true) << "Unsupported pixel format: " << format;
                 for(auto l=1; l<nLevel; ++l)
                     cv::pyrDown(pyramid[l-1],pyramid[l]);
                 CHECK_EQ(pyramid.back().cols, width);
                 CHECK_EQ(pyramid.back().rows, height);
-                //cvtColor(frame, frame, CV_BGR2Luv);
-                cvtColor(frame, frame, CV_BGR2RGB);
-                const uchar* pFrame = pyramid.back().data;
+
+                Mat matFloat;
+                pyramid.back().convertTo(matFloat, CV_32FC3);
+                const float* pFrame = (float*) matFloat.data;
                 for(auto i=0; i<width * height; ++i){
-                    Vector3f curpix((float)pFrame[3*i], (float)pFrame[3*i+1], (float)pFrame[3*i+2]);
+                    Vector3f curpix(pFrame[3*i], pFrame[3*i+1], pFrame[3*i+2]);
+                    //sanity check
+                    if(format == "RGB"){
+                        CHECK_GE(curpix[0], 0);
+                        CHECK_GE(curpix[1], 0);
+                        CHECK_GE(curpix[2], 0);
+                        CHECK_LE(curpix[0], 255);
+                        CHECK_LE(curpix[1], 255);
+                        CHECK_LE(curpix[2], 255);
+                    }else if(format == "LUV"){
+                        CHECK_GE(curpix[0], 0);
+                        CHECK_GE(curpix[1], -134);
+                        CHECK_GE(curpix[2], -140);
+                        CHECK_LE(curpix[0], 100);
+                        CHECK_LE(curpix[1], 220);
+                        CHECK_LE(curpix[2], 122);
+                    }
 //                    if(contain_invalid && curpix.norm() < 0.1)
 //                        continue;
                     array[i].push_back(curpix[0]);
@@ -186,13 +211,16 @@ namespace dynamic_stereo{
 
             //feature constructor
             shared_ptr<FeatureConstructor> featureConstructor(NULL);
-            switch (method){
-                case RGB_CAT:
-                    featureConstructor.reset(new RGBHist(kBin, min_diff));
-                    break;
-                default:
-                    CHECK(true) << "Unsupported method";
+            if(method == RGB_HIST) {
+                featureConstructor.reset(new RGBHist(kBin, min_diff));
+            }else if(method == LUV_HIST) {
+                vector<int> kBins{kBin, kBin, kBin};
+                ColorSpace cspace(ColorSpace::LUV);
+                featureConstructor.reset(new ColorHist(cspace, kBins));
+            }else{
+                CHECK(true) << "Unsupported feature type" << endl;
             }
+
 
             for (auto i = 0; i < samples.size(); ++i) {
                 samples[i].resize(pixInds[i].size());

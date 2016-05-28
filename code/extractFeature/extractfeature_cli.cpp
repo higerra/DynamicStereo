@@ -12,10 +12,11 @@ using namespace dynamic_stereo;
 DEFINE_int32(downsample, 4, "downsample ratio");
 DEFINE_int32(tWindow, -1, "tWindow");
 DEFINE_string(mode, "train", "mode selection: train or test");
-DEFINE_int32(kBin, 8, "kBin");
+DEFINE_int32(kBin, 10, "kBin");
 DEFINE_double(min_diff, -1, "min_diff");
 DEFINE_bool(csv, true, "dump out csv file");
 DEFINE_string(type, "pixel", "feature type: pixel or region");
+DEFINE_string(format, "RGB", "RGB or LUV");
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -30,6 +31,14 @@ int main(int argc, char** argv) {
     DataSet data_all;
     char buffer[1024] = {};
 
+    Feature::FeatureType featType;
+    if(FLAGS_format == "RGB")
+        featType = Feature::RGB_HIST;
+    else if(FLAGS_format == "LUV")
+        featType = Feature::LUV_HIST;
+    else
+        CHECK(true) << "Unsupported pixel format " << FLAGS_format;
+
     if (FLAGS_mode == "train") {
         string list_path = string(argv[1]);
         size_t dashPos;
@@ -40,7 +49,6 @@ int main(int argc, char** argv) {
         string directory = list_path.substr(0, dashPos);
         directory.append("/");
         ifstream fin(list_path.c_str());
-        //cout << "list path:" << list_path << endl;
         CHECK(fin.is_open());
         while (true) {
             DataSet curData;
@@ -54,17 +62,16 @@ int main(int argc, char** argv) {
             if(FLAGS_type == "pixel") {
                 vector<vector<float> > data;
                 printf("Reading...\n");
-                cv::Size dim = Feature::importData(directory + video_path, data, FLAGS_downsample, FLAGS_tWindow, false);
+                cv::Size dim = Feature::importData(directory + video_path, data, FLAGS_downsample, FLAGS_tWindow, false, FLAGS_format);
                 Mat gt = imread(directory + gt_path, false);
                 CHECK(gt.data);
                 cv::resize(gt, gt, dim, 0, 0, INTER_NEAREST);
                 printf("Extracting...\n");
-                Feature::extractFeature(data, dim, gt, curData, FLAGS_kBin, (float) FLAGS_min_diff, Feature::RGB_CAT);
+                Feature::extractFeature(data, dim, gt, curData, FLAGS_kBin, (float) FLAGS_min_diff, featType);
                 data_all.appendDataSet(curData);
-
                 //also create a test set
                 Feature::extractFeature(data, dim, Mat(), data_test, FLAGS_kBin, (float) FLAGS_min_diff,
-                                        Feature::RGB_CAT);
+                                        featType);
             }else if(FLAGS_type == "region"){
                 vector<Mat> input;
                 Feature::importDataMat(directory+video_path, input, FLAGS_downsample, FLAGS_tWindow);
@@ -86,9 +93,9 @@ int main(int argc, char** argv) {
         printf("Preparing testing data: %s\n", argv[1]);
         if(FLAGS_type == "pixel") {
             vector<vector<float> > data;
-            cv::Size dim = Feature::importData(string(argv[1]), data, FLAGS_downsample, FLAGS_tWindow, true);
+            cv::Size dim = Feature::importData(string(argv[1]), data, FLAGS_downsample, FLAGS_tWindow, true, FLAGS_format);
             printf("Extracting...\n");
-            Feature::extractFeature(data, dim, Mat(), data_all, FLAGS_kBin, (float) FLAGS_min_diff, Feature::RGB_CAT);
+            Feature::extractFeature(data, dim, Mat(), data_all, FLAGS_kBin, (float) FLAGS_min_diff, featType);
         }else if(FLAGS_type == "region"){
             vector<cv::Mat> input;
             cv::Size dim = Feature::importDataMat(string(argv[1]), input, FLAGS_downsample, FLAGS_tWindow);
