@@ -99,7 +99,6 @@ namespace dynamic_stereo{
             const int stride = array.size() / kChn / 2;
             vector<int> binOffset((size_t)kChn, 0);
             vector<int> binIntensityOffset((size_t)kChn, 0);
-            printf("Range:(%.2f,%.2f,%.2f)\n", colorSpace.range[0], colorSpace.range[1], colorSpace.range[2]);
             for(auto c=1; c<kChn; ++c){
                 binOffset[c] = binOffset[c-1] + kBins[c-1];
                 binIntensityOffset[c] = binIntensityOffset[c-1] + kBinsIntensity[c-1];
@@ -127,7 +126,7 @@ namespace dynamic_stereo{
                 //color change
                 VectorXf diff = pix2 - pix1;
                 for (auto c = 0; c < kChn; ++c) {
-                    printf("%d, %d %.3f, %.3f, %.3f\n",t, c, diff[c], colorSpace.range[c], binUnits[c]);
+//                    printf("%d, %d %.3f, %.3f, %.3f\n",t, c, diff[c], colorSpace.range[c], binUnits[c]);
                     int bid = floor((diff[c] + colorSpace.range[c]) / binUnits[c]);
                     CHECK_GE(binOffset[c] + bid, 0) << binOffset[c] << ' ' << bid;
                     CHECK_LT(binOffset[c] + bid, feat_diff.size()) << binOffset[c] << ' ' << bid;

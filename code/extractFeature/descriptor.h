@@ -90,11 +90,10 @@ namespace dynamic_stereo {
                     binUnitsIntensity[c] = colorSpace.range[c] / kBinsIntensity[c];
                     dim += kBins[c] + kBinsIntensity[c];
                 }
-                printf("Range:(%.2f,%.2f,%.2f)\n", colorSpace.range[0], colorSpace.range[1], colorSpace.range[2]);
             }
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const;
         private:
-            const ColorSpace& colorSpace;
+            const ColorSpace colorSpace;
             std::vector<int> kBins;
             std::vector<float> binUnits;
             std::vector<int> kBinsIntensity;
