@@ -173,7 +173,7 @@ namespace dynamic_stereo{
 			uchar *pBgmask = bgmask.data;
 
 			//initial mask
-			const double tl = 0.1, th = 0.5;
+			const double tl = 0.1, th = 0.6;
 			for (auto i = 0; i < width * height; ++i)
 				pBwmask[i] = frequency[i] > th ? (uchar) 255 : (uchar) 0;
 			for (auto i = 0; i < width * height; ++i)
@@ -190,18 +190,19 @@ namespace dynamic_stereo{
 			sprintf(buffer, "%s/temp/mask_frqbg%05d.jpg", file_io.getDirectory().c_str(), anchor);
 			imwrite(buffer, bgmask);
 
-			sprintf(buffer, "%s/midres/gmm_negative%05d.gmm", file_io.getDirectory().c_str(), anchor);
-			cv::Ptr<cv::ml::EM> gmm_negative = cv::ml::EM::create();
-
-
-			//collect negative sample
+//			sprintf(buffer, "%s/midres/gmm_negative%05d.gmm", file_io.getDirectory().c_str(), anchor);
+//			cv::Ptr<cv::ml::EM> gmm_negative = cv::ml::EM::create();
+//
+//
+//			//collect negative sample
+//			const int bgstride = 4;
 //			vector<Vector3d> nsamples;
-//			for(auto y=0; y<height; ++y){
-//				for(auto x=0; x<width; ++x){
-//					if(pBgmask[y*width+x] > 200){
-//						for(auto v=0; v<input.size(); ++v){
-//							Vec3b pix = input[v].at<Vec3b>(y,x);
-//							nsamples.push_back(Vector3d((double)pix[0], (double)pix[1], (double)pix[2]));
+//			for(auto y=0; y<height; y+=bgstride) {
+//				for (auto x = 0; x < width; x += bgstride) {
+//					if (pBgmask[y * width + x] > 200) {
+//						for (auto v = 0; v < input.size(); v += bgstride) {
+//							Vec3b pix = input[v].at<Vec3b>(y, x);
+//							nsamples.push_back(Vector3d((double) pix[0], (double) pix[1], (double) pix[2]));
 //						}
 //					}
 //				}
@@ -212,14 +213,17 @@ namespace dynamic_stereo{
 //				ntrainSample.at<double>(i,1) = nsamples[i][1];
 //				ntrainSample.at<double>(i,2) = nsamples[i][2];
 //			}
-//			cout << "Estimating background color model..." << endl;
+//			float bgGMMt = (float)cv::getTickCount();
+//			cout << "Estimating background color model, number of samples:" << ntrainSample.rows << endl;
 //			gmm_negative->trainEM(ntrainSample);
-
+//			printf("Done. Time usage: %.3f\n", ((float)getTickCount() - bgGMMt) / (float)getTickFrequency());
 
 			//connected component analysis
 			Mat labels, stats, centroids;
 			int nCom = cv::connectedComponentsWithStats(bwmask, labels, stats, centroids);
 			const int *pLabel = (int *) labels.data;
+			const int localMargin = std::min(width, height) / 20;
+
 			printf("%d connected component\n", nCom);
 			//Note: label = 0 represents background
 			for (auto l = 1; l < nCom; ++l) {
@@ -231,10 +235,14 @@ namespace dynamic_stereo{
 					continue;
 				}
 
-				const int left = stats.at<int>(l, CC_STAT_LEFT);
-				const int top = stats.at<int>(l, CC_STAT_TOP);
-				const int roiw = stats.at<int>(l, CC_STAT_WIDTH);
-				const int roih = stats.at<int>(l, CC_STAT_HEIGHT);
+				const int left = std::max(stats.at<int>(l, CC_STAT_LEFT)-localMargin, 0);
+				const int top = std::max(stats.at<int>(l, CC_STAT_TOP)-localMargin, 0);
+				int roiw = stats.at<int>(l, CC_STAT_WIDTH) + 2*localMargin;
+				int roih = stats.at<int>(l, CC_STAT_HEIGHT) + 2*localMargin;
+				if(roiw + left >= width)
+					roiw = width - left;
+				if(roih + top >= height)
+					roih = height - top;
 //				const int left = 0;
 //				const int top = 0;
 //				const int roiw = width;

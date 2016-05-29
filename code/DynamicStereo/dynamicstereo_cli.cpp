@@ -23,7 +23,7 @@ DEFINE_int32(stereo_interval, 5, "interval for stereo");
 DEFINE_double(weight_smooth, 0.1, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
-DEFINE_string(classifierPath, "../../../data/svmTrain/model_newyork.svm", "Path to classifier model");
+DEFINE_string(classifierPath, "../../../data/svmTrain/model_newyorkRGB.svm", "Path to classifier model");
 
 int main(int argc, char **argv) {
 	if (argc < 2) {
@@ -167,20 +167,22 @@ int main(int argc, char **argv) {
 	vector<vector<Vector2d> > segmentsFlashy;
 	shared_ptr<DynamicSegment> segment(new DynamicSegment(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, depths, depthInd));
 
-	Mat seg_result_small;
+	Mat seg_result_display;
 	Mat seg_result_flashy;
-	segment->segmentDisplay(prewarp1, segMask, FLAGS_classifierPath, seg_result_small, segmentsDisplay);
 	segment->segmentFlashy(prewarp1, seg_result_flashy);
-
+	segment->segmentDisplay(prewarp1, segMask, FLAGS_classifierPath, seg_result_display, segmentsDisplay);
 
 	segment.reset();
-	Mat seg_result;
-	cv::resize(seg_result_small, seg_result, cv::Size(width, height), 0, 0, INTER_NEAREST);
+	Mat seg_display, seg_flashy;
+	cv::resize(seg_result_display, seg_display, cv::Size(width, height), 0, 0, INTER_NEAREST);
+	cv::resize(seg_result_flashy, seg_flashy, cv::Size(width, height), 0, 0, INTER_NEAREST);
 	Mat seg_overlay(height, width, CV_8UC3, Scalar(0,0,0));
 	for(auto y=0; y<height; ++y){
 		for(auto x=0; x<width; ++x){
-			if(seg_result.at<int>(y,x) > 0)
+			if(seg_display.at<int>(y,x) > 0)
 				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(255,0,0) * 0.6;
+			else if(seg_flashy.at<int>(y,x) > 0)
+				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(0,255,0) * 0.6;
 			else
 				seg_overlay.at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x) * 0.4 + Vec3b(0,0,255) * 0.6;
 		}
@@ -211,26 +213,5 @@ int main(int argc, char **argv) {
 		sprintf(buffer, "%s/temp/regulared%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());
 		imwrite(buffer, regulared[i]);
 	}
-
-//	for(auto i=0; i<medianResult.size(); ++i){
-//		sprintf(buffer, "%s/temp/median%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping->getOffset());
-//		imwrite(buffer, medianResult[i]);
-//	}
-
-
-//	for(auto i=0; i<warpped.size(); ++i){
-//		for(auto y=0; y<height; ++y){
-//			for(auto x=0; x<width; ++x){
-//				if(seg_result.at<uchar>(y,x) < 200){
-//					warpped[i].at<Vec3b>(y,x) = refImage.at<Vec3b>(y,x);
-//				}
-//			}
-//		}
-//	}
-//
-//	for(auto i=0; i<warpped.size(); ++i){
-//		sprintf(buffer, "%s/temp/warpedb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
-//		imwrite(buffer, warpped[i]);
-//	}
 	return 0;
 }

@@ -29,8 +29,10 @@ namespace dynamic_stereo{
 
         int index = 0;
         //Notice: input images are in BGR color space!!!
-        Mat samplesCV(nSamples, descriptor->getDim(), CV_32F, Scalar::all(0));
+        const int chuckSize = nSamples;
+        Mat samplesCV(chuckSize, descriptor->getDim(), CV_32F, cv::Scalar::all(0));
         vector<float> array((size_t)kFrame * 3);
+        Mat res(height/stride, width/stride, CV_8UC1, Scalar::all(0));
         for(auto y=0; y<height; y+=stride){
             for(auto x=0; x<width; x+=stride, ++index){
                 for(auto v=0; v<input.size(); ++v){
@@ -42,25 +44,26 @@ namespace dynamic_stereo{
                 vector<float> cursample;
                 descriptor->constructFeature(array, cursample);
                 for(auto d=0; d<descriptor->getDim(); ++d)
-                    samplesCV.at<float>(index, d) = cursample[d];
+                    samplesCV.at<float>(index % chuckSize, d) = cursample[d];
+                if((index + 1) % chuckSize == 0){
+                    Mat chuckResult;
+                    classifier->predict(samplesCV, chuckResult);
+                    CHECK_EQ(chuckResult.rows, chuckSize);
+                    const float* pChuckResult = (float*) chuckResult.data;
+                    for(auto i=0; i<chuckSize; ++i){
+                        CHECK_GE(index-chuckSize+i+1, 0);
+                        CHECK_LT(index-chuckSize+i+1, nSamples);
+                        if(std::abs(pChuckResult[i] - 0.0f) < FLT_EPSILON)
+                            res.data[index - chuckSize + i + 1] = (uchar)0;
+                        if(std::abs(pChuckResult[i] - 1.0f) < FLT_EPSILON)
+                            res.data[index - chuckSize + i + 1] = (uchar)255;
+                        else
+                            CHECK(true) << "Invalid classification result";
+                    }
+                }
             }
         }
 
-
-        Mat result;
-        classifier->predict(samplesCV, result);
-        CHECK_EQ(result.rows, nSamples);
-        CHECK_EQ(result.cols, 1);
-        Mat res(height/stride, width/stride, CV_8UC1, Scalar::all(0));
-        const float* pResult = (float*) result.data;
-        for(auto i=0; i<nSamples; ++i){
-            if(std::abs(pResult[i]-0.0f) < FLT_EPSILON)
-                res.data[i] = (uchar)0;
-            else if(std::abs(pResult[i]-1.0f) < FLT_EPSILON)
-                res.data[i] = (uchar)255;
-            else
-                CHECK(true) << pResult[i];
-        }
         cv::resize(res, res,input[0].size(),INTER_NEAREST);
         return res;
     }
@@ -79,9 +82,14 @@ namespace dynamic_stereo{
         Mat segnetMask;
         cv::resize(inputMask, segnetMask, cv::Size(width, height), INTER_NEAREST);
 
-        shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::RGBHist());
+        //shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::RGBHist());
+        Feature::ColorSpace cspace(Feature::ColorSpace::RGB);
+        vector<int> kBins{10,10,10};
+        shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::ColorHist(cspace, kBins));
+        printf("Dimension: %d\n", descriptor->getDim());
+
 //        cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
-	cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
+        cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
         printf("Running classification...\n");
         Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
 

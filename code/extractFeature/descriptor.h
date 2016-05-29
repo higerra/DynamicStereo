@@ -85,6 +85,7 @@ namespace dynamic_stereo {
                     CHECK_GT(kBins[c], 0);
                 binUnits.resize(kBins.size());
                 binUnitsIntensity.resize(kBins.size());
+                dim = 0;
                 for(auto c=0; c<colorSpace.channel; ++c){
                     binUnits[c] = 2*colorSpace.range[c] / kBins[c];
                     binUnitsIntensity[c] = colorSpace.range[c] / kBinsIntensity[c];

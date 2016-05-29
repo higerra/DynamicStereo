@@ -212,7 +212,10 @@ namespace dynamic_stereo{
             //feature constructor
             shared_ptr<FeatureConstructor> featureConstructor(NULL);
             if(method == RGB_HIST) {
-                featureConstructor.reset(new RGBHist(kBin, min_diff));
+                //featureConstructor.reset(new RGBHist(kBin, min_diff));
+                vector<int> kBins{kBin, kBin, kBin};
+                ColorSpace cspace(ColorSpace::RGB);
+                featureConstructor.reset(new ColorHist(cspace, kBins));
             }else if(method == LUV_HIST) {
                 vector<int> kBins{kBin, kBin, kBin};
                 ColorSpace cspace(ColorSpace::LUV);
