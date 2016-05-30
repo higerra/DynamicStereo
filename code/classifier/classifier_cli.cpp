@@ -11,7 +11,7 @@ using namespace cv;
 
 DEFINE_int32(downsample, 4, "downsample");
 DEFINE_string(mode, "test", "mode: classifier or test");
-DEFINE_string(type, "SVM", "type of classifier");
+DEFINE_string(type, "SVC", "type of classifier");
 DEFINE_int32(width, -1, "output width");
 DEFINE_int32(height, -1, "output height");
 
