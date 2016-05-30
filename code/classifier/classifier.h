@@ -15,7 +15,7 @@
 namespace dynamic_stereo{
 
     void perturbSamples(cv::Mat& samples);
-    void splitSamples(const cv::Mat& input, std::vector<cv::Mat>& output, const int kFold);
+    void splitSamples(const cv::Ptr<cv::ml::TrainData> input, std::vector<cv::Ptr<cv::ml::TrainData> >& output, int kFold);
 
     void train(const std::string& input_path, const std::string& output_path, const std::string& type);
     cv::Mat predict(const std::string& model_path, const std::string& data_path, const int width, const int height, const std::string& type);

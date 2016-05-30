@@ -23,14 +23,12 @@ namespace dynamic_stereo{
         cv::swap(samples, output);
     }
 
-    void splitSamples(const cv::Mat& inputSample, cv::Mat& inputLabel,
-                      std::vector<cv::Mat>& outputSample, cv::Mat& outputLabe, const int kFold){
-        CHECK_GT(kFold, 0);
-        CHECK_GT(inputSample.rows, kFold);
-        CHECK_EQ(inputSample.rows, inputLabel.rows);
+    void splitSamples(const cv::Ptr<cv::ml::TrainData> input, std::vector<cv::ml::TrainData>& output, const int kFold){
+        CHECK(input.get());
+        int nSample = input->getNSamples();
         vector<int> crossNum(kFold, 0);
         vector<int> crossCount(kFold, 0);
-        for(auto i=0; i<input.rows; ++i)
+        for(auto i=0; i<nSample; ++i)
             crossNum[i%kFold]++;
         output.resize(kFold);
         for(auto i=0; i<kFold; ++i)
