@@ -88,8 +88,8 @@ namespace dynamic_stereo{
         shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::ColorHist(cspace, kBins));
         printf("Dimension: %d\n", descriptor->getDim());
 
-//        cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
-        cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
+        cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
+//        cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
         printf("Running classification...\n");
         Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
 
