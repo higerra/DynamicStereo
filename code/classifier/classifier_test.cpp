@@ -82,3 +82,6 @@ TEST(classifier, opencv_vconcat){
 	}
 	cout << "Large mat: " << endl << largeMat << endl;
 }
+
+TEST(classifier, calc_sigmond){
+}

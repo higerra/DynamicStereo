@@ -25,6 +25,12 @@ namespace dynamic_stereo{
 
     cv::Ptr<cv::ml::LogisticRegression> trainPlattScaling(const cv::Mat& trainData);
     void predictPlattScaling(const std::string& model_path, const cv::Mat& data, cv::Mat& result);
+
+	inline cv::Mat calc_sigmond(const cv::Mat& data) {
+		cv::Mat dest;
+		cv::exp(-data, dest);
+		return 1.0/(1.0+dest);
+	}
 }//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_TRAIN_H

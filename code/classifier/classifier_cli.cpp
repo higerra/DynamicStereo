@@ -41,7 +41,7 @@ int main(int argc, char** argv){
         float start_t = (float)cv::getTickCount();
         printf("Predicting...\n");
         //Mat result = predict(string(argv[2]), string(argv[1]), width, height, FLAGS_type);
-	    Mat result = predictSVMWithPlatt(string(argv[2]), string(argv[1]), width, height);
+        Mat result = predictSVMWithPlatt(string(argv[2]), string(argv[1]), width, height);
         printf("Done. Time usage:%.2fs\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
         imwrite(argv[3], result);
     }else{
