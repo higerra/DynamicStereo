@@ -11,7 +11,6 @@
 #include <Eigen/Eigen>
 #include "../base/utility.h"
 #include "../base/depth.h"
-#include "../base/file_io.h"
 
 namespace local_matcher {
     void samplePatch(const cv::Mat &img, const Eigen::Vector2d &loc, const int pR, std::vector<double> &pix);

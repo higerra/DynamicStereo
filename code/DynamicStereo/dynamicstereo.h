@@ -13,13 +13,15 @@
 #include <glog/logging.h>
 #include <theia/theia.h>
 #include <time.h>
+#include <common/stereomodel.h>
 #include "../base/utility.h"
 #include "../base/depth.h"
 #include "../base/file_io.h"
 
-#include "dynamic_utility.h"
+#include "../common/dynamic_utility.h"
 
 namespace dynamic_stereo {
+
     class DynamicStereo {
     public:
 	    typedef double EnergyType;
@@ -35,7 +37,7 @@ namespace dynamic_stereo {
         inline int getDownsample() const {return downsample; }
 		inline const SfMModel& getSfMModel() const{return sfmModel;}
 
-		void warpToAnchor(const Depth& refDisp, const cv::Mat& mask, const int startid, const int endid, std::vector<cv::Mat>& warpped) const;
+		void prewarp(const Depth& refDisp, const cv::Mat& mask, const int startid, const int endid, std::vector<cv::Mat>& warpped) const;
 
 		void disparityToDepth(const Depth& disp, Depth& depth);
 		void bilateralFilter(const Depth& input, const cv::Mat& inputImg, Depth& output,

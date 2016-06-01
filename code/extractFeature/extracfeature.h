@@ -12,7 +12,7 @@
 #include <Eigen/Eigen>
 #include <iostream>
 #include <fstream>
-#include "descriptor.h"
+#include "../common/descriptor.h"
 
 namespace dynamic_stereo{
 

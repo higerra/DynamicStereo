@@ -7,8 +7,6 @@
 
 #include "descriptor.h"
 #include "../external/line_util/line_util.h"
-#include "extracfeature.h"
-
 namespace dynamic_stereo {
 	namespace Feature {
 		void computeFeatures(const std::vector<cv::Mat> &images,

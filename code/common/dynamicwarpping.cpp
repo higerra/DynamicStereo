@@ -5,6 +5,7 @@
 #include "dynamicwarpping.h"
 #include "../base/utility.h"
 #include "../base/thread_guard.h"
+#include "stereomodel.h"
 
 using namespace std;
 using namespace Eigen;
@@ -39,7 +40,8 @@ namespace dynamic_stereo {
         width = images[0].cols;
         height = images[0].rows;
         //initialize reconstruction
-        sfmModel.init(file_io.getReconstruction());
+        sfmModel.reset(new SfMModel());
+        sfmModel->init(file_io.getReconstruction());
 
         for (auto i = 0; i < depthind.size(); ++i) {
             if (depthind[i] == anchor) {
@@ -112,13 +114,13 @@ namespace dynamic_stereo {
 //	            }
 //            }
 
-			    updateZBuffer(refDepth, zBuffers[i], sfmModel.getCamera(anchor), sfmModel.getCamera(i+offset));
+			    updateZBuffer(refDepth, zBuffers[i], sfmModel->getCamera(anchor), sfmModel->getCamera(i+offset));
 
 //	        sprintf(buffer, "%s/temp/zBuffer%05d.ply", file_io.getDirectory().c_str(), i+offset);
 //	        Mat dimg;
 //	        cv::resize(images[i], dimg, cv::Size(zBuffers[i].getWidth(), zBuffers[i].getHeight()));
 //	        utility::saveDepthAsPly(string(buffer), zBuffers[i], dimg, sfmModel.getCamera(i+offset), downsample);
-			    utility::computeMinMaxDepth(sfmModel, i+offset, min_depths[i], max_depths[i]);
+			    utility::computeMinMaxDepth(*(sfmModel.get()), i+offset, min_depths[i], max_depths[i]);
 		    }
 	    };
 
@@ -148,7 +150,7 @@ namespace dynamic_stereo {
         output.resize((size_t)kFrame);
         char buffer[1024] = {};
 
-        const theia::Camera &cam1 = sfmModel.getCamera(anchor);
+        const theia::Camera &cam1 = sfmModel->getCamera(anchor);
 
 	    double dispMargin = 10;
         const double epsilon = 1e-5;
@@ -166,7 +168,7 @@ namespace dynamic_stereo {
 
         auto projectPoint = [&](const Vector3d& spt, const int v){
             //return (-1,-1,-1) if out of bound, (0,0,0) if occluded
-            const theia::Camera& cam2 = sfmModel.getCamera(v+offset);
+            const theia::Camera& cam2 = sfmModel->getCamera(v+offset);
             Vector2d imgpt;
             double d2 = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
             if(d2 < 0)
@@ -271,13 +273,13 @@ namespace dynamic_stereo {
 
         warped.resize(images.size());
 
-        const theia::Camera& cam1 = sfmModel.getCamera(anchor);
+        const theia::Camera& cam1 = sfmModel->getCamera(anchor);
         const int disparity_margin = 10;
 
 #pragma omp parallel for
         for(int i=0; i<dimages.size(); ++i) {
             cout << i+offset << ' ' << flush;
-            const theia::Camera& cam2 = sfmModel.getCamera(i+offset);
+            const theia::Camera& cam2 = sfmModel->getCamera(i+offset);
             warped[i] = dimages[anchor-offset].clone();
             if(i == anchor - offset){
                 continue;

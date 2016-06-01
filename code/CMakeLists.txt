@@ -6,7 +6,7 @@ project(DynamicStereo)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++11 -Wno-deprecated-declarations -Wno-deprecated-register")
 set(CMAKE_BUILD_TYPE Release)
 set(ROOT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-set(BUILD_DIRECTORY "${ROOT_DIRECTORY}/build")
+set(BUILD_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
 find_package(OpenCV REQUIRED)
 find_package(Ceres REQUIRED)
@@ -39,6 +39,7 @@ add_subdirectory(${ROOT_DIRECTORY}/external/segment_gb)
 add_subdirectory(${ROOT_DIRECTORY}/external/line_util)
 
 #main code
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/common)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)
 add_subdirectory(${ROOT_DIRECTORY}/SfM)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Line)

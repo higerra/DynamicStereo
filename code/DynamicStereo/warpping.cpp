@@ -9,7 +9,7 @@ using namespace Eigen;
 using namespace cv;
 
 namespace dynamic_stereo{
-	void DynamicStereo::warpToAnchor(const Depth& refDisp, const cv::Mat& mask, const int startid, const int endid, std::vector<cv::Mat>& warpped) const{
+	void DynamicStereo::prewarp(const Depth& refDisp, const cv::Mat& mask, const int startid, const int endid, std::vector<cv::Mat>& warpped) const{
 //		CHECK_GE(startid, 0);
 //		CHECK_LT(endid, images.size());
 //		CHECK_GT(endid, startid);

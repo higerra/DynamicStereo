@@ -3,7 +3,7 @@
 //
 
 #include "extracfeature.h"
-#include "regiondescriptor.h"
+#include "../common/regiondescriptor.h"
 #include "../external/segment_gb/segment-image.h"
 
 using namespace std;

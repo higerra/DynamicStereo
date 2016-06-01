@@ -3,8 +3,8 @@
 //
 
 #include "optimization.h"
-#include "external/MRF2.2/mrf.h"
-#include "external/MRF2.2/GCoptimization.h"
+#include "../external/MRF2.2/mrf.h"
+#include "../external/MRF2.2/GCoptimization.h"
 
 using namespace std;
 using namespace cv;
