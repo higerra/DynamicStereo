@@ -150,15 +150,6 @@ namespace segment_gb{
 		CHECK_EQ(input.type(), CV_32S);
 		const int width = input.cols;
 		const int height = input.rows;
-
-		int minLI=std::numeric_limits<int>::max(), maxLI=-1;
-		for(auto i=0; i<width*height; ++i) {
-			int curL = input.at<int>(i / width, i % width);
-			minLI = std::min(minLI, curL);
-			maxLI = std::max(maxLI, curL);
-		}
-		printf("min label:%d, max label: %d\n", minLI,maxLI);
-
 		double minLabel, maxLabel;
 		cv::minMaxLoc(input, &minLabel, &maxLabel);
 		CHECK_LE(minLabel, std::numeric_limits<double>::epsilon());

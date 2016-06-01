@@ -258,7 +258,7 @@ namespace dynamic_stereo{
         vector<vector<vector<int> > > pixelGroups(images.size());
         vector<Mat> pixelLabels(images.size());
         for(auto i=0; i<images.size(); ++i){
-            int nLabel = segment_gb::segment_image(images[i], pixelLabels[i], pixelGroups[i], 1.0, 300, 150);
+            int nLabel = segment_gb::segment_image(images[i], pixelLabels[i], pixelGroups[i], 1.5, 300, 150);
             Mat vis = segment_gb::visualizeSegmentation(pixelLabels[i]);
             imshow("segmentation", vis);
             waitKey(0);
