@@ -26,9 +26,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #include <glog/logging.h>
 
 namespace segment_gb {
-
-	//seg[i][j]: j's pixel id in ith segmentation
+	//input: input image
+	//output: Mat with CV_32S type. Pixel values correspond to label Id
+	//seg: grouped pixels. seg[i][j], j'th pixel in i'th segment
 	int segment_image(const cv::Mat& input, cv::Mat& output, std::vector<std::vector<int> >& seg,
 	                   float sigma, float c, int min_size);
+
+	cv::Mat visualizeSegmentation(const cv::Mat& input);
 }
 #endif

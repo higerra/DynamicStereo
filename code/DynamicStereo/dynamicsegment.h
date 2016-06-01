@@ -29,6 +29,8 @@ namespace dynamic_stereo {
 							const std::string& classifierPath, cv::Mat& displayLabels,
 							std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay) const;
 
+		void filterBoudary(const std::vector<cv::Mat>& images, cv::Mat& input) const;
+
     private:
 		void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result) const;
 

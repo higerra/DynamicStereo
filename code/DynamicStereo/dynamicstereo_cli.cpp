@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
 
 	Mat seg_result_display;
 	Mat seg_result_flashy;
-	segment->segmentFlashy(prewarp1, seg_result_flashy);
+	//segment->segmentFlashy(prewarp1, seg_result_flashy);
 	segment->segmentDisplay(prewarp1, segMask, FLAGS_classifierPath, seg_result_display, segmentsDisplay);
 
 	segment.reset();

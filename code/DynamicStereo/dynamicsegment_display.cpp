@@ -4,6 +4,7 @@
 
 #include "dynamicsegment.h"
 #include "../base/thread_guard.h"
+#include "../external/segment_gb/segment-image.h"
 
 using namespace std;
 using namespace cv;
@@ -91,7 +92,12 @@ namespace dynamic_stereo{
 //        cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
         cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
         printf("Running classification...\n");
-        Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
+        //Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
+        //imshow("classification", preSeg);
+        //waitKey(0);
+        Mat preSeg;
+        filterBoudary(input, preSeg);
+        return;
 
         sprintf(buffer, "%s/temp/classification%05d.jpg", file_io.getDirectory().c_str(), anchor);
         imwrite(buffer, preSeg);
@@ -243,5 +249,20 @@ namespace dynamic_stereo{
                 }
             }
         }
+    }
+
+
+    void DynamicSegment::filterBoudary(const std::vector<cv::Mat> &images, cv::Mat &input) const {
+        //perform graph-cut segmentation on each frame
+        char buffer[1024] = {};
+        vector<vector<vector<int> > > pixelGroups(images.size());
+        vector<Mat> pixelLabels(images.size());
+        for(auto i=0; i<images.size(); ++i){
+            int nLabel = segment_gb::segment_image(images[i], pixelLabels[i], pixelGroups[i], 1.0, 300, 150);
+            Mat vis = segment_gb::visualizeSegmentation(pixelLabels[i]);
+            imshow("segmentation", vis);
+            waitKey(0);
+        }
+
     }
 }//namespace dynamic_stereo

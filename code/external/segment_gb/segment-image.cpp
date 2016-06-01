@@ -39,6 +39,9 @@ namespace segment_gb{
 		}
 	}
 
+	//input: input image
+	//output: Mat with CV_32S type. Pixel values correspond to label Id
+	//seg: grouped pixels. seg[i][j], j'th pixel in i'th segment
 	int segment_image(const cv::Mat& input, cv::Mat& output, std::vector<std::vector<int> >& seg,
 	                   float sigma, float c, int min_size){
 		CHECK(input.data != NULL);
@@ -110,38 +113,79 @@ namespace segment_gb{
 				u->join(a, b);
 		}
 
-		output = cv::Mat(height, width, CV_8UC3);
+		output = cv::Mat(height, width, CV_32S, cv::Scalar::all(0));
 
-// pick random colors for each component
-		std::vector<cv::Vec3b> colorTable((size_t)width * height);
+		//remap labels
+		std::vector<std::pair<int, int> > labelMap((size_t)width * height);
+		int curMaxLabel = -1;
+		int nLabel = -1;
+		for (int i=0; i<width * height; ++i) {
+			int comp = u->find(i);
+			CHECK_LT(comp, width * height);
+			labelMap[i] = std::pair<int,int>(comp, i);
+		}
+		std::sort(labelMap.begin(), labelMap.end());
+		for(auto i=0; i<labelMap.size(); ++i){
+			CHECK_GE(labelMap[i].first, 0);
+			if(labelMap[i].first > curMaxLabel){
+				curMaxLabel = labelMap[i].first;
+				nLabel++;
+			}
+			int pixId = labelMap[i].second;
+			output.at<int>(pixId/width, pixId%width) = nLabel;
+		}
 
+		nLabel++;
+		seg.clear();
+		seg.resize((size_t)(nLabel));
+		for(int i=0; i<width * height; ++i) {
+			seg[output.at<int>(i/width, i%width)].push_back(i);
+		}
+		u.reset();
+		return nLabel;
+	}
+
+	cv::Mat visualizeSegmentation(const cv::Mat& input){
+		CHECK(input.data);
+		CHECK_EQ(input.type(), CV_32S);
+		const int width = input.cols;
+		const int height = input.rows;
+
+		int minLI=std::numeric_limits<int>::max(), maxLI=-1;
+		for(auto i=0; i<width*height; ++i) {
+			int curL = input.at<int>(i / width, i % width);
+			minLI = std::min(minLI, curL);
+			maxLI = std::max(maxLI, curL);
+		}
+		printf("min label:%d, max label: %d\n", minLI,maxLI);
+
+		double minLabel, maxLabel;
+		cv::minMaxLoc(input, &minLabel, &maxLabel);
+		CHECK_LE(minLabel, std::numeric_limits<double>::epsilon());
+		int nLabel = (int)maxLabel;
+		CHECK_LE(maxLabel-(double)nLabel, std::numeric_limits<double>::epsilon());
+		nLabel++;
+
+		// pick random colors for each component
+		std::vector<cv::Vec3b> colorTable(nLabel);
 
 		std::default_random_engine generator;
 		std::uniform_int_distribution<int> distribution(0, 255);
 
-		for (int i = 0; i < width * height; i++) {
+		for (int i = 0; i < nLabel; i++) {
 			for(int j=0; j<3; ++j)
 				colorTable[i][j] = (uchar)distribution(generator);
 		}
 
-		int nLabels = -1;
-		std::vector<int> labels((size_t)width * height);
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				int comp = u->find(y * width + x);
-				labels[y*width+x] = comp;
-				nLabels = std::max(nLabels, comp);
-				output.at<cv::Vec3b>(y,x) = colorTable[comp];
+		cv::Mat output(height, width, CV_8UC3, cv::Scalar::all(0));
+		for(auto y=0; y<height; ++y){
+			for(auto x=0; x<width; ++x){
+				const int label = input.at<int>(y,x);
+				CHECK_LT(label, nLabel);
+				output.at<cv::Vec3b>(y,x) = colorTable[label];
 			}
 		}
-		seg.clear();
-
-		seg.resize((size_t)(nLabels+1));
-		for(int i=0; i<width * height; ++i) {
-			seg[labels[i]].push_back(i);
-		}
-		u.reset();
-		return nLabels;
+		return output;
 	}
 
 }//namespace segment_gb
