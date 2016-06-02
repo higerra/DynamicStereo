@@ -6,11 +6,13 @@
 #define DYNAMICSTEREO_DYNAMICSEGMENT_H
 #include <iostream>
 #include <string>
-#include "../base/file_io.h"
-#include "../base/depth.h"
+#include <memory>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
 #include <glog/logging.h>
+
+#include "../base/file_io.h"
+#include "../base/depth.h"
 //#include "../common/stereomodel.h"
 #include "../common/descriptor.h"
 
