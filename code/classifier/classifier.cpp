@@ -120,8 +120,13 @@ namespace dynamic_stereo{
         Ptr<ml::StatModel> classifier;
         if(type == "SVC" || type == "SVR") {
             printf("Predicing with SVM...\n");
-//            classifier = ml::SVM::load(model_path);
+
+#ifdef __linux
             classifier = ml::SVM::load<ml::SVM>(model_path);
+#else
+	        classifier = ml::SVM::load(model_path);
+#endif
+
         }else if(type == "BT"){
             printf("Predicting with GBT...\n");
             classifier = ml::Boost::load<ml::Boost>(model_path);
@@ -249,8 +254,12 @@ namespace dynamic_stereo{
 
 	cv::Mat predictSVMWithPlatt(const std::string& model_path, const std::string& data_path, const int width, const int height){
 		string platt_path = model_path + ".platt";
-//		cv::Ptr<ml::SVM> svm = ml::SVM::load(model_path);
+
+#ifdef __linux
         cv::Ptr<ml::SVM> svm = ml::SVM::load<ml::SVM>(model_path);
+#else
+		cv::Ptr<ml::SVM> svm = ml::SVM::load(model_path);
+#endif
 		CHECK(svm.get()) << "Can not load SVM: " << model_path;
 		cv::Ptr<ml::LogisticRegression> logReg = ml::LogisticRegression::load<ml::LogisticRegression>(platt_path);
 		CHECK(logReg.get()) << "Can not load Platt model: " << platt_path;

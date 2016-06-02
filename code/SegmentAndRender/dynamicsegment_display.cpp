@@ -90,8 +90,13 @@ namespace dynamic_stereo{
 		shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::ColorHist(cspace, kBins));
 		printf("Dimension: %d\n", descriptor->getDim());
 
-        cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
-//		cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
+
+#ifdef __linux
+		cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
+#else
+		cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
+#endif
+
 		printf("Running classification...\n");
 		//Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
 		//imshow("classification", preSeg);
@@ -259,11 +264,8 @@ namespace dynamic_stereo{
 	void filterBoudary(const std::vector<cv::Mat> &seg, cv::Mat &input){
 		//perform graph-cut segmentation on each frame
 		char buffer[1024] = {};
-//		vector<vector<vector<int> > > pixelGroups(images.size());
-//		vector<Mat> pixelLabels(images.size());
 		printf("Filter boundary");
 		for(auto i=0; i<seg.size(); ++i){
-			//int nLabel = segment_gb::segment_image(seg[i], pixelLabels[i], pixelGroups[i], 1.5, 300, 150);
 			Mat vis = segment_gb::visualizeSegmentation(seg[i]);
 			imshow("segmentation", vis);
 			waitKey(0);
