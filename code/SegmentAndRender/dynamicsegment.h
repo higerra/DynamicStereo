@@ -18,12 +18,6 @@
 
 namespace dynamic_stereo {
 
-	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
-
-	void segmentDisplay(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, const cv::Mat& segnetMask,
-	                    const std::string& classifierPath, cv::Mat& displayLabels,
-	                    std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay);
-
 	void filterBoudary(const std::vector<cv::Mat>& images, cv::Mat& input);
 
 	void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result);
@@ -32,8 +26,18 @@ namespace dynamic_stereo {
 	                                const std::shared_ptr<Feature::FeatureConstructor> descriptor, const cv::Ptr<cv::ml::StatModel> classifier,
 	                                const int stride);
 
-	//routine for importing video segmentation
 	void importVideoSegmentation(const std::string& path, std::vector<cv::Mat>& video_segments);
+
+	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
+
+	void segmentDisplay(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, const cv::Mat& segnetMask,
+						const std::string& classifierPath, cv::Mat& displayLabels,
+						std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay);
+
+	//multi frame grab cut
+	//mask: for both input and output
+	void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask);
+
 
 }//namespace dynamic_stereo
 
