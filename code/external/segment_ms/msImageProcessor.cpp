@@ -194,7 +194,7 @@ namespace segment_ms {
 				RGBtoLUV(&data_[dim * i], &luv[dim * i]);
 		}
 
-		//define input defined on a lattice using mean shift base class
+		//define input defined on a lattice using mean shift vs_base class
 		DefineLInput(luv, height_, width_, dim);
 
 		//Define a default kernel if it has not been already
@@ -205,7 +205,7 @@ namespace segment_ms {
 			int P[2] = {2, N};
 			float tempH[2] = {1.0, 1.0};
 
-			//define default kernel in mean shift base class
+			//define default kernel in mean shift vs_base class
 			DefineKernel(k, tempH, P, 2);
 		}
 
@@ -238,7 +238,7 @@ namespace segment_ms {
 				RGBtoLUV(&data_[dim * i], &luv[dim * i]);
 		}
 
-		//define input defined on a lattice using mean shift base class
+		//define input defined on a lattice using mean shift vs_base class
 		DefineLInput(luv, height_, width_, dim);
 
 		//Define a default kernel if it has not been already
@@ -249,7 +249,7 @@ namespace segment_ms {
 			int P[2] = {2, N};
 			float tempH[2] = {1.0, 1.0};
 
-			//define default kernel in mean shift base class
+			//define default kernel in mean shift vs_base class
 			DefineKernel(k, tempH, P, 2);
 		}
 

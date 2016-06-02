@@ -27,8 +27,8 @@
 // ---
 
 
-#include "segment_util/segmentation_util.h"
-#include "base/base_impl.h"
+#include "segmentation_util.h"
+#include "../vs_base/base_impl.h"
 
 #include <cstdio>
 

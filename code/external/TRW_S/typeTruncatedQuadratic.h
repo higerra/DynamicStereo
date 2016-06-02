@@ -475,7 +475,7 @@ inline void TypeTruncatedQuadratic::Edge::DistanceTransformL2(int K, REAL* sourc
 
 	int i, j, k, p;
 	int r = 0; // = number of parabolas minus 1
-	// parabolas[p] will be base of parabola p (0<=p<=r)
+	// parabolas[p] will be vs_base of parabola p (0<=p<=r)
 	// intersections[p] will be intersection between parabolas p-1 and p (1<=p<=r)
 	// intersections[0] will be always 0
 	parabolas[0] = 0;
@@ -485,7 +485,7 @@ inline void TypeTruncatedQuadratic::Edge::DistanceTransformL2(int K, REAL* sourc
 	{
 		while ( 1 )
 		{
-			j = parabolas[r]; // base of previous rightmost visible parabola
+			j = parabolas[r]; // vs_base of previous rightmost visible parabola
 			// k is intersection of parabolas i and j
 			k = (int) ( 1 + ( (i + j)  +  (source[j] - source[i]) / (m_alpha * (j - i)) ) / 2);
 			if (k >= K)

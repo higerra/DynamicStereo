@@ -1034,7 +1034,7 @@ class TestResultAccessor {
 // Streams test results to the given port on the given host machine.
 class GTEST_API_ StreamingListener : public EmptyTestEventListener {
  public:
-  // Abstract base class for writing strings to a socket.
+  // Abstract vs_base class for writing strings to a socket.
   class AbstractSocketWriter {
    public:
     virtual ~AbstractSocketWriter() {}

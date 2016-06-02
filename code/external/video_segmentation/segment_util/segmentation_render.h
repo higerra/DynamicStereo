@@ -29,13 +29,13 @@
 #ifndef VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_RENDER_H__
 #define VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_RENDER_H__
 
-#include "base/base.h"
+#include "../vs_base/base.h"
 
 #include <boost/lexical_cast.hpp>
 #include <glog/logging.h>
 #include <opencv2/core/core.hpp>
 
-#include "segment_util/segmentation_util.h"
+#include "segmentation_util.h"
 
 namespace segmentation {
 

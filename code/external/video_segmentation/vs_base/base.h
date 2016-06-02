@@ -60,15 +60,15 @@ namespace base {
 
 std::string demangle(const char* name);
 
-// Common base class to enable checked casting to derived class for types
+// Common vs_base class to enable checked casting to derived class for types
 // that require multiple dispatch (here: upcasting of function argument from
-// base pointer to actual derived class).
+// vs_base pointer to actual derived class).
 class TypedType {
  public:
   TypedType(const std::type_info* type) : type_(type) { }
 
   // Checked casting to actual derived type.
-  // Note: You can only cast to the actual type, not some base class via this function.
+  // Note: You can only cast to the actual type, not some vs_base class via this function.
   // Always guaranteed to return valid reference/pointer or fail with LOG.
   template <class T>
   const T* AsPtr() const {
@@ -159,6 +159,6 @@ void ParallelFor(const BlockedRange& range, const Invoker& invoker) {
 #endif
 }
 
-}  // namespace base.
+}  // namespace vs_base.
 
 #endif   // VIDEO_SEGMENT_BASE_BASE_H__

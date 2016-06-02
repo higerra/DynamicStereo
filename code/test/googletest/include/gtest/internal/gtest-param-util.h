@@ -93,7 +93,7 @@ template <typename T>
 class ParamIteratorInterface {
  public:
   virtual ~ParamIteratorInterface() {}
-  // A pointer to the base generator instance.
+  // A pointer to the vs_base generator instance.
   // Used only for the purposes of iterator comparison
   // to make sure that two iterators belong to the same generator.
   virtual const ParamGeneratorInterface<T>* BaseGenerator() const = 0;
@@ -238,7 +238,7 @@ class RangeGenerator : public ParamGeneratorInterface<T> {
     }
     virtual const T* Current() const { return &value_; }
     virtual bool Equals(const ParamIteratorInterface<T>& other) const {
-      // Having the same base generator guarantees that the other
+      // Having the same vs_base generator guarantees that the other
       // iterator is of the same type and we can downcast.
       GTEST_CHECK_(BaseGenerator() == other.BaseGenerator())
           << "The program attempted to compare iterators "
@@ -336,7 +336,7 @@ class ValuesInIteratorRangeGenerator : public ParamGeneratorInterface<T> {
       return value_.get();
     }
     virtual bool Equals(const ParamIteratorInterface<T>& other) const {
-      // Having the same base generator guarantees that the other
+      // Having the same vs_base generator guarantees that the other
       // iterator is of the same type and we can downcast.
       GTEST_CHECK_(BaseGenerator() == other.BaseGenerator())
           << "The program attempted to compare iterators "
@@ -423,7 +423,7 @@ class ParameterizedTestFactory : public TestFactoryBase {
 
 // INTERNAL IMPLEMENTATION - DO NOT USE IN USER CODE.
 //
-// TestMetaFactoryBase is a base class for meta-factories that create
+// TestMetaFactoryBase is a vs_base class for meta-factories that create
 // test factories for passing into MakeAndRegisterTestInfo function.
 template <class ParamType>
 class TestMetaFactoryBase {
@@ -510,16 +510,16 @@ class ParameterizedTestCaseInfo : public ParameterizedTestCaseInfoBase {
       const char* name, CodeLocation code_location)
       : test_case_name_(name), code_location_(code_location) {}
 
-  // Test case base name for display purposes.
+  // Test case vs_base name for display purposes.
   virtual const string& GetTestCaseName() const { return test_case_name_; }
   // Test case id to verify identity.
   virtual TypeId GetTestCaseTypeId() const { return GetTypeId<TestCase>(); }
   // TEST_P macro uses AddTestPattern() to record information
   // about a single test in a LocalTestInfo structure.
-  // test_case_name is the base name of the test case (without invocation
+  // test_case_name is the vs_base name of the test case (without invocation
   // prefix). test_base_name is the name of an individual test without
   // parameter index. For the test SequenceA/FooTest.DoBar/1 FooTest is
-  // test case base name and DoBar is test base name.
+  // test case vs_base name and DoBar is test vs_base name.
   void AddTestPattern(const char* test_case_name,
                       const char* test_base_name,
                       TestMetaFactoryBase<ParamType>* meta_factory) {

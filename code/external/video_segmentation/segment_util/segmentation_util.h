@@ -29,7 +29,7 @@
 #ifndef VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_UTIL_H__
 #define VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_UTIL_H__
 
-#include "base/base.h"
+#include "../vs_base/base.h"
 
 #include <google/protobuf/repeated_field.h>
 #include <opencv2/opencv.hpp>

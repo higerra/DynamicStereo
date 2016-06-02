@@ -68,7 +68,7 @@
 #ifndef VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_IO_H__
 #define VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_IO_H__
 
-#include "base/base.h"
+#include "../vs_base/base.h"
 
 #ifdef __linux
 #include <stdint.h>

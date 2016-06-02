@@ -29,8 +29,8 @@
 #ifndef VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_BOUNDARY_H__
 #define VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_BOUNDARY_H__
 
-#include "base/base.h"
-#include "segment_util/segmentation_util.h"
+#include "../vs_base/base.h"
+#include "segmentation_util.h"
 
 // Boundary methods for single regions. Does not create unique boundaries
 // between regions. For unique boundaries each region has a vectorization.

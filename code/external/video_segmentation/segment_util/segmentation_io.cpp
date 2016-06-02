@@ -26,10 +26,10 @@
 //
 // ---
 
-#include "base/base_impl.h"
+#include "../vs_base/base_impl.h"
 
-#include "segment_util/segmentation_io.h"
-#include "segment_util/segmentation_util.h"
+#include "segmentation_io.h"
+#include "segmentation_util.h"
 #include "segment_util/segmentation.pb.h"
 
 namespace segmentation {

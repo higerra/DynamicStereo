@@ -27,8 +27,8 @@
 // ---
 
 
-#include "segment_util/segmentation_boundary.h"
-#include "base/base_impl.h"
+#include "segmentation_boundary.h"
+#include "../vs_base/base_impl.h"
 
 namespace segmentation {
 

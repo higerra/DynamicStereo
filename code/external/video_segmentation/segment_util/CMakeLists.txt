@@ -15,10 +15,12 @@ set(HEADERS segmentation_io.h
 
 set(SOURCES "${SOURCES}" "${HEADERS}")
 
-find_package(Protobuf REQUIRED)
+find_package(Protobuf 2.6.1 REQUIRED)
 find_package(OpenCV REQUIRED)
+
+message(${PROTOBUF_LIBRARIES})
 
 PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HDR segmentation.proto)
 
 add_library(video_segment_util ${SOURCES} ${PROTO_SRC} ${PROTO_HDR})
-target_link_libraries(video_segment_util ${OpenCV_LIBS} glog video_segment_base)
+target_link_libraries(video_segment_util ${OpenCV_LIBS} glog video_segment_base ${PROTOBUF_LIBRARIES})

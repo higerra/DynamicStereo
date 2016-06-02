@@ -1395,11 +1395,11 @@ Derived* CheckedDowncastToActualType(Base* base) {
 #endif
 
 #if GTEST_HAS_DOWNCAST_
-  return ::down_cast<Derived*>(base);
+  return ::down_cast<Derived*>(vs_base);
 #elif GTEST_HAS_RTTI
   return dynamic_cast<Derived*>(base);  // NOLINT
 #else
-  return static_cast<Derived*>(base);  // Poor man's downcast.
+  return static_cast<Derived*>(vs_base);  // Poor man's downcast.
 #endif
 }
 
@@ -1561,7 +1561,7 @@ class GTEST_API_ Notification {
 // As a C-function, ThreadFuncWithCLinkage cannot be templated itself.
 // Consequently, it cannot select a correct instantiation of ThreadWithParam
 // in order to call its Run(). Introducing ThreadWithParamBase as a
-// non-templated base class for ThreadWithParam allows us to bypass this
+// non-templated vs_base class for ThreadWithParam allows us to bypass this
 // problem.
 class ThreadWithParamBase {
  public:
@@ -1857,7 +1857,7 @@ class ThreadLocal : public ThreadLocalBase {
   void set(const T& value) { *pointer() = value; }
 
  private:
-  // Holds a value of T.  Can be deleted via its base class without the caller
+  // Holds a value of T.  Can be deleted via its vs_base class without the caller
   // knowing the type of T.
   class ValueHolder : public ThreadLocalValueHolderBase {
    public:
@@ -2471,7 +2471,7 @@ class TypeWithSize<4> {
  public:
   // unsigned int has size 4 in both gcc and MSVC.
   //
-  // As base/basictypes.h doesn't compile on Windows, we cannot use
+  // As vs_base/basictypes.h doesn't compile on Windows, we cannot use
   // uint32, uint64, and etc here.
   typedef int Int;
   typedef unsigned int UInt;

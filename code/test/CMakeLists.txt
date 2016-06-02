@@ -13,6 +13,6 @@ add_executable(descriptorTest ${ROOT_DIRECTORY}/common/descriptor_test.cpp test_
 target_link_libraries(descriptorTest gtest base common)
 add_test(NAME descriptorTest COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/descriptorTest)
 
-add_executable(classifierTest ${ROOT_DIRECTORY}/classifier/classifier_test.cpp ${ROOT_DIRECTORY}/classifier/classifier.cpp test_main.cpp)
-target_link_libraries(classifierTest common gtest base)
-add_test(NAME classifierTest COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/classifierTest)
+#add_executable(classifierTest ${ROOT_DIRECTORY}/classifier/classifier_test.cpp ${ROOT_DIRECTORY}/classifier/classifier.cpp test_main.cpp)
+#target_link_libraries(classifierTest common gtest base)
+#add_test(NAME classifierTest COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/classifierTest)

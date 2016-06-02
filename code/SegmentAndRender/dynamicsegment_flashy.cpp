@@ -4,7 +4,7 @@
 
 #include "dynamicsegment.h"
 #include "../base/utility.h"
-#include "dynamic_utility.h"
+#include "../common/dynamic_utility.h"
 #include "external/MRF2.2/GCoptimization.h"
 
 using namespace std;
@@ -12,22 +12,6 @@ using namespace cv;
 using namespace Eigen;
 
 namespace dynamic_stereo{
-
-    DynamicSegment::DynamicSegment(const FileIO &file_io_, const int anchor_, const int tWindow_, const int downsample_,
-    const std::vector<Depth>& depths_, const std::vector<int>& depthInd_):
-            file_io(file_io_), anchor(anchor_), downsample(downsample_) {
-        sfmModel.init(file_io.getReconstruction());
-
-	    //load image
-	    if (anchor - tWindow_ / 2 < 0) {
-		    offset = 0;
-		    CHECK_LT(offset + tWindow_, file_io.getTotalNum());
-	    } else if (anchor + tWindow_ / 2 >= file_io.getTotalNum()) {
-		    offset = file_io.getTotalNum() - 1 - tWindow_;
-		    CHECK_GE(offset, 0);
-	    } else
-		    offset = anchor - tWindow_ / 2;
-    }
 
 //	void DynamicSegment::getGeometryConfidence(Depth &geoConf) const {
 //		geoConf.initialize(width, height, 0.0);
@@ -66,7 +50,7 @@ namespace dynamic_stereo{
 //	}
 
 
-	void DynamicSegment::computeFrequencyConfidence(const std::vector<cv::Mat> &warppedImg, Depth &result) const {
+	void computeFrequencyConfidence(const std::vector<cv::Mat> &warppedImg, Depth &result){
 		CHECK(!warppedImg.empty());
 		const int width = warppedImg[0].cols;
 		const int height = warppedImg[0].rows;
@@ -106,7 +90,7 @@ namespace dynamic_stereo{
 				}
 
 				vector<double> frqConfs{utility::getFrequencyScore(colorArray(cv::Range::all(), cv::Range(0,N/2)), min_frq),
-										utility::getFrequencyScore(colorArray(cv::Range::all(), cv::Range(N/2,N)), min_frq)};
+				                        utility::getFrequencyScore(colorArray(cv::Range::all(), cv::Range(N/2,N)), min_frq)};
 				result(x,y) = 1 / (1 + std::exp(-1*alpha*(std::max(frqConfs[0], frqConfs[1]) - beta)));
 				if(x == tx && y == ty){
 					for(auto v=0; v<N/2; ++v){
@@ -122,7 +106,8 @@ namespace dynamic_stereo{
 	}
 
 
-	void DynamicSegment::segmentFlashy(const std::vector<cv::Mat> &input, cv::Mat &result) const {
+	void segmentFlashy(const FileIO& file_io, const int anchor,
+	                   const std::vector<cv::Mat> &input, cv::Mat &result){
 		char buffer[1024] = {};
 
 		const int width = input[0].cols;
@@ -185,9 +170,9 @@ namespace dynamic_stereo{
 			cv::erode(bwmask, bwmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
 			cv::erode(bgmask, bgmask, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(11, 11)));
 
-			sprintf(buffer, "%s/temp/mask_frqfg%05d.jpg", file_io.getDirectory().c_str(), anchor);
+			sprintf(buffer, "%s/temp/mask_frqfg.jpg", file_io.getDirectory().c_str());
 			imwrite(buffer, bwmask);
-			sprintf(buffer, "%s/temp/mask_frqbg%05d.jpg", file_io.getDirectory().c_str(), anchor);
+			sprintf(buffer, "%s/temp/mask_frqbg.jpg", file_io.getDirectory().c_str());
 			imwrite(buffer, bgmask);
 
 //			sprintf(buffer, "%s/midres/gmm_negative%05d.gmm", file_io.getDirectory().c_str(), anchor);
@@ -248,7 +233,7 @@ namespace dynamic_stereo{
 //				const int roiw = width;
 //				const int roih = height;
 
-				Mat roi = input[anchor-offset](cv::Rect(left, top, roiw, roih));
+				Mat roi = input[input.size()/2](cv::Rect(left, top, roiw, roih));
 //
 				Mat gcmask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
 				uchar *pGcmask = gcmask.data;
@@ -314,7 +299,7 @@ namespace dynamic_stereo{
 //		brightness.saveImage(string(buffer));
 //		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
 //		unaryTerm.saveImage(string(buffer));
-		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		sprintf(buffer, "%s/temp/conf_frquency.jpg", file_io.getDirectory().c_str());
 		frequency.saveImage(string(buffer), 255);
 
 //		unaryTerm.updateStatics();

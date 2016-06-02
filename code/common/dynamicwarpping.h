@@ -10,7 +10,6 @@
 
 #include "../base/depth.h"
 #include "../base/file_io.h"
-#include "dynamic_utility.h"
 
 namespace dynamic_stereo {
     class DynamicWarpping {

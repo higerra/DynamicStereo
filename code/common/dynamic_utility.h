@@ -11,12 +11,14 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
-#include <theia/theia.h>
 #include <memory>
+
+namespace theia{
+	class Camera;
+}
 
 namespace dynamic_stereo{
     struct SfMModel;
-
     namespace utility{
         void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output);
 

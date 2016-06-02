@@ -26,35 +26,38 @@
 //
 // ---
 
-#ifndef VIDEO_SEGMENT_BASE_BASE_IMPL_H__
-#define VIDEO_SEGMENT_BASE_BASE_IMPL_H__
+#include "base_impl.h"
 
-// To be included in implementation files.
-
-#include "base/base.h"
-
-using std::vector;
-using std::list;
-using std::pair;
-using std::shared_ptr;
-using std::unique_ptr;
-
-#include <unordered_map>
-using std::unordered_map;
-
-#include <unordered_set>
-using std::unordered_set;
-
-#include <functional>
+#include <cstdarg>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 namespace base {
 
-// Like snprintf but for strings.
-std::string StringPrintf(const char* format, ...);
+std::string StringPrintf(const char* format, ...) {
+  static constexpr int kBufferLength = 128;
+  char buffer[kBufferLength];
 
-// Returns true, if file exists.
-bool FileExists(const std::string& file);
+  va_list args;
+  va_start (args, format);
+  int len = vsnprintf(buffer, kBufferLength, format, args);
+  va_end(args);
 
-}  // namespace base.
+  if (len > kBufferLength) {
+    std::unique_ptr<char[]> big_buffer(new char[len]);
+    va_list args;
+    va_start (args, format);
+    vsnprintf(big_buffer.get(), len, format, args);
+    va_end(args);
+    return std::string(big_buffer.get());
+  }
 
-#endif   // VIDEO_SEGMENT_BASE_BASE_IMPL_H__
+  return std::string(buffer);
+}
+
+bool FileExists(const std::string& file) {
+  struct stat unused;
+  return stat(file.c_str(), &unused) == 0;
+}
+
+}  // namespace vs_base.`<F4><F4>

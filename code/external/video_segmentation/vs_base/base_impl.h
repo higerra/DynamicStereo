@@ -26,27 +26,35 @@
 //
 // ---
 
-#include "base/base.h"
+#ifndef VIDEO_SEGMENT_BASE_BASE_IMPL_H__
+#define VIDEO_SEGMENT_BASE_BASE_IMPL_H__
+
+// To be included in implementation files.
+
+#include "base.h"
+
+using std::vector;
+using std::list;
+using std::pair;
+using std::shared_ptr;
+using std::unique_ptr;
+
+#include <unordered_map>
+using std::unordered_map;
+
+#include <unordered_set>
+using std::unordered_set;
+
+#include <functional>
 
 namespace base {
 
-#ifdef __GNUG__
-// From: http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
-std::string demangle(const char* name) {
-  int status = 0;
-  std::unique_ptr<char, void(*)(void*)> res(
-    abi::__cxa_demangle(name, nullptr, nullptr, &status),
-    std::free);
+// Like snprintf but for strings.
+std::string StringPrintf(const char* format, ...);
 
-  return status == 0 ? res.get() : name;
-}
+// Returns true, if file exists.
+bool FileExists(const std::string& file);
 
-#else
+}  // namespace vs_base.
 
-std::string demangle(const char* name) {
-  return name;
-}
-
-#endif  // __GNUG__
-
-}  // namespace base.
+#endif   // VIDEO_SEGMENT_BASE_BASE_IMPL_H__

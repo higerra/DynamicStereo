@@ -2,10 +2,11 @@
 // Created by yanhang on 4/10/16.
 //
 
+#include "stereomodel.h"
+#include "dynamic_utility.h"
 #include "dynamicwarpping.h"
 #include "../base/utility.h"
 #include "../base/thread_guard.h"
-#include "stereomodel.h"
 
 using namespace std;
 using namespace Eigen;

@@ -26,38 +26,27 @@
 //
 // ---
 
-#include "base/base_impl.h"
-
-#include <cstdarg>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "base.h"
 
 namespace base {
 
-std::string StringPrintf(const char* format, ...) {
-  static constexpr int kBufferLength = 128;
-  char buffer[kBufferLength];
+#ifdef __GNUG__
+// From: http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
+std::string demangle(const char* name) {
+  int status = 0;
+  std::unique_ptr<char, void(*)(void*)> res(
+    abi::__cxa_demangle(name, nullptr, nullptr, &status),
+    std::free);
 
-  va_list args;
-  va_start (args, format);
-  int len = vsnprintf(buffer, kBufferLength, format, args);
-  va_end(args);
-
-  if (len > kBufferLength) {
-    std::unique_ptr<char[]> big_buffer(new char[len]);
-    va_list args;
-    va_start (args, format);
-    vsnprintf(big_buffer.get(), len, format, args);
-    va_end(args);
-    return std::string(big_buffer.get());
-  }
-
-  return std::string(buffer);
+  return status == 0 ? res.get() : name;
 }
 
-bool FileExists(const std::string& file) {
-  struct stat unused;
-  return stat(file.c_str(), &unused) == 0;
+#else
+
+std::string demangle(const char* name) {
+  return name;
 }
 
-}  // namespace base.`<F4><F4>
+#endif  // __GNUG__
+
+}  // namespace vs_base.
