@@ -99,10 +99,12 @@ namespace dynamic_stereo{
 		Mat preSeg;
 
 		vector<Mat> videoSeg;
-		sprintf(buffer, "%s/midres/segment%05d.jpg", file_io.getDirectory().c_str(), anchor);
+		sprintf(buffer, "%s/midres/segment%05d.pb", file_io.getDirectory().c_str(), anchor);
+		printf("Imporing video segmentation...\n");
 		importVideoSegmentation(string(buffer), videoSeg);
 		CHECK_EQ(videoSeg.size(), input.size());
-		filterBoudary(input, preSeg);
+		filterBoudary(videoSeg, preSeg);
+		//filterBoudary(input, preSeg);
 		return;
 
 		cv::erode(preSeg, preSeg, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(5,5)));
@@ -259,6 +261,7 @@ namespace dynamic_stereo{
 		char buffer[1024] = {};
 //		vector<vector<vector<int> > > pixelGroups(images.size());
 //		vector<Mat> pixelLabels(images.size());
+		printf("Filter boundary");
 		for(auto i=0; i<seg.size(); ++i){
 			//int nLabel = segment_gb::segment_image(seg[i], pixelLabels[i], pixelGroups[i], 1.5, 300, 150);
 			Mat vis = segment_gb::visualizeSegmentation(seg[i]);
@@ -275,12 +278,11 @@ namespace dynamic_stereo{
 		const float level = 0.3;
 		CHECK(segment_reader.OpenFileAndReadHeaders());
 		vector<int> segment_headers = segment_reader.GetHeaderFlags();
-
 		segmentation::Hierarchy hierarchy;
-
 		const int kFrames = segment_reader.NumFrames();
-		segmentation::Hierarchy hierachy;
 
+		printf("kFrame: %d\n", kFrames);
+		segmentation::Hierarchy hierachy;
 		int absLevel = -1;
 
 		for(auto f=0; f<kFrames; ++f){
@@ -293,8 +295,9 @@ namespace dynamic_stereo{
 				hierarchy.MergeFrom(cursegment.hierarchy());
 				absLevel = level * (float)hierarchy.size();
 			}
-
-			cv::Mat segId;
+			const int frame_width = cursegment.frame_width();
+			const int frame_height = cursegment.frame_height();
+			cv::Mat segId(frame_height, frame_width, CV_32S, Scalar::all(0));
 			segmentation::SegmentationDescToIdImage(absLevel, cursegment, &hierarchy, &segId);
 			video_segments.push_back(segId);
 		}
