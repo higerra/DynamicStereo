@@ -2,6 +2,7 @@
 // Created by yanhang on 4/29/16.
 //
 
+#include <unordered_set>
 #include "dynamicsegment.h"
 #include "../base/thread_guard.h"
 #include "../external/segment_gb/segment-image.h"
@@ -84,25 +85,27 @@ namespace dynamic_stereo{
 		Mat segnetMask;
 		cv::resize(inputMask, segnetMask, cv::Size(width, height), INTER_NEAREST);
 
-		//shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::RGBHist());
-		Feature::ColorSpace cspace(Feature::ColorSpace::RGB);
-		vector<int> kBins{10,10,10};
-		shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::ColorHist(cspace, kBins));
-		printf("Dimension: %d\n", descriptor->getDim());
+		sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
+		Mat preSeg = imread(buffer, IMREAD_GRAYSCALE);
+		if(!preSeg.data) {
+			//shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::RGBHist());
+			Feature::ColorSpace cspace(Feature::ColorSpace::RGB);
+			vector<int> kBins{10, 10, 10};
+			shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::ColorHist(cspace, kBins));
+			printf("Dimension: %d\n", descriptor->getDim());
 
 
 #ifdef __linux
-		cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
+			cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
 #else
-		cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
+			cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
 #endif
 
-		printf("Running classification...\n");
-		//Mat preSeg = getClassificationResult(input, descriptor, classifier, 2);
-		//imshow("classification", preSeg);
-		//waitKey(0);
-		Mat preSeg;
-
+			printf("Running classification...\n");
+			preSeg = getClassificationResult(input, descriptor, classifier, 2);
+			imwrite(buffer, preSeg);
+			imshow("classification", preSeg);
+		}
 		vector<Mat> videoSeg;
 		sprintf(buffer, "%s/midres/segment%05d.pb", file_io.getDirectory().c_str(), anchor);
 		printf("Imporing video segmentation...\n");
@@ -262,22 +265,91 @@ namespace dynamic_stereo{
 
 
 	void filterBoudary(const std::vector<cv::Mat> &seg, cv::Mat &input){
-		//perform graph-cut segmentation on each frame
 		char buffer[1024] = {};
-		printf("Filter boundary");
+		CHECK(!seg.empty());
+		CHECK_EQ(input.type(), CV_8UC1);
+		printf("Filter boundary\n");
 		for(auto i=0; i<seg.size(); ++i){
+			CHECK_NOTNULL(seg[i].data);
+			CHECK_EQ(seg[i].type(), CV_32S);
+			CHECK_EQ(seg[i].size(), input.size());
 			Mat vis = segment_gb::visualizeSegmentation(seg[i]);
-			imshow("segmentation", vis);
-			waitKey(0);
+			sprintf(buffer, "seg_video%05d.jpg", i);
+			imwrite(buffer, vis);
+		}
+		const int width = seg[0].cols;
+		const int height = seg[0].rows;
+		const int kPix = width * height;
+
+		int nLabel = -1;
+		//get number of labels
+		for(auto i=0; i<seg.size(); ++i){
+			double minl, maxl;
+			cv::minMaxLoc(seg[i], &minl, &maxl);
+			nLabel = std::max(nLabel, (int)maxl);
+		}
+		nLabel++;
+
+		//group pixel to labels for fast query
+		//vector<vector<int> > pixelGroups((size_t)nLabel);
+		vector< vector<float> > posNum(seg.size());
+		vector< vector<float> > totalNum(seg.size());
+		for(auto i=0; i<seg.size(); ++i){
+			posNum[i].resize((size_t)nLabel, 0.0);
+			totalNum[i].resize((size_t)nLabel, 0.0);
+			for(auto pid=0; pid < width * height; ++pid){
+				int segId = seg[i].at<int>(pid/width, pid%width);
+				CHECK_LT(segId, nLabel);
+//				pixelGroups[segId].push_back(i*kPix+pid);
+				totalNum[i][segId] += 1.0f;
+				if(input.data[pid] > 200)
+					posNum[i][segId] += 1.0f;
+			}
 		}
 
-	}
+		vector<vector<float> > segConf((size_t)kPix);
+		for(auto& s: segConf)
+			s.resize(seg.size(), 0.0f);
 
+		for(auto v=0; v<seg.size(); ++v){
+			for(auto pid=0; pid<width * height; ++pid){
+				int label = seg[v].at<int>(pid/width, pid%width);
+				CHECK_GT(totalNum[v][label], 0);
+				segConf[pid][v] = posNum[v][label] / totalNum[v][label];
+			}
+//			Mat confVis(height, width, CV_32F, Scalar::all(0));
+//			for(auto i=0; i<width*height; ++i){
+//				confVis.at<float>(i/width, i%width) = segConf[i][v];
+//			}
+//			imshow("segConf", confVis);
+//			waitKey(0);
+		}
+
+		//for each positive pixels compute average number of positive samples in all segments it belongs
+		Mat conf(height, width, CV_32F, Scalar::all(0));
+		float* pConf = (float *)conf.data;
+		const size_t kth = seg.size() / 2;
+		for(auto pid=0; pid<height * width; ++pid){
+			if(input.data[pid] > 200){
+				nth_element(segConf[pid].begin(), segConf[pid].begin()+kth, segConf[pid].end());
+				pConf[pid] = segConf[pid][kth];
+			}
+		}
+		const float thres = 0.2;
+		for(auto i=0; i<kPix; ++i){
+			if(pConf[i] > thres)
+				input.data[i] = 255;
+			else
+				input.data[i] = 0;
+		}
+		imshow("filtered", input);
+		waitKey(0);
+	}
 
 	//video_segments:
 	void importVideoSegmentation(const std::string& path, std::vector<cv::Mat>& video_segments){
 		segmentation::SegmentationReader segment_reader(path);
-		const float level = 0.3;
+		const float level = 0.4;
 		CHECK(segment_reader.OpenFileAndReadHeaders());
 		vector<int> segment_headers = segment_reader.GetHeaderFlags();
 		segmentation::Hierarchy hierarchy;
