@@ -72,8 +72,7 @@ namespace dynamic_stereo{
 
 	void segmentDisplay(const FileIO& file_io, const int anchor,
 	                    const std::vector<cv::Mat> &input, const cv::Mat& inputMask,
-	                    const string& classifierPath, cv::Mat& displayLabels,
-	                    std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay){
+	                    const string& classifierPath, cv::Mat& result){
 		CHECK(!input.empty());
 		CHECK(inputMask.data);
 		CHECK_EQ(inputMask.channels(), 1);
@@ -104,7 +103,6 @@ namespace dynamic_stereo{
 			printf("Running classification...\n");
 			preSeg = getClassificationResult(input, descriptor, classifier, 2);
 			imwrite(buffer, preSeg);
-			imshow("classification", preSeg);
 		}
 		vector<Mat> videoSeg;
 		sprintf(buffer, "%s/midres/segment%05d.pb", file_io.getDirectory().c_str(), anchor);
@@ -112,142 +110,9 @@ namespace dynamic_stereo{
 		importVideoSegmentation(string(buffer), videoSeg);
 		CHECK_EQ(videoSeg.size(), input.size());
 		filterBoudary(videoSeg, preSeg);
-		//filterBoudary(input, preSeg);
-		return;
 
-		cv::erode(preSeg, preSeg, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(5,5)));
-		cv::dilate(preSeg, preSeg, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(5,5)));
-
-//
-//        Depth dynamicness;
-//        //computeColorConfidence(input, dynamicness);
-//        dynamicness.updateStatics();
-//
-//        sprintf(buffer, "%s/temp/conf_dynamicness%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//        dynamicness.saveImage(string(buffer));
-//
-//        const double dynamic_thres = dynamicness.getAverageDepth() + 2 * dynamicness.getDepthVariance();
-//        const double static_thres = dynamicness.getAverageDepth();
-//
-//        printf("Dynamic threshold: %.3f\n", dynamic_thres);
-//        Mat regionCan(height, width, CV_8UC1, Scalar::all(0));
-//        Mat staticCan(height, width, CV_8UC1, Scalar::all(0));
-//
-//        for(auto i=0; i<width * height; ++i){
-//            if(dynamicness[i] >= dynamic_thres)
-//                regionCan.data[i] = 255;
-//            if(dynamicness[i] <= static_thres)
-//                staticCan.data[i] = 255;
-//        }
-//        //morphological operation
-//        const int r1 = 3, r2 = 9, r3 = 11;
-//        cv::erode(regionCan,regionCan,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(r1,r1)));
-//        cv::dilate(regionCan,regionCan,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(r2,r2)));
-//
-//        cv::erode(staticCan,staticCan,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(r3,r3)));
-//        //cv::dilate(staticCan,staticCan,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(r2,r2)));
-//
-//        sprintf(buffer, "%s/temp/conf_dynRegion%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//        imwrite(buffer, regionCan);
-//
-//        sprintf(buffer, "%s/temp/conf_staRegion%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//        imwrite(buffer, staticCan);
-//
+		result = localRefinement(input, preSeg);
 		//connect component analysis
-		Mat labels, stats, centroid;
-		int nLabel = cv::connectedComponentsWithStats(preSeg, labels, stats, centroid);
-		const int min_area = 300;
-		const int fR = 10;
-		const int* pLabel = (int*) labels.data;
-		const int min_multi = 2;
-		const int kComponent = 5;
-		const int min_nSample = 1000;
-		const double max_areagain = 3.0;
-		const double maxRatioOcclu = 0.3;
-//
-		displayLabels = Mat(height, width, labels.type(), Scalar::all(0));
-		int kOutputLabel = 0;
-//
-//        //compute nLog threshold
-//        printf("Computing nLog threshold...\n");
-//        //const double nLogThres = computeNlogThreshold(input, segnetMask, kComponent);
-//        //const double nLogThres = 20;
-//        //const double probThres = 0.2;
-//
-		const int testL = -1;
-
-		for(auto l=1; l<nLabel; ++l){
-			if(testL > 0 && l != testL)
-				continue;
-
-			const int area = stats.at<int>(l, CC_STAT_AREA);
-			//search for bounding box.
-			//The number of static samples inside the window should be at least twice of of area
-
-			const int cx = stats.at<int>(l,CC_STAT_LEFT) + stats.at<int>(l,CC_STAT_WIDTH) / 2;
-			const int cy = stats.at<int>(l,CC_STAT_TOP) + stats.at<int>(l,CC_STAT_HEIGHT) / 2;
-
-			printf("========================\n");
-			printf("label:%d/%d, centroid:(%d,%d), area:%d\n", l, nLabel, cx, cy, area);
-			if(segnetMask.at<uchar>(cy,cx) < 200)
-				continue;
-			if(area < min_area) {
-				printf("Area too small\n");
-				continue;
-			}
-
-			int nOcclu = 0;
-			for(auto y=0; y<height; ++y){
-				for(auto x=0; x<width; ++x){
-					if(pLabel[y*width+x] != l)
-						continue;
-					int pixOcclu = 0;
-					for(auto v=0; v<input.size(); ++v){
-						if(input[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
-							pixOcclu++;
-					}
-					if(pixOcclu > (int)input.size() / 3)
-						nOcclu++;
-				}
-			}
-			if(testL == l){
-				printf("nOcclu:%d\n", nOcclu);
-			}
-			if(nOcclu > maxRatioOcclu * area) {
-				printf("Violate occlusion constraint\n");
-				continue;
-			}
-
-//			if(l == testL){
-//				Mat tempMat = input[input.size()/2].clone();
-//				for(auto y=0; y<height; ++y){
-//					for(auto x=0; x<width; ++x){
-//						if(pLabel[y*width+x] == l)
-//							tempMat.at<Vec3b>(y,x) = tempMat.at<Vec3b>(y,x) * 0.5 + Vec3b(0,0,128);
-//						else
-//							tempMat.at<Vec3b>(y,x) = tempMat.at<Vec3b>(y,x) * 0.5 + Vec3b(128,0,0);
-//					}
-//				}
-//				sprintf(buffer, "%s/temp/component%03d.jpg", file_io.getDirectory().c_str(), l);
-//				imwrite(buffer, tempMat);
-//			}
-
-
-			//refine segmentation
-//			Mat segRes = input[input.size()/2].clone();
-//			for(auto y=0; y<height; ++y){
-//				for(auto x=0; x<width; ++x){
-//					if(labels.at<int>(y,x) == l){
-//						displayLabels.at<int>(y,x) = kOutputLabel;
-//						segRes.at<Vec3b>(y,x) = segRes.at<Vec3b>(y,x) * 0.5 + Vec3b(0,0,255) * 0.5;
-//					}else
-//						segRes.at<Vec3b>(y,x) = segRes.at<Vec3b>(y,x) * 0.5 + Vec3b(255,0,0) * 0.5;
-//				}
-//			}
-			kOutputLabel++;
-//            sprintf(buffer, "%s/temp/segmask_b%05d_com%03d.jpg", file_io.getDirectory().c_str(), anchor, l);
-//            imwrite(buffer, segRes);
-		}
 
 //		Mat labelsLarge;
 //		cv::resize(displayLabels, labelsLarge, cv::Size(width * downsample, height * downsample), 0, 0, INTER_NEAREST);
@@ -262,7 +127,6 @@ namespace dynamic_stereo{
 //			}
 //		}
 	}
-
 
 	void filterBoudary(const std::vector<cv::Mat> &seg, cv::Mat &input){
 		char buffer[1024] = {};
@@ -344,6 +208,115 @@ namespace dynamic_stereo{
 		}
 		imshow("filtered", input);
 		waitKey(0);
+	}
+
+	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments){
+		CHECK_NOTNULL(labels.data);
+		CHECK_EQ(labels.type(), CV_32S);
+		double minl, maxl;
+		cv::minMaxLoc(labels, &minl, &maxl);
+		CHECK_LT(minl, std::numeric_limits<double>::epsilon());
+		const int nLabel = (int)minl + 1;
+		segments.clear();
+		segments.resize((size_t)nLabel);
+		for(auto y=0; y<labels.rows; ++y){
+			for(auto x=0; x<labels.cols; ++x){
+				int l = labels.at<int>(y,x);
+				segments[l].push_back(Vector2d(x,y));
+			}
+		}
+	}
+
+	Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask){
+		CHECK(!images.empty());
+		const int width = images[0].cols;
+		const int height = images[0].rows;
+
+		Mat result(height, width, CV_32S, Scalar::all(0));
+		Mat labels, stats, centroid;
+		int nLabel = cv::connectedComponentsWithStats(mask, labels, stats, centroid);
+		const int* pLabel = (int*) labels.data;
+
+		const int min_area = 200;
+		const double maxRatioOcclu = 0.3;
+		//const int rh = 5;
+
+		result = Mat(height, width, labels.type(), Scalar::all(0));
+
+		int kOutputLabel = 0;
+
+		const int testL = -1;
+
+		const int localMargin = std::min(width, height) / 50;
+		for(auto l=1; l<nLabel; ++l){
+			if(testL > 0 && l != testL)
+				continue;
+
+			const int area = stats.at<int>(l, CC_STAT_AREA);
+			//search for bounding box.
+			const int cx = stats.at<int>(l,CC_STAT_LEFT) + stats.at<int>(l,CC_STAT_WIDTH) / 2;
+			const int cy = stats.at<int>(l,CC_STAT_TOP) + stats.at<int>(l,CC_STAT_HEIGHT) / 2;
+
+			printf("========================\n");
+			printf("label:%d/%d, centroid:(%d,%d), area:%d\n", l, nLabel, cx, cy, area);
+			if(area < min_area) {
+				printf("Area too small\n");
+				continue;
+			}
+
+			//The number of static samples inside the window should be at least twice of of area
+			int nOcclu = 0;
+			for(auto y=0; y<height; ++y){
+				for(auto x=0; x<width; ++x){
+					if(pLabel[y*width+x] != l)
+						continue;
+					int pixOcclu = 0;
+					for(auto v=0; v<images.size(); ++v){
+						if(images[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
+							pixOcclu++;
+					}
+					if(pixOcclu > (int)images.size() / 3)
+						nOcclu++;
+				}
+			}
+			if(nOcclu > maxRatioOcclu * area) {
+				printf("Violate occlusion constraint\n");
+				continue;
+			}
+
+			const int left = std::max(stats.at<int>(l, CC_STAT_LEFT)-localMargin, 0);
+			const int top = std::max(stats.at<int>(l, CC_STAT_TOP)-localMargin, 0);
+			int roiw = stats.at<int>(l, CC_STAT_WIDTH) + 2*localMargin;
+			int roih = stats.at<int>(l, CC_STAT_HEIGHT) + 2*localMargin;
+			if(roiw + left >= width)
+				roiw = width - left;
+			if(roih + top >= height)
+				roih = height - top;
+
+			Mat localGBMask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
+			for(auto y=0; y<roih; ++y){
+				for(auto x=0; x<roiw; ++x){
+					if(labels.at<int>(y+top, x+left) == l)
+						localGBMask.at<uchar>(y,x) = GC_FGD;
+				}
+			}
+			vector<Mat> localPatches(images.size());
+			for(auto v=0; v<images.size(); ++v)
+				localPatches[v] = images[v](cv::Rect(left, top, roiw, roih));
+			mfGrabCut(localPatches, localGBMask);
+
+			for(auto y=top; y<top+roih; ++y){
+				for(auto x=left; x<left+roiw; ++x){
+					if(localGBMask.at<uchar>(y-top, x-left) > 200)
+						result.at<int>(y,x) = kOutputLabel;
+				}
+			}
+			kOutputLabel++;
+
+//            sprintf(buffer, "%s/temp/segmask_b%05d_com%03d.jpg", file_io.getDirectory().c_str(), anchor, l);
+//            imwrite(buffer, segRes);
+		}
+		return result;
 	}
 
 	//video_segments:

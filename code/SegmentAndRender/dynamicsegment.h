@@ -31,12 +31,14 @@ namespace dynamic_stereo {
 	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
 
 	void segmentDisplay(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, const cv::Mat& segnetMask,
-						const std::string& classifierPath, cv::Mat& displayLabels,
-						std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay);
+						const std::string& classifierPath, cv::Mat& result);
 
+	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments);
+
+	cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);
 	//multi frame grab cut
 	//mask: for both input and output
-	void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask);
+	void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iter = 10);
 
 
 }//namespace dynamic_stereo
