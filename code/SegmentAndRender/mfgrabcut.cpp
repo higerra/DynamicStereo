@@ -52,10 +52,43 @@ namespace dynamic_stereo{
         return beta;
     }
 
-    static void computeAnisotropicDiffusion(const vector<Mat>& input,
-                                            Mat& leftW, Mat& upleftW, Mat& upW, Mat& uprightW,
-                                            double beta, double gamma){
+    static void assignGMMComponet(const std::vector<cv::Mat>& images, const cv::Mat& mask,
+                             GMMPtr fgGMM, GMMPtr bgGMM, std::vector<cv::Mat>& compIdx){
+        CHECK_EQ(compIdx.size(), images.size());
+        for(auto v=0; v<images.size(); ++v){
+            CHECK_EQ(compIdx[v].type(), CV_32S);
+            for(auto y=0; y<images[v].rows; ++y){
+                for(auto x=0; x<images[v].cols; ++x){
+                    Vec3f sample = static_cast<Vec3f>(images[v].at<Vec3b>(y,x));
+                    Mat probMat;
+                    Vec2d res;
+                    if(mask.at<uchar>(y,x) == GC_FGD || mask.at<uchar>(y,x) == GC_PR_FGD)
+                        res = fgGMM->predict2(sample, probMat);
+                    else
+                        res = bgGMM->predict2(sample, probMat);
+                    int comId = (int)res[1];
+                    CHECK_GE(comId, 0);
+                    CHECK_LT(comId, fgGMM->getClustersNumber());
+                    compIdx[v].at<int>(y,x) = (int)res[1];
+                }
+            }
+        }
+    }
 
+    static Mat MRFSegment(const std::vector<cv::Mat>& images, GMMPtr fgGMM, GMMPtr bgGMM, const std::vector<Mat>& compIdx){
+        CHECK_NOTNULL(fgGMM.get());
+        CHECK_NOTNULL(bgGMM.get());
+        CHECK(!images.empty());
+        const int width = images[0].cols;
+        const int height = images[0].rows;
+
+        //assign data term
+        vector<double> data_cost((size_t)width * height * 2, 0.0);
+        for(auto y=0; y<height; ++y){
+            for(auto x=0; x<width; ++x){
+
+            }
+        }
     }
 
     static void estimateGMM(const std::vector<cv::Mat>& images, const cv::Mat& mask, GMMPtr fgGMM, GMMPtr bgGMM){
@@ -91,49 +124,25 @@ namespace dynamic_stereo{
         double beta = computeBeta(images);
         const int kCluster = 5;
 
-        Mat compIdx(height, width, CV_32S, Scalar::all(0));
+        vector<Mat> compIdx(images.size());
+        for(auto& idxMat: compIdx)
+            idxMat.create(height, width, CV_32S);
 
-        GMMPtr fgGMM = ml::EM::create(), bgGMM = ml::EM::create();
+        GMMPtr fgGMM = ml::EM::create();
+        GMMPtr bgGMM = ml::EM::create();
 
+        //initialize GMM
         estimateGMM(images, mask, fgGMM, bgGMM);
 
         Mat result(mask.size(), CV_8UC1, Scalar::all(GC_PR_BGD));
         for(auto ii=0; ii<iter; ++ii){
             //assign each pixel a component
-
+            assignGMMComponet(images, mask, fgGMM, bgGMM, compIdx);
             //re-estimate GMM
+            estimateGMM(images, mask, fgGMM, bgGMM);
+            //update mask by graph cut
 
-            //update mask by graph cup
         }
-        //estimate GMM
-//				cv::Ptr<cv::ml::EM> gmm_positive = cv::ml::EM::create();
-//
-//				vector<Vector3d> psamples;
-//				//collect classifier sample
-//				for (auto y = top; y < top + roih; ++y) {
-//					for (auto x = left; x < left + roiw; ++x) {
-//						if (pLabel[(y + top) * width + x + left] == l) {
-//							for (auto v = 0; v < input.size(); ++v) {
-//								Vec3b pix = input[v].at<Vec3b>(y + top, x + left);
-//								psamples.push_back(Vector3d((double) pix[0], (double) pix[1], (double) pix[2]));
-//							}
-//						}
-//					}
-//				}
-//				Mat ptrainSample((int)psamples.size(), 3, CV_64F);
-//				for(auto i=0; i<psamples.size(); ++i){
-//					ptrainSample.at<double>(i,0) = psamples[i][0];
-//					ptrainSample.at<double>(i,1) = psamples[i][1];
-//					ptrainSample.at<double>(i,2) = psamples[i][2];
-//				}
-//
-//				cout << "Estimating foreground color model..." << endl;
-//				gmm_positive->trainEM(ptrainSample);
-//
-//
-//				vector<double> unary;
-//				assignColorTerm(input, gmm_positive, gmm_negative, unary);
-
     }
 }//namespace dynamic_stereo
 

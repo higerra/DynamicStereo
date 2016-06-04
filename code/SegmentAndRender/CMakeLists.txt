@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 project(SegmentAndRender)
 
 set(SOURCE_FILES dynamicregularizer.cpp dynamicsegment_display.cpp dynamicsegment_flashy.cpp
-        segment_render_cli.cpp mfgrabcut.cpp)
+        segment_render_cli.cpp mfgrabcut2.cpp)
 set(HEADER_FILES dynamicsegment.h dynamicregularizer.h)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/SegmentAndRender)

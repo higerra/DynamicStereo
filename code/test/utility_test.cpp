@@ -6,6 +6,7 @@
 #include "../base/utility.h"
 #include <opencv2/opencv.hpp>
 
+using namespace std;
 using namespace Eigen;
 using namespace cv;
 
@@ -36,4 +37,11 @@ TEST(Misc_OpenCV, norm){
     Vector3d pix1v((double)pix1[0], (double)pix1[1], (double)pix1[2]);
     Vector3d pix2v((double)pix2[0], (double)pix2[1], (double)pix2[2]);
     EXPECT_NEAR(cv::norm(pix1-pix2), (pix1v-pix2v).norm(), epsilon);
+}
+
+TEST(Misc_OpenCV, VecCast){
+    Vec3b x(10,20,30);
+    Vec3f y1 = static_cast<Vec3f>(x);
+    Vec3f y2(10,20,30);
+    EXPECT_DOUBLE_EQ(cv::norm(y1-y2), 0.0);
 }
