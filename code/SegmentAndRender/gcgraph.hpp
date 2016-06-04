@@ -43,7 +43,6 @@
 #define _SEGMENT_AND_RENDER_CV_GCGRAPH_H_
 
 namespace dynamic_stereo {
-    template
     template<class TWeight>
     class GCGraph {
     public:

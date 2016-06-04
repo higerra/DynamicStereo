@@ -3,6 +3,7 @@
 //
 #include "dynamicsegment.h"
 #include <gflags/gflags.h>
+#include "../common/dynamicwarpping.h"
 
 using namespace std;
 using namespace cv;
@@ -41,14 +42,11 @@ int main(int argc, char** argv) {
 	////////////////////////////////////////////
 	//Segmentation
     printf("Segmenting...\n");
-    vector <vector<Vector2d>> segmentsDisplay;
-    vector <vector<Vector2d>> segmentsFlashy;
 
     Mat seg_result_display;
     Mat seg_result_flashy;
 	//segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
     segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, seg_result_display);
-	groupPixel(seg_result_display, segmentsDisplay);
 
 //    Mat seg_display;
 //	Mat seg_flashy(height, width, CV_8UC1, Scalar::all(0));
@@ -71,6 +69,17 @@ int main(int argc, char** argv) {
 
 	//////////////////////////////////////////////////////////
 	//Rendering
+	//release some memory
+	images.clear();
+	Mat oriRefImage = imread(file_io.getImage(FLAGS_testFrame));
+	CHECK(oriRefImage.data);
+	cv::resize(seg_result_display, seg_result_display, oriRefImage.size(), 0, 0, INTER_NEAREST);
+
+	vector<vector<Vector2d> > segmentsDisplay;
+	vector<vector<Vector2d> > segmentsFlashy;
+	groupPixel(seg_result_display, segmentsDisplay);
+	//shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io))
+
 //    vector <Mat> finalResult;
 //    printf("Full warping...\n");
 //    warpping->warpToAnchor(segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);

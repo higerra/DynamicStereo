@@ -64,9 +64,9 @@ namespace dynamic_stereo {
 
         GMM(Mat &_model);
 
-        double operator()(const Vec3d color) const;
+        double operator()(const Vec3d& color) const;
 
-        double operator()(int ci, const Vec3d color) const;
+        double operator()(int ci, const Vec3d& color) const;
 
         int whichComponent(const Vec3d color) const;
 
@@ -113,17 +113,17 @@ namespace dynamic_stereo {
                 calcInverseCovAndDeterm(ci);
     }
 
-    double GMM::operator()(const Vec3d color) const {
+    double GMM::operator()(const Vec3d& color) const {
         double res = 0;
         for (int ci = 0; ci < componentsCount; ci++)
             res += coefs[ci] * (*this)(ci, color);
         return res;
     }
 
-    double GMM::operator()(int ci, const Vec3d color) const {
+    double GMM::operator()(int ci, const Vec3d& color) const {
         double res = 0;
         if (coefs[ci] > 0) {
-            CHECK_LT(covDeterms[ci], std::numeric_limits<double>::epsilon());
+            CHECK_GT(covDeterms[ci], std::numeric_limits<double>::epsilon());
             Vec3d diff = color;
             double *m = mean + 3 * ci;
             diff[0] -= m[0];
@@ -224,9 +224,9 @@ namespace dynamic_stereo {
     void GMM::calcInverseCovAndDeterm(int ci) {
         if (coefs[ci] > 0) {
             double *c = cov + 9 * ci;
-            double dtrm =
-                    covDeterms[ci] = c[0] * (c[4] * c[8] - c[5] * c[7]) - c[1] * (c[3] * c[8] - c[5] * c[6]) +
-                                     c[2] * (c[3] * c[7] - c[4] * c[6]);
+            double dtrm = c[0] * (c[4] * c[8] - c[5] * c[7]) - c[1] * (c[3] * c[8] - c[5] * c[6]) +
+                          c[2] * (c[3] * c[7] - c[4] * c[6]);
+            covDeterms[ci] = dtrm;
 
             CV_Assert(dtrm > std::numeric_limits<double>::epsilon());
             inverseCovs[ci][0][0] = (c[4] * c[8] - c[5] * c[7]) / dtrm;
@@ -333,7 +333,31 @@ namespace dynamic_stereo {
         }
     }
 
-/*
+    /*
+  Check size, type and element values of mask matrix.
+ */
+    static void checkMask( const Mat& img, const Mat& mask )
+    {
+        if( mask.empty() )
+            CV_Error( CV_StsBadArg, "mask is empty" );
+        if( mask.type() != CV_8UC1 )
+            CV_Error( CV_StsBadArg, "mask must have CV_8UC1 type" );
+        if( mask.cols != img.cols || mask.rows != img.rows )
+            CV_Error( CV_StsBadArg, "mask must have as many rows and cols as img" );
+        for( int y = 0; y < mask.rows; y++ )
+        {
+            for( int x = 0; x < mask.cols; x++ )
+            {
+                uchar val = mask.at<uchar>(y,x);
+                if( val!=GC_BGD && val!=GC_FGD && val!=GC_PR_BGD && val!=GC_PR_FGD )
+                    CV_Error( CV_StsBadArg, "mask element value must be equel"
+                            "GC_BGD or GC_FGD or GC_PR_BGD or GC_PR_FGD" );
+            }
+        }
+    }
+
+
+    /*
   Initialize GMM background and foreground models using kmeans algorithm.
 */
     static void initGMMs(const vector<Mat> &images, const Mat &mask, GMM &bgdGMM, GMM &fgdGMM) {
@@ -418,52 +442,67 @@ namespace dynamic_stereo {
 /*
   Construct GCGraph
 */
-    static void constructGCGraph(const Mat &img, const Mat &mask, const GMM &bgdGMM, const GMM &fgdGMM, double lambda,
-                                 const Mat &leftW, const Mat &upleftW, const Mat &upW, const Mat &uprightW,
+    static void constructGCGraph(const vector<Mat> &images, const Mat &mask, const GMM &bgdGMM, const GMM &fgdGMM, double lambda,
+                                 const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs, const vector<Mat> &uprightWs,
                                  GCGraph<double> &graph) {
-        int vtxCount = img.cols * img.rows,
-                edgeCount = 2 * (4 * img.cols * img.rows - 3 * (img.cols + img.rows) + 2);
+        CHECK(!images.empty());
+        const int width = images[0].cols;
+        const int height = images[0].rows;
+        int vtxCount = width * height;
+        int edgeCount = 2 * (4 * width * height - 3 * (width + height) + 2);
         graph.create(vtxCount, edgeCount);
         Point p;
-        for (p.y = 0; p.y < img.rows; p.y++) {
-            for (p.x = 0; p.x < img.cols; p.x++) {
+        for (p.y = 0; p.y < height; p.y++) {
+            for (p.x = 0; p.x < width; p.x++) {
                 // add node
                 int vtxIdx = graph.addVtx();
-                Vec3b color = img.at<Vec3b>(p);
-
+                double fromSource = 0, toSink = 0;
                 // set t-weights
-                double fromSource, toSink;
                 if (mask.at<uchar>(p) == GC_PR_BGD || mask.at<uchar>(p) == GC_PR_FGD) {
-                    fromSource = -log(bgdGMM(color));
-                    toSink = -log(fgdGMM(color));
+                    for(const auto& img: images) {
+                        Vec3b color = img.at<Vec3b>(p);
+                        fromSource -= log(bgdGMM(color));
+                        toSink -= log(fgdGMM(color));
+                    }
                 }
                 else if (mask.at<uchar>(p) == GC_BGD) {
                     fromSource = 0;
-                    toSink = lambda;
+                    toSink += lambda * (double)images.size();
                 }
                 else // GC_FGD
                 {
-                    fromSource = lambda;
+                    fromSource += lambda * (double)images.size();
                     toSink = 0;
                 }
+
                 graph.addTermWeights(vtxIdx, fromSource, toSink);
 
                 // set n-weights
                 if (p.x > 0) {
-                    double w = leftW.at<double>(p);
+                    double w = 0.0;
+                    for(const auto& leftW: leftWs) {
+                        w += leftW.at<double>(p);
+                    }
                     graph.addEdges(vtxIdx, vtxIdx - 1, w, w);
                 }
                 if (p.x > 0 && p.y > 0) {
-                    double w = upleftW.at<double>(p);
-                    graph.addEdges(vtxIdx, vtxIdx - img.cols - 1, w, w);
+                    double w = 0.0;
+                    for(const auto& upleftW: upleftWs) {
+                        w += upleftW.at<double>(p);
+                    }
+                    graph.addEdges(vtxIdx, vtxIdx - width - 1, w, w);
                 }
                 if (p.y > 0) {
-                    double w = upW.at<double>(p);
-                    graph.addEdges(vtxIdx, vtxIdx - img.cols, w, w);
+                    double w = 0.0;
+                    for(const auto& upW: upWs)
+                        w += upW.at<double>(p);
+                    graph.addEdges(vtxIdx, vtxIdx - width, w, w);
                 }
-                if (p.x < img.cols - 1 && p.y > 0) {
-                    double w = uprightW.at<double>(p);
-                    graph.addEdges(vtxIdx, vtxIdx - img.cols + 1, w, w);
+                if (p.x < width - 1 && p.y > 0) {
+                    double w = 0.0;
+                    for(const auto& uprightW: uprightWs)
+                        w = uprightW.at<double>(p);
+                    graph.addEdges(vtxIdx, vtxIdx - width + 1, w, w);
                 }
             }
         }
@@ -487,7 +526,7 @@ namespace dynamic_stereo {
         }
     }
 
-    void mfGrabCut(std::vector<cv::Mat> images, cv::Mat& mask, int iterCount) {
+    void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iterCount) {
         CHECK(!images.empty());
         CHECK_NOTNULL(mask.data);
 
@@ -496,22 +535,26 @@ namespace dynamic_stereo {
         std::vector<Mat> compIdxs(images.size());
         for(auto& comid: compIdxs)
             comid.create(images[0].size(), CV_32SC1);
+
+        checkMask(images[0], mask);
         initGMMs(images, mask, bgdGMM, fgdGMM);
 
         if (iterCount <= 0)
             return;
         const double gamma = 50;
         const double lambda = 9 * gamma;
-        const double beta = calcBeta(img);
+        const double beta = calcBeta(images);
 
-        Mat leftW, upleftW, upW, uprightW;
-        calcNWeights(img, leftW, upleftW, upW, uprightW, beta, gamma);
+        vector<Mat> leftWs(images.size()), upleftWs(images.size()), upWs(images.size()), uprightWs(images.size());
+        for(auto v=0; v<images.size(); ++v)
+            calcNWeights(images[v], leftWs[v], upleftWs[v], upWs[v], uprightWs[v], beta, gamma);
 
         for (int i = 0; i < iterCount; i++) {
             GCGraph<double> graph;
-            assignGMMsComponents(img, mask, bgdGMM, fgdGMM, compIdxs);
-            learnGMMs(img, mask, compIdxs, bgdGMM, fgdGMM);
-            constructGCGraph(img, mask, bgdGMM, fgdGMM, lambda, leftW, upleftW, upW, uprightW, graph);
+            for(auto v=0; v<images.size(); ++v)
+                assignGMMsComponents(images[v], mask, bgdGMM, fgdGMM, compIdxs[v]);
+            learnGMMs(images, mask, compIdxs, bgdGMM, fgdGMM);
+            constructGCGraph(images, mask, bgdGMM, fgdGMM, lambda, leftWs, upleftWs, upWs, uprightWs, graph);
             estimateSegmentation(graph, mask);
         }
     }

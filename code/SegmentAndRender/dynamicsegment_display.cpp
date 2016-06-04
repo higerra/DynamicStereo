@@ -206,8 +206,6 @@ namespace dynamic_stereo{
 			else
 				input.data[i] = 0;
 		}
-		imshow("filtered", input);
-		waitKey(0);
 	}
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments){
@@ -216,7 +214,7 @@ namespace dynamic_stereo{
 		double minl, maxl;
 		cv::minMaxLoc(labels, &minl, &maxl);
 		CHECK_LT(minl, std::numeric_limits<double>::epsilon());
-		const int nLabel = (int)minl + 1;
+		const int nLabel = (int)maxl + 1;
 		segments.clear();
 		segments.resize((size_t)nLabel);
 		for(auto y=0; y<labels.rows; ++y){
@@ -240,9 +238,6 @@ namespace dynamic_stereo{
 		const int min_area = 200;
 		const double maxRatioOcclu = 0.3;
 		//const int rh = 5;
-
-		result = Mat(height, width, labels.type(), Scalar::all(0));
-
 		int kOutputLabel = 0;
 
 		const int testL = -1;
@@ -303,18 +298,27 @@ namespace dynamic_stereo{
 			vector<Mat> localPatches(images.size());
 			for(auto v=0; v<images.size(); ++v)
 				localPatches[v] = images[v](cv::Rect(left, top, roiw, roih));
-			mfGrabCut(localPatches, localGBMask);
 
-			for(auto y=top; y<top+roih; ++y){
-				for(auto x=left; x<left+roiw; ++x){
-					if(localGBMask.at<uchar>(y-top, x-left) > 200)
-						result.at<int>(y,x) = kOutputLabel;
+			printf("running grabcut...\n");
+			mfGrabCut(localPatches, localGBMask);
+			printf("done\n");
+
+			Mat resultVis = localPatches[localPatches.size()/2].clone();
+			for(auto y=top; y<top+roih; ++y) {
+				for (auto x = left; x < left + roiw; ++x) {
+					if (localGBMask.at<uchar>(y - top, x - left) == GC_PR_FGD ||
+						localGBMask.at<uchar>(y - top, x - left) == GC_FGD) {
+						result.at<int>(y, x) = kOutputLabel;
+						resultVis.at<Vec3b>(y-top, x-left) = resultVis.at<Vec3b>(y-top, x-left) / 2 + Vec3b(0, 0, 128);
+					} else {
+						resultVis.at<Vec3b>(y-top, x-left) = resultVis.at<Vec3b>(y-top, x-left) / 2 + Vec3b(128, 0, 0);
+					}
 				}
 			}
-			kOutputLabel++;
+			imshow("Result of grabcut", resultVis);
+			waitKey(0);
 
-//            sprintf(buffer, "%s/temp/segmask_b%05d_com%03d.jpg", file_io.getDirectory().c_str(), anchor, l);
-//            imwrite(buffer, segRes);
+			kOutputLabel++;
 		}
 		return result;
 	}

@@ -38,7 +38,7 @@ namespace dynamic_stereo {
 	cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);
 	//multi frame grab cut
 	//mask: for both input and output
-	void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iter = 10);
+	void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iterCount = 10);
 
 
 }//namespace dynamic_stereo
