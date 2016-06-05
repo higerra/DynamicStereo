@@ -126,7 +126,7 @@ void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& r
 	const int offset = FLAGS_testFrame - FLAGS_tWindow / 2;
 	CHECK_GE(offset, 0);
 	for(auto i=0; i<FLAGS_tWindow; ++i){
-		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+offset);
+		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);
 		images[i] = imread(buffer);
 		CHECK(images[i].data) << buffer;
 	}
