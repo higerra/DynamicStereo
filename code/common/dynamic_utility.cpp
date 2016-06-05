@@ -4,6 +4,9 @@
 
 #include "dynamic_utility.h"
 #include "stereomodel.h"
+#include "../base/depth.h"
+#include "../base/file_io.h"
+
 #include <theia/theia.h>
 
 #include <OpenMesh/Core/IO/MeshIO.hh>

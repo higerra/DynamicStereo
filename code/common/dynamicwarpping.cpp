@@ -5,6 +5,9 @@
 #include "stereomodel.h"
 #include "dynamic_utility.h"
 #include "dynamicwarpping.h"
+#include "../base/file_io.h"
+#include "../base/depth.h"
+
 #include "../base/utility.h"
 #include "../base/thread_guard.h"
 
@@ -13,10 +16,8 @@ using namespace Eigen;
 using namespace cv;
 
 namespace dynamic_stereo {
-    DynamicWarpping::DynamicWarpping(const FileIO &file_io_, const int anchor_, const int tWindow_,
-                                     const int downsample_, const int nLabel_,
-                                     const std::vector<Depth> &depths, const std::vector<int> &depthind) :
-            file_io(file_io_), anchor(anchor_), downsample(downsample_), nLabel(nLabel_){
+    DynamicWarpping::DynamicWarpping(const FileIO &file_io_, const int anchor_, const int tWindow_, const int nLabel_) :
+            file_io(file_io_), anchor(anchor_), nLabel(nLabel_), tWindow(tWindow_){
         if (anchor - tWindow_ / 2 < 0) {
             offset = 0;
             CHECK_LT(offset + tWindow_, file_io.getTotalNum());
@@ -25,47 +26,35 @@ namespace dynamic_stereo {
             CHECK_GE(offset, 0);
         } else
             offset = anchor - tWindow_ / 2;
+        char buffer[1024] = {};
         //reading images. Set (0,0,0) to (1,1,1);
-        images.resize((size_t) tWindow_);
-        for (auto i = 0; i < images.size(); ++i) {
-            images[i] = imread(file_io.getImage(i + offset));
-            for (auto y = 0; y < images[i].rows; ++y) {
-                for (auto x = 0; x < images[i].cols; ++x) {
-                    if (images[i].at<Vec3b>(y, x) == Vec3b(0, 0, 0))
-                        images[i].at<Vec3b>(y, x) = Vec3b(1, 1, 1);
-                }
-            }
-        }
-        CHECK(!images.empty());
-
-        width = images[0].cols;
-        height = images[0].rows;
         //initialize reconstruction
         sfmModel.reset(new SfMModel());
-        sfmModel->init(file_io.getReconstruction());
+        CHECK_NOTNULL(sfmModel.get())->init(file_io.getReconstruction());
 
-        for (auto i = 0; i < depthind.size(); ++i) {
-            if (depthind[i] == anchor) {
-                refDepth = depths[i];
-                break;
-            }
-        }
-        CHECK_EQ(refDepth.getWidth(), width / downsample);
-        CHECK_EQ(refDepth.getHeight(), height / downsample);
+        sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), anchor);
+        refDepth.reset(new Depth());
+        CHECK_NOTNULL(refDepth.get())->readDepthFromFile(string(buffer));
+        CHECK(!refDepth->getRawData().empty());
+        Mat refImage = imread(file_io.getImage(anchor));
+        CHECK(refImage.data);
 
-        initZBuffer(depths, depthind);
+        downsample = (double)refImage.cols / refDepth->getWidth();
+        initZBuffer();
     }
 
-    void DynamicWarpping::updateZBuffer(const Depth &depth, Depth &zb, const theia::Camera &cam1,
+    void DynamicWarpping::updateZBuffer(const Depth* depth, Depth* zb, const theia::Camera &cam1,
                                         const theia::Camera &cam2) const {
-        CHECK_EQ(depth.getWidth(), zb.getWidth());
-        CHECK_EQ(depth.getHeight(), zb.getHeight());
-        const int w = depth.getWidth();
-        const int h = depth.getHeight();
+        CHECK_NOTNULL(zb);
+        CHECK_NOTNULL(depth);
+        const int w = depth->getWidth();
+        const int h = depth->getHeight();
+        CHECK_EQ(depth->getWidth(), zb->getWidth());
+        CHECK_EQ(depth->getHeight(), zb->getHeight());
         for (auto y = 0; y < h; ++y) {
             for (auto x = 0; x < w; ++x) {
 	            Vector2d refPt((double)x, (double)y);
-                Vector3d spt = cam1.PixelToUnitDepthRay(refPt * downsample) * depth.getDepthAt(refPt) +
+                Vector3d spt = cam1.PixelToUnitDepthRay(refPt * downsample) * depth->getDepthAt(refPt) +
                                cam1.GetPosition();
                 Vector2d imgpt;
                 double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
@@ -73,8 +62,8 @@ namespace dynamic_stereo {
                 int intx = round(imgpt[0]+0.5);
                 int inty = round(imgpt[1]+0.5);
                 if (curd > 0 && imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < w-1 && imgpt[1] < h-1) {
-                    if (zb(intx, inty) < 0 || (zb.getDepthAt(imgpt) >= 0 && curd <= zb.getDepthAt(imgpt))) {
-                        zb.setDepthAt(imgpt, curd);
+                    if ((*zb)(intx, inty) < 0 || zb->getDepthAt(imgpt) >= 0 && curd <= zb->getDepthAt(imgpt)) {
+                        zb->setDepthAt(imgpt, curd);
                         //zb(intx, inty) = curd;
                     }
                 }
@@ -82,19 +71,25 @@ namespace dynamic_stereo {
         }
     }
 
-    void DynamicWarpping::initZBuffer(const std::vector<Depth> &depths, const std::vector<int> &depthind) {
-        CHECK_EQ(depths.size(), depthind.size());
+    void DynamicWarpping::initZBuffer() {
+        CHECK(!refDepth->getRawData().empty());
         //for each frame, find nearest depth
+        char buffer[1024] = {};
         printf("Computing zBuffer...\n");
-        zBuffers.resize(images.size());
-	    min_depths.resize(images.size());
-	    max_depths.resize(images.size());
+        zBuffers.resize((size_t)tWindow);
+        for(auto v=0; v<zBuffers.size(); ++v)
+            zBuffers[v].reset(new Depth());
+
+	    min_depths.resize(zBuffers.size());
+	    max_depths.resize(zBuffers.size());
 	    cout << endl;
-	    char buffer[1024] = {};
+
+        const int width = refDepth->getWidth();
+        const int height = refDepth->getHeight();
 
 	    auto createZBuffer = [&](int tid, int nThread){
 		    for(auto i=tid; i<zBuffers.size(); i = i+nThread){
-			    zBuffers[i].initialize(width / downsample, height / downsample, -1);
+			    zBuffers[i]->initialize(width, height, -1);
 //            if (i + offset <= depthind[0]) {
 //                updateZBuffer(depths[0], zBuffers[i], sfmModel.getCamera(depthind[0]), sfmModel.getCamera(i + offset));
 //                printf("Update zBuffer %d with %d\n", i+offset, depthind[0]);
@@ -115,7 +110,7 @@ namespace dynamic_stereo {
 //	            }
 //            }
 
-			    updateZBuffer(refDepth, zBuffers[i], sfmModel->getCamera(anchor), sfmModel->getCamera(i+offset));
+                updateZBuffer(refDepth.get(), zBuffers[i].get(), sfmModel->getCamera(anchor), sfmModel->getCamera(i+offset));
 
 //	        sprintf(buffer, "%s/temp/zBuffer%05d.ply", file_io.getDirectory().c_str(), i+offset);
 //	        Mat dimg;
@@ -143,13 +138,18 @@ namespace dynamic_stereo {
 //	    }
     }
 
-    void DynamicWarpping::warpToAnchor(const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
+    void DynamicWarpping::warpToAnchor(const vector<Mat>& images,
+                                       const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
                                        const std::vector<std::vector<Eigen::Vector2d> >& segmentsFlashy,
                                        std::vector<cv::Mat> &output,
                                        const int kFrame) const {
         printf("Warpping...\n");
-        output.resize((size_t)kFrame);
+        CHECK_EQ(images.size(), tWindow);
+        output.resize((size_t)images.size());
         char buffer[1024] = {};
+
+        const int width = images[0].cols;
+        const int height = images[0].rows;
 
         const theia::Camera &cam1 = sfmModel->getCamera(anchor);
 
@@ -175,9 +175,9 @@ namespace dynamic_stereo {
             if(d2 < 0)
                 return outToken;
             Vector2d dimgpt = imgpt / downsample;
-            if(dimgpt[0] < 0 || dimgpt[1] < 0 || dimgpt[0] >= zBuffers[v].getWidth()-1 || dimgpt[1] >= zBuffers[v].getHeight()-1)
+            if(dimgpt[0] < 0 || dimgpt[1] < 0 || dimgpt[0] >= zBuffers[v]->getWidth()-1 || dimgpt[1] >= zBuffers[v]->getHeight()-1)
                 return outToken;
-            double zdepth = zBuffers[v].getDepthAt(dimgpt);
+            double zdepth = zBuffers[v]->getDepthAt(dimgpt);
             double curdisp = depthToDisp(d2, min_depths[v], max_depths[v]);
             double zdisp = depthToDisp(zdepth, min_depths[v], max_depths[v]);
             if(zdisp - curdisp >= dispMargin)
@@ -188,7 +188,7 @@ namespace dynamic_stereo {
 
         auto threadFuncDisplay = [&](const int tid, const int num_thread){
             for(auto sid=tid; sid<segmentsDisplay.size(); sid+=num_thread){
-                printf("Segment %d on thread %d\n", sid, tid);
+                printf("Segment %d(%d) on thread %d\n", sid, (int)segmentsDisplay.size(), tid);
                 const vector<Vector2d>& curSeg = segmentsDisplay[sid];
                 //end frame and start frame
                 int startFrame = 0, endFrame = (int)images.size() - 1;
@@ -196,7 +196,10 @@ namespace dynamic_stereo {
                 for(auto& segc:segColors)
                     segc.resize(images.size(), Vector3d(0,0,0));
                 for(auto i=0; i<curSeg.size(); ++i){
-                    Vector3d spt = cam1.GetPosition() + refDepth.getDepthAt(curSeg[i]/downsample) * cam1.PixelToUnitDepthRay(curSeg[i]);
+                    Vector2d dsegpt = curSeg[i] / downsample;
+                    if(dsegpt[0] < 0 || dsegpt[1] < 0 || dsegpt[0] >= refDepth->getWidth()-1 || dsegpt[1] >= refDepth->getHeight()-1)
+                        continue;
+                    Vector3d spt = cam1.GetPosition() + refDepth->getDepthAt(dsegpt) * cam1.PixelToUnitDepthRay(curSeg[i]);
                     for(auto fid=anchor-offset-1; fid >= 0; --fid){
                         segColors[i][fid] = projectPoint(spt, fid);
                         if((segColors[i][fid]-outToken).norm() < epsilon){
@@ -212,9 +215,7 @@ namespace dynamic_stereo {
                         }
                     }
                 }
-                printf("start:%d, end:%d\n", startFrame, endFrame);
-//                startFrame = 0;
-//                endFrame = images.size() - 1;
+                printf("seg %d, start:%d, end:%d\n", sid, startFrame, endFrame);
                 if(endFrame - startFrame < min_visibleRatio * images.size())
                     continue;
                 for(auto i=0; i<curSeg.size(); ++i) {
@@ -233,7 +234,7 @@ namespace dynamic_stereo {
             }
         };
 
-        const int num_thread = 1;
+        const int num_thread = 6;
         vector<thread_guard> threads_display((size_t)num_thread);
         for(auto i=0; i<num_thread; ++i){
             std::thread t(threadFuncDisplay, i, num_thread);
@@ -249,11 +250,11 @@ namespace dynamic_stereo {
 
     void DynamicWarpping::preWarping(const cv::Mat &mask, std::vector<cv::Mat> &warped) const {
 
-        vector<Mat> dimages(images.size());
-        const int nLevel = (int)std::log2((double)downsample) + 1;
-        for(auto i=0; i<images.size(); ++i){
-            vector<Mat> pyramid(nLevel);
-            pyramid[0] = images[i].clone();
+        vector<Mat> dimages((size_t)tWindow);
+        const int nLevel = (int)std::log2(downsample) + 1;
+        for(auto i=0; i<dimages.size(); ++i){
+            vector<Mat> pyramid((size_t)nLevel);
+            pyramid[0] = imread(file_io.getImage(offset+i));
             for(auto k=1; k<nLevel; ++k)
                 pyrDown(pyramid[k-1], pyramid[k]);
             dimages[i] = pyramid.back().clone();
@@ -266,13 +267,13 @@ namespace dynamic_stereo {
         }
         const int dw = dimages[0].cols;
         const int dh = dimages[0].rows;
-        CHECK_EQ(refDepth.getWidth(), dw);
-        CHECK_EQ(refDepth.getHeight(), dh);
+        CHECK_EQ(refDepth->getWidth(), dw);
+        CHECK_EQ(refDepth->getHeight(), dh);
 
         Mat maskd;
         cv::resize(mask, maskd, cv::Size(dw, dh), 0, 0, INTER_NEAREST);
 
-        warped.resize(images.size());
+        warped.resize(dimages.size());
 
         const theia::Camera& cam1 = sfmModel->getCamera(anchor);
         const int disparity_margin = 10;
@@ -292,12 +293,12 @@ namespace dynamic_stereo {
                         continue;
                     }
                     Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
-                    Vector3d spt = cam1.GetPosition() + ray * refDepth(x,y);
+                    Vector3d spt = cam1.GetPosition() + ray * refDepth->operator()(x,y);
                     Vector2d imgpt;
                     double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
-                    imgpt = imgpt / (double)downsample;
+                    imgpt = imgpt / downsample;
                     if(imgpt[0]>=0 && imgpt[1] >= 0 && imgpt[0] < dw-1 && imgpt[1] < dh-1){
-                        double zDepth = zBuffers[i].getDepthAt(imgpt);
+                        double zDepth = zBuffers[i]->getDepthAt(imgpt);
                         if(zDepth > 0 && curd > 0){
                             double curdisp = depthToDisp(curd, min_depths[i], max_depths[i]);
                             double zdisp = depthToDisp(zDepth, min_depths[i], max_depths[i]);

@@ -5,9 +5,6 @@
 #ifndef DYNAMICSTEREO_DYNAMIC_UTILITY_H
 #define DYNAMICSTEREO_DYNAMIC_UTILITY_H
 
-#include "../base/file_io.h"
-#include "../base/depth.h"
-
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
@@ -19,6 +16,9 @@ namespace theia{
 
 namespace dynamic_stereo{
     struct SfMModel;
+    class Depth;
+    class FileIO;
+
     namespace utility{
         void visualizeSegmentation(const std::vector<int>& labels, const int width, const int height, cv::Mat& output);
 

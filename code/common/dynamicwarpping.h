@@ -8,22 +8,25 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
 
-#include "../base/depth.h"
-#include "../base/file_io.h"
+namespace theia{
+	class Camera;
+}
 
 namespace dynamic_stereo {
+	struct SfMModel;
+	class Depth;
+	class FileIO;
+
     class DynamicWarpping {
     public:
-        DynamicWarpping(const FileIO& file_io_, const int anchor_, const int tWindow_, const int downsample_,
-                        const int nLabel_, const std::vector<Depth>& depths, const std::vector<int>& depthind);
+        DynamicWarpping(const FileIO& file_io_, const int anchor_, const int tWindow_, const int nLabel_);
 
-        void warpToAnchor(const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
+        void warpToAnchor(const std::vector<cv::Mat>& images,
+						  const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
 						  const std::vector<std::vector<Eigen::Vector2d> >& segmentsFlashy,
 						  std::vector<cv::Mat>& output, const int kFrame) const;
 		void preWarping(const cv::Mat& mask, std::vector<cv::Mat>& warped) const;
 
-        inline int getWidth() const{return width;}
-        inline int getHeight() const{return height;}
         inline int getOffset() const{return offset;}
 
 	    inline double depthToDisp(const double d, const double min_depth, const double max_depth) const{
@@ -34,19 +37,17 @@ namespace dynamic_stereo {
 		    return (1.0 / d * (double)nLabel - min_disp)/ (max_disp - min_disp);
 	    }
     private:
-        void initZBuffer(const std::vector<Depth>& depths, const std::vector<int>& depthind);
-        void updateZBuffer(const Depth& depth, Depth& zb, const theia::Camera& cam1, const theia::Camera& cam2) const;
+        void initZBuffer();
+        void updateZBuffer(const Depth* depth, Depth* zb, const theia::Camera& cam1, const theia::Camera& cam2) const;
         const FileIO& file_io;
         std::shared_ptr<SfMModel> sfmModel;
-        Depth refDepth;
+        std::shared_ptr<Depth> refDepth;
         const int anchor;
-        const int downsample;
 	    const int nLabel;
+		const int tWindow;
+		double downsample;
         int offset;
-        int width;
-        int height;
-        std::vector<cv::Mat> images;
-        std::vector<Depth> zBuffers;
+        std::vector<std::shared_ptr<Depth> > zBuffers;
 	    std::vector<double> min_depths;
 	    std::vector<double> max_depths;
     };

@@ -122,58 +122,18 @@ namespace dynamic_stereo{
 		computeFrequencyConfidence(input, frequency);
 		printf("Done\n");
 
+		double freThreshold = 0.4;
 
-		//compute anisotropic weight
-//		const double t = 80;
-//		const double min_diffusion = 0.15;
-//		const cv::Mat& img = input[anchor-offset];
-//		vector<double> hCue((size_t)width * height), vCue((size_t)width * height);
-//		for (auto y = 0; y < height; ++y) {
-//			for (auto x = 0; x < width; ++x) {
-//				Vec3b pix1 = img.at<Vec3b>(y, x);
-//				//pixel value range from 0 to 1, not 255!
-//				Vector3d dpix1 = Vector3d(pix1[0], pix1[1], pix1[2]);
-//				if (y < height - 1) {
-//					Vec3b pix2 = img.at<Vec3b>(y + 1, x);
-//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-//					double diff = (dpix1 - dpix2).squaredNorm();
-//					vCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
-//				}
-//				if (x < width - 1) {
-//					Vec3b pix2 = img.at<Vec3b>(y, x + 1);
-//					Vector3d dpix2 = Vector3d(pix2[0], pix2[1], pix2[2]);
-//					double diff = (dpix1 - dpix2).squaredNorm();
-//					hCue[y*width+x] = std::max(std::log(1+std::exp(-1*diff/(t*t))), min_diffusion);
-//				}
-//			}
-//		}
-
-
-		{
-
+		for(auto i=0; i<width * height; ++i){
+			if(frequency[i] > freThreshold)
+				pResult[i] = (uchar)255;
 		}
 
+		filterBoudary(input, result);
 
-//		Depth unaryTerm(width, height, 0.0);
-//		for(auto i=0; i<width * height; ++i)
-//			unaryTerm[i] = min(dynamicness[i] * brightness[i] / 255.0 * 3, 255.0);
-//
-//		sprintf(buffer, "%s/temp/conf_brightness%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//		brightness.saveImage(string(buffer));
-//		sprintf(buffer, "%s/temp/conf_weighted%05d.jpg", file_io.getDirectory().c_str(), anchor);
-//		unaryTerm.saveImage(string(buffer));
+
 		sprintf(buffer, "%s/temp/conf_frquency.jpg", file_io.getDirectory().c_str());
 		frequency.saveImage(string(buffer), 255);
-
-//		unaryTerm.updateStatics();
-//		double static_threshold = unaryTerm.getMedianDepth() / 255.0;
-
-		//create problem
-		//label 0: don't animate
-		//label 1: animate
-//		printf("Solving by MRF\n");
-//		std::vector<double> MRF_data((size_t)width*height*2);
-
 	}
 
 

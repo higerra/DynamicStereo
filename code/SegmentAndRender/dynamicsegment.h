@@ -13,10 +13,13 @@
 
 #include "../base/file_io.h"
 #include "../base/depth.h"
-//#include "../common/stereomodel.h"
-#include "../common/descriptor.h"
+
 
 namespace dynamic_stereo {
+
+	namespace Feature{
+		class FeatureConstructor;
+	}
 
 	void filterBoudary(const std::vector<cv::Mat>& images, cv::Mat& input);
 

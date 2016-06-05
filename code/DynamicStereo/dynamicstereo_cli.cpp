@@ -18,10 +18,9 @@ DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
 DEFINE_int32(stereo_interval, 5, "interval for stereo");
-DEFINE_double(weight_smooth, 0.1, "smoothness weight for stereo");
+DEFINE_double(weight_smooth, 0.2, "smoothness weight for stereo");
 DEFINE_double(min_disp, -1, "minimum disparity");
 DEFINE_double(max_disp, -1, "maximum disparity");
-DEFINE_string(classifierPath, "../../../data/svmTrain/model_newyorkRGB.svm", "Path to classifier model");
 
 int main(int argc, char **argv) {
 	if (argc < 2) {
@@ -40,6 +39,8 @@ int main(int argc, char **argv) {
 		stlplus::folder_create(file_io.getDirectory() + "/temp");
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/midres"))
 		stlplus::folder_create(file_io.getDirectory() + "/midres");
+	if (!stlplus::folder_exists(file_io.getDirectory() + "/midres/prewarp"))
+		stlplus::folder_create(file_io.getDirectory() + "/midres/prewarp");
 
 	vector<Depth> depths;
 	vector<int> depthInd;
@@ -143,14 +144,14 @@ int main(int argc, char **argv) {
  	CHECK_EQ(warpMask.cols, refDepthMask.cols);
 	CHECK_EQ(warpMask.rows, refDepthMask.rows);
 
-	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_downsample, FLAGS_resolution, depths, depthInd));
+	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution));
 	const int warpping_offset = warpping->getOffset();
 
 	vector<Mat> prewarp1, prewarp;
 	warpping->preWarping(warpMask, prewarp1);
 
 	for(auto i=0; i<prewarp1.size(); ++i){
-		sprintf(buffer, "%s/temp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i+warpping_offset);
+		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);
 		imwrite(buffer, prewarp1[i]);
 	}
 
