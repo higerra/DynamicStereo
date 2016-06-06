@@ -110,7 +110,7 @@ void SortCompoundRegionsById(HierarchyLevel* hierarchy);
 // specified by its parent's id at hierarchy level level.
 // If requested level does not exist in seg_hier, level is clamped to highest level
 // that exists in hierarchy.
-typedef std::unordered_map<int, std::vector<const Region2D*>> ParentMap;
+typedef std::unordered_map<int, std::vector<const Region2D*> > ParentMap;
 void GetParentMap(int level,
                   const SegmentationDesc& seg,
                   const Hierarchy& hierarchy,
