@@ -227,7 +227,7 @@ void GetCompoundRegionRasterizations(
 // Helper  construct to represent aggregated 2D Rasterizations across several frames,
 // forming a 3D raster.
 // List of tuple (#frame, Rasterization ptr). Orderded by #frame.
-typedef std::vector<std::pair<int, std::shared_ptr<Rasterization>>> Rasterization3D;
+typedef std::vector<std::pair<int, std::shared_ptr<Rasterization> > > Rasterization3D;
 
 // Merges 3D Rasterization's across all frames.
 void MergeRasterization3D(const Rasterization3D& raster_1,

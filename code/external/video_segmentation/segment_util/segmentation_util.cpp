@@ -1145,7 +1145,7 @@ void RasterVectorization(const Vectorization& vec,
 
   // Create an edge entry for each polyon line.
   // Stores for each y-location edges that start at that scanline.
-  vector<vector<EdgeEntry>> edge_list(frame_height + 1);
+  vector<vector<EdgeEntry> > edge_list(frame_height + 1);
 
   int start_y = frame_height;
   int end_y = 0;
