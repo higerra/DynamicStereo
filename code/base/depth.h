@@ -103,7 +103,7 @@ namespace dynamic_stereo{
         void updateStatics() const;
         inline bool is_statics_computed()const {return statics_computed;}
         void fillhole();
-        void fillholeAndSmooth();
+        void fillholeAndSmooth(const double wSmooth = 1.0);
 
         //if amp == -1, the depth will be rescaled to 0~255
         void saveImage(const std::string& filename, const double amp = 1) const;

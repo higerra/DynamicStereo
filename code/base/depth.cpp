@@ -144,14 +144,15 @@ namespace dynamic_stereo {
 		statics_computed = true;
 	}
 
-	void Depth::fillholeAndSmooth() {
+	void Depth::fillholeAndSmooth(const double wSmooth) {
+		CHECK_GT(wSmooth, 0.0);
 		vector<bool> mask(data.size());
 		vector<double> data_copy(data.size());
 		for(int i=0; i<data.size(); ++i) {
 			data_copy[i] = data[i];
 			mask[i] = (data[i] >= 0);
 		}
-		possionSmooth(data_copy, getWidth(), getHeight(), mask);
+		possionSmooth(data_copy, getWidth(), getHeight(), mask, 1.0/wSmooth);
 		data.swap(data_copy);
 	}
 

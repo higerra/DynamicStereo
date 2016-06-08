@@ -16,7 +16,8 @@ using namespace Eigen;
 using namespace cv;
 
 namespace dynamic_stereo {
-    DynamicWarpping::DynamicWarpping(const FileIO &file_io_, const int anchor_, const int tWindow_, const int nLabel_) :
+    DynamicWarpping::DynamicWarpping(const FileIO &file_io_, const int anchor_, const int tWindow_, const int nLabel_,
+                                     const double wSmooth) :
             file_io(file_io_), anchor(anchor_), nLabel(nLabel_), tWindow(tWindow_){
         if (anchor - tWindow_ / 2 < 0) {
             offset = 0;
@@ -36,10 +37,19 @@ namespace dynamic_stereo {
         refDepth.reset(new Depth());
         CHECK_NOTNULL(refDepth.get())->readDepthFromFile(string(buffer));
         CHECK(!refDepth->getRawData().empty());
+
         Mat refImage = imread(file_io.getImage(anchor));
         CHECK(refImage.data);
-
         downsample = (double)refImage.cols / refDepth->getWidth();
+
+        if(wSmooth > 0){
+            refDepth->fillholeAndSmooth(wSmooth);
+            Mat depthTex;
+            cv::resize(refImage, depthTex, cv::Size(refDepth->getWidth(), refDepth->getHeight()));
+            sprintf(buffer, "%s/temp/smoothedDepth%05d.ply", file_io.getDirectory().c_str(), anchor);
+            utility::saveDepthAsPly(string(buffer), *(refDepth.get()), depthTex, sfmModel->getCamera(anchor), 2);
+        }
+
         initZBuffer();
     }
 

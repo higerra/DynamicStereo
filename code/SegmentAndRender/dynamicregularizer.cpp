@@ -5,9 +5,9 @@
 #include "dynamicregularizer.h"
 #include "../base/utility.h"
 #include "../base/thread_guard.h"
-#include <Eigen/SparseCore>
+#include "../base/depth.h"
 #include <Eigen/Sparse>
-#include <Eigen/SparseCholesky>
+#include <Eigen/SPQRSupport>
 
 using namespace std;
 using namespace cv;
@@ -116,30 +116,189 @@ namespace dynamic_stereo{
 
 
 	void regularizationPoisson(const vector<Mat>& input,
-							   const vector<vector<Eigen::Vector2d> >& segments, const cv::Mat& inputMask,
-							   vector<Mat>& output, const double weight_smooth){
+							   const vector<vector<Eigen::Vector2d> >& segments,
+							   vector<Mat>& output, const double ws, const double wt){
 		CHECK(!input.empty());
-		CHECK_EQ(inputMask.cols, input[0].cols);
-		CHECK_EQ(inputMask.rows, input[0].rows);
+
+		using Triplet = Eigen::Triplet<double>;
+
+		const int width = input[0].cols;
+		const int height = input[0].rows;
+		const int kPix = width * height;
+		const int chn = input[0].channels();
 
 		output.resize(input.size());
 		for(auto i=0; i<output.size(); ++i)
 			output[i] = input[i].clone();
 		Vec3b invalidToken(0,0,0);
 
-		for(auto sid=0; sid<segments.size(); ++sid){
-			const vector<Vector2d>& curSeg = segments[sid];
-			const int kVar = (int)(curSeg.size() * input.size());
-			printf("Smoothing segment %d, kVar:%d\n", sid, kVar);
-			SparseMatrix<double> A(kVar, kVar);
-			VectorXd b(kVar);
-			vector<Triplet<double> > triplets;
-			triplets.reserve((size_t)kVar * 4);
-			for(auto i=0; i<curSeg.size(); ++i){
-				double leftv = 0, rightv = 0;
+		auto threadFunc = [&](const int tid, const int num_thread){
+			for(auto i=tid; i<1; i+=num_thread){
+				printf("Optimizing segment %d(%d) on thread %d\n", tid, (int)segments.size(), tid);
+				cout << "init..." << endl << flush;
+				const vector<Vector2d>& segment = segments[i];
+				const int segSize = (int)segment.size();
 
+				Mat idMap(height, width, CV_32SC1, Scalar::all(-1));
+				for(auto pid=0; pid<segment.size(); ++pid)
+					idMap.at<int>((int)segment[pid][1], (int)segment[pid][0]) = pid;
+
+				const int kVar = segSize * (int)input.size();
+				int kConstraint = 0;
+				vector<vector<Triplet> > triplets((size_t)chn);
+				vector<vector<double> > rhs((size_t)chn);
+				for(auto c=0; c<chn; ++c) {
+					triplets[c].reserve((size_t) (kVar + (kVar * 3) * 3));
+					rhs[c].reserve((size_t) (kVar * 4));
+				}
+
+				cout << "data constraint..." << endl << flush;
+				//data constraint
+				for(auto pid=0; pid<segment.size(); ++pid){
+					const int x = (int)segment[pid][0];
+					const int y = (int)segment[pid][1];
+					for(auto v=0; v<input.size(); ++v){
+						Vec3b curpix = input[v].at<Vec3b>(y,x);
+						if(curpix == invalidToken)
+							continue;
+						for(auto c=0; c<chn; ++c){
+							triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize * v + pid), 1.0));
+							rhs[c].push_back((double)curpix[c]);
+						}
+						kConstraint++;
+					}
+				}
+
+				cout << "adding smoothness constraint" << endl << flush;
+				//smoothness constraint
+				for(auto pid=0; pid<segment.size(); ++pid){
+					const int x = (int)segment[pid][0];
+					const int y = (int)segment[pid][1];
+
+					for(auto v=0; v<input.size(); ++v){
+						Vector3d rightV(0,0,0);
+						double leftV = 0.0;
+						//x direction
+						if(x > 0){
+							int neiId = idMap.at<int>(y,x-1);
+							if(neiId >= 0){
+								for(auto c=0; c<chn; ++c)
+									triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*v+neiId), -1 * ws));
+							}else{
+								Vec3b curPix = input[v].at<Vec3b>(y,x-1);
+								for(auto c=0; c<chn; ++c)
+									rightV[c] += (double)curPix[c] * ws;
+							}
+							leftV += ws;
+						}
+						if(x < width - 1){
+							int neiId = idMap.at<int>(y,x+1);
+							if(neiId >= 0){
+								for(auto c=0; c<chn; ++c)
+									triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*v+neiId), -1 * ws));
+							}else{
+								Vec3b curPix = input[v].at<Vec3b>(y,x+1);
+								for(auto c=0; c<chn; ++c)
+									rightV[c] += (double)curPix[c] * ws;
+							}
+							leftV += ws;
+						}
+						if(leftV > 0){
+							for(auto c=0; c<chn; ++c){
+								triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*v+pid), leftV));
+								rhs[c].push_back(rightV[c]);
+							}
+							kConstraint++;
+						}
+
+						//y direction
+						rightV = Vector3d(0,0,0);
+						leftV = 0.0;
+						if(y > 0){
+							int neiId = idMap.at<int>(y-1,x);
+							if(neiId >= 0){
+								for(auto c=0; c<chn; ++c)
+									triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*v+neiId), -1 * ws));
+							}else{
+								Vec3b curPix = input[v].at<Vec3b>(y-1,x);
+								for(auto c=0; c<chn; ++c)
+									rightV[c] += (double)curPix[c] * ws;
+							}
+							leftV += ws;
+						}
+						if(y < height - 1){
+							int neiId = idMap.at<int>(y+1,x);
+							if(neiId >= 0){
+								for(auto c=0; c<chn; ++c)
+									triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*v+neiId), -1 * ws));
+							}else{
+								Vec3b curPix = input[v].at<Vec3b>(y+1,x);
+								for(auto c=0; c<chn; ++c)
+									rightV[c] += (double)curPix[c] * ws;
+							}
+							leftV += ws;
+						}
+						if(leftV > 0){
+							for(auto c=0; c<chn; ++c){
+								triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*v+pid), leftV));
+								rhs[c].push_back(rightV[c]);
+							}
+							kConstraint++;
+						}
+					}
+
+					//t direction
+					for(auto v=1; v<input.size()-1; ++v){
+						for(auto c=0; c<chn; ++c){
+							triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*v+pid), 2.0 * wt));
+							triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*(v-1)+pid), -1.0 * wt));
+							triplets[c].push_back(Triplet((double)kConstraint, (double)(segSize*(v+1)+pid), -1.0 * wt));
+							rhs[c].push_back(0.0);
+						}
+						kConstraint++;
+					}
+				}
+
+				printf("Solving...\n");
+				printf("kConstraint:%d, kVar: %d\n", kConstraint, kVar);
+				//solve
+				for(auto c=0; c<chn; ++c){
+					printf("Channel %d\n", c);
+					Eigen::Map<VectorXd> b(rhs[c].data(), kConstraint);
+					printf("c1\n");
+					Eigen::SparseMatrix<double> A(kConstraint, kVar);
+					printf("c2\n");
+					A.setFromTriplets(triplets[c].begin(), triplets[c].end());
+					printf("A.size():%d,%d\n", A.rows(), A.cols());
+					//Eigen::SimplicialCholesky<SparseMatrix<double> > solver(A);
+					//Eigen::SparseQR<SparseMatrix<double>, Eigen::COLAMDOrdering<int> > solver(A);
+					Eigen::SPQR<SparseMatrix<double> > solver(A);
+
+					printf("c4\n");
+					VectorXd solution = solver.solve(b);
+					printf("c5\n");
+					//write back pixels
+					printf("Write result\n");
+					for(auto pid=0; pid<segment.size(); ++pid){
+						const int x = (int)segment[pid][0];
+						const int y = (int)segment[pid][1];
+						for(auto v=0; v<output.size(); ++v){
+							output[v].at<Vec3b>(y,x)[c] = solution[(int)segment.size() * v + pid];
+						}
+					}
+				}
+				cout << "done" << endl << flush;
 			}
-		}
+		};
 
+		const int num_thread = 1;
+		vector<thread_guard> threads(num_thread);
+		for(auto tid=0; tid<num_thread; ++tid){
+			std::thread t(threadFunc, tid, num_thread);
+			threads[tid].bind(t);
+		}
+		for(auto& t: threads)
+			t.join();
 	}
+
 }//namespace dynamic_stereo

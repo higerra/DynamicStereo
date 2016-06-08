@@ -19,7 +19,8 @@ namespace dynamic_stereo {
 
     class DynamicWarpping {
     public:
-        DynamicWarpping(const FileIO& file_io_, const int anchor_, const int tWindow_, const int nLabel_);
+        DynamicWarpping(const FileIO& file_io_, const int anchor_, const int tWindow_, const int nLabel_,
+						const double wSmooth = -1);
 
         void warpToAnchor(const std::vector<cv::Mat>& images,
 						  const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
@@ -28,6 +29,8 @@ namespace dynamic_stereo {
 		void preWarping(const cv::Mat& mask, std::vector<cv::Mat>& warped) const;
 
         inline int getOffset() const{return offset;}
+		const Depth& getDepth() const{return *refDepth;}
+		const std::shared_ptr<Depth> mutableDepth(){return refDepth;}
 
 	    inline double depthToDisp(const double d, const double min_depth, const double max_depth) const{
 		    CHECK_GT(min_depth, 0.0);

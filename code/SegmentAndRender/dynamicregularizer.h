@@ -13,13 +13,15 @@
 
 namespace dynamic_stereo{
 
+    class Depth;
+
     void dynamicRegularization(const std::vector<cv::Mat>& input,
                                const std::vector<std::vector<Eigen::Vector2d> >& segments,
                                std::vector<cv::Mat>& output, const double weight_smooth);
 
     void regularizationPoisson(const std::vector<cv::Mat>& input,
-                               const std::vector<std::vector<Eigen::Vector2d> >& segments, const cv::Mat& inputMask,
-                               std::vector<cv::Mat>& output, const double weight_smooth);
+                               const std::vector<std::vector<Eigen::Vector2d> >& segments,
+                               std::vector<cv::Mat>& output, const double ws, const double wt);
 
 }//namespace dynamic_stereo
 

@@ -71,7 +71,9 @@ int main(int argc, char** argv) {
 	//////////////////////////////////////////////////////////
 	//Rendering
 	//reload full resolution image, set black pixel to (0,0,0)
-	std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution));
+	const double depthSmooth = 2.0;
+	std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution, depthSmooth));
+
 	int offset = CHECK_NOTNULL(warping.get())->getOffset();
 	images.resize((size_t)FLAGS_tWindow);
 	for(auto v=0; v<FLAGS_tWindow; ++v){
@@ -93,6 +95,7 @@ int main(int argc, char** argv) {
     printf("Full warping...\n");
     warping->warpToAnchor(images, segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);
     printf("Done\n");
+
     for (auto i = 0; i < finalResult.size(); ++i) {
         sprintf(buffer, "%s/temp/warped%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame,
                 i);
@@ -102,7 +105,8 @@ int main(int argc, char** argv) {
 	printf("Running regularizaion\n");
     vector <Mat> regulared;
 	float reg_t = (float)cv::getTickCount();
-	dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
+//	dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
+	regularizationPoisson(finalResult, segmentsDisplay, regulared, 2.0, 2.0);
 	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
 	CHECK_EQ(regulared.size(), finalResult.size());
 
