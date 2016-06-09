@@ -102,6 +102,9 @@ int main(int argc, char** argv) {
         imwrite(buffer, finalResult[i]);
     }
 
+	vector<vector<Vector2d> > toySegment(1);
+	toySegment[0].push_back(Vector2d(758,421));
+
 	printf("Running regularizaion\n");
     vector <Mat> regulared;
 	float reg_t = (float)cv::getTickCount();
