@@ -195,12 +195,14 @@ namespace dynamic_stereo{
 							addSpatialSmoothTerm(v, varId, cv::Point(x,y+1), leftV);
 						}
 						//temporal
-//						if(v > 0 && v < input.size()-1){
-//							leftV += 2 * wt;
-//							triplets.push_back(Triplet(varId, varId-segSize, -1*wt));
-//							triplets.push_back(Triplet(varId, varId+segSize, -1*wt));
-//						}
-
+						if(v > 0){
+							leftV += wt;
+							triplets.push_back(Triplet(varId, varId-segSize, -1*wt));
+						}
+						if(v < input.size() - 1){
+							leftV += wt;
+							triplets.push_back(Triplet(varId, varId+segSize, -1*wt));
+						}
 
 						if(leftV > 0)
 							triplets.push_back(Triplet(varId, varId, leftV));
@@ -208,8 +210,15 @@ namespace dynamic_stereo{
 				}
 				//solve
 				Eigen::SparseMatrix<double> A(kVar, kVar);
+				printf("Constructing matrix...\n");
 				A.setFromTriplets(triplets.begin(), triplets.end());
-				Eigen::SimplicialLDLT<SparseMatrix<double> > solver(A);
+				printf("Decomposing...\n");
+				//Eigen::SimplicialLDLT<SparseMatrix<double> > solver(A);
+				//Eigen::SparseLU<SparseMatrix<double> > solver(A);
+				//Eigen::SPQR<SparseMatrix<double> > solver(A);
+				Eigen::ConjugateGradient<SparseMatrix<double> > solver(A);
+				solver.setMaxIterations(20000);
+				printf("Done\n");
 				for(auto c=0; c<chn; ++c){
 					printf("Channel %d\n", c);
 					VectorXd solution = solver.solve(rhs[c]);
@@ -226,7 +235,7 @@ namespace dynamic_stereo{
 			}
 		};
 
-		const int num_thread = 4;
+		const int num_thread = 1;
 		vector<thread_guard> threads(num_thread);
 		for(auto tid=0; tid<num_thread; ++tid){
 			std::thread t(threadFunc, tid, num_thread);
