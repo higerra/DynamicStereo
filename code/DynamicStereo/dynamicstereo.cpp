@@ -13,11 +13,11 @@ namespace dynamic_stereo{
 
 
 	DynamicStereo::DynamicStereo(const dynamic_stereo::FileIO &file_io_, const int anchor_,
-	                             const int tWindow_, const int tWindowStereo_, const int downsample_, const double weight_smooth_, const int dispResolution_,
+	                             const int tWindow_, const int stereo_stride_, const int downsample_, const double weight_smooth_, const int dispResolution_,
 	                             const double min_disp_, const double max_disp_):
-			file_io(file_io_), anchor(anchor_), tWindow(tWindow_), tWindowStereo(tWindowStereo_), downsample(downsample_), dispResolution(dispResolution_),
-			pR(3), dbtx(-1), dbty(-1){
-		CHECK_LE(tWindowStereo, tWindow);
+			file_io(file_io_), anchor(anchor_), tWindow(tWindow_), stereo_stride(stereo_stride_), downsample(downsample_), dispResolution(dispResolution_),
+			pR(2), dbtx(-1), dbty(-1){
+		CHECK_GE(stereo_stride, 1);
 		cout << "Reading..." << endl;
 		offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
 		CHECK_GE(file_io.getTotalNum(), offset + tWindow);
@@ -109,11 +109,11 @@ namespace dynamic_stereo{
 						v + offset);
 
 				imgpt = imgpt / (double)downsample;
-				if(imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < images[0].cols-1 && imgpt[1] < images[0].rows-1){
-					Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows,  imgpt);
-					//double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
-					printf("%.2f %.2f %.2f\n", pix[0], pix[1], pix[2]);
-				}
+//				if(imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < images[0].cols-1 && imgpt[1] < images[0].rows-1){
+//					Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows,  imgpt);
+//					//double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
+//					printf("%.2f %.2f %.2f\n", pix[0], pix[1], pix[2]);
+//				}
 				imwrite(buffer, curimg);
 			}
 //			cout << "===============================" << endl;
@@ -157,24 +157,24 @@ namespace dynamic_stereo{
 
 		//masking out invalid region
 		//remove pixel where half disparity project outof half frames
-		const theia::Camera& refCam = sfmModel.getCamera(anchor);
-		const double invisThreshold = 0.3;
-
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
-				Vector3d spt = refCam.GetPosition() + depth_firstOrder(x,y) * ray;
-				double invisCount = 0.0;
-				for(auto v=0; v < images.size(); ++v){
-					Vector2d imgpt;
-					sfmModel.getCamera(v+offset).ProjectPoint(spt.homogeneous(), &imgpt);
-					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width * downsample || imgpt[1] >= height * downsample)
-						invisCount += 1.0;
-				}
-				if(invisCount / (double)images.size()> invisThreshold)
-					depthMask.at<uchar>(y,x) = (uchar)0;
-			}
-		}
+//		const theia::Camera& refCam = sfmModel.getCamera(anchor);
+//		const double invisThreshold = 0.3;
+//
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
+//				Vector3d spt = refCam.GetPosition() + depth_firstOrder(x,y) * ray;
+//				double invisCount = 0.0;
+//				for(auto v=0; v < images.size(); ++v){
+//					Vector2d imgpt;
+//					sfmModel.getCamera(v+offset).ProjectPoint(spt.homogeneous(), &imgpt);
+//					if(imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] >= width * downsample || imgpt[1] >= height * downsample)
+//						invisCount += 1.0;
+//				}
+//				if(invisCount / (double)images.size()> invisThreshold)
+//					depthMask.at<uchar>(y,x) = (uchar)0;
+//			}
+//		}
 
 
 

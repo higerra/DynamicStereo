@@ -12,23 +12,33 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(downsample, 2, "downsample");
 DEFINE_int32(tWindow, 80, "tWindow");
+DEFINE_int32(stereo_stride, 2, "tWindowStereo");
+DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
-DEFINE_string(classifierPath, "../../../data/svmTrain/model_newyorkRGB.svm", "Path to classifier");
+DEFINE_int32(stereo_interval, 5, "interval for stereo");
+DEFINE_double(weight_smooth, 0.2, "smoothness weight for stereo");
+DEFINE_string(classifierPath, "../../../data/svmTrain/model_displayRGB.svm", "Path to svm classifier");
+DECLARE_string(flagfile);
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);
 
 int main(int argc, char** argv) {
 	char buffer[1024] = {};
-	google::InitGoogleLogging(argv[1]);
-	google::ParseCommandLineFlags(&argc, &argv, true);
 	if(argc < 2){
 		cerr << "Usage: ./SegmentAndRender <path-to-data>" << endl;
 		return 1;
 	}
 	FileIO file_io(argv[1]);
 	CHECK_GT(file_io.getTotalNum(), 0) << "Empty dataset";
+
+	sprintf(buffer, "%s/config.txt", file_io.getDirectory().c_str());
+	ifstream flagfile(buffer);
+	if(flagfile.is_open())
+		FLAGS_flagfile = string(buffer);
+
+	google::InitGoogleLogging(argv[1]);
+	google::ParseCommandLineFlags(&argc, &argv, true);
 
 	vector<Mat> images;
 	Mat segMask;
@@ -106,22 +116,22 @@ int main(int argc, char** argv) {
 	toySegment[0].push_back(Vector2d(758,421));
 
 	printf("Running regularizaion\n");
-    vector <Mat> regulared;
-	float reg_t = (float)cv::getTickCount();
+//    vector <Mat> regulared;
+//	float reg_t = (float)cv::getTickCount();
 //	dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
-	regularizationPoisson(finalResult, segmentsDisplay, regulared, 2.0, 2.0);
-	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
-	CHECK_EQ(regulared.size(), finalResult.size());
+//	regularizationPoisson(finalResult, segmentsDisplay, regulared, 2.0, 2.0);
+//	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
+//	CHECK_EQ(regulared.size(), finalResult.size());
 
 //	vector<Mat> medianResult;
 //	utility::temporalMedianFilter(finalResult, medianResult, 2);
 //    utility::temporalMedianFilter(finalResult, regulared, 3);
 
-    for (auto i = 0; i < regulared.size(); ++i) {
-        sprintf(buffer, "%s/temp/regulared%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame,
-                i );
-        imwrite(buffer, regulared[i]);
-    }
+//    for (auto i = 0; i < regulared.size(); ++i) {
+//        sprintf(buffer, "%s/temp/regulared%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame,
+//                i );
+//        imwrite(buffer, regulared[i]);
+//    }
     return 0;
 }
 

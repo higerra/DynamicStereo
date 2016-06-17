@@ -27,7 +27,7 @@ namespace dynamic_stereo {
         assignSmoothWeight();
     }
 
-	void DynamicStereo::getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, const int startid, const int endid, vector<vector<double> >& patches) const {
+	void DynamicStereo::getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, vector<vector<double> >& patches) const {
 		double depth = model->dispToDepth(d);
 		//sample in 3D space
 		vector<Vector4d> sptBase;
@@ -48,19 +48,18 @@ namespace dynamic_stereo {
 		}
 
 		//project onto other views and compute matching cost
-		patches.resize((size_t)(endid - startid + 1));
-		for (auto v = startid; v <= endid; ++v) {
-			CHECK_GE(v,0);
-			CHECK_LT(v, images.size());
+		patches.resize((size_t)(images.size()/stereo_stride));
+		int index = 0;
+		for (auto v = 0; v < images.size(); v += stereo_stride, ++index) {
 			//const theia::Camera& cam2 = reconstruction.View(orderedId[v + offset].second)->Camera();
 			const theia::Camera& cam2 = sfmModel.getCamera(v+offset);
 
 			//printf("--------------Sample from frame %d\n", v+offset);
 			for (const auto &spt: sptBase) {
 				if (spt[3] == 0) {
-					patches[v-startid].push_back(-1);
-					patches[v-startid].push_back(-1);
-					patches[v-startid].push_back(-1);
+					patches[index].push_back(-1);
+					patches[index].push_back(-1);
+					patches[index].push_back(-1);
 				} else {
 					Vector2d imgpt;
 					cam2.ProjectPoint(spt, &imgpt);
@@ -68,15 +67,15 @@ namespace dynamic_stereo {
 					imgpt = imgpt / (double) downsample;
 
 					if (imgpt[0] < 0 || imgpt[1] < 0 || imgpt[0] > width - 1 || imgpt[1] > height - 1) {
-						patches[v-startid].push_back(-1);
-						patches[v-startid].push_back(-1);
-						patches[v-startid].push_back(-1);
+						patches[index].push_back(-1);
+						patches[index].push_back(-1);
+						patches[index].push_back(-1);
 					} else {
 						Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v].data, width,
 						                                                    height, imgpt);
-						patches[v-startid].push_back(c[0]);
-						patches[v-startid].push_back(c[1]);
-						patches[v-startid].push_back(c[2]);
+						patches[index].push_back(c[0]);
+						patches[index].push_back(c[1]);
+						patches[index].push_back(c[2]);
 					//	printf("Color: (%.2f,%.2f,%.2f)\n", c[0], c[1], c[2]);
 					}
 				}
@@ -132,20 +131,20 @@ namespace dynamic_stereo {
 	    ifstream fin(buffer, ios::binary);
         bool recompute = true;
 	    if (fin.is_open()) {
-            int frame, resolution, tw, ds, type;
+            int frame, resolution, st, ds, type;
             double mindisp, maxdisp;
             fin.read((char *) &frame, sizeof(int));
             fin.read((char *) &resolution, sizeof(int));
-            fin.read((char *) &tw, sizeof(int));
+            fin.read((char *) &st, sizeof(int));
             fin.read((char *) &ds, sizeof(int));
             fin.read((char *) &type, sizeof(int));
             fin.read((char *) &mindisp, sizeof(double));
             fin.read((char *) &maxdisp, sizeof(double));
             printf("Cached data: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
-                   frame, resolution, tw, ds, type, mindisp, maxdisp);
+                   frame, resolution, st, ds, type, mindisp, maxdisp);
 		    printf("Current config:: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
-		           anchor, dispResolution, tWindowStereo, downsample, (int)sizeof(EnergyType), model->min_disp, model->max_disp);
-            if (frame == anchor && resolution == dispResolution && tw == tWindowStereo &&
+		           anchor, dispResolution, stereo_stride, downsample, (int)sizeof(EnergyType), model->min_disp, model->max_disp);
+            if (frame == anchor && resolution == dispResolution && st == stereo_stride &&
                 type == sizeof(EnergyType) && ds == downsample) {
                 printf("Reading unary term from cache...\n");
                 fin.read((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
@@ -157,40 +156,32 @@ namespace dynamic_stereo {
 
 			const theia::Camera& cam1 = sfmModel.getCamera(anchor);
             int unit = height / 10;
-            const int stereoOffset = anchor - tWindowStereo / 2;
-            printf("Stereo Offset: %d, stereo frame range: %d->%d\n", stereoOffset, anchor-stereoOffset, anchor-stereoOffset+tWindowStereo);
-
 			//compute matching cost in multiple threads
 			//Be careful about down sample ratio!!!!!
-			auto threadFun = [&](int y, int offset, const int N){
-				for(auto x=offset; x<offset+N; ++x) {
-					for (auto d = 0; d < dispResolution; ++d) {
-						vector<vector<double> > patches;
-						getPatchArray((double) x, (double) y, d, pR, cam1, anchor - stereoOffset,
-									  anchor - stereoOffset + tWindowStereo - 1, patches);
-						double mCost = local_matcher::sumMatchingCost(patches, anchor - stereoOffset);
-						//double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
-						//model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
-						model->operator()(y * width + x, d) = (EnergyType)((1 - mCost) * model->MRFRatio);
+			auto threadFun = [&](int offset, const int N){
+				for(auto y=offset; y<height; y+=N) {
+					for (auto x = 0; x < width; ++x) {
+						for (auto d = 0; d < dispResolution; ++d) {
+							vector<vector<double> > patches;
+							getPatchArray((double) x, (double) y, d, pR, cam1, patches);
+							//assume that the patch of reference view is in the middle
+							double mCost = local_matcher::sumMatchingCost(patches, patches.size() / 2);
+							//double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
+							//model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
+							model->operator()(y * width + x, d) = (EnergyType)((1 - mCost) * model->MRFRatio);
+						}
 					}
 				}
 			};
 
 			const int num_threads = 6;
-            for (int y = 0; y < height; ++y) {
-				vector<thread_guard> threads((size_t)num_threads);
-				const int numPerThreads = width / num_threads;
-				if (y % unit == 0)
-					cout << '.' << flush;
-				for(auto tid=0; tid<num_threads-1; ++tid){
-					std::thread t(threadFun,y,tid*numPerThreads,numPerThreads);
-					threads[tid].bind(t);
-				}
-				std::thread residualT(threadFun, y, (num_threads-1)*numPerThreads, width - numPerThreads*(num_threads-1));
-				threads[num_threads-1].bind(residualT);
-				for(auto &t: threads)
-					t.join();
-			}
+	        vector<thread_guard> threads((size_t)num_threads);
+	        for(auto tid=0; tid<num_threads; ++tid){
+		        std::thread t(threadFun,tid,num_threads);
+		        threads[tid].bind(t);
+	        }
+	        for(auto& t: threads)
+		        t.join();
 
             cout << "done" << endl;
             //caching
@@ -203,7 +194,7 @@ namespace dynamic_stereo {
             int sz = sizeof(EnergyType);
             fout.write((char *) &anchor, sizeof(int));
             fout.write((char *) &dispResolution, sizeof(int));
-            fout.write((char *) &tWindowStereo, sizeof(int));
+            fout.write((char *) &stereo_stride, sizeof(int));
             fout.write((char *) &downsample, sizeof(int));
             fout.write((char *) &sz, sizeof(int));
             fout.write((char *) &model->min_disp, sizeof(double));

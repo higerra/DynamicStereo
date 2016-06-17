@@ -30,6 +30,12 @@ namespace dynamic_stereo{
 		const int kFrame = (int)input.size();
 		const int nSamples = width * height / stride / stride;
 
+		vector<Mat> filtered(input.size());
+		for(auto v=0; v<input.size(); ++v){
+
+		}
+
+
 		int index = 0;
 		//Notice: input images are in BGR color space!!!
 		const int chuckSize = nSamples;

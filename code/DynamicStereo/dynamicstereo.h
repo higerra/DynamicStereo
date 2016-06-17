@@ -26,7 +26,7 @@ namespace dynamic_stereo {
     public:
 	    typedef double EnergyType;
 
-        DynamicStereo(const FileIO& file_io_, const int anchor_, const int tWindow_, const int tWindowStereo_, const int downsample_, const double weight_smooth_,
+        DynamicStereo(const FileIO& file_io_, const int anchor_, const int tWindow_, const int stereo_stride_, const int downsample_, const double weight_smooth_,
                       const int dispResolution_ = 64, const double min_disp_ = -1, const double max_disp_ = -1);
 
         void runStereo(const cv::Mat& inputMask, Depth& result, cv::Mat& mask, bool dryrun = false);
@@ -43,7 +43,7 @@ namespace dynamic_stereo {
 		void bilateralFilter(const Depth& input, const cv::Mat& inputImg, Depth& output,
 							 const int size, const double sigmas, const double sigmar, const double sigmau);
 
-	    void getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, const int startid, const int endid, std::vector<std::vector<double> >& patches) const;
+	    void getPatchArray(const double x, const double y, const int d, const int r, const theia::Camera& refCam, std::vector<std::vector<double> >& patches) const;
 	    const std::shared_ptr<StereoModel<EnergyType> > getMRFModel() const{
 		    return model;
 	    }
@@ -63,7 +63,7 @@ namespace dynamic_stereo {
         const FileIO& file_io;
         const int anchor;
         const int tWindow;
-		const int tWindowStereo;
+		const int stereo_stride;
         const int downsample;
         int offset;
 

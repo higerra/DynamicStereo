@@ -14,13 +14,15 @@ using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
 DEFINE_int32(tWindow, 80, "tWindow");
-DEFINE_int32(tWindowStereo, 30, "tWindowStereo");
+DEFINE_int32(stereo_stride, 2, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 256, "disparity resolution");
 DEFINE_int32(stereo_interval, 5, "interval for stereo");
 DEFINE_double(weight_smooth, 0.2, "smoothness weight for stereo");
-DEFINE_double(min_disp, -1, "minimum disparity");
-DEFINE_double(max_disp, -1, "maximum disparity");
+DEFINE_string(classifierPath, "", "not used");
+DEFINE_double(min_disp, -1, "min disp");
+DEFINE_double(max_disp, -1, "max_disp");
+DECLARE_string(flagfile);
 
 int main(int argc, char **argv) {
 	if (argc < 2) {
@@ -28,12 +30,19 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	FileIO file_io(argv[1]);
+	CHECK_GT(file_io.getTotalNum(), 0);
+
+	char buffer[1024] = {};
+	//check if chere is flag file
+	sprintf(buffer, "%s/config.txt", file_io.getDirectory().c_str());
+	ifstream flagfile(buffer);
+	if(flagfile.is_open())
+		FLAGS_flagfile = string(buffer);
+
 	google::InitGoogleLogging(argv[0]);
 	google::ParseCommandLineFlags(&argc, &argv, true);
 
-	FileIO file_io(argv[1]);
-	CHECK_GT(file_io.getTotalNum(), 0);
-	char buffer[1024] = {};
 
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/temp"))
 		stlplus::folder_create(file_io.getDirectory() + "/temp");
@@ -80,15 +89,15 @@ int main(int argc, char **argv) {
 	for (auto tf = FLAGS_testFrame - FLAGS_tWindow/2;
 		 tf <= FLAGS_testFrame + FLAGS_tWindow/2; tf += FLAGS_stereo_interval) {
 		if(tf == FLAGS_testFrame) {
-			DynamicStereo stereo(file_io, tf, FLAGS_tWindow, FLAGS_tWindowStereo, FLAGS_downsample,
+			DynamicStereo stereo(file_io, tf, FLAGS_tWindow, FLAGS_stereo_stride, FLAGS_downsample,
 								 FLAGS_weight_smooth,
 								 FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
 
 
 			{
 //			    //test SfM
-//				const int tf1 = FLAGS_testFrame;
-//				Mat imgRef = imread(file_io.getImage(tf1));
+				const int tf1 = FLAGS_testFrame;
+				Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
 				Vector2d pt(-1, -1);
 				stereo.dbtx = pt[0];
