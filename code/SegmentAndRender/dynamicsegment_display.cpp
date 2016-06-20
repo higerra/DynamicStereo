@@ -136,9 +136,25 @@ namespace dynamic_stereo{
 		printf("Imporing video segmentation...\n");
 		importVideoSegmentation(string(buffer), videoSeg);
 		CHECK_EQ(videoSeg.size(), input.size());
+
+//		imshow("segnet mask", segnetMask);
+//		waitKey(0);
+//
+//			imshow("preSeg", preSeg);
+//			waitKey(0);
+
+		printf("Filter by segnet\n");
+		filterBySegnet(videoSeg, segnetMask, preSeg);
+//		imshow("filter by segnet", preSeg);
+//		waitKey(0);
+
+		printf("Filter boundary\n");
 		filterBoudary(videoSeg, preSeg);
+//		imshow("filter by boundary", preSeg);
+//		waitKey(0);
 
 		result = localRefinement(input, preSeg);
+
 		Mat segVis = segment_gb::visualizeSegmentation(result);
 		Mat segVisOvl = 0.6 * segVis + 0.4 * input[input.size()/2];
 		sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), anchor);
@@ -149,15 +165,7 @@ namespace dynamic_stereo{
 		char buffer[1024] = {};
 		CHECK(!seg.empty());
 		CHECK_EQ(input.type(), CV_8UC1);
-		printf("Filter boundary\n");
-//		for(auto i=0; i<seg.size(); ++i){
-//			CHECK_NOTNULL(seg[i].data);
-//			CHECK_EQ(seg[i].type(), CV_32S);
-//			CHECK_EQ(seg[i].size(), input.size());
-//			Mat vis = segment_gb::visualizeSegmentation(seg[i]);
-//			sprintf(buffer, "seg_video%05d.jpg", i);
-//			imwrite(buffer, vis);
-//		}
+
 		const int width = seg[0].cols;
 		const int height = seg[0].rows;
 		const int kPix = width * height;
@@ -172,7 +180,6 @@ namespace dynamic_stereo{
 		nLabel++;
 
 		//group pixel to labels for fast query
-		//vector<vector<int> > pixelGroups((size_t)nLabel);
 		vector< vector<float> > posNum(seg.size());
 		vector< vector<float> > totalNum(seg.size());
 		for(auto i=0; i<seg.size(); ++i){
@@ -219,6 +226,57 @@ namespace dynamic_stereo{
 		}
 	}
 
+
+	void filterBySegnet(const std::vector<cv::Mat>& videoSeg, const cv::Mat& segMask, cv::Mat& inputMask){
+		CHECK_EQ(segMask.size(), inputMask.size());
+
+		const double ratio_margin = 0.2;
+		int nLabel = 0;
+		for(auto v=0; v<videoSeg.size(); ++v){
+			double minl, maxl;
+			cv::minMaxLoc(videoSeg[v], &minl, &maxl);
+			nLabel = std::max(nLabel, (int)maxl+1);
+		}
+		vector<float> invalidCount((size_t)nLabel, 0.0);
+		vector<float> segSize((size_t)nLabel, 0.0);
+
+		for(auto v=0; v<videoSeg.size(); ++v){
+			for(auto y=0; y<videoSeg[v].rows; ++y){
+				for(auto x=0; x<videoSeg[v].cols; ++x){
+					int l = videoSeg[v].at<int>(y,x);
+					segSize[l] += 1.0;
+				}
+			}
+		}
+
+		for(auto y=0; y<segMask.rows; ++y){
+			for(auto x=0; x<segMask.cols; ++x){
+				if(segMask.at<uchar>(y,x) < 200){
+					for(auto v=0; v<videoSeg.size(); ++v)
+						invalidCount[videoSeg[v].at<int>(y,x)] += 1.0;
+				}
+			}
+		}
+
+		for(auto y=0; y<inputMask.rows; ++y){
+			for(auto x=0; x<inputMask.cols; ++x){
+				if(inputMask.at<uchar>(y,x) > 200){
+					for(auto v=0; v<videoSeg.size(); ++v){
+						int sid = videoSeg[v].at<int>(y,x);
+						if(segSize[sid] > 0){
+							if(invalidCount[sid] / segSize[sid] > ratio_margin){
+								inputMask.at<uchar>(y,x) = 0;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
+
+	}
+
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments){
 		CHECK_NOTNULL(labels.data);
 		CHECK_EQ(labels.type(), CV_32S);
@@ -255,7 +313,7 @@ namespace dynamic_stereo{
 
 		const int testL = -1;
 
-		const int localMargin = std::min(width, height) / 50;
+		const int localMargin = std::min(width, height) / 30;
 		for(auto l=1; l<nLabel; ++l){
 			if(testL > 0 && l != testL)
 				continue;

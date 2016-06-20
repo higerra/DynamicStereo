@@ -164,6 +164,8 @@ void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& r
 			Vec3b pix = segMaskImg.at<Vec3b>(y,x);
 			if(std::find(invalidColor.begin(), invalidColor.end(), pix) < invalidColor.end())
 				segMask.at<uchar>(y,x) = 0;
+			else
+				segMask.at<uchar>(y,x) = 255;
 		}
 	}
 	//depth

@@ -128,7 +128,7 @@ namespace dynamic_stereo {
 			max_depth = -1;
 
 			vector<theia::TrackId> trackIds = sfm.getView(refId)->TrackIds();
-			printf("number of tracks:%lu\n", trackIds.size());
+			//printf("number of tracks:%lu\n", trackIds.size());
 			vector<double> depths;
 			for (const auto tid: trackIds) {
 				const theia::Track *t = sfm.reconstruction.Track(tid);

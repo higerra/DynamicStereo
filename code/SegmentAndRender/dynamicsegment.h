@@ -21,7 +21,8 @@ namespace dynamic_stereo {
 		class FeatureConstructor;
 	}
 
-	void filterBoudary(const std::vector<cv::Mat>& images, cv::Mat& input);
+	void filterBoudary(const std::vector<cv::Mat>& videoSeg, cv::Mat& inputMask);
+	void filterBySegnet(const std::vector<cv::Mat>& videoSeg, const cv::Mat& segMask, cv::Mat& inputMask);
 
 	void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result);
 

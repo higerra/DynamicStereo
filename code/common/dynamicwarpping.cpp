@@ -298,10 +298,10 @@ namespace dynamic_stereo {
             }
             for (int y = 0; y < dh; ++y) {
                 for (int x = 0; x < dw; ++x) {
-                    if (maskd.at<uchar>(y, x) < 200) {
-                        warped[i].at<Vec3b>(y,x) = dimages[anchor-offset].at<Vec3b>(y,x);
-                        continue;
-                    }
+//                    if (maskd.at<uchar>(y, x) < 200) {
+//                        warped[i].at<Vec3b>(y,x) = dimages[anchor-offset].at<Vec3b>(y,x);
+//                        continue;
+//                    }
                     Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
                     Vector3d spt = cam1.GetPosition() + ray * refDepth->operator()(x,y);
                     Vector2d imgpt;
