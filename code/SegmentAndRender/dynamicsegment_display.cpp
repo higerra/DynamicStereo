@@ -137,21 +137,21 @@ namespace dynamic_stereo{
 		importVideoSegmentation(string(buffer), videoSeg);
 		CHECK_EQ(videoSeg.size(), input.size());
 
-//		imshow("segnet mask", segnetMask);
-//		waitKey(0);
-//
-//			imshow("preSeg", preSeg);
-//			waitKey(0);
+		imshow("segnet mask", segnetMask);
+		waitKey(0);
+
+		imshow("preSeg", preSeg);
+		waitKey(0);
 
 		printf("Filter by segnet\n");
-		filterBySegnet(videoSeg, segnetMask, preSeg);
-//		imshow("filter by segnet", preSeg);
-//		waitKey(0);
+		filterBySegnet(input, videoSeg, segnetMask, preSeg);
+		imshow("filter by segnet", preSeg);
+		waitKey(0);
 
 		printf("Filter boundary\n");
-		filterBoudary(videoSeg, preSeg);
-//		imshow("filter by boundary", preSeg);
-//		waitKey(0);
+		filterBoudary(input, videoSeg, preSeg);
+		imshow("filter by boundary", preSeg);
+		waitKey(0);
 
 		result = localRefinement(input, preSeg);
 
@@ -161,7 +161,7 @@ namespace dynamic_stereo{
 		imwrite(buffer, segVisOvl);
 	}
 
-	void filterBoudary(const std::vector<cv::Mat> &seg, cv::Mat &input){
+	void filterBoudary(const std::vector<cv::Mat>& images, const std::vector<cv::Mat> &seg, cv::Mat &input){
 		char buffer[1024] = {};
 		CHECK(!seg.empty());
 		CHECK_EQ(input.type(), CV_8UC1);
@@ -227,10 +227,10 @@ namespace dynamic_stereo{
 	}
 
 
-	void filterBySegnet(const std::vector<cv::Mat>& videoSeg, const cv::Mat& segMask, cv::Mat& inputMask){
+	void filterBySegnet(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& videoSeg, const cv::Mat& segMask, cv::Mat& inputMask){
 		CHECK_EQ(segMask.size(), inputMask.size());
 
-		const double ratio_margin = 0.2;
+		const double ratio_margin = 0.3;
 		int nLabel = 0;
 		for(auto v=0; v<videoSeg.size(); ++v){
 			double minl, maxl;
@@ -243,6 +243,8 @@ namespace dynamic_stereo{
 		for(auto v=0; v<videoSeg.size(); ++v){
 			for(auto y=0; y<videoSeg[v].rows; ++y){
 				for(auto x=0; x<videoSeg[v].cols; ++x){
+					if(images[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
+						continue;
 					int l = videoSeg[v].at<int>(y,x);
 					segSize[l] += 1.0;
 				}
@@ -252,8 +254,11 @@ namespace dynamic_stereo{
 		for(auto y=0; y<segMask.rows; ++y){
 			for(auto x=0; x<segMask.cols; ++x){
 				if(segMask.at<uchar>(y,x) < 200){
-					for(auto v=0; v<videoSeg.size(); ++v)
-						invalidCount[videoSeg[v].at<int>(y,x)] += 1.0;
+					for(auto v=0; v<videoSeg.size(); ++v) {
+						if(images[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
+							continue;
+						invalidCount[videoSeg[v].at<int>(y, x)] += 1.0;
+					}
 				}
 			}
 		}
@@ -262,6 +267,8 @@ namespace dynamic_stereo{
 			for(auto x=0; x<inputMask.cols; ++x){
 				if(inputMask.at<uchar>(y,x) > 200){
 					for(auto v=0; v<videoSeg.size(); ++v){
+						if(images[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
+							continue;
 						int sid = videoSeg[v].at<int>(y,x);
 						if(segSize[sid] > 0){
 							if(invalidCount[sid] / segSize[sid] > ratio_margin){

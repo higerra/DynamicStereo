@@ -56,10 +56,14 @@ namespace dynamic_stereo{
 		const int height = warppedImg[0].rows;
 		result.initialize(width, height, 0.0);
 		const int N = (int)warppedImg.size();
-		const double alpha = 2, beta = 2.0;
-		const float epsilon = 1e-05;
-		const int min_frq = 3;
+		const double alpha = 2, beta = 2.5;
+		const int min_frq = 4;
 		const int tx = -1, ty= -1;
+
+		vector<Mat> smoothed(warppedImg.size());
+		for(auto v=0; v<warppedImg.size(); ++v){
+			cv::blur(warppedImg[v], smoothed[v], cv::Size(3,3));
+		}
 
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
@@ -67,8 +71,8 @@ namespace dynamic_stereo{
 				vector<Vector3f> meanColor(2, Vector3f(0,0,0));
 				Mat colorArray = Mat(3,N,CV_32FC1, Scalar::all(0));
 				float* pArray = (float*)colorArray.data;
-				for(auto v=0; v<warppedImg.size(); ++v){
-					Vec3b pixv = warppedImg[v].at<Vec3b>(y,x);
+				for(auto v=0; v<smoothed.size(); ++v){
+					Vec3b pixv = smoothed[v].at<Vec3b>(y,x);
 					int ind = v < N/2 ? 0 : 1;
 					if(pixv[0] != 0 && pixv[1] != 0 && pixv[2] != 0){
 						pArray[v] = (float)pixv[0];
@@ -129,7 +133,7 @@ namespace dynamic_stereo{
 				pResult[i] = (uchar)255;
 		}
 
-		filterBoudary(input, result);
+		//filterBoudary(input, result);
 
 
 		sprintf(buffer, "%s/temp/conf_frquency.jpg", file_io.getDirectory().c_str());

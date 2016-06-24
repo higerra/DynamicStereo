@@ -55,7 +55,7 @@ namespace dynamic_stereo{
 	}
 
 
-	void DynamicStereo::runStereo(const cv::Mat& inputMask, Depth& depth_firstOrder, cv::Mat& depthMask, bool dryrun) {
+	void DynamicStereo::runStereo(Depth& depth_firstOrder, cv::Mat& depthMask, bool dryrun) {
 
 		if(dryrun && dbtx < 0 && dbty < 0)
 			return;
@@ -74,11 +74,7 @@ namespace dynamic_stereo{
 				}
 			}
 		}
-
-		cv::Mat stereoMask;
-		cv::resize(inputMask, stereoMask, cv::Size(width, height), 0, 0, INTER_NEAREST);
 		depthMask = Mat(height, width, CV_8UC1, Scalar(255));
-
 		if(dbtx >= 0 && dbty >= 0){
 			//debug: inspect unary term
 			int dtx = (int)dbtx / downsample;

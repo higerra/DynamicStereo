@@ -72,7 +72,7 @@ namespace dynamic_stereo {
                 int intx = round(imgpt[0]+0.5);
                 int inty = round(imgpt[1]+0.5);
                 if (curd > 0 && imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < w-1 && imgpt[1] < h-1) {
-                    if ((*zb)(intx, inty) < 0 || zb->getDepthAt(imgpt) >= 0 && curd <= zb->getDepthAt(imgpt)) {
+                    if ((*zb)(intx, inty) < 0 || (zb->getDepthAt(imgpt) >= 0 && curd <= zb->getDepthAt(imgpt))) {
                         zb->setDepthAt(imgpt, curd);
                         //zb(intx, inty) = curd;
                     }
@@ -92,7 +92,6 @@ namespace dynamic_stereo {
 
 	    min_depths.resize(zBuffers.size());
 	    max_depths.resize(zBuffers.size());
-	    cout << endl;
 
         const int width = refDepth->getWidth();
         const int height = refDepth->getHeight();
@@ -258,7 +257,7 @@ namespace dynamic_stereo {
 
     }
 
-    void DynamicWarpping::preWarping(const cv::Mat &mask, std::vector<cv::Mat> &warped) const {
+    void DynamicWarpping::preWarping(std::vector<cv::Mat> &warped) const {
 
         vector<Mat> dimages((size_t)tWindow);
         const int nLevel = (int)std::log2(downsample) + 1;
@@ -280,9 +279,6 @@ namespace dynamic_stereo {
         CHECK_EQ(refDepth->getWidth(), dw);
         CHECK_EQ(refDepth->getHeight(), dh);
 
-        Mat maskd;
-        cv::resize(mask, maskd, cv::Size(dw, dh), 0, 0, INTER_NEAREST);
-
         warped.resize(dimages.size());
 
         const theia::Camera& cam1 = sfmModel->getCamera(anchor);
@@ -292,16 +288,14 @@ namespace dynamic_stereo {
         for(int i=0; i<dimages.size(); ++i) {
             cout << i+offset << ' ' << flush;
             const theia::Camera& cam2 = sfmModel->getCamera(i+offset);
-            warped[i] = dimages[anchor-offset].clone();
+            //warped[i] = dimages[anchor-offset].clone();
+	        warped[i] = Mat(dh, dw, CV_8UC3, Scalar::all(0));
             if(i == anchor - offset){
+	            warped[i] = dimages[anchor-offset].clone();
                 continue;
             }
             for (int y = 0; y < dh; ++y) {
                 for (int x = 0; x < dw; ++x) {
-//                    if (maskd.at<uchar>(y, x) < 200) {
-//                        warped[i].at<Vec3b>(y,x) = dimages[anchor-offset].at<Vec3b>(y,x);
-//                        continue;
-//                    }
                     Vector3d ray = cam1.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
                     Vector3d spt = cam1.GetPosition() + ray * refDepth->operator()(x,y);
                     Vector2d imgpt;

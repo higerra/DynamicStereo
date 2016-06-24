@@ -12,12 +12,9 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(tWindow, 80, "tWindow");
-DEFINE_int32(stereo_stride, 2, "tWindowStereo");
+DEFINE_int32(resolution, 128, "resolution");
+DEFINE_int32(tWindow, 120, "tWindow");
 DEFINE_int32(downsample, 2, "downsample ratio");
-DEFINE_int32(resolution, 256, "disparity resolution");
-DEFINE_int32(stereo_interval, 5, "interval for stereo");
-DEFINE_double(weight_smooth, 0.2, "smoothness weight for stereo");
 DEFINE_string(classifierPath, "../../../data/svmTrain/model_displayRGB.svm", "Path to svm classifier");
 DECLARE_string(flagfile);
 
@@ -34,11 +31,14 @@ int main(int argc, char** argv) {
 
 	sprintf(buffer, "%s/config.txt", file_io.getDirectory().c_str());
 	ifstream flagfile(buffer);
-	if(flagfile.is_open())
+	if(flagfile.is_open()) {
+		printf("Read flag from file\n");
 		FLAGS_flagfile = string(buffer);
+	}
 
 	google::InitGoogleLogging(argv[1]);
 	google::ParseCommandLineFlags(&argc, &argv, true);
+	printf("testFrame:%d, tWindow:%d\n", FLAGS_testFrame, FLAGS_tWindow);
 
 	vector<Mat> images;
 	Mat segMask;
@@ -112,17 +112,14 @@ int main(int argc, char** argv) {
         imwrite(buffer, finalResult[i]);
     }
 
-	vector<vector<Vector2d> > toySegment(1);
-	toySegment[0].push_back(Vector2d(758,421));
-
-	printf("Running regularizaion\n");
+//	printf("Running regularizaion\n");
 //    vector <Mat> regulared;
 //	float reg_t = (float)cv::getTickCount();
-//	dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
-//	regularizationPoisson(finalResult, segmentsDisplay, regulared, 2.0, 2.0);
+//	//dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
+//	regularizationPoisson(finalResult, segmentsDisplay, regulared, 0.1, 0.5);
 //	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
 //	CHECK_EQ(regulared.size(), finalResult.size());
-
+//
 //	vector<Mat> medianResult;
 //	utility::temporalMedianFilter(finalResult, medianResult, 2);
 //    utility::temporalMedianFilter(finalResult, regulared, 3);

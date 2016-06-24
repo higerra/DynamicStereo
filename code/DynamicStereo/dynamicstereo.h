@@ -29,7 +29,7 @@ namespace dynamic_stereo {
         DynamicStereo(const FileIO& file_io_, const int anchor_, const int tWindow_, const int stereo_stride_, const int downsample_, const double weight_smooth_,
                       const int dispResolution_ = 64, const double min_disp_ = -1, const double max_disp_ = -1);
 
-        void runStereo(const cv::Mat& inputMask, Depth& result, cv::Mat& mask, bool dryrun = false);
+        void runStereo(Depth& result, cv::Mat& mask, bool dryrun = false);
 
         inline int getAnchor()const{return anchor;}
         inline int gettWindow() const {return tWindow;}
