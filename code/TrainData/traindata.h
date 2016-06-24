@@ -22,6 +22,13 @@ namespace dynamic_stereo{
 		bool positive;
 	};
 
+	struct TrainingOption{
+		std::string path;
+		int patch_size;
+		std::vector<float> scale;
+		std::vector<float> ratio;
+	};
+
 	class TrainDataGUI{
 	public:
 
@@ -61,6 +68,8 @@ namespace dynamic_stereo{
 		std::vector<cv::Mat> posImage;
 		std::vector<cv::Mat> negImage;
 	};
+
+	void saveTrainingSet(const std::string& path);
 
 }//namespace dynamic_stereo
 

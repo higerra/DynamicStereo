@@ -42,5 +42,9 @@ namespace dynamic_stereo{
 	void TrainDataGUI::mouseFunc(int event, int x, int y, void *data) {
 	}
 
+	void saveTrainingSet(const std::string& filename){
+
+	}
+
 
 }//namespace dynamic_stereo
