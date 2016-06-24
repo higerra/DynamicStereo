@@ -9,52 +9,56 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
+#include <iostream>
 
 namespace dynamic_stereo{
 
-	struct TrainSample{
-		TrainSample(const std::string& filename_, const cv::Rect& roi_, const bool positive_):
-				filename(filename_), roi(roi_), positive(positive_){}
-		TrainSample(){}
-
+	struct TrainUnit{
 		std::string filename;
-		cv::Rect roi;
-		bool positive;
-	};
-
-	struct TrainingOption{
-		std::string path;
-		int patch_size;
-		std::vector<float> scale;
-		std::vector<float> ratio;
+		std::vector<cv::Rect> posSample;
+		std::vector<cv::Rect> negSample;
 	};
 
 	class TrainDataGUI{
 	public:
-
-		TrainDataGUI(const cv::Mat& image_, const int kNeg_ = 50,
-		             const std::string wname = "TrainingSample"):
-				image(image_), kNeg(kNeg_), drag(false), sample_pos(true), lastPoint(-1,-1), window_handler(wname){
-			eventLoop();
-		}
+		TrainDataGUI(const int kNeg_ = 50, const std::string wname = "TrainingSample");
 
 		~TrainDataGUI(){
 			cv::destroyWindow(window_handler);
 		}
 
-		void printHelp();
-		void eventLoop();
+		bool processImage(const cv::Mat& baseImg);
 
-		inline const std::vector<TrainSample>& getPosSample(){return posSample;}
-		inline const std::vector<TrainSample>& getNegSample(){return negSample;}
+		void printHelp();
+
+		inline void reset(){
+			posSample.clear();
+			negSample.clear();
+			posImage.clear();
+			negImage.clear();
+			drag = false;
+			sample_pos = true;
+			offsetNeg = 0;
+			offsetPos = 0;
+			image.release();
+		}
+
 		inline const std::vector<cv::Mat>& getPosImage(){return posImage;}
 		inline const std::vector<cv::Mat>& getNegImage(){return negImage;}
 	private:
-		void mouseFunc(int event, int x, int y, void* data);
 		void randomNegativeSample();
+		bool eventLoop();
+		void render();
 
-		const cv::Mat& image;
+		friend void mouseFunc(int event, int x, int y, int, void* data);
+
+		cv::Mat image;
+		cv::Mat paintImg;
+		cv::Rect paintRect;
+
 		const int kNeg;
+		int offsetPos;
+		int offsetNeg;
 
 		bool drag;
 		bool sample_pos;
@@ -63,12 +67,13 @@ namespace dynamic_stereo{
 
 		std::string window_handler;
 
-		std::vector<TrainSample> posSample;
-		std::vector<TrainSample> negSample;
+		std::vector<cv::Rect>posSample;
+		std::vector<cv::Rect> negSample;
 		std::vector<cv::Mat> posImage;
 		std::vector<cv::Mat> negImage;
 	};
 
+	void mouseFunc(int event, int x, int y, int, void* data);
 	void saveTrainingSet(const std::string& path);
 
 }//namespace dynamic_stereo

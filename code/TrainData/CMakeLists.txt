@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(TrainData)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/build)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/TrainData)
 
 set(SOURCE_FILE traindata_cli.cpp traindata.cpp)
 set(HEADER_FILE traindata.h)
