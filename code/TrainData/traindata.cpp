@@ -10,17 +10,26 @@ using namespace cv;
 namespace dynamic_stereo{
 
 	TrainDataGUI::TrainDataGUI(const int kNeg_, const std::string wname):
-			kNeg(kNeg_), drag(false), sample_pos(true), lastPoint(-1,-1), offsetPos(0), offsetNeg(0),
-			window_handler(wname), paintRect(0,0,-1,-1){
+			kNeg(kNeg_), sizeNeg(100), drag(false), sample_pos(true), lastPoint(-1,-1), offsetPos(0), offsetNeg(0),
+			window_handler(wname), paintRect(0,0,-1,-1), max_width(1280){
 	}
 
 	void TrainDataGUI::printHelp() {
 
 	}
 
-	bool TrainDataGUI::processImage(const cv::Mat &baseImg) {
+	bool TrainDataGUI::processImage(const cv::Mat &baseImg, std::vector<cv::Rect>& pos, std::vector<cv::Rect>& neg) {
+		reset();
 		image = baseImg.clone();
-		return eventLoop();
+		sizeNeg = image.cols / 20;
+		if(image.cols > max_width){
+			pyrDown(image, image);
+			downsample = 2.0;
+		}
+		bool ret = eventLoop();
+		posSample.swap(pos);
+		negSample.swap(neg);
+		return ret;
 	}
 
 	bool TrainDataGUI::eventLoop() {
@@ -59,10 +68,8 @@ namespace dynamic_stereo{
 				printf("Sample deleted\n");
 				if(sample_pos && (!posSample.empty())){
 					posSample.pop_back();
-					posImage.pop_back();
 				}else if(!negSample.empty()){
 					negSample.pop_back();
-					negImage.pop_back();
 				}
 			}
 			render();
@@ -72,7 +79,35 @@ namespace dynamic_stereo{
 	}
 
 	void TrainDataGUI::randomNegativeSample() {
+		unsigned int seed = (unsigned int)time(NULL);
+		cv::RNG rng(seed);
+		while((int)negSample.size() < kNeg){
+			Rect newRect;
+			while(true){
+				int x = rng.uniform(0, static_cast<int>(image.cols * downsample- sizeNeg));
+				int y = rng.uniform(0, static_cast<int>(image.rows * downsample - sizeNeg));
+				newRect = cv::Rect(cv::Point(x,y), cv::Size(sizeNeg, sizeNeg));
 
+				bool nointersect = true;
+				for(const auto& rec: negSample){
+					if(rectIntersect(newRect, rec)){
+						nointersect = false;
+						break;
+					}
+				}
+				if(!nointersect)
+					continue;
+				for(const auto& rec: posSample){
+					if(rectIntersect(newRect, rec)){
+						nointersect = false;
+						break;
+					}
+				}
+				if(nointersect)
+					break;
+			}
+			negSample.push_back(newRect);
+		}
 	}
 
 	void mouseFunc(int event, int x, int y, int, void *data) {
@@ -83,14 +118,12 @@ namespace dynamic_stereo{
 			gui->render();
 		}else if(event == cv::EVENT_LBUTTONUP){
 			if(gui->drag){
-				cv::Rect curRect(gui->lastPoint, cv::Point(x,y));
+				cv::Rect curRect(gui->lastPoint * gui->downsample, cv::Point(x,y) * gui->downsample);
 				if(gui->sample_pos) {
 					gui->posSample.push_back(curRect);
-					gui->posImage.push_back(gui->image(curRect).clone());
 				}
 				else {
 					gui->negSample.push_back(curRect);
-					gui->negImage.push_back(gui->image(curRect).clone());
 				}
 				gui->drag = false;
 			}
@@ -106,26 +139,42 @@ namespace dynamic_stereo{
 	void TrainDataGUI::render(){
 		paintImg = image.clone();
 		for(auto i=offsetPos; i<posSample.size(); ++i){
-			cv::rectangle(paintImg, posSample[i], Scalar(0,255,0));
+			cv::rectangle(paintImg, posSample[i] / downsample, Scalar(0,255,0));
 		}
 		for(auto i=offsetNeg; i<negSample.size(); ++i){
-			cv::rectangle(paintImg, negSample[i], Scalar(0,0,255));
+			cv::rectangle(paintImg, negSample[i] / downsample, Scalar(0,0,255));
 		}
 		if(drag && paintRect.width > 0 && paintRect.height > 0){
 			cv::rectangle(paintImg, paintRect, Scalar(255,255,0));
 		}
 		char buffer[64] = {};
-		sprintf(buffer, "num of pos: %d, num of neg: %d", (int)posImage.size(), (int)negImage.size());
-		cv::putText(paintImg, string(buffer), cv::Point(20,20), cv::FONT_HERSHEY_PLAIN, 1.0, Scalar(0,128,255));
+		sprintf(buffer, "num of pos: %d, num of neg: %d", (int)posSample.size(), (int)negSample.size());
+
+		cv::putText(paintImg, string(buffer), cv::Point(20,20), cv::FONT_HERSHEY_PLAIN, 1.0, Scalar(0, 255,0));
+		if(sample_pos)
+			cv::putText(paintImg, "Positive", cv::Point(20,35), cv::FONT_HERSHEY_PLAIN, 1.0, Scalar(0,255,0));
+		else
+			cv::putText(paintImg, "Negative", cv::Point(20,35), cv::FONT_HERSHEY_PLAIN, 1.0, Scalar(0,255,0));
 		imshow(window_handler, paintImg);
 	}
 
-	void saveTrainingSet(const std::string& path){
-		char buffer[128] = {};
-		string posPath = path + "/posImage/";
-		string negPath = path + "/negImage/";
-		string posConfPath = path + "/train_pos.txt";
-		string negConfPath = path + "/train_neg.txt";
+	void saveTrainingSet(const std::string& path, const std::vector<TrainFile>& samples){
+		CHECK(!samples.empty()) << "Empty sample set";
+		ofstream fout(path.c_str());
+		CHECK(fout.is_open());
+		fout << (int)samples.size() << endl;
+
+		for(const auto& sample: samples){
+			fout << sample.filename << endl;
+			fout << (int)sample.posSample.size() << endl;
+			for(const auto& pos: sample.posSample)
+				fout << pos.x << ' ' << pos.y << ' ' << pos.width << ' ' << pos.height << endl;
+			fout << (int)sample.negSample.size() << endl;
+			for(const auto& neg: sample.negSample)
+				fout << neg.x << ' ' << neg.y << ' ' << neg.width << ' ' << neg.height << endl;
+		}
+
+		fout.close();
 	}
 
 

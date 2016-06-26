@@ -45,3 +45,22 @@ TEST(Misc_OpenCV, VecCast){
     Vec3f y2(10,20,30);
     EXPECT_DOUBLE_EQ(cv::norm(y1-y2), 0.0);
 }
+
+TEST(Misc_OpenCV, RectIntersect) {
+	cv::Point pt1(100, 100);
+	cv::Point pt2(200, 200);
+	cv::Point pt3(300, 300);
+	cv::Point pt4(400, 400);
+
+	cv::Rect r1(pt1, pt3);
+	cv::Rect r2(pt2, pt4);
+	cv::Rect inter = r1 & r2;
+	EXPECT_EQ(inter.width, 100);
+	EXPECT_EQ(inter.height, 100);
+
+	cv::Rect r3(pt1, pt2);
+	cv::Rect r4(pt3, pt4);
+	inter = r3 & r4;
+	EXPECT_EQ(inter.width, 0);
+	EXPECT_EQ(inter.height, 0);
+}
