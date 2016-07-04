@@ -45,7 +45,7 @@ int main(int argc, char** argv){
 			vector<cv::Rect> curNeg;
 			bool ret = gui.processImage(thumb, curPos, curNeg);
 			TrainFile curFile;
-			curFile.filename = string(buffer);
+			curFile.filename = filename;
 			curFile.posSample.swap(curPos);
 			curFile.negSample.swap(curNeg);
 			samples.push_back(curFile);
@@ -73,8 +73,7 @@ int main(int argc, char** argv){
 			index++;
 		}
 	}
-	sprintf(buffer, "%s/train_hough.txt", argv[1]);
-	saveTrainingSet(string(buffer), samples);
+	saveTrainingSet(string(argv[1]), samples);
 
 	return 0;
 }

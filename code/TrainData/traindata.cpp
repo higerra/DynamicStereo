@@ -71,6 +71,7 @@ namespace dynamic_stereo{
 				}else if(!negSample.empty()){
 					negSample.pop_back();
 				}
+				drag = false;
 			}
 			render();
 		}
@@ -160,21 +161,18 @@ namespace dynamic_stereo{
 
 	void saveTrainingSet(const std::string& path, const std::vector<TrainFile>& samples){
 		CHECK(!samples.empty()) << "Empty sample set";
-		ofstream fout(path.c_str());
-		CHECK(fout.is_open());
-		fout << (int)samples.size() << endl;
-
+		char buffer[1024] = {};
 		for(const auto& sample: samples){
-			fout << sample.filename << endl;
-			fout << (int)sample.posSample.size() << endl;
+			sprintf(buffer, "%s/%s.sample.txt", path.c_str(), sample.filename.c_str());
+			ofstream fout(buffer);
+			CHECK(fout.is_open()) << buffer;
+			fout << sample.posSample.size() << ' ' << sample.negSample.size() << endl;
 			for(const auto& pos: sample.posSample)
 				fout << pos.x << ' ' << pos.y << ' ' << pos.width << ' ' << pos.height << endl;
-			fout << (int)sample.negSample.size() << endl;
 			for(const auto& neg: sample.negSample)
 				fout << neg.x << ' ' << neg.y << ' ' << neg.width << ' ' << neg.height << endl;
+			fout.close();
 		}
-
-		fout.close();
 	}
 
 

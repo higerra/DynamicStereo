@@ -38,7 +38,7 @@ namespace dynamic_stereo{
 
 	class TrainDataGUI{
 	public:
-		TrainDataGUI(const int kNeg_ = 50, const std::string wname = "TrainingSample");
+		TrainDataGUI(const int kNeg_ = 20, const std::string wname = "TrainingSample");
 
 		~TrainDataGUI(){
 			cv::destroyWindow(window_handler);
@@ -92,7 +92,6 @@ namespace dynamic_stereo{
 
 	void mouseFunc(int event, int x, int y, int, void* data);
 	void saveTrainingSet(const std::string& path, const std::vector<TrainFile>& trainSamples);
-
 }//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_TRAINDATA_H
