@@ -7,6 +7,6 @@ stereo_path = '/home/yanhang/Documents/research/DynamicStereo/code/build/Dynamic
 
 for data in datasets:
     for tf in testFrame:
-        command = '{} data/data_{} --testFrame={} --resolution=128'.format(stereo_path, data, tf)
+        command = '{} ../data/data_{} --testFrame={} --resolution=128'.format(stereo_path, data, tf)
         print command
         subprocess.check_call(command, shell=True)    

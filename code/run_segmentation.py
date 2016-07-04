@@ -7,10 +7,10 @@ video_segment_path = '/home/yanhang/Documents/research/external_code/video_segme
 
 for data in datasets:
     for tf in testFrame:
-        command = 'ffmpeg -i data/data_{}/midres/prewarp/prewarpb{}_%05d.jpg -vcodec h264 -qp 0 data/data_{}/midres/prewarp/prewarpb{}.mp4'.format(data, tf, data, tf)
+        command = 'ffmpeg -i ../data/data_{}/midres/prewarp/prewarpb{}_%05d.jpg -vcodec h264 -qp 0 data/data_{}/midres/prewarp/prewarpb{}.mp4'.format(data, tf, data, tf)
         print command
         subprocess.check_call(command, shell=True)
 
-        command = '{} data/data_{}/midres/prewarp/prewarpb{}.mp4 --write_to_file --render_and_save'.format(video_segment_path, data, tf)
+        command = '{} ../data/data_{}/midres/prewarp/prewarpb{}.mp4 --write_to_file --render_and_save'.format(video_segment_path, data, tf)
         print command
         subprocess.check_call(command, shell=True)
