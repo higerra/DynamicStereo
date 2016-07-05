@@ -1,6 +1,6 @@
 import subprocess
 
-datasets = ['casino2', 'casino3', 'casino4', 'casino5', 'casino6', 'casino7', 'casino8', 'statue1', 'vegas29', 'vegas32', 'vegas33']
+datasets = ['casino2', 'casino3', 'casino4', 'casino5', 'casino6', 'casino7', 'casino8', 'statue1', 'vegas32', 'vegas33']
 testFrame = ['00100', '00200']
 
 root_path = '~/Documents/research/DynamicStereo/data'
