@@ -14,6 +14,6 @@ for data in datasets:
 
 for data in datasets:
     for tf in testFrame:
-        command = '{} {}/data_{}/midres/prewarp/prewarpb{}.mp4 --write_to_file --render_and_save'.format(video_segment_path, root_path, data, tf)
+        command = '{} --input_file={}/data_{}/midres/prewarp/prewarpb{}.mp4 --write_to_file --render_and_save'.format(video_segment_path, root_path, data, tf)
         print command
         subprocess.check_call(command, shell=True)
