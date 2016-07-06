@@ -6,11 +6,11 @@ testFrame = ['00100', '00200']
 root_path = '~/Documents/research/DynamicStereo/data/dataset7.5_11'
 video_segment_path = '~/Documents/research/external_code/video_segment/seg_tree_sample/build/seg_tree_sample'
 
-for data in datasets:
-    for tf in testFrame:
-        command = 'ffmpeg -i {}/data_{}/midres/prewarp/prewarpb{}_%05d.jpg -vcodec h264 -qp 0 {}/data_{}/midres/prewarp/prewarpb{}.mp4'.format(root_path, data, tf, root_path, data, tf)
-        print command
-        subprocess.check_call(command, shell=True)
+# for data in datasets:
+#     for tf in testFrame:
+#         command = 'ffmpeg -i {}/data_{}/midres/prewarp/prewarpb{}_%05d.jpg -vcodec h264 -qp 0 {}/data_{}/midres/prewarp/prewarpb{}.mp4'.format(root_path, data, tf, root_path, data, tf)
+#         print command
+#         subprocess.check_call(command, shell=True)
 
 for data in datasets:
     for tf in testFrame:
