@@ -30,8 +30,6 @@ namespace dynamic_stereo {
 	                                const std::shared_ptr<Feature::FeatureConstructor> descriptor, const cv::Ptr<cv::ml::StatModel> classifier,
 	                                const int stride);
 
-	void importVideoSegmentation(const std::string& path, std::vector<cv::Mat>& video_segments);
-
 	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
 
 	void segmentDisplay(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, const cv::Mat& segnetMask,

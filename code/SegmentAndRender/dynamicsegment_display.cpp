@@ -134,7 +134,8 @@ namespace dynamic_stereo{
 		vector<Mat> videoSeg;
 		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d.mp4.pb", file_io.getDirectory().c_str(), anchor);
 		printf("Imporing video segmentation...\n");
-		importVideoSegmentation(string(buffer), videoSeg);
+		const float seg_level = 0.4f;
+		segmentation::readSegmentAsMat(string(buffer), videoSeg, seg_level);
 		CHECK_EQ(videoSeg.size(), input.size());
 
 		imshow("segnet mask", segnetMask);
@@ -414,35 +415,5 @@ namespace dynamic_stereo{
 		cv::connectedComponents(resultMask, result);
 		return result;
 	}
-	//video_segments:
-	void importVideoSegmentation(const std::string& path, std::vector<cv::Mat>& video_segments){
-		segmentation::SegmentationReader segment_reader(path);
-		const float level = 0.4;
-		CHECK(segment_reader.OpenFileAndReadHeaders());
-		vector<int> segment_headers = segment_reader.GetHeaderFlags();
-		segmentation::Hierarchy hierarchy;
-		const int kFrames = segment_reader.NumFrames();
 
-		printf("kFrame: %d\n", kFrames);
-		segmentation::Hierarchy hierachy;
-		int absLevel = -1;
-
-		for(auto f=0; f<kFrames; ++f){
-			segment_reader.SeekToFrame(f);
-			segmentation::SegmentationDesc cursegment;
-			segment_reader.ReadNextFrame(&cursegment);
-
-			if(cursegment.hierarchy_size() > 0){
-				hierarchy.Clear();
-				hierarchy.MergeFrom(cursegment.hierarchy());
-				absLevel = level * (float)hierarchy.size();
-			}
-			const int frame_width = cursegment.frame_width();
-			const int frame_height = cursegment.frame_height();
-			cv::Mat segId(frame_height, frame_width, CV_32S, Scalar::all(0));
-			segmentation::SegmentationDescToIdImage(absLevel, cursegment, &hierarchy, &segId);
-			video_segments.push_back(segId);
-		}
-
-	}
 }//namespace dynamic_stereo

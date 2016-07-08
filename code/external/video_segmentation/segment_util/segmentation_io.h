@@ -79,9 +79,14 @@ typedef __int64 int64_t;
 typedef __int32 int32_t;
 #endif
 
+
+namespace cv{
+	class Mat;
+}
+
 namespace segmentation {
 
-class SegmentationDesc;
+	class SegmentationDesc;
 
 // Usage (user supplied variables in caps).
 // SegmentationWriter writer(FILENAME);
@@ -96,44 +101,44 @@ class SegmentationDesc;
 // }
 //
 // writer.WriteTermHeaderAndClose();
-class SegmentationWriter {
-public:
-  SegmentationWriter(const std::string& filename) : filename_(filename) {
-  }
+	class SegmentationWriter {
+	public:
+		SegmentationWriter(const std::string& filename) : filename_(filename) {
+		}
 
-  // Returns false if file could not be opened. Pass list of optional header entries
-  // to be written in file_header.
-  bool OpenFile(const std::vector<int>& header_entries = std::vector<int>());
+		// Returns false if file could not be opened. Pass list of optional header entries
+		// to be written in file_header.
+		bool OpenFile(const std::vector<int>& header_entries = std::vector<int>());
 
-  // Buffers segmentation in chunk_buffer_.
-  void AddSegmentationToChunk(const SegmentationDesc& desc, int64_t pts = 0);
+		// Buffers segmentation in chunk_buffer_.
+		void AddSegmentationToChunk(const SegmentationDesc& desc, int64_t pts = 0);
 
-  // Same as above if data was already serialized (or in stripped binary format).
-  void AddSegmentationDataToChunk(const std::string& data, int64_t pts = 0);
+		// Same as above if data was already serialized (or in stripped binary format).
+		void AddSegmentationDataToChunk(const std::string& data, int64_t pts = 0);
 
-  // Call to write whole chunk to file.
-  void WriteChunk();
+		// Call to write whole chunk to file.
+		void WriteChunk();
 
-  // Finish file.
-  void WriteTermHeaderAndClose();
+		// Finish file.
+		void WriteTermHeaderAndClose();
 
-  // Reuse writer for another file.
-  void FlushAndReopen(const std::string& filename);
-private:
-  std::string filename_;
-  std::ofstream ofs_;
+		// Reuse writer for another file.
+		void FlushAndReopen(const std::string& filename);
+	private:
+		std::string filename_;
+		std::ofstream ofs_;
 
-  int num_chunks_ = 0;
-  std::vector<std::string> chunk_buffer_;
+		int num_chunks_ = 0;
+		std::vector<std::string> chunk_buffer_;
 
-  int64_t curr_offset_ = 0;
-  std::vector<int64_t> file_offsets_;
-  std::vector<int64_t> time_stamps_;
+		int64_t curr_offset_ = 0;
+		std::vector<int64_t> file_offsets_;
+		std::vector<int64_t> time_stamps_;
 
-  std::vector<int> header_entries_;
+		std::vector<int> header_entries_;
 
-  int total_frames_ = 0;
-};
+		int total_frames_ = 0;
+	};
 
 // Usage (user supplied variables in caps):
 // SegmentationReader reader(FILE_NAME);
@@ -150,51 +155,51 @@ private:
 //   // Process segmentation...
 // }
 
-class SegmentationReader {
-public:
-  // Creates new reader from filename. By default, if only vectorization
-  // is saved to file, creates valid rasterization from vectorization.
-  SegmentationReader(const std::string& filename,
-                     bool valid_rasterization = true) : filename_(filename) {
-  }
+	class SegmentationReader {
+	public:
+		// Creates new reader from filename. By default, if only vectorization
+		// is saved to file, creates valid rasterization from vectorization.
+		SegmentationReader(const std::string& filename,
+		                   bool valid_rasterization = true) : filename_(filename) {
+		}
 
-  ~SegmentationReader() {
-    CloseFile();
-  }
+		~SegmentationReader() {
+			CloseFile();
+		}
 
-  bool OpenFileAndReadHeaders();
+		bool OpenFileAndReadHeaders();
 
-  // Reads and parses first frame, returns resolution, seeks back to current playhead.
-  void SegmentationResolution(int* width, int* height);
+		// Reads and parses first frame, returns resolution, seeks back to current playhead.
+		void SegmentationResolution(int* width, int* height);
 
-  // Reads next frame from file. Returns true on success.
-  bool ReadNextFrame(SegmentationDesc* desc);
-  
-  // Reads binary blob from file. Do not use directly to read SegmentationDesc, but
-  // use ReadNextFrame instead.
-  bool ReadNextFrameBinary(std::string* data);
+		// Reads next frame from file. Returns true on success.
+		bool ReadNextFrame(SegmentationDesc* desc);
 
-  const std::vector<int32_t>& GetHeaderFlags() const { return header_flags_; }
+		// Reads binary blob from file. Do not use directly to read SegmentationDesc, but
+		// use ReadNextFrame instead.
+		bool ReadNextFrameBinary(std::string* data);
 
-  const std::vector<int64_t>& TimeStamps() const { return time_stamps_; }
-  void SeekToFrame(int frame);
+		const std::vector<int32_t>& GetHeaderFlags() const { return header_flags_; }
 
-  int NumFrames() const { return file_offsets_.size(); }
-  int RemainingFrames() const { return NumFrames() - curr_frame_; }
+		const std::vector<int64_t>& TimeStamps() const { return time_stamps_; }
+		void SeekToFrame(int frame);
 
-  void CloseFile() { ifs_.close(); }
-private:
-  std::vector<int64_t> file_offsets_;
-  std::vector<int64_t> time_stamps_;
-  std::vector<int32_t> header_flags_;
+		int NumFrames() const { return file_offsets_.size(); }
+		int RemainingFrames() const { return NumFrames() - curr_frame_; }
 
-  int frame_sz_= 0;
-  int curr_frame_ = 0;
-  bool valid_rasterization_ = true;
+		void CloseFile() { ifs_.close(); }
+	private:
+		std::vector<int64_t> file_offsets_;
+		std::vector<int64_t> time_stamps_;
+		std::vector<int32_t> header_flags_;
 
-  std::string filename_;
-  std::ifstream ifs_;
-};
+		int frame_sz_= 0;
+		int curr_frame_ = 0;
+		bool valid_rasterization_ = true;
+
+		std::string filename_;
+		std::ifstream ifs_;
+	};
 
 // Utility functions.
 
@@ -204,11 +209,12 @@ private:
 // If save_vectorization is set to true, vectorization  is saved instead rasterization
 // (indicated via flag).
 // If save_shape_moments is set to true, corresponding flag needs to be set in header!
-void StripToEssentials(const SegmentationDesc& desc,
-                       bool save_vectorization,
-                       bool save_shape_moments,
-                       std::string* binary_rep);
+	void StripToEssentials(const SegmentationDesc& desc,
+	                       bool save_vectorization,
+	                       bool save_shape_moments,
+	                       std::string* binary_rep);
 
+	void readSegmentAsMat(const std::string& path, std::vector<cv::Mat>& segments, const float level);
 }  // namespace segmentation.
 
 #endif  // VIDEO_SEGMENT_SEGMENT_UTIL_SEGMENTATION_IO_H__
