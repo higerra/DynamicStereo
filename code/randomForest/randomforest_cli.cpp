@@ -71,8 +71,10 @@ void run_train(const string& path){
 		vector<Mat> segments;
 		sprintf(buffer, "%s/segmentation/%s.pb", dir.c_str(), filename.c_str());
 		segmentation::readSegmentAsMat(string(buffer), segments, FLAGS_segLevel);
+		printf("Removing empty segments...\n");
+		compressSegments(segments);
 
-		Mat gtMask = imread(dir+gtname);
+		Mat gtMask = imread(dir+gtname, false);
 		CHECK(gtMask.data) << "Can not open ground truth: " << dir + gtname;
 
 

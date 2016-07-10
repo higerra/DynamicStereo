@@ -34,11 +34,17 @@ namespace dynamic_stereo {
 	                    std::vector<std::vector<std::vector<int> > > &pixelGroup,
 	                    std::vector<std::vector<int> > &regionSpan);
 
+	void assignSegmentLabel(const std::vector<std::vector<std::vector<int> > >& pixelGroup, const cv::Mat& mask,
+	                        std::vector<int>& label);
+
 	void extractFeature(const std::vector<cv::Mat> &images, const std::vector<cv::Mat> &segments, const cv::Mat &mask,
 	                    const FeatureOption &option, TrainSet &trainSet);
 
 	void visualizeSegmentGroup(const std::vector<cv::Mat> &images, const std::vector<std::vector<int> > &pixelGroup,
 	                           const std::vector<int> &regionSpan);
+
+	void visualizeSegmentLabel(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& segments,
+	                           const std::vector<int>& label);
 
 }//namespace dynamic_stereo
 #endif //DYNAMICSTEREO_RANDOMFOREST_H

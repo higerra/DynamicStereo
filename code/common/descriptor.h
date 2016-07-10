@@ -50,7 +50,7 @@ namespace dynamic_stereo {
         };
 
         struct ColorSpace{
-            enum ColorType{RGB, LUV};
+            enum ColorType{RGB, LUV, LAB};
             ColorSpace(const int channel_, const std::vector<float>& offsets_,
                        const std::vector<float>& range_):
                     channel(channel_), offset(offsets_), range(range_){
@@ -68,6 +68,11 @@ namespace dynamic_stereo {
                     offset.resize(3); range.resize(3);
                     offset[0] = 0; offset[1] = -134; offset[2] = -140;
                     range[0] = 101; range[1]=355; range[2]=263;
+                }else if(preset == LAB){
+	                channel = 3;
+	                offset.resize(3); range.resize(3);
+	                offset[0] = 0; offset[1] = -127; offset[2] = -127;
+	                range[0] = 101; range[1] = 255; range[2] = 255;
                 }
             }
             int channel;
