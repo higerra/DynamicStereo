@@ -11,40 +11,15 @@
 #include <iostream>
 #include <glog/logging.h>
 #include <opencv2/opencv.hpp>
-
+#include "../common/regiondescriptor.h"
 
 namespace dynamic_stereo {
+	cv::Ptr<cv::ml::TrainData> convertTrainData(const Feature::TrainSet& trainset);
 
-	struct SegmentFeature {
-		std::vector<float> feature;
-		int id;
-	};
+	void saveTrainData(const std::string& path, const Feature::TrainSet& trainset);
 
-	struct FeatureOption {
+	void splitTrainSet(const Feature::TrainSet& trainset, Feature::TrainSet& set1, Feature::TrainSet& set2);
 
-	};
-
-	using TrainSet = std::vector<std::vector<SegmentFeature> >;
-
-	//remove empty labels in video segments
-	void compressSegments(std::vector<cv::Mat>& segments);
-
-	//re-format video segments:
-	int regroupSegments(const std::vector<cv::Mat> &segments,
-	                    std::vector<std::vector<std::vector<int> > > &pixelGroup,
-	                    std::vector<std::vector<int> > &regionSpan);
-
-	void assignSegmentLabel(const std::vector<std::vector<std::vector<int> > >& pixelGroup, const cv::Mat& mask,
-	                        std::vector<int>& label);
-
-	void extractFeature(const std::vector<cv::Mat> &images, const std::vector<cv::Mat> &segments, const cv::Mat &mask,
-	                    const FeatureOption &option, TrainSet &trainSet);
-
-	void visualizeSegmentGroup(const std::vector<cv::Mat> &images, const std::vector<std::vector<int> > &pixelGroup,
-	                           const std::vector<int> &regionSpan);
-
-	void visualizeSegmentLabel(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& segments,
-	                           const std::vector<int>& label);
-
+	void balanceTrainSet(Feature::TrainSet& trainset, Feature::TrainSet& unused, const double max_ratio);
 }//namespace dynamic_stereo
 #endif //DYNAMICSTEREO_RANDOMFOREST_H

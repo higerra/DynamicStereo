@@ -103,7 +103,8 @@ namespace imgproc_util{
 
 namespace math_util {
 	inline double variance(const std::vector<double> &a, const double mean) {
-		CHECK_GT(a.size(),1);
+		if(a.size() == 1)
+			return 0.0;
 		const double n = (double) a.size();
 		std::vector<double> diff(a.size());
 		std::transform(a.begin(), a.end(), diff.begin(), std::bind2nd(std::minus<double>(), mean));
