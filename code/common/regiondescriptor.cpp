@@ -36,25 +36,32 @@ namespace dynamic_stereo{
 			const int kSeg = regroupSegments(segments, pixelGroup, regionSpan);
 			const float pi = 3.1415926f;
 
-//		const int tSeg = 230;
-//		visualizeSegmentGroup(images, pixelGroup[tSeg], regionSpan[tSeg]);
+//			for(auto tSeg=0; tSeg<kSeg; ++tSeg)
+//				visualizeSegmentGroup(images, pixelGroup[tSeg], regionSpan[tSeg]);
 
 			printf("Assigning label...\n");
 			vector<int> segmentLabel;
-			assignSegmentLabel(pixelGroup, mask, segmentLabel);
+			if(mask.data) {
+				CHECK_EQ(mask.size(), images[0].size());
+				assignSegmentLabel(pixelGroup, mask, segmentLabel);
+			}else{
+				segmentLabel.resize(pixelGroup.size(), 0);
+			}
+
 //		visualizeSegmentLabel(images, segments, segmentLabel);
 
 			//samples are based on segments. Color changes are sample from region
-			printf("Extracting feature...\n");
+
 			const vector<int> kBin{6,6,6};
 			const int kBinHoG = 9;
 			const int diffBin = std::accumulate(kBin.begin(), kBin.end(), 0);
 			const int kChannel = 6+ kBinHoG + diffBin + 4+ 1;
 
 			vector<Mat> colorImage(images.size());
-
 			//two channels: magnitude and orientation
 			vector<Mat> gradient(images.size());
+
+			printf("Computing gradient...\n");
 			for (auto i = 0; i < images.size(); ++i) {
 				Mat tmp;
 				images[i].convertTo(tmp, CV_32F);
@@ -93,6 +100,7 @@ namespace dynamic_stereo{
 
 			const int unitCount = (int)pixelGroup.size() / 10;
 
+			printf("Extracting feature...\n");
 			for(const auto& pg: pixelGroup){
 				if(sid % unitCount == (unitCount - 1))
 					cout << '.' << flush;
@@ -217,7 +225,7 @@ namespace dynamic_stereo{
 			cout << endl;
 		}
 
-		void compressSegments(std::vector<cv::Mat>& segments){
+		int compressSegments(std::vector<cv::Mat>& segments){
 			int kSeg = 0;
 			for(const auto& seg: segments){
 				double minid, maxid;
@@ -242,12 +250,17 @@ namespace dynamic_stereo{
 				compressedId[i] += compressedId[i-1];
 			}
 
+			//reassign segment id, update kSeg
+			kSeg = 0;
 			for(auto& seg: segments){
 				int* pSeg = (int*) seg.data;
 				for(int i=0; i<seg.cols * seg.rows; ++i){
 					pSeg[i] = compressedId[pSeg[i]] - 1;
+					kSeg = std::max(kSeg, pSeg[i]);
 				}
 			}
+
+			return kSeg;
 		}
 
 		int regroupSegments(const std::vector<cv::Mat> &segments,
@@ -276,34 +289,41 @@ namespace dynamic_stereo{
 			for(auto& pg: pixelGroup)
 				pg.resize(segments.size());
 
-			vector<Mat> voting((size_t)kSeg);
-			for(auto& vot: voting)
-				vot = Mat(segments[0].size(), CV_32FC1, Scalar::all(0));
-
-			for(int v=0; v<segments.size(); ++v){
-				const int* pSeg = (int*)segments[v].data;
+			//compute temporal range of a segment, for acceleration
+			vector<pair<int, int> > range((size_t)kSeg, std::pair<int,int>((int)segments.size(), -1));
+			for(auto v=0; v<segments.size(); ++v){
+				const int *pSeg = (int *) segments[v].data;
 				for(auto i=0; i<width * height; ++i){
-					const int& label = pSeg[i];
-					pixelGroup[label][v].push_back(i);
-					voting[label].at<float>(i/width, i%width) += 1.0f;
+					const int& sid = pSeg[i];
+					range[sid].first = std::min(range[sid].first, v);
+					range[sid].second = std::max(range[sid].second, v);
+				}
+			}
+
+			for(auto v=0; v<segments.size(); ++v){
+				const int* pSeg = (int*) segments[v].data;
+				for(auto i=0; i<width * height; ++i){
+					pixelGroup[pSeg[i]][v].push_back(i);
 				}
 			}
 
 			const float thres = 0.3;
-			for(int sid=0; sid<kSeg; ++sid){
-				float kFrame = 0.0f;
-				for(auto v=0; v<segments.size(); ++v){
-					if(!pixelGroup[sid][v].empty())
-						kFrame += 1.0f;
+			Mat vote(height, width, CV_32FC1, Scalar::all(0.0f));
+			float* pVote = (float*)vote.data;
+			for(auto sid=0; sid<kSeg; ++sid) {
+				const float kFrame = static_cast<float>(range[sid].second - range[sid].first + 1);
+				vote.setTo(Scalar::all(0.0));
+				for (int v = range[sid].first; v <= range[sid].second; ++v) {
+					for (auto i: pixelGroup[sid][v]){
+						pVote[i] += 1.0f;
+					}
 				}
 				CHECK_GT(kFrame, 0.0f) << sid;
-				const float* pVote = (float*) voting[sid].data;
 				for(auto i=0; i<width * height; ++i){
 					if(pVote[i] / kFrame > thres)
 						regionSpan[sid].push_back(i);
 				}
 			}
-
 			return kSeg;
 		}
 

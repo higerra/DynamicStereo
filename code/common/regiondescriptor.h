@@ -21,7 +21,7 @@ namespace dynamic_stereo {
 		using TrainSet = std::vector<std::vector<SegmentFeature> >;
 
 		//remove empty labels in video segments
-		void compressSegments(std::vector<cv::Mat>& segments);
+		int compressSegments(std::vector<cv::Mat>& segments);
 
 		//re-format video segments:
 		int regroupSegments(const std::vector<cv::Mat> &segments,
