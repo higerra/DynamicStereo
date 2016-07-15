@@ -15,6 +15,7 @@ path = dirname(args.input)
 print path
 
 for sample in samples:
-    command = "{} --input_file={}/{} --write_to_file --render_and_save".format(seg_binary_dir, path, sample.strip('\n'))
+    name = sample.split()[0]
+    command = "{} --input_file={}/{} --write_to_file --render_and_save".format(seg_binary_dir, path, name)
     print command
     subprocess.call(command, shell=True)

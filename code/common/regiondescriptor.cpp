@@ -20,7 +20,9 @@ namespace dynamic_stereo{
 		//18 channels for histogram of color changes in L*a*b.
 		//4 channels for shape: mean of variance of area, convexity (area / area of convex hall)
 		//1 channel for length of segment
-		void extractFeature(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& segments, const cv::Mat& mask,
+		//4 channels for the centroid position (mean, variance)
+		void extractFeature(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& gradient,
+							const std::vector<cv::Mat>& segments, const cv::Mat& mask,
 		                    const FeatureOption& option, TrainSet& trainSet){
 			CHECK(!images.empty());
 			CHECK(!segments.empty());
@@ -34,7 +36,6 @@ namespace dynamic_stereo{
 			vector<vector<int> > regionSpan;
 			printf("Regrouping...\n");
 			const int kSeg = regroupSegments(segments, pixelGroup, regionSpan);
-			const float pi = 3.1415926f;
 
 //			for(auto tSeg=0; tSeg<kSeg; ++tSeg)
 //				visualizeSegmentGroup(images, pixelGroup[tSeg], regionSpan[tSeg]);
@@ -48,55 +49,24 @@ namespace dynamic_stereo{
 				segmentLabel.resize(pixelGroup.size(), 0);
 			}
 
+			vector<Mat> colorImage(images.size());
+			for(auto i=0; i<images.size(); ++i){
+				Mat tmp = images[i] / 255.0;
+				cvtColor(tmp, colorImage[i], CV_BGR2Lab);
+			}
+
 //		visualizeSegmentLabel(images, segments, segmentLabel);
 
 			//samples are based on segments. Color changes are sample from region
 
-			const vector<int> kBin{6,6,6};
+			const vector<int> kBin{8,8,8};
 			const int kBinHoG = 9;
 			const int diffBin = std::accumulate(kBin.begin(), kBin.end(), 0);
-			const int kChannel = 6+ kBinHoG + diffBin + 4+ 1;
+			const int kChannel = 6+ kBinHoG + diffBin + 4+ 1+ 4;
 
-			vector<Mat> colorImage(images.size());
-			//two channels: magnitude and orientation
-			vector<Mat> gradient(images.size());
-
-			printf("Computing gradient...\n");
-			for (auto i = 0; i < images.size(); ++i) {
-				Mat tmp;
-				images[i].convertTo(tmp, CV_32F);
-				Mat gx, gy, gray;
-				cvtColor(images[i], gray, CV_BGR2GRAY);
-				cv::Sobel(gray, gx, CV_32F, 1, 0);
-				cv::Sobel(gray, gy, CV_32F, 0, 1);
-				gradient[i].create(images[i].size(), CV_32FC2);
-				for(auto y=0; y<gx.rows; ++y){
-					for(auto x=0; x<gx.cols; ++x){
-						float ix = gx.at<float>(y,x);
-						float iy = gy.at<float>(y,x);
-						Vec2f pix;
-						pix[0] = std::sqrt(ix*ix+iy*iy);
-						float tx = ix + std::copysign(0.000001f, ix);
-						//normalize atan value to [0,80PI]
-						pix[1] = (atan(iy / tx) +  pi / 2.0f) * 80;
-
-						gradient[i].at<Vec2f>(y,x) = pix;
-					}
-				}
-
-				tmp = tmp / 255.0;
-				cvtColor(tmp, colorImage[i], CV_BGR2Lab);
-			}
-
-			const int width = colorImage[0].cols;
-			const int height = colorImage[0].rows;
-
+			const int width = images[0].cols;
+			const int height = images[0].rows;
 			int sid = 0;
-			const int HoGOffset = 6;
-			const int diffHistOffset = HoGOffset + kBinHoG;
-			const int shapeOffset = diffHistOffset + diffBin;
-			const int lengthOffset = shapeOffset + 4;
-			const ColorSpace cspace(ColorSpace::LAB);
 
 			const int unitCount = (int)pixelGroup.size() / 10;
 
@@ -104,120 +74,34 @@ namespace dynamic_stereo{
 			for(const auto& pg: pixelGroup){
 				if(sid % unitCount == (unitCount - 1))
 					cout << '.' << flush;
-
 				SegmentFeature curSample;
 				curSample.id = sid;
-				curSample.feature.resize((size_t)kChannel, 0.0f);
+				curSample.feature.clear();
+
 				//mean and variance in L*a*b
-				vector<vector<double> > labcolor(3);
-				for(auto v=0; v<pg.size(); ++v){
-					for(auto pid: pg[v]){
-						Vec3f pix = colorImage[v].at<Vec3f>(pid/width, pid%width);
-						labcolor[0].push_back((double)pix[0]);
-						labcolor[1].push_back((double)pix[1]);
-						labcolor[2].push_back((double)pix[2]);
-					}
-				}
-
-				CHECK(!labcolor[0].empty());
-				for(auto i=0; i<3; ++i){
-					double mean = std::accumulate(labcolor[i].begin(), labcolor[i].end(), 0.0);
-					mean = mean / (double)labcolor[i].size();
-					double var = math_util::variance(labcolor[i], mean);
-					curSample.feature[i] = (float)mean;
-					curSample.feature[3+i] = (float)var;
-				}
-
-				labcolor.clear();
+				vector<float> desc_color;
+				computeColor(colorImage, pg, desc_color);
+				curSample.feature.insert(curSample.feature.end(), desc_color.begin(), desc_color.end());
 
 				//HoG feature
 				vector<float> hog;
 				computeHoG(gradient, pg, hog, kBinHoG);
-				for(auto i=HoGOffset; i<HoGOffset + kBinHoG; ++i)
-					curSample.feature[i] = hog[i-HoGOffset];
+				curSample.feature.insert(curSample.feature.end(), hog.begin(), hog.end());
 
 				//histogram of color changes. Different channels are computed independently
-				const int stride = (int)colorImage.size() / 2;
-				vector<float> binUnit(3, 0.0);
-				for (auto i = 0; i < cspace.channel; ++i)
-					binUnit[i] = 2 * cspace.range[i] / (float) kBin[i];
-
-				vector<vector<float> > diffHist((size_t)cspace.channel);
-				for(auto i=0; i<diffHist.size(); ++i){
-					diffHist[i].resize((size_t)kBin[i], 0.0f);
-				}
-
-				for (auto pid: regionSpan[sid]) {
-					for (auto v = 0; v < colorImage.size() - stride; ++v) {
-						const int x = pid % width;
-						const int y = pid / width;
-						Vec3f diff = colorImage[v + stride].at<Vec3f>(y, x) - colorImage[v].at<Vec3f>(y, x);
-						for (auto i = 0; i < cspace.channel; ++i) {
-							int binId = std::floor((diff[i] + cspace.range[i]) / binUnit[i]);
-							CHECK_GE(binId, 0) << x << ' ' << y << ' ' << v << ' ' << diff[i];
-							CHECK_LT(binId, kBin[i]) << x << ' ' << y << ' ' << v << ' ' << diff[i];
-							diffHist[i][binId] += 1.0;
-						}
-					}
-				}
-				const float cut_value = 0.1;
-				int diffId = diffHistOffset;
-				for(auto& hist: diffHist) {
-					normalizel2(hist);
-					for (auto &v: hist) {
-						if (v < cut_value)
-							v = 0.0;
-					}
-					normalizel2(hist);
-					for (auto v: hist)
-						curSample.feature[diffId++] = v;
-				}
-
+				vector<float> desc_change;
+				computeColorChange(colorImage, regionSpan[sid], kBin, desc_change);
+				curSample.feature.insert(curSample.feature.end(), desc_change.begin(), desc_change.end());
 
 				//shape
-				//notice that area is multiplied by 10 to avoid precision issue
-				const double area_ratio = 10.0;
-				vector<double> area(colorImage.size()), convexity(colorImage.size());
+				vector<float> desc_shape;
+				computeShapeAndLength(pg, width, height, desc_shape);
+				curSample.feature.insert(curSample.feature.end(), desc_shape.begin(), desc_shape.end());
 
-				double length = 0.0;
-				for(auto v=0; v<pg.size(); ++v){
-					//total area
-					if(pg[v].empty())
-						continue;
-
-					area[v] = (double)pg[v].size() * area_ratio / (double)(width * height);
-
-					//convexity
-					vector<cv::Point> locs(pg[v].size());
-					for(auto i=0; i<pg[v].size(); ++i) {
-						locs[i].x = pg[v][i] % width;
-						locs[i].y = pg[v][i] / width;
-					}
-					vector<cv::Point> chull;
-					cv::convexHull(locs, chull);
-					double area_hull = cv::contourArea(chull);
-					if(area_hull >= 1)
-						convexity[v] = (double)pg[v].size() / area_hull;
-					else
-						convexity[v] = 0.0;
-					length += 1.0;
-				}
-				CHECK_GT(length, 0.0);
-				double mean_area = std::accumulate(area.begin(), area.end(), 0.0) / length;
-				double mean_convexity = std::accumulate(convexity.begin(), convexity.end(), 0.0) / length;
-				double var_area = 0.0, var_convexity = 0.0;
-				if(length > 2.0) {
-					var_area = math_util::variance(area, mean_area);
-					var_convexity = math_util::variance(convexity, mean_convexity);
-				}
-
-				curSample.feature[shapeOffset] = (float)mean_area;
-				curSample.feature[shapeOffset+1] = (float)mean_convexity;
-				curSample.feature[shapeOffset+2] = (float)var_area;
-				curSample.feature[shapeOffset+3] = (float)var_convexity;
-
-				//length
-				curSample.feature[lengthOffset] = (float)length;
+				//position
+				vector<float> desc_position;
+				computePosition(pg, width, height, desc_position);
+				curSample.feature.insert(curSample.feature.end(), desc_position.begin(), desc_position.end());
 
 				trainSet[segmentLabel[sid]].push_back(curSample);
 				sid++;
@@ -352,6 +236,146 @@ namespace dynamic_stereo{
 			}
 		}
 
+		void computeColor(const std::vector<cv::Mat>& colorImage, const std::vector<std::vector<int> >& pg,
+						  std::vector<float>& desc){
+			desc.resize(6, 0.0f);
+			const int width = colorImage[0].cols;
+			vector<vector<double> > labcolor(3);
+			for(auto v=0; v<pg.size(); ++v){
+				for(auto pid: pg[v]){
+					Vec3f pix = colorImage[v].at<Vec3f>(pid/width, pid%width);
+					labcolor[0].push_back((double)pix[0]);
+					labcolor[1].push_back((double)pix[1]);
+					labcolor[2].push_back((double)pix[2]);
+				}
+			}
+
+			CHECK(!labcolor[0].empty());
+			for(auto i=0; i<3; ++i){
+				double mean = std::accumulate(labcolor[i].begin(), labcolor[i].end(), 0.0);
+				mean = mean / (double)labcolor[i].size();
+				double var = math_util::variance(labcolor[i], mean);
+				desc[i] = (float)mean;
+				desc[3+i] = (float)var;
+			}
+		}
+
+		void computeColorChange(const std::vector<cv::Mat>& colorImage, const std::vector<int>& region,
+								const std::vector<int>& kBin, std::vector<float>& desc){
+            //histogram of color changes. Different channels are computed independently
+			const ColorSpace cspace(ColorSpace::LAB);
+			CHECK_LE(kBin.size(), cspace.channel);
+
+			const int totalBin = std::accumulate(desc.begin(), desc.end(), 0);
+			desc.resize((size_t)totalBin, 0.0f);
+
+			const int width = colorImage[0].cols;
+			const int stride = (int)colorImage.size() / 2;
+			vector<float> binUnit(kBin.size(), 0.0);
+			for (auto i = 0; i < kBin.size(); ++i)
+				binUnit[i] = 2 * cspace.range[i] / (float) kBin[i];
+
+			vector<vector<float> > diffHist(kBin.size());
+			for(auto i=0; i<diffHist.size(); ++i){
+				diffHist[i].resize((size_t)kBin[i], 0.0f);
+			}
+
+			for (auto pid: region) {
+				for (auto v = 0; v < colorImage.size() - stride; ++v) {
+					const int x = pid % width;
+					const int y = pid / width;
+					Vec3f diff = colorImage[v + stride].at<Vec3f>(y, x) - colorImage[v].at<Vec3f>(y, x);
+					for (auto i = 0; i < kBin.size(); ++i) {
+						int binId = std::floor((diff[i] + cspace.range[i]) / binUnit[i]);
+						CHECK_GE(binId, 0) << x << ' ' << y << ' ' << v << ' ' << diff[i];
+						CHECK_LT(binId, kBin[i]) << x << ' ' << y << ' ' << v << ' ' << diff[i];
+						diffHist[i][binId] += 1.0;
+					}
+				}
+			}
+			const float cut_value = 0.1;
+			for(auto& hist: diffHist) {
+				normalizel2(hist);
+				for (auto &v: hist) {
+					if (v < cut_value)
+						v = 0.0;
+				}
+				normalizel2(hist);
+				desc.insert(desc.end(), hist.begin(), hist.end());
+			}
+		}
+
+		void computeShapeAndLength(const std::vector<std::vector<int> >& pg, const int width, const int height, std::vector<float>& desc){
+			desc.resize(5, 0.0f);
+			double length = 0.0;
+			const double area_ratio = 10.0;
+			vector<double> area(pg.size()), convexity(pg.size());
+			const int kPix = width * height;
+			for(auto v=0; v<pg.size(); ++v){
+				//total area
+				if(pg[v].empty())
+					continue;
+				area[v] = (double)pg[v].size() * area_ratio / (double)kPix;
+
+				//convexity
+				vector<cv::Point> locs(pg[v].size());
+				for(auto i=0; i<pg[v].size(); ++i) {
+					locs[i].x = pg[v][i] % width;
+					locs[i].y = pg[v][i] / width;
+				}
+				vector<cv::Point> chull;
+				cv::convexHull(locs, chull);
+				double area_hull = cv::contourArea(chull);
+				if(area_hull >= 1)
+					convexity[v] = (double)pg[v].size() / area_hull;
+				else
+					convexity[v] = 0.0;
+				length += 1.0;
+			}
+			CHECK_GT(length, 0.0);
+			double mean_area = std::accumulate(area.begin(), area.end(), 0.0) / length;
+			double mean_convexity = std::accumulate(convexity.begin(), convexity.end(), 0.0) / length;
+			double var_area = 0.0, var_convexity = 0.0;
+			if(length > 2.0) {
+				var_area = math_util::variance(area, mean_area);
+				var_convexity = math_util::variance(convexity, mean_convexity);
+			}
+
+			desc[0] = (float)mean_area;
+			desc[1] = (float)mean_convexity;
+			desc[2] = (float)var_area;
+			desc[3] = (float)var_convexity;
+
+			//length
+			desc[4] = (float)length;
+		}
+
+		void computePosition(const std::vector<std::vector<int> >& pg, const int width, const int height, std::vector<float>& desc){
+			desc.resize(4, 0.0f);
+			vector<vector<double> > centroid(2);
+			for(auto v=0; v<pg.size(); ++v){
+				if(pg[v].empty())
+					continue;
+				double avex = 0.0, avey = 0.0;
+				for(auto pid: pg[v]){
+					avex += (double)(pid % width) / (double)width;
+					avey += (double)(pid / width) / (double)height;
+				}
+				centroid[0].push_back(avex / (double)pg[v].size());
+				centroid[1].push_back(avey / (double)pg[v].size());
+			}
+			CHECK_GT(centroid[0].size(), 0);
+			desc[0] = (float)std::accumulate(centroid[0].begin(), centroid[0].end(), 0.0) / (float)centroid[0].size();
+			desc[1] = (float)std::accumulate(centroid[1].begin(), centroid[1].end(), 0.0) / (float)centroid[1].size();
+			if(centroid[0].size() == 0){
+				desc[2] = 0.0f;
+				desc[3] = 0.0f;
+			}else {
+				desc[2] = (float) math_util::variance(centroid[0], desc[0]);
+				desc[3] = (float) math_util::variance(centroid[1], desc[1]);
+			}
+		}
+
 		void computeHoG(const std::vector<cv::Mat>& gradient, const std::vector<std::vector<int> >& pixelIds,
 		                std::vector<float>& hog, const int kBin){
 			CHECK(!gradient.empty());
@@ -384,6 +408,27 @@ namespace dynamic_stereo{
 					v = 0.0;
 			}
 			normalizel2(hog);
+		}
+
+		void computeGradient(const cv::Mat& image, cv::Mat& gradient){
+			const float pi = 3.1415926f;
+			Mat gx, gy, gray;
+			cvtColor(image, gray, CV_BGR2GRAY);
+			cv::Sobel(gray, gx, CV_32F, 1, 0);
+			cv::Sobel(gray, gy, CV_32F, 0, 1);
+			gradient.create(image.size(), CV_32FC2);
+			for(auto y=0; y<gx.rows; ++y){
+				for(auto x=0; x<gx.cols; ++x){
+					float ix = gx.at<float>(y,x);
+					float iy = gy.at<float>(y,x);
+					Vec2f pix;
+					pix[0] = std::sqrt(ix*ix+iy*iy);
+					float tx = ix + std::copysign(0.000001f, ix);
+					//normalize atan value to [0,80PI]
+					pix[1] = (atan(iy / tx) +  pi / 2.0f) * 80;
+					gradient.at<Vec2f>(y,x) = pix;
+				}
+			}
 		}
 
 		void visualizeSegmentGroup(const std::vector<cv::Mat> &images, const std::vector<std::vector<int> > &pixelGroup,

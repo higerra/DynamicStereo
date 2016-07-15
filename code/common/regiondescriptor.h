@@ -34,8 +34,26 @@ namespace dynamic_stereo {
 		void computeHoG(const std::vector<cv::Mat>& gradient, const std::vector<std::vector<int> >& pixelIds,
 		                std::vector<float>& hog, const int kBin);
 
-		void extractFeature(const std::vector<cv::Mat> &images, const std::vector<cv::Mat> &segments, const cv::Mat &mask,
+		void extractFeature(const std::vector<cv::Mat> &images, const std::vector<cv::Mat>& gradient,
+							const std::vector<cv::Mat> &segments, const cv::Mat &mask,
 		                    const FeatureOption &option, TrainSet &trainSet);
+
+
+		//subroutine for computing feature bins
+		void computeColor(const std::vector<cv::Mat>& colorImage, const std::vector<std::vector<int> >& pg,
+						  std::vector<float>& desc);
+
+		void computeColorChange(const std::vector<cv::Mat>& colorImage, const std::vector<int>& region,
+						  const std::vector<int>& kBin, std::vector<float>& desc);
+
+		void computeHoG(const std::vector<cv::Mat>& gradient, const std::vector<std::vector<int> >& pixelIds,
+						std::vector<float>& hog, const int kBin);
+
+		void computeShapeAndLength(const std::vector<std::vector<int> >& pg, const int width, const int height, std::vector<float>& desc);
+
+		void computePosition(const std::vector<std::vector<int> >& pg, const int width, const int height, std::vector<float>& desc);
+
+		void computeGradient(const cv::Mat& images, cv::Mat& gradient);
 
 		void visualizeSegmentGroup(const std::vector<cv::Mat> &images, const std::vector<std::vector<int> > &pixelGroup,
 		                           const std::vector<int> &regionSpan);

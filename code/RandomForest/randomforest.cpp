@@ -52,11 +52,24 @@ namespace dynamic_stereo{
 		trainOut.close();
 	}
 
-	void splitTrainSet(const Feature::TrainSet& trainset, Feature::TrainSet& set1, Feature::TrainSet& set2){
+	double testForest(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::DTrees> forest){
+		CHECK(testPtr.get());
+		CHECK(forest.get());
 
-	}
+		Mat result;
+		forest->predict(testPtr->getSamples(), result);
+		Mat groundTruth;
+		testPtr->getResponses().convertTo(groundTruth, CV_32F);
 
-	void balanceTrainSet(Feature::TrainSet& trainset, Feature::TrainSet& unused, const double max_ratio){
+		CHECK_EQ(groundTruth.rows, result.rows);
+		float acc = 0.0f;
+		for(auto i=0; i<result.rows; ++i){
+			float gt = groundTruth.at<float>(i,0);
+			float res = result.at<float>(i,0);
+			if(std::abs(gt-res) <= 0.1)
+				acc += 1.0f;
+		}
+		return acc / (float)result.rows;
 
 	}
 }//namespace dynamic_stereo

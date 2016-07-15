@@ -17,7 +17,7 @@ DEFINE_double(segLevel, 0.2, "segmentation level");
 DEFINE_string(cache, "", "path to cached trianing data");
 DEFINE_string(model, "", "path to model");
 DEFINE_string(classifier, "bt", "rf or bt");
-DEFINE_int32(treeDepth, 20, "max depth of the tree");
+DEFINE_int32(treeDepth, 15, "max depth of the tree");
 DEFINE_int32(numTree, -1, "number of trees");
 DEFINE_int32(compressLevel, -1, "-1: auto, 1: no compress, >1: compress");
 DEFINE_int32(maxKFrame, 500, "if the video contains more than maxKFrame frames, compress");
@@ -59,7 +59,7 @@ void run_train(const string& path) {
 	//prepare training data
 	cv::Ptr<ml::TrainData> traindata = ml::TrainData::loadFromCSV(FLAGS_cache, 0);
 
-	vector<float> levelList{0.2,0.3,0.5};
+	vector<float> levelList{0.1, 0.2,0.3};
 	if (!traindata.get()) {
 		CHECK(!path.empty());
 		ifstream listIn(path.c_str());
@@ -93,7 +93,13 @@ void run_train(const string& path) {
 				}
 				frameId++;
 			}
+
 			printf("number of frames: %d/%d\n", (int)images.size(), (int)kFrame);
+			vector<Mat> gradient(images.size());
+			for(auto i=0; i<images.size(); ++i){
+				Feature::computeGradient(images[i], gradient[i]);
+				images[i].convertTo(images[i], CV_32FC3);
+			}
 
 			Mat gtMask = imread(dir + gtname, false);
 			CHECK(gtMask.data) << "Can not open ground truth: " << dir + gtname;
@@ -111,7 +117,7 @@ void run_train(const string& path) {
 				segments_all.clear();
 
 				Feature::compressSegments(segments);
-				Feature::extractFeature(images, segments, gtMask, option, trainSet);
+				Feature::extractFeature(images, gradient, segments, gtMask, option, trainSet);
 			}
 		}
 		printf("Number of positive: %d, number of negative: %d\n", (int) trainSet[1].size(), (int) trainSet[0].size());
@@ -149,6 +155,9 @@ void run_train(const string& path) {
 	forest->train(traindata);
 	printf("Saving %s\n", classifier_path.c_str());
 	CHECK_NOTNULL(forest.get())->save(classifier_path);
+
+	double acc = testForest(traindata, forest);
+	printf("Training accuracy: %.3f\n", acc);
 }
 
 
@@ -169,9 +178,17 @@ void run_detect(int argc, char** argv) {
 		images.push_back(frame);
 	}
 
+	Mat refImage = images[0].clone();
+
+	vector<Mat> gradient(images.size());
+	for(auto i=0; i<images.size(); ++i){
+		Feature::computeGradient(images[i], gradient[i]);
+		images[i].convertTo(images[i], CV_32FC3);
+	}
+
 	//empty ground truth
 	Mat gt;
-	Mat segmentVote(images[0].size(), CV_32FC1, Scalar::all(0.0f));
+	Mat segmentVote(refImage.size(), CV_32FC1, Scalar::all(0.0f));
 
 	printf("Running classification...\n");
 	cv::Ptr<ml::DTrees> classifier;
@@ -184,7 +201,7 @@ void run_detect(int argc, char** argv) {
 	}
 	printf("Max tree depth: %d\n", classifier->getMaxDepth());
 
-	const vector<float> levelList{0.2,0.3,0.5};
+	const vector<float> levelList{0.1,0.2,0.3};
 	for(auto level: levelList) {
 		printf("Level %.3f\n", level);
 		vector<Mat> segments;
@@ -194,7 +211,7 @@ void run_detect(int argc, char** argv) {
 		Feature::FeatureOption option;
 		Feature::TrainSet testset;
 		printf("Extracting feature...\n");
-		Feature::extractFeature(images, segments, gt, option, testset);
+		Feature::extractFeature(images, gradient, segments, gt, option, testset);
 
 		cv::Ptr<ml::TrainData> testPtr = convertTrainData(testset);
 		CHECK(testPtr.get());
@@ -223,16 +240,20 @@ void run_detect(int argc, char** argv) {
 	Mat mask(segmentVote.size(), CV_8UC3, Scalar(255, 0, 0));
 	for (auto y = 0; y < mask.rows; ++y) {
 		for (auto x = 0; x < mask.cols; ++x) {
-			if (segmentVote.at<float>(y, x) > 0.5 * (float) images.size())
+			if (segmentVote.at<float>(y, x) > (float)levelList.size() * (float) images.size() / 2)
 				mask.at<Vec3b>(y, x) = Vec3b(0, 0, 255);
 		}
 	}
 	const double blend_weight = 0.4;
 	Mat vis;
-	cv::addWeighted(images[0], blend_weight, mask, 1.0 - blend_weight, 0.0, vis);
-	imshow("Detect", vis);
-	waitKey(0);
-	printf("Done\n");
+	cv::addWeighted(refImage, blend_weight, mask, 1.0 - blend_weight, 0.0, vis);
+
+	string fullPath = string(argv[1]);
+	string dir = fullPath.substr(0, fullPath.find_last_of('/')+1);
+	string filename = fullPath.substr(fullPath.find_last_of('/')+1, fullPath.find_last_of('.'));
+
+	imwrite(dir+filename+".png", vis);
+
 }
 
 void run_test(const string& path){
@@ -247,18 +268,7 @@ void run_test(const string& path){
 		CHECK(classifier.get()) << "Can not load random forest: " << FLAGS_model;
 	}
 	printf("Max tree depth: %d\n", classifier->getMaxDepth());
-	Mat result;
-	classifier->predict(testdata->getSamples(), result);
-	const Mat& groundTruth = testdata->getResponses();
-	CHECK_EQ(groundTruth.type(), CV_32F);
-	CHECK_EQ(groundTruth.rows, result.rows);
-	CHECK_GT(result.rows, 1);
-	float acc = 0.0f;
-	for(auto i=0; i<result.rows; ++i){
-		float gt = groundTruth.at<float>(i,0);
-		float res = result.at<float>(i,0);
-		if(std::abs(gt-res) <= 0.1)
-			acc += 1.0f;
-	}
-	printf("Test accuracy: %.3f\n", acc / (float)result.rows);
+
+	double acc = testForest(testdata, classifier);
+	printf("Test accuracy: %.3f\n", acc);
 }

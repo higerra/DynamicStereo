@@ -18,8 +18,6 @@ namespace dynamic_stereo {
 
 	void saveTrainData(const std::string& path, const Feature::TrainSet& trainset);
 
-	void splitTrainSet(const Feature::TrainSet& trainset, Feature::TrainSet& set1, Feature::TrainSet& set2);
-
-	void balanceTrainSet(Feature::TrainSet& trainset, Feature::TrainSet& unused, const double max_ratio);
+	double testForest(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::DTrees> forest);
 }//namespace dynamic_stereo
 #endif //DYNAMICSTEREO_RANDOMFOREST_H
