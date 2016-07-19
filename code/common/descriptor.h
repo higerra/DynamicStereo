@@ -30,25 +30,6 @@ namespace dynamic_stereo {
             int dim;
         };
 
-        class RGBHist : public FeatureConstructor {
-        public:
-            RGBHist(const int kBin_ = 10, const float min_diff_ = -1) : kBin(kBin_), min_diff(min_diff_),
-                                                                        kBinIntensity(kBin_), cut_thres(0.1){
-                CHECK_GT(kBinIntensity, 0);
-                binUnit = 512 / (float) kBin;
-                binUnitIntensity = 256 / (float) kBinIntensity;
-                dim = (kBin + kBinIntensity) * 3;
-            }
-            virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const;
-        private:
-            const int kBin;
-            float binUnit;
-            const float min_diff;
-            const float cut_thres;
-            const int kBinIntensity;
-            float binUnitIntensity;
-        };
-
         struct ColorSpace{
             enum ColorType{RGB, LUV, LAB};
             ColorSpace(const int channel_, const std::vector<float>& offsets_,
@@ -107,17 +88,37 @@ namespace dynamic_stereo {
             const float cut_thres;
         };
 
-        cv::Mat visualizeSegment(const cv::Mat& labels);
+        class Feature3D{
+        public:
+            virtual void constructFeature(const std::vector<cv::Mat>& images, std::vector<float>& feat) const = 0;
+            int getDim(){return dim;}
+        protected:
+            int dim;
+        };
 
+        void compute3DGradient(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& gradient);
 
-	    //class for extracting descriptor for over segmentation
-	    class SegmentDesc{
-	    public:
-		    SegmentDesc(const ColorSpace& cspace_): cspace(cspace_){}
+        class HoG3D: public Feature3D{
+        public:
+            HoG3D();
+            //Note: input image should be gradient of 3 channels: gx, gy, gz, in float type
+            virtual void constructFeature(const std::vector<cv::Mat>& images, std::vector<float>& feat) const;
+        private:
+            Eigen::MatrixXf P;
+            const int kSubBlock;
+            const int M;
+            const int N;
+        };
 
-	    private:
-		    const ColorSpace& cspace;
-	    };
+        class Color3D: public Feature3D{
+        public:
+            Color3D(const ColorSpace& cspace_): cspace(cspace_), M(4), N(4){}
+            virtual void constructFeature(const std::vector<cv::Mat>& images, std::vector<float>& feat) const;
+        private:
+            const ColorSpace cspace;
+            const int M;
+            const int N;
+        };
 
     }//namespace Feature
 }//namespace dynamic_stereo

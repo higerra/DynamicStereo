@@ -103,6 +103,7 @@ void run_train(const string& path) {
 
 			Mat gtMask = imread(dir + gtname, false);
 			CHECK(gtMask.data) << "Can not open ground truth: " << dir + gtname;
+			cv::resize(gtMask, gtMask, images[0].size(), 0, 0, INTER_NEAREST);
 
 			for(auto level: levelList) {
 				printf("Segmentation level: %.3f\n", level);
