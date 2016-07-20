@@ -9,16 +9,18 @@ using namespace cv;
 
 namespace dynamic_stereo{
     void sampleKeyPoints(const std::vector<cv::Mat>& input, std::vector<cv::KeyPoint>& keypoints, const VisualWordOption& option){
-        CHECK(input.empty());
+        CHECK(!input.empty());
         const int width = input[0].cols;
         const int height = input[0].rows;
         const int kFrame = (int)input.size();
 
-        keypoints.reserve((size_t)(width / option.M * 2 * height / option.M * 2 * kFrame / option.N * 2));
+        const int rS = option.sigma_s / 2;
+        const int rT = option.sigma_r / 2;
+        keypoints.reserve((size_t)(width / rS * height / rS * kFrame / rT));
 
-        for(auto x=option.M/2+1; x<width - option.M/2; x += option.M/2){
-            for(auto y=option.M/2+1; y<height - option.M/2; y += option.M/2){
-                for(auto t = option.N/2+1; t < kFrame - option.N/2; t += option.N/2){
+        for(auto x=rS+1; x<width - rS; x += rS){
+            for(auto y=rS+1; y<height - rS; y += rS){
+                for(auto t = rT+1; t < kFrame - rT; t += rT){
                     cv::KeyPoint keypt;
                     keypt.pt = cv::Point2f(x,y);
                     keypt.octave = t;

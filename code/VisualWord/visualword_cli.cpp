@@ -17,8 +17,8 @@ DEFINE_string(model, "", "path to trained model");
 DEFINE_string(codebook, "", "path to code book");
 DEFINE_int32(kCluster, 200, "number of clusters");
 DEFINE_string(classifier, "rf", "random forest(rf) or boosted tree(bt), or SVM(svm)");
-DEFINE_int32(sigma_s, 24, "spatial window size");
-DEFINE_int32(sigma_r, 24, "temporal window size");
+DEFINE_int32(sigma_s, 48, "spatial window size");
+DEFINE_int32(sigma_r, 48, "temporal window size");
 
 DEFINE_int32(numTree, -1, "number of trees");
 DEFINE_int32(treeDepth, -1, "max depth of trees");
@@ -107,23 +107,16 @@ void run_train(int argc, char** argv) {
                 Feature::assignSegmentLabel(pixelGroup, gt, curResponse);
                 response.insert(response.end(), curResponse.begin(), curResponse.end());
                 printf("Extracting features...\n");
-                int index = 0;
                 for (const auto &pg: pixelGroup) {
                     vector<float> curRegionFeat;
                     vector<float> color, shape, position;
-                    cout << index << " " << pg.size() << " color ";
-                    Feature::computeColor(images, pg, color);
-                    cout << "shape ";
+                    //Feature::computeColor(images, pg, color);
                     Feature::computeShapeAndLength(pg, images[0].cols, images[0].rows, shape);
-                    cout << "position ";
                     Feature::computePosition(pg, images[0].cols, images[0].rows, position);
-                    cout << "insert ";
-                    curRegionFeat.insert(curRegionFeat.end(), color.begin(), color.end());
+                    //curRegionFeat.insert(curRegionFeat.end(), color.begin(), color.end());
                     curRegionFeat.insert(curRegionFeat.end(), shape.begin(), shape.end());
                     curRegionFeat.insert(curRegionFeat.end(), position.begin(), position.end());
                     segmentsFeature.push_back(curRegionFeat);
-                    index++;
-                    cout << endl;
                 }
 
                 //sample keypoints and extract 3D HoG
@@ -131,9 +124,13 @@ void run_train(int argc, char** argv) {
                 printf("Extracting descriptors...\n");
                 vector<KeyPoint> keypoints;
                 sampleKeyPoints(gradient, keypoints, option);
+                printf("Number of keypoints: %d\n", (int)keypoints.size());
                 Mat curDescriptor;
                 hog3D.compute(gradient, keypoints, curDescriptor);
-                cv::hconcat(descriptors, curDescriptor, descriptors);
+                if(!descriptors.data)
+                    descriptors = curDescriptor.clone();
+                else
+                    cv::hconcat(descriptors, curDescriptor, descriptors);
 
                 //update descriptor map
                 printf("Updating descriptor map...\n");
