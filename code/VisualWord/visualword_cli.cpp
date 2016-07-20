@@ -17,6 +17,9 @@ DEFINE_string(model, "", "path to trained model");
 DEFINE_string(codebook, "", "path to code book");
 DEFINE_int32(kCluster, 200, "number of clusters");
 DEFINE_string(classifier, "rf", "random forest(rf) or boosted tree(bt), or SVM(svm)");
+DEFINE_int32(sigma_s, 24, "spatial window size");
+DEFINE_int32(sigma_r, 24, "temporal window size");
+
 DEFINE_int32(numTree, -1, "number of trees");
 DEFINE_int32(treeDepth, -1, "max depth of trees");
 
@@ -59,11 +62,10 @@ void run_train(int argc, char** argv) {
         CHECK(listIn.is_open()) << "Can not open list file: " << argv[1];
 
         string filename, gtname;
-
         VisualWordOption option;
-
-        cv::CVHoG3D hog3D(24, 24);
-
+        option.sigma_s = FLAGS_sigma_s;
+        option.sigma_r = FLAGS_sigma_r;
+        cv::CVHoG3D hog3D(option.sigma_s, option.sigma_r);
         Mat descriptors;
 
         vector<vector<float> > segmentsFeature;
@@ -75,12 +77,12 @@ void run_train(int argc, char** argv) {
             vector<Mat> images;
             cv::VideoCapture cap(dir + filename);
             CHECK(cap.isOpened()) << "Can not open video: " << dir + filename;
-            printf("Loading %s...\n", filename.c_str());
+            cout << "Loading " << dir + filename << endl;
             while (true) {
-                Mat frame;
-                if (!cap.read(frame))
+                Mat tmp;
+                if (!cap.read(tmp))
                     break;
-                images.push_back(frame);
+                images.push_back(tmp);
             }
             printf("number of frames: %d\n", (int) images.size());
             vector<Mat> gradient;
@@ -98,21 +100,30 @@ void run_train(int argc, char** argv) {
                 Feature::compressSegments(segments);
                 vector<vector<vector<int> > > pixelGroup;
                 vector<vector<int> > segmentRegion;
-                printf("Level %.2f, %d segments, extracting region feature...\n", level, (int) pixelGroup.size());
                 Feature::regroupSegments(segments, pixelGroup, segmentRegion);
+                printf("Level %.2f, %d segments\n", level, (int) pixelGroup.size());
                 vector<int> curResponse;
+                printf("Assigning segment label...\n");
                 Feature::assignSegmentLabel(pixelGroup, gt, curResponse);
                 response.insert(response.end(), curResponse.begin(), curResponse.end());
+                printf("Extracting features...\n");
+                int index = 0;
                 for (const auto &pg: pixelGroup) {
                     vector<float> curRegionFeat;
                     vector<float> color, shape, position;
+                    cout << index << " " << pg.size() << " color ";
                     Feature::computeColor(images, pg, color);
+                    cout << "shape ";
                     Feature::computeShapeAndLength(pg, images[0].cols, images[0].rows, shape);
+                    cout << "position ";
                     Feature::computePosition(pg, images[0].cols, images[0].rows, position);
+                    cout << "insert ";
                     curRegionFeat.insert(curRegionFeat.end(), color.begin(), color.end());
                     curRegionFeat.insert(curRegionFeat.end(), shape.begin(), shape.end());
                     curRegionFeat.insert(curRegionFeat.end(), position.begin(), position.end());
                     segmentsFeature.push_back(curRegionFeat);
+                    index++;
+                    cout << endl;
                 }
 
                 //sample keypoints and extract 3D HoG
@@ -198,14 +209,12 @@ void run_train(int argc, char** argv) {
         classifier_path =  "model";
     }
     if(FLAGS_classifier == "rf"){
-        if(FLAGS_model.empty())
-            classifier_path.append(".rf");
+        classifier_path.append(".rf");
         classifier = ml::RTrees::create();
         if(FLAGS_treeDepth > 0)
             classifier.dynamicCast<ml::DTrees>()->setMaxDepth(FLAGS_treeDepth);
     }else if(FLAGS_classifier == "bt") {
-        if (FLAGS_model.empty())
-            classifier_path.append(".bt");
+        classifier_path.append(".bt");
         classifier = ml::Boost::create();
         if(FLAGS_treeDepth > 0)
             classifier.dynamicCast<ml::DTrees>()->setMaxDepth(FLAGS_treeDepth);
@@ -213,8 +222,7 @@ void run_train(int argc, char** argv) {
             classifier.dynamicCast<ml::Boost>()->setWeakCount(FLAGS_numTree);
         printf("Number of trees: %d\n", classifier.dynamicCast<ml::Boost>()->getWeakCount());
     }else if(FLAGS_classifier == "svm"){
-        if (FLAGS_model.empty())
-            classifier_path.append(".svm");
+        classifier_path.append(".svm");
     }else{
         cerr << "Unsupported classifier." << endl;
         return;

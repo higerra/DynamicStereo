@@ -105,12 +105,15 @@ namespace dynamic_stereo{
             CHECK_GE(input.size(), 2);
             gradient.resize(input.size());
             vector<Mat> grays(input.size());
-            for(auto v=0; v<input.size(); ++v)
-                cvtColor(input[v], grays[v], CV_BGR2GRAY);
             for(auto v=0; v<input.size(); ++v) {
+                cvtColor(input[v], grays[v], CV_BGR2GRAY);
+            }
+            for(auto v=0; v<input.size(); ++v) {
+                gradient[v].create(input[v].size(), CV_32FC3);
                 vector<Mat> curG(3);
                 cv::Sobel(grays[v], curG[0], CV_32F, 1, 0);
                 cv::Sobel(grays[v], curG[1], CV_32F, 0, 1);
+                curG[2].create(input[v].size(), CV_32FC1);
                 for (auto y = 0; y < input[v].rows; ++y) {
                     for (auto x = 0; x < input[v].cols; ++x) {
                         if (v == 0) {
