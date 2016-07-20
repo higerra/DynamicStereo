@@ -4,6 +4,101 @@
 
 #include "visualword.h"
 
-namespace dynamic_stereo{
+using namespace std;
+using namespace cv;
 
+namespace dynamic_stereo{
+    void sampleKeyPoints(const std::vector<cv::Mat>& input, std::vector<cv::KeyPoint>& keypoints, const VisualWordOption& option){
+        CHECK(input.empty());
+        const int width = input[0].cols;
+        const int height = input[0].rows;
+        const int kFrame = (int)input.size();
+
+        keypoints.reserve((size_t)(width / option.M * 2 * height / option.M * 2 * kFrame / option.N * 2));
+
+        for(auto x=option.M/2+1; x<width - option.M/2; x += option.M/2){
+            for(auto y=option.M/2+1; y<height - option.M/2; y += option.M/2){
+                for(auto t = option.N/2+1; t < kFrame - option.N/2; t += option.N/2){
+                    cv::KeyPoint keypt;
+                    keypt.pt = cv::Point2f(x,y);
+                    keypt.octave = t;
+                    keypoints.push_back(keypt);
+                }
+            }
+        }
+    }
+
+    void writeTrainData(const std::string& path, const cv::Ptr<cv::ml::TrainData> traindata){
+        ofstream fout(path.c_str());
+        if(!fout.is_open()) {
+            cerr << "Can not open file to write: " << path << endl;
+            return;
+        }
+
+        Mat feature = traindata->getSamples();
+        Mat response = traindata->getResponses();
+        CHECK_EQ(feature.type(), CV_32FC1);
+        CHECK_EQ(response.type(), CV_32SC1);
+
+        for(auto i=0; i<feature.rows; ++i){
+            for(auto j=0; j<feature.cols; ++j){
+                fout << feature.at<float>(i, j) << ',';
+            }
+            fout << response.at<int>(i, 0) << endl;
+        }
+
+        fout.close();
+    }
+
+    void writeCodebook(const std::string& path, const cv::Mat& codebook){
+        ofstream fout(path.c_str());
+        if(!fout.is_open()) {
+            cerr << "Can not open file to write: " << path << endl;
+            return;
+        }
+        CHECK_EQ(codebook.type(), CV_32FC1);
+        fout << codebook.rows << ' ' << codebook.cols << endl;
+        for(auto i=0; i<codebook.rows; ++i){
+            for(auto j=0; j<codebook.cols; ++j){
+                fout << codebook.at<float>(i,j) << ' ';
+            }
+            fout << endl;
+        }
+        fout.close();
+    }
+
+    bool loadCodebook(const std::string& path, cv::Mat& codebook){
+        ifstream fin(path.c_str());
+        if(!fin.is_open())
+            return false;
+        int row, col;
+        fin >> row >> col;
+        codebook.create(row, col, CV_32FC1);
+        for(auto i=0; i<row; ++i){
+            for(auto j=0; j<col; ++j)
+                fin >> codebook.at<float>(i,j);
+        }
+        fin.close();
+        return true;
+    }
+
+    double testClassifier(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::StatModel> classifier){
+        CHECK(testPtr.get());
+        CHECK(classifier.get());
+
+        Mat result;
+        classifier->predict(testPtr->getSamples(), result);
+        Mat groundTruth;
+        testPtr->getResponses().convertTo(groundTruth, CV_32F);
+
+        CHECK_EQ(groundTruth.rows, result.rows);
+        float acc = 0.0f;
+        for(auto i=0; i<result.rows; ++i){
+            float gt = groundTruth.at<float>(i,0);
+            float res = result.at<float>(i,0);
+            if(std::abs(gt-res) <= 0.1)
+                acc += 1.0f;
+        }
+        return acc / (float)result.rows;
+    }
 }//namespace dynamic_stereo

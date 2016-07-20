@@ -21,6 +21,9 @@ namespace dynamic_stereo {
 
         void normalizel2(std::vector<float> &array);
         void normalizeSum(std::vector<float> &array);
+        inline void normalizel1(std::vector<float>& array){
+            normalizeSum(array);
+        }
 
         class FeatureConstructor {
         public:
