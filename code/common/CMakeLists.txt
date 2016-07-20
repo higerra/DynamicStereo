@@ -9,6 +9,7 @@ add_library(common descriptor.cpp descriptor.h
         regiondescriptor.h regiondescriptor.cpp
         dynamic_utility.h dynamic_utility.cpp
         dynamicwarpping.h dynamicwarpping.cpp
+        HoG3D.h HoG3D.cpp
         stereomodel.h)
 target_link_libraries(common line_util segment_ms segment_gb)
 

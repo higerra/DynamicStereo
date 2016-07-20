@@ -100,7 +100,7 @@ namespace dynamic_stereo {
 
         class HoG3D: public Feature3D{
         public:
-            HoG3D();
+            HoG3D(const int M_ = 4, const int N_ = 4, const int kSubBlock_ = 3);
             //Note: input image should be gradient of 3 channels: gx, gy, gz, in float type
             virtual void constructFeature(const std::vector<cv::Mat>& images, std::vector<float>& feat) const;
         private:

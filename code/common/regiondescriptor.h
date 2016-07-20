@@ -38,7 +38,6 @@ namespace dynamic_stereo {
 							const std::vector<cv::Mat> &segments, const cv::Mat &mask,
 		                    const FeatureOption &option, TrainSet &trainSet);
 
-
 		//subroutine for computing feature bins
 		void computeColor(const std::vector<cv::Mat>& colorImage, const std::vector<std::vector<int> >& pg,
 						  std::vector<float>& desc);

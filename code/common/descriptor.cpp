@@ -130,8 +130,8 @@ namespace dynamic_stereo{
         }
 
 
-        HoG3D::HoG3D(): M(4), N(4), kSubBlock(3) {
-            dim = 20;
+        HoG3D::HoG3D(const int M_, const int N_, const int kSubBlock_): M(M_), N(N_), kSubBlock(kSubBlock_) {
+            dim = 20 * M * M * N;
             const double fi = (1.0 + sqrt(5.0)) / 2;
             P.resize(20, 3);
             P << 1, 1, 1, 1, 1, -1, 1, -1, 1, -1, 1, 1, 1, -1, -1, -1, 1, -1, -1, -1, 1,
