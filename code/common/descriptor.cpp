@@ -209,11 +209,11 @@ namespace dynamic_stereo{
 
             const float cut_thres = 0.25;
             normalizel2(feat);
-            for(auto& v: feat){
-                if(v < cut_thres)
-                    v = 0.0f;
-            }
-            normalizel2(feat);
+//            for(auto& v: feat){
+//                if(v < cut_thres)
+//                    v = 0.0f;
+//            }
+//            normalizel2(feat);
         }
 
     }//namespace Feature

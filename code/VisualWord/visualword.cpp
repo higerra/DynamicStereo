@@ -8,14 +8,14 @@ using namespace std;
 using namespace cv;
 
 namespace dynamic_stereo{
-    void sampleKeyPoints(const std::vector<cv::Mat>& input, std::vector<cv::KeyPoint>& keypoints, const VisualWordOption& option){
+    void sampleKeyPoints(const std::vector<cv::Mat>& input, std::vector<cv::KeyPoint>& keypoints, const int sigma_s, const int sigma_r){
         CHECK(!input.empty());
         const int width = input[0].cols;
         const int height = input[0].rows;
         const int kFrame = (int)input.size();
 
-        const int rS = option.sigma_s / 2;
-        const int rT = option.sigma_r / 2;
+        const int& rS = sigma_s;
+        const int& rT = sigma_r;
         keypoints.reserve((size_t)(width / rS * height / rS * kFrame / rT));
 
         for(auto x=rS+1; x<width - rS; x += rS){
