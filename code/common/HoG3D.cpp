@@ -14,9 +14,6 @@ namespace cv {
         vector<Mat> input;
         image.getMatVector(input);
         CHECK_GE(input.size(), sigma_r);
-//        vector<Mat> gradients;
-//        dynamic_stereo::Feature::compute3DGradient(input, gradients);
-
         dynamic_stereo::Feature::HoG3D hog3D(M,N,kSubBlock);
 
         descriptors.create((int)keypoints.size(), hog3D.getDim(), CV_32FC1);
@@ -37,12 +34,15 @@ namespace cv {
             CHECK_LT(endId, input.size());
 
             for(auto v=startId; v<=endId; ++v)
-                subVideo[v-startId] = input[v](roi);
+                subVideo[v - startId] = input[v](roi);
 
             vector<float> feat;
             hog3D.constructFeature(subVideo, feat);
-            for(auto j=0; j<descriptors.cols(); ++j)
+
+            for(auto j=0; j<descriptors.cols(); ++j) {
                 descriptors_.at<float>(i, j) = feat[j];
+            }
         }
+
     }
 }//namespace cv

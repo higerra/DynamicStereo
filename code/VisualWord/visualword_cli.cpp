@@ -27,7 +27,7 @@ void run_train(int argc, char** argv);
 void run_test(int argc, char** argv);
 void run_detect(int argc, char** argv);
 
-static vector<float> levelList{0.1,0.2,0.3};
+static vector<float> levelList{0.1};
 
 int main(int argc, char** argv){
     google::InitGoogleLogging(argv[0]);
@@ -66,7 +66,8 @@ void run_train(int argc, char** argv) {
         option.sigma_s = FLAGS_sigma_s;
         option.sigma_r = FLAGS_sigma_r;
         cv::CVHoG3D hog3D(option.sigma_s, option.sigma_r);
-        Mat descriptors;
+        vector<Mat> descriptors;
+        int kDescriptors = 0;
 
         vector<vector<float> > segmentsFeature;
         vector<int> response;
@@ -90,6 +91,17 @@ void run_train(int argc, char** argv) {
 
             Mat gt = imread(dir + gtname, false);
             CHECK(gt.data) << "Can not read ground truth mask: " << dir + gtname;
+
+            vector<KeyPoint> keypoints;
+            sampleKeyPoints(gradient, keypoints, option);
+            printf("Number of keypoints: %d\n", (int)keypoints.size());
+            printf("Extracting descriptors...\n");
+
+            Mat curDescriptor;
+            hog3D.compute(gradient, keypoints, curDescriptor);
+            descriptors.push_back(curDescriptor);
+            const int descOffset = kDescriptors;
+            kDescriptors += curDescriptor.rows;
 
             //load segment
             printf("Loading segments...\n");
@@ -119,25 +131,12 @@ void run_train(int argc, char** argv) {
                     segmentsFeature.push_back(curRegionFeat);
                 }
 
-                //sample keypoints and extract 3D HoG
-                const int kOffset = descriptors.rows; //number of descriptors so far
-                printf("Extracting descriptors...\n");
-                vector<KeyPoint> keypoints;
-                sampleKeyPoints(gradient, keypoints, option);
-                printf("Number of keypoints: %d\n", (int)keypoints.size());
-                Mat curDescriptor;
-                hog3D.compute(gradient, keypoints, curDescriptor);
-                if(!descriptors.data)
-                    descriptors = curDescriptor.clone();
-                else
-                    cv::hconcat(descriptors, curDescriptor, descriptors);
-
                 //update descriptor map
                 printf("Updating descriptor map...\n");
                 vector<vector<int> > curDescMap(pixelGroup.size());
                 for (auto i = 0; i < keypoints.size(); ++i) {
                     const int sid = segments[keypoints[i].octave].at<int>(keypoints[i].pt);
-                    curDescMap[sid].push_back(i + kOffset);
+                    curDescMap[sid].push_back(i + descOffset);
                 }
                 descriptorMap.insert(descriptorMap.end(), curDescMap.begin(), curDescMap.end());
             }
@@ -147,9 +146,10 @@ void run_train(int argc, char** argv) {
         CHECK_EQ(descriptorMap.size(), segmentsFeature.size());
         CHECK_EQ(descriptorMap.size(), response.size());
         CHECK(!segmentsFeature.empty());
-
+        CHECK(!descriptors.empty());
         //construct visual word
         printf("Constructing visual words...\n");
+
         Mat visualWord;
         string path_codebook;
         if (FLAGS_codebook.empty()) {
@@ -159,16 +159,26 @@ void run_train(int argc, char** argv) {
                 path_codebook = FLAGS_model + "_codebook.txt";
         } else
             path_codebook = FLAGS_codebook;
+
         if (!loadCodebook(path_codebook, visualWord)) {
-            cv::BOWKMeansTrainer bowTrainer(FLAGS_kCluster);
-            visualWord = bowTrainer.cluster(descriptors);
+            //merge all descriptors into a mat
+            Mat descriptorMat(kDescriptors, descriptors[0].cols, CV_32FC1, Scalar::all(0));
+            for(int i=0, startrow = 0; i<descriptors.size(); ++i){
+                Mat submat = descriptorMat.rowRange(startrow, startrow+descriptors[i].rows);
+                descriptors[i].copyTo(submat);
+                startrow += descriptors[i].rows;
+            }
+            printf("descriptors: %d, %d\n", descriptorMat.rows, descriptorMat.cols);
+            Mat bestLabel;
+            printf("c1\n");
+            cv::kmeans(descriptorMat, FLAGS_kCluster, bestLabel, cv::TermCriteria(), 3, KMEANS_PP_CENTERS, visualWord);
+            printf("c2\n");
             writeCodebook(path_codebook, visualWord);
         }
 
         const int kChannel = (int) segmentsFeature[0].size() + visualWord.rows;
         const int kSample = (int) segmentsFeature.size();
 
-        //train random forest
         Mat featureMat(kSample, kChannel, CV_32FC1, Scalar::all(0)), responseMat(kSample, 1, CV_32SC1, response.data());
 
         //assign each descriptor to a cluster sample

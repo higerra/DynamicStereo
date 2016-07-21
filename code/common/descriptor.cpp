@@ -168,12 +168,12 @@ namespace dynamic_stereo{
                 int by = (y1 - y0 + 1) / kSubBlock;
                 int bz = (z1 - z0 + 1) / kSubBlock;
                 const float t = 1.29107f;
-                res.resize((size_t) dim, 0.0f);
+                res.resize((size_t) P.rows(), 0.0f);
                 for (auto x = 0; x < kSubBlock; ++x) {
                     for (auto y = 0; y < kSubBlock; ++y) {
                         for (auto z = 0; z < kSubBlock; ++z) {
-                            Vector3f gb = computeBlock(x * bx, y * by, z * bz,
-                                                       (x + 1) * bx - 1, (y + 1) * by - 1, (z + 1) * bz - 1);
+                            Vector3f gb = computeBlock(x0+ x * bx, y0 + y * by, z0 + z * bz,
+                                                       x0 + (x + 1) * bx - 1, y0 + (y + 1) * by - 1, z0 + (z + 1) * bz - 1);
                             float mag = gb.norm();
                             if (mag < std::numeric_limits<float>::min())
                                 continue;
@@ -208,11 +208,11 @@ namespace dynamic_stereo{
             }
 
             const float cut_thres = 0.25;
-//            normalizel2(feat);
-//            for(auto& v: feat){
-//                if(v < cut_thres)
-//                    v = 0.0f;
-//            }
+            normalizel2(feat);
+            for(auto& v: feat){
+                if(v < cut_thres)
+                    v = 0.0f;
+            }
             normalizel2(feat);
         }
 
