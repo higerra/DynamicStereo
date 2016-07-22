@@ -3,7 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "HoG3D.h"
+#include "CVdescriptor.h"
 
 using namespace std;
 using namespace cv;

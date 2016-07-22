@@ -243,10 +243,17 @@ namespace dynamic_stereo{
 			vector<vector<double> > labcolor(3);
 			for(auto v=0; v<pg.size(); ++v){
 				for(auto pid: pg[v]){
-					Vec3f pix = colorImage[v].at<Vec3f>(pid/width, pid%width);
-					labcolor[0].push_back((double)pix[0]);
-					labcolor[1].push_back((double)pix[1]);
-					labcolor[2].push_back((double)pix[2]);
+					if(colorImage[v].type() == CV_32FC3) {
+						Vec3f pix = colorImage[v].at<Vec3f>(pid / width, pid % width);
+						labcolor[0].push_back((double)pix[0]);
+						labcolor[1].push_back((double)pix[1]);
+						labcolor[2].push_back((double)pix[2]);
+					}else if(colorImage[v].type() == CV_8UC3){
+						Vec3b pix = colorImage[v].at<Vec3b>(pid / width, pid % width);
+						labcolor[0].push_back((double)pix[0]);
+						labcolor[1].push_back((double)pix[1]);
+						labcolor[2].push_back((double)pix[2]);
+					}
 				}
 			}
 

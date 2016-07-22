@@ -115,10 +115,9 @@ namespace dynamic_stereo {
 
         class Color3D: public Feature3D{
         public:
-            Color3D(const ColorSpace& cspace_): cspace(cspace_), M(4), N(4){}
+            Color3D(const int M_ = 4, const int N_ = 4): M(4), N(4){}
             virtual void constructFeature(const std::vector<cv::Mat>& images, std::vector<float>& feat) const;
         private:
-            const ColorSpace cspace;
             const int M;
             const int N;
         };

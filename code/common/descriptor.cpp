@@ -216,5 +216,43 @@ namespace dynamic_stereo{
 //            normalizel2(feat);
         }
 
+
+        void Color3D::constructFeature(const std::vector<cv::Mat>& images, std::vector<float>& feat) const{
+            CHECK_GE(images.size(), N);
+            CHECK_GE(images[0].cols, M);
+            CHECK_GE(images[0].rows, M);
+            CHECK_EQ(images[0].type(), CV_32FC3);
+
+            //average color inside one cell
+            auto computeCell = [&](int x0, int y0, int z0, int x1, int y1, int z1, vector<float>& res) {
+                res.resize((size_t)images[0].channels(), 0.0f);
+                for (auto x = x0; x<=x1; ++x) {
+                    for (auto y = y0; y <= y1; ++y) {
+                        for (auto z = z0; z <= z1; ++z) {
+                            Vec3f pix = images[z].at<Vec3f>(y,x);
+                            for (auto i = 0; i < res.size(); ++i)
+                                res[i] += pix[i];
+                        }
+                    }
+                }
+                const int count = (x1-x0+1)*(y1-y0+1)*(z1-z0+1);
+                for(auto& r: res)
+                    r /= (float)count;
+            };
+
+            int cx = images[0].cols / M;
+            int cy = images[0].rows / M;
+            int cz = (int)images.size() / N;
+            for(auto x=0; x<M; ++x){
+                for(auto y=0; y<M; ++y){
+                    for(auto z=0; z<N; ++z){
+                        vector<float> hist;
+                        computeCell(x*cx, y*cy, z*cz,
+                                    (x+1)*cx-1, (y+1)*cy-1, (z+1)*cz-1, hist);
+                        feat.insert(feat.end(), hist.begin(), hist.end());
+                    }
+                }
+            }
+        }
     }//namespace Feature
 }//namespace dynamic_stereo

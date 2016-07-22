@@ -13,6 +13,7 @@ using namespace dynamic_stereo;
 
 DEFINE_string(mode, "train", "train, test or detect");
 
+DEFINE_string(desc, "hog3d", "type of descriptor: hog3d or color3d");
 //path
 DEFINE_string(cache, "", "cache path for training data");
 DEFINE_string(model, "", "path to trained model");
@@ -20,11 +21,16 @@ DEFINE_string(codebook, "", "path to code book");
 DEFINE_string(classifier, "rf", "random forest(rf) or boosted tree(bt), or SVM(svm)");
 DEFINE_string(validation, "", "path to validation set");
 //hyperparameter
+//trees
 DEFINE_int32(kCluster, 50, "number of clusters");
-DEFINE_int32(sigma_s, 24, "spatial window size");
+DEFINE_int32(sigma_s, 12, "spatial window size");
 DEFINE_int32(sigma_r, 24, "temporal window size");
 DEFINE_int32(numTree, 30, "number of trees");
 DEFINE_int32(treeDepth, -1, "max depth of trees");
+//svm
+DEFINE_string(svmKernel, "chi2", "svm kernel type");
+DEFINE_double(svmC, 1.0, "C parameter in svm");
+DEFINE_double(svmGamma, 0.5, "Gamma parameter in svm");
 
 cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv);
 cv::Ptr<cv::ml::StatModel> run_train(cv::Ptr<cv::ml::TrainData> traindata);
@@ -88,13 +94,20 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
 
     char buffer[256] = {};
     string filename, gtname;
-    cv::CVHoG3D hog3D(FLAGS_sigma_s, FLAGS_sigma_r);
     Mat descriptors;
 
     vector<vector<float> > segmentsFeature;
     vector<int> response;
     //descriptorMap: the id of descriptor contained by each segment
     vector<vector<int> > descriptorMap;
+
+    cv::Ptr<cv::Feature2D> descriptorExtractor;
+    if(FLAGS_desc == "hog3d")
+        descriptorExtractor.reset(new CVHoG3D(FLAGS_sigma_s, FLAGS_sigma_r));
+    else if(FLAGS_desc == "color3d")
+        descriptorExtractor.reset(new CVColor3D(FLAGS_sigma_s, FLAGS_sigma_r));
+    else
+        CHECK(true) << "unsupported descriptor " << FLAGS_desc;
 
     while (listIn >> filename >> gtname) {
         vector<Mat> images;
@@ -108,25 +121,22 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
             images.push_back(tmp);
         }
         printf("number of frames: %d\n", (int) images.size());
-        vector<Mat> gradient;
-        Feature::compute3DGradient(images, gradient);
-
-        for(auto v=0; v<images.size(); ++v){
-            images[v].convertTo(images[v], CV_32FC3);
-        }
+        vector<Mat> featureImage;
+        descriptorExtractor.dynamicCast<CV3DDescriptor>()->prepareImage(images, featureImage);
 
         Mat gt = imread(dir + gtname, false);
         CHECK(gt.data) << "Can not read ground truth mask: " << dir + gtname;
         cv::resize(gt, gt, images[0].size(), INTER_NEAREST);
 
         vector<KeyPoint> keypoints;
-        sampleKeyPoints(gradient, keypoints, FLAGS_sigma_s, FLAGS_sigma_r);
+        sampleKeyPoints(featureImage, keypoints, FLAGS_sigma_s, FLAGS_sigma_r);
         printf("Number of keypoints: %d\n", (int)keypoints.size());
         printf("Extracting descriptors...\n");
 
         const int descOffset = descriptors.rows;
         Mat curDescriptor;
-        hog3D.compute(gradient, keypoints, curDescriptor);
+        descriptorExtractor->compute(featureImage, keypoints, curDescriptor);
+        CHECK(!curDescriptor.empty());
         if(descOffset == 0)
             descriptors = curDescriptor.clone();
         else
@@ -251,17 +261,44 @@ cv::Ptr<cv::ml::StatModel> run_train(cv::Ptr<ml::TrainData> traindata) {
         if (FLAGS_numTree > 0)
             classifier.dynamicCast<ml::Boost>()->setWeakCount(FLAGS_numTree);
         printf("Number of trees: %d\n", classifier.dynamicCast<ml::Boost>()->getWeakCount());
-    }else if(FLAGS_classifier == "svm"){
+    }else if(FLAGS_classifier == "svm") {
         classifier_path.append(".svm");
+        classifier = ml::SVM::create();
+        cv::Ptr<ml::SVM> svm = classifier.dynamicCast<ml::SVM>();
+        svm->setC(FLAGS_svmC);
+        svm->setGamma(FLAGS_svmGamma);
+        if(FLAGS_svmKernel == "chi2")
+            svm->setKernel(ml::SVM::CHI2);
+        else if(FLAGS_svmKernel == "rbf")
+            svm->setKernel(ml::SVM::RBF);
+        else
+            CHECK(true) << "Unsupported svm kernel type: " << FLAGS_svmKernel;
     }else{
         CHECK(true) << "Unsupported classifier." << endl;
     }
     printf("Training...\n");
-    classifier->train(traindata);
+
+    int kPos = 0, kNeg = 0;
+    Mat response = traindata->getResponses();
+
+    for(auto i=0; i<response.rows; ++i) {
+        float res = 0.0;
+        if(response.depth() == CV_32F)
+            res = response.at<float>(i, 0);
+        else if(response.depth() == CV_32S)
+            res = (float)response.at<int>(i, 0);
+        if (res > 0.5)
+            kPos++;
+        else
+            kNeg++;
+    }
+    printf("%d samples in total: %d potive, %d negative\n", kPos+kNeg, kPos, kNeg);
+    
+    CHECK_NOTNULL(classifier.get())->train(traindata);
 
     double acc = testClassifier(traindata, classifier);
     printf("Saving %s\n", classifier_path.c_str());
-    CHECK_NOTNULL(classifier.get())->save(classifier_path);
+    classifier.get()->save(classifier_path);
     printf("Training accuracy: %.3f\n", acc);
     return classifier;
 }
@@ -288,12 +325,10 @@ void run_detect(int argc, char** argv){
         classifier = ml::SVM::load<ml::SVM>(FLAGS_model);
     }
 
-
-
     printf("Reading video...\n");
     cv::VideoCapture cap(argv[1]);
     CHECK(cap.isOpened()) << "Can not open video: " << argv[1];
-    vector<Mat> images, gradients;
+    vector<Mat> images, featureImages;
     while(true){
         Mat frame;
         if(!cap.read(frame))
@@ -301,15 +336,21 @@ void run_detect(int argc, char** argv){
         images.push_back(frame);
     }
     CHECK(!images.empty());
+
+    cv::Ptr<cv::Feature2D> descriptorExtractor;
+    if(FLAGS_desc == "hog3d")
+        descriptorExtractor.reset(new CVHoG3D(FLAGS_sigma_s, FLAGS_sigma_r));
+    else if(FLAGS_desc == "color3d")
+        descriptorExtractor.reset(new CVColor3D(FLAGS_sigma_s, FLAGS_sigma_r));
+    else
+        CHECK(true) << "Unsupported descriptor type " << FLAGS_desc;
+
     Mat refImage = images[0].clone();
-    Feature::compute3DGradient(images, gradients);
-    for(auto v=0; v<images.size(); ++v){
-        images[v].convertTo(images[v], CV_32FC3);
-    }
+    descriptorExtractor.dynamicCast<CV3DDescriptor>()->prepareImage(images, featureImages);
 
     printf("Sample keypoints...\n");
     vector<cv::KeyPoint> keypoints;
-    sampleKeyPoints(gradients, keypoints, FLAGS_sigma_s, FLAGS_sigma_r);
+    sampleKeyPoints(featureImages, keypoints, FLAGS_sigma_s, FLAGS_sigma_r);
 
     Mat codebook;
     string model_name = FLAGS_model.substr(0, FLAGS_model.find_last_of("."));
@@ -321,10 +362,8 @@ void run_detect(int argc, char** argv){
 
     CHECK(loadCodebook(path_codebook, codebook)) << "Can not load code book: " << path_codebook;
 
-    //extract bow feature
     cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce");
-    cv::Ptr<cv::Feature2D> hog3D(new cv::CVHoG3D(FLAGS_sigma_s, FLAGS_sigma_r));
-    cv::BOWImgDescriptorExtractor extractor(hog3D, matcher);
+    cv::BOWImgDescriptorExtractor extractor(descriptorExtractor, matcher);
     extractor.setVocabulary(codebook);
     printf("descriptor size: %d\n", extractor.descriptorSize());
 
@@ -348,13 +387,13 @@ void run_detect(int argc, char** argv){
         for(auto sid=0; sid < kSeg; ++sid){
             if(!segmentKeypoints[sid].empty()){
                 Mat bow;
-                extractor.compute(gradients, segmentKeypoints[sid], bow);
+                extractor.compute(featureImages, segmentKeypoints[sid], bow);
                 bow.copyTo(bowFeature.rowRange(sid, sid+1));
             }
             vector<float> color, shape, position;
             Feature::computeColor(images, pixelGroup[sid], color);
-            Feature::computeShapeAndLength(pixelGroup[sid], gradients[0].cols, gradients[0].rows, shape);
-            Feature::computePosition(pixelGroup[sid], gradients[0].cols, gradients[0].rows, position);
+            Feature::computeShapeAndLength(pixelGroup[sid], featureImages[0].cols, featureImages[0].rows, shape);
+            Feature::computePosition(pixelGroup[sid], featureImages[0].cols, featureImages[0].rows, position);
 
             regionFeature[sid].insert(regionFeature[sid].end(), color.begin(), color.end());
             regionFeature[sid].insert(regionFeature[sid].end(), shape.begin(), shape.end());
@@ -396,5 +435,5 @@ void run_detect(int argc, char** argv){
 
     string fullPath = string(argv[1]);
     string filename = fullPath.substr(0, fullPath.find_last_of('.'));
-    imwrite(filename+".png", vis);
+    imwrite(filename+"_result.png", vis);
 }

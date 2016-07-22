@@ -4,7 +4,7 @@
 
 #ifndef DYNAMICSTEREO_VISUALWORD_H
 #define DYNAMICSTEREO_VISUALWORD_H
-#include "../common/HoG3D.h"
+#include "../common/CVdescriptor.h"
 #include "../common/regiondescriptor.h"
 
 #include <fstream>
