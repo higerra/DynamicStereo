@@ -20,6 +20,7 @@ DEFINE_string(model, "", "path to trained model");
 DEFINE_string(codebook, "", "path to code book");
 DEFINE_string(classifier, "rf", "random forest(rf) or boosted tree(bt), or SVM(svm)");
 DEFINE_string(validation, "", "path to validation set");
+
 //hyperparameter
 //trees
 DEFINE_int32(kCluster, 50, "number of clusters");
@@ -37,6 +38,7 @@ cv::Ptr<cv::ml::StatModel> run_train(cv::Ptr<cv::ml::TrainData> traindata);
 
 void run_test(int argc, char** argv);
 void run_detect(int argc, char** argv);
+void run_multiExtract(const std::vector<int>& kClusters, int argc, char** argv);
 
 static vector<float> levelList{0.1, 0.2, 0.3};
 
@@ -49,6 +51,9 @@ int main(int argc, char** argv){
         CHECK(traindata.get());
         if(!FLAGS_cache.empty())
             writeTrainData(FLAGS_cache, traindata);
+    }else if(FLAGS_mode == "multiExtract"){
+        vector<int> kClusters{50,100,200,500};
+        run_multiExtract(kClusters, argc, argv);
     }else if(FLAGS_mode == "train"){
         cv::Ptr<ml::TrainData> traindata = ml::TrainData::loadFromCSV(FLAGS_cache, 0);
         if(!traindata.get()) {
@@ -81,11 +86,12 @@ int main(int argc, char** argv){
     return 0;
 }
 
-cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
+cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv) {
     if (argc < 2) {
         cerr << "Usage: ./VisualWord <path-to-list>" << endl;
         return cv::Ptr<ml::TrainData>();
     }
+
     string list_path = string(argv[1]);
     ifstream listIn(list_path.c_str());
     string dir = list_path.substr(0, list_path.find_last_of("/"));
@@ -102,9 +108,9 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
     vector<vector<int> > descriptorMap;
 
     cv::Ptr<cv::Feature2D> descriptorExtractor;
-    if(FLAGS_desc == "hog3d")
+    if (FLAGS_desc == "hog3d")
         descriptorExtractor.reset(new CVHoG3D(FLAGS_sigma_s, FLAGS_sigma_r));
-    else if(FLAGS_desc == "color3d")
+    else if (FLAGS_desc == "color3d")
         descriptorExtractor.reset(new CVColor3D(FLAGS_sigma_s, FLAGS_sigma_r));
     else
         CHECK(true) << "unsupported descriptor " << FLAGS_desc;
@@ -130,14 +136,14 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
 
         vector<KeyPoint> keypoints;
         sampleKeyPoints(featureImage, keypoints, FLAGS_sigma_s, FLAGS_sigma_r);
-        printf("Number of keypoints: %d\n", (int)keypoints.size());
+        printf("Number of keypoints: %d\n", (int) keypoints.size());
         printf("Extracting descriptors...\n");
 
         const int descOffset = descriptors.rows;
         Mat curDescriptor;
         descriptorExtractor->compute(featureImage, keypoints, curDescriptor);
         CHECK(!curDescriptor.empty());
-        if(descOffset == 0)
+        if (descOffset == 0)
             descriptors = curDescriptor.clone();
         else
             cv::vconcat(descriptors, curDescriptor, descriptors);
@@ -190,16 +196,16 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
     printf("Constructing visual words...\n");
     string path_codebook;
 
-    if(!FLAGS_codebook.empty())
+    if (!FLAGS_codebook.empty())
         path_codebook = FLAGS_codebook;
-    else if(!FLAGS_model.empty())
+    else if (!FLAGS_model.empty())
         path_codebook = FLAGS_model + "_codebook.txt";
     Mat visualWord, bestLabel;
     if (!loadCodebook(path_codebook, visualWord)) {
         //merge all descriptors into a mat
         printf("descriptors: %d, %d\n", descriptors.rows, descriptors.cols);
         cv::kmeans(descriptors, FLAGS_kCluster, bestLabel, cv::TermCriteria(), 3, KMEANS_PP_CENTERS, visualWord);
-        if(!path_codebook.empty())
+        if (!path_codebook.empty())
             writeCodebook(path_codebook, visualWord);
     }
 
@@ -207,8 +213,8 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
     const int kSample = (int) segmentsFeature.size();
 
     Mat featureMat(kSample, kChannel, CV_32FC1, Scalar::all(0)), responseMat(kSample, 1, CV_32SC1);
-    for(auto i=0; i<responseMat.rows; ++i)
-        responseMat.at<int>(i,0) = response[i];
+    for (auto i = 0; i < responseMat.rows; ++i)
+        responseMat.at<int>(i, 0) = response[i];
 
     //assign each descriptor to a cluster sample
     cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce");
@@ -233,8 +239,6 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv){
             featureMat.at<float>(i, j + regionOffset) = segmentsFeature[i][j];
     }
     cv::Ptr<cv::ml::TrainData> traindata = ml::TrainData::create(featureMat, ml::ROW_SAMPLE, responseMat);
-    if(!FLAGS_cache.empty())
-        writeTrainData(FLAGS_cache, traindata);
     return traindata;
 }
 
@@ -437,3 +441,156 @@ void run_detect(int argc, char** argv){
     string filename = fullPath.substr(0, fullPath.find_last_of('.'));
     imwrite(filename+"_result.png", vis);
 }
+
+void run_multiExtract(const vector<int>& kClusters, int argc, char** argv) {
+    if (argc < 2) {
+        cerr << "Usage: ./VisualWord <path-to-list>" << endl;
+        return;
+    }
+
+    string list_path = string(argv[1]);
+    ifstream listIn(list_path.c_str());
+    string dir = list_path.substr(0, list_path.find_last_of("/"));
+    dir.append("/");
+    CHECK(listIn.is_open()) << "Can not open list file: " << argv[1];
+
+    char buffer[256] = {};
+    string filename, gtname;
+    Mat descriptors;
+
+    vector<vector<float> > segmentsFeature;
+    vector<int> response;
+    //descriptorMap: the id of descriptor contained by each segment
+    vector<vector<int> > descriptorMap;
+
+    cv::Ptr<cv::Feature2D> descriptorExtractor;
+    if (FLAGS_desc == "hog3d")
+        descriptorExtractor.reset(new CVHoG3D(FLAGS_sigma_s, FLAGS_sigma_r));
+    else if (FLAGS_desc == "color3d")
+        descriptorExtractor.reset(new CVColor3D(FLAGS_sigma_s, FLAGS_sigma_r));
+    else
+        CHECK(true) << "unsupported descriptor " << FLAGS_desc;
+
+    while (listIn >> filename >> gtname) {
+        vector<Mat> images;
+        cv::VideoCapture cap(dir + filename);
+        CHECK(cap.isOpened()) << "Can not open video: " << dir + filename;
+        cout << "Loading " << dir + filename << endl;
+        while (true) {
+            Mat tmp;
+            if (!cap.read(tmp))
+                break;
+            images.push_back(tmp);
+        }
+        printf("number of frames: %d\n", (int) images.size());
+        vector<Mat> featureImage;
+        descriptorExtractor.dynamicCast<CV3DDescriptor>()->prepareImage(images, featureImage);
+
+        Mat gt = imread(dir + gtname, false);
+        CHECK(gt.data) << "Can not read ground truth mask: " << dir + gtname;
+        cv::resize(gt, gt, images[0].size(), INTER_NEAREST);
+
+        vector<KeyPoint> keypoints;
+        sampleKeyPoints(featureImage, keypoints, FLAGS_sigma_s, FLAGS_sigma_r);
+        printf("Number of keypoints: %d\n", (int) keypoints.size());
+        printf("Extracting descriptors...\n");
+
+        const int descOffset = descriptors.rows;
+        Mat curDescriptor;
+        descriptorExtractor->compute(featureImage, keypoints, curDescriptor);
+        CHECK(!curDescriptor.empty());
+        if (descOffset == 0)
+            descriptors = curDescriptor.clone();
+        else
+            cv::vconcat(descriptors, curDescriptor, descriptors);
+
+        //load segment
+        printf("Loading segments...\n");
+        for (auto level: levelList) {
+            vector<Mat> segments;
+            sprintf(buffer, "%s/segmentation/%s.pb", dir.c_str(), filename.c_str());
+            segmentation::readSegmentAsMat(string(buffer), segments, level);
+            Feature::compressSegments(segments);
+            vector<vector<vector<int> > > pixelGroup;
+            vector<vector<int> > segmentRegion;
+            Feature::regroupSegments(segments, pixelGroup, segmentRegion);
+            printf("Level %.2f, %d segments\n", level, (int) pixelGroup.size());
+            vector<int> curResponse;
+            printf("Assigning segment label...\n");
+            Feature::assignSegmentLabel(pixelGroup, gt, curResponse);
+            response.insert(response.end(), curResponse.begin(), curResponse.end());
+            printf("Extracting features...\n");
+            for (const auto &pg: pixelGroup) {
+                vector<float> curRegionFeat;
+                vector<float> color, shape, position;
+                Feature::computeColor(images, pg, color);
+                Feature::computeShapeAndLength(pg, images[0].cols, images[0].rows, shape);
+                Feature::computePosition(pg, images[0].cols, images[0].rows, position);
+                curRegionFeat.insert(curRegionFeat.end(), color.begin(), color.end());
+                curRegionFeat.insert(curRegionFeat.end(), shape.begin(), shape.end());
+                curRegionFeat.insert(curRegionFeat.end(), position.begin(), position.end());
+                segmentsFeature.push_back(curRegionFeat);
+            }
+
+            //update descriptor map
+            printf("Updating descriptor map...\n");
+            vector<vector<int> > curDescMap(pixelGroup.size());
+            for (auto i = 0; i < keypoints.size(); ++i) {
+                const int sid = segments[keypoints[i].octave].at<int>(keypoints[i].pt);
+                curDescMap[sid].push_back(i + descOffset);
+            }
+            descriptorMap.insert(descriptorMap.end(), curDescMap.begin(), curDescMap.end());
+        }
+    }
+
+    //Sanity check
+    CHECK_EQ(descriptorMap.size(), segmentsFeature.size());
+    CHECK_EQ(descriptorMap.size(), response.size());
+    CHECK(!segmentsFeature.empty());
+    CHECK(!descriptors.empty());
+    //construct visual word
+    for(auto cluster: kClusters) {
+        printf("Constructing visual words, kcluster: %d...\n", cluster);
+        string path_codebook;
+        sprintf(buffer, "%s_codebook_%05d.txt", FLAGS_model.c_str(), cluster);
+        path_codebook = string(buffer);
+
+        Mat visualWord, bestLabel;
+        printf("descriptors: %d, %d\n", descriptors.rows, descriptors.cols);
+        cv::kmeans(descriptors, cluster, bestLabel, cv::TermCriteria(), 3, KMEANS_PP_CENTERS, visualWord);
+        writeCodebook(path_codebook, visualWord);
+
+        const int kChannel = (int) segmentsFeature[0].size() + visualWord.rows;
+        const int kSample = (int) segmentsFeature.size();
+
+        Mat featureMat(kSample, kChannel, CV_32FC1, Scalar::all(0)), responseMat(kSample, 1, CV_32SC1);
+        for (auto i = 0; i < responseMat.rows; ++i)
+            responseMat.at<int>(i, 0) = response[i];
+
+        //assign each descriptor to a cluster sample
+        cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce");
+        vector<DMatch> matches;
+        matcher->match(descriptors, visualWord, matches);
+
+        const int regionOffset = visualWord.rows;
+
+        printf("Compose features...\n");
+        for (auto i = 0; i < kSample; ++i) {
+            //histogram of visual words
+            vector<float> vwHist((size_t) visualWord.rows, 0.0f);
+            for (auto j = 0; j < descriptorMap[i].size(); ++j) {
+                const int did = descriptorMap[i][j];
+                CHECK_LT(matches[did].trainIdx, vwHist.size());
+                vwHist[matches[did].trainIdx] += 1.0f;
+            }
+            Feature::normalizeSum(vwHist);
+            for (auto j = 0; j < vwHist.size(); ++j)
+                featureMat.at<float>(i, j) = vwHist[j];
+            for (auto j = 0; j < segmentsFeature[i].size(); ++j)
+                featureMat.at<float>(i, j + regionOffset) = segmentsFeature[i][j];
+        }
+        cv::Ptr<cv::ml::TrainData> traindata = ml::TrainData::create(featureMat, ml::ROW_SAMPLE, responseMat);
+        sprintf(buffer, "%s_cluster%05d.csv", FLAGS_cache.c_str(), cluster);
+        writeTrainData(string(buffer), traindata);
+    }
+ }
