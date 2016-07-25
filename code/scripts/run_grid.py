@@ -1,13 +1,14 @@
 import subprocess
 exec_path = '~/Documents/research/DynamicStereo/code/build/VisualWord/VisualWord'
 data_path = '~/Documents/research/DynamicStereo/data/traindata'
-output_path = '/home/yanhang/Documents/research/DynamicStereo/data/traindata/gridsearch'
+output_path = '/home/yanhang/Documents/research/DynamicStereo/data/traindata'
 
 #grid paramters
-test_feature = ['hog3d', 'color3d']
+#test_feature = ['hog3d', 'color3d']
+test_feature = ['color3d']
 
 # #visual word
-kCluster = [50, 100, 200, 400]
+kCluster = [50]
 # print 'Extracting features...'
 # for cluster in kCluster:
 #     for feature in test_feature:
@@ -36,7 +37,7 @@ paramGamma = [0.01, 0.1, 1.0, 2.0, 4.0]
 bestParam = []
 bestClassifier = ''
 
-log_file = open('{}/log.txt'.format(output_path))
+log_file = open('{}/log.txt'.format(output_path), 'w')
 
 bestValidation = -1.0
 for classifier in treeClassifier:
@@ -45,16 +46,18 @@ for classifier in treeClassifier:
             for td in treeDepth:
                 for nt in numTree:
                     cur_param = [td, nt]
+                    print "Classifier: {}, cluster: {}, tree depth: {}, number of tree: {}"\
+                        .format(classifier, cluster, td, nt)
                     train_path = '{}/train_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                     validation_path = '{}/validation_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                     model_path = '{}/model_{}_cluster{:05d}'
-                    command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --numTree={}' \
-                              ' --treeDepth={} null.txt | grep 'Validation'".format(exec_path, train_path,
-                                                                                    validation_path, model_path,
-                                                                                    classifier, nt, td)
+                    command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --numTree={} " \
+                              "--treeDepth={} null.txt | grep 'Validation'"\
+                        .format(exec_path, train_path,validation_path, model_path, classifier, nt, td)
                     print command
                     output = subprocess.check_output(command, shell=True)
                     cur_acc = float(output.split()[-1])
+                    print "Validation accuracy: ", cur_acc
                     log_file.write('{}\t{}\tnt:{}\ttd:{}\tvalidation:{:.3f}'
                                    .format(classifier, feature, td, nt, cur_acc))
                     if cur_acc > bestValidation:
@@ -67,23 +70,28 @@ for feature in test_feature:
     for cluster in kCluster:
         for c in paramC:
             for gamma in paramGamma:
+                print "Classifier: svm, cluster: {}, C: {:.3f}, gamma: {:.3f}".format(cluster, c, gamma)
                 cur_param = [c, paramGamma]
                 train_path = '{}/train_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                 validation_path = '{}/validation_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                 model_path = '{}/model_{}_cluster{:05d}'
-                command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --svmC={}' \
-                    ' --svmGamma={} null.txt | grep 'Validation'".format(exec_path, train_path,
-                                                                         validation_path, model_path, 'svm', c, gamma)
+                command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --svmC={}" \
+                    " --svmGamma={} null.txt | grep 'Validation'"\
+                    .format(exec_path, train_path, validation_path, model_path, 'svm', c, gamma)
 
                 print command
                 output = subprocess.check_output(command, shell=True)
                 cur_acc = float(output.split()[-1])
+                print "Validation accuracy: ", cur_acc
+
                 log_file.write('{}\t{}\tC:{}\tGamma:{}\tvalidation:{:.3f}'
                                .format('svm', feature, c, gamma, cur_acc))
                 if cur_acc > bestValidation:
                     bestValidation = cur_acc
                     bestClassifier = 'svm'
                     bestParam = cur_param
+
+log_file.close()
 
 print "All done"
 print "Best classifier:", bestClassifier
