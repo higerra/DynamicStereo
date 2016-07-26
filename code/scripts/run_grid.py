@@ -1,14 +1,14 @@
 import subprocess
 exec_path = '~/Documents/research/DynamicStereo/code/build/VisualWord/VisualWord'
 data_path = '~/Documents/research/DynamicStereo/data/traindata'
-output_path = '/home/yanhang/Documents/research/DynamicStereo/data/traindata'
+output_path = '/home/yanhang/Documents/research/DynamicStereo/data/traindata/gridsearch'
 
 #grid paramters
-#test_feature = ['hog3d', 'color3d']
-test_feature = ['color3d']
+test_feature = ['hog3d', 'color3d']
+#test_feature = ['color3d']
 
 # #visual word
-kCluster = [50]
+kCluster = [50, 100, 200, 500]
 # print 'Extracting features...'
 # for cluster in kCluster:
 #     for feature in test_feature:
@@ -50,7 +50,7 @@ for classifier in treeClassifier:
                         .format(classifier, cluster, td, nt)
                     train_path = '{}/train_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                     validation_path = '{}/validation_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
-                    model_path = '{}/model_{}_cluster{:05d}'
+                    model_path = '{}/model_{}_cluster{:05d}'.format(output_path, feature, cluster)
                     command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --numTree={} " \
                               "--treeDepth={} null.txt | grep 'Validation'"\
                         .format(exec_path, train_path,validation_path, model_path, classifier, nt, td)
@@ -74,7 +74,7 @@ for feature in test_feature:
                 cur_param = [c, paramGamma]
                 train_path = '{}/train_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                 validation_path = '{}/validation_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
-                model_path = '{}/model_{}_cluster{:05d}'
+                model_path = '{}/model_{}_cluster{:05d}'.format(output_path, feature, cluster)
                 command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --svmC={}" \
                     " --svmGamma={} null.txt | grep 'Validation'"\
                     .format(exec_path, train_path, validation_path, model_path, 'svm', c, gamma)
