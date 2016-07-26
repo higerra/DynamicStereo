@@ -8,19 +8,19 @@ test_feature = ['hog3d', 'color3d']
 #test_feature = ['color3d']
 
 # #visual word
-kCluster = [50, 100, 200, 500]
+kCluster = [50, 100, 200]
 print 'Extracting features...'
 for cluster in kCluster:
     for feature in test_feature:
-        codebook_path = '{}/model_{}_cluster{:05d}_codebook.txt'.format(output_path, feature, cluster)
+        model_path = '{}/model_{}'.format(output_path, feature)
         save_path = '{}/train_{}'.format(output_path, feature)
-        command = '{} --mode=multiExtract --desc={} --cache={} --codebook={} {}/samples/list_train.txt'\
-            .format(exec_path, feature, save_path, codebook_path, data_path)
+        command = '{} --mode=multiExtract --desc={} --cache={} --model={} {}/samples/list_train.txt'\
+            .format(exec_path, feature, save_path, model_path, data_path)
         print command
         save_path = '{}/validation_{}'.format(output_path, feature)
         subprocess.call(command, shell=True)
-        command = '{} --mode=multiExtract --desc={} --cache={} --codebook={} {}/samples/list_validation.txt' \
-            .format(exec_path, feature, save_path,  codebook_path, data_path)
+        command = '{} --mode=multiExtract --desc={} --cache={} --model={} {}/samples/list_validation.txt' \
+            .format(exec_path, feature, save_path,  model_path, data_path)
         print command
         subprocess.call(command, shell=True)
 

@@ -11,6 +11,6 @@ add_library(common descriptor.cpp descriptor.h
         dynamicwarpping.h dynamicwarpping.cpp
         CVdescriptor.h CVdescriptor.cpp
         stereomodel.h)
-target_link_libraries(common line_util segment_ms segment_gb)
+target_link_libraries(common segment_ms segment_gb)
 
 target_link_libraries(common base glog ${THEIA_LIBRARIES} OpenMeshCore)

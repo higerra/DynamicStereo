@@ -52,7 +52,7 @@ int main(int argc, char** argv){
         if(!FLAGS_cache.empty())
             writeTrainData(FLAGS_cache, traindata);
     }else if(FLAGS_mode == "multiExtract"){
-        vector<int> kClusters{50,100,200,500};
+        vector<int> kClusters{50,100,200};
         run_multiExtract(kClusters, argc, argv);
     }else if(FLAGS_mode == "train"){
         cv::Ptr<ml::TrainData> traindata = ml::TrainData::loadFromCSV(FLAGS_cache, 0);
@@ -199,13 +199,14 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv) {
     if (!FLAGS_codebook.empty())
         path_codebook = FLAGS_codebook;
     else if (!FLAGS_model.empty()){
+
         path_codebook = FLAGS_model + "_codebook.txt";
     }
     Mat visualWord, bestLabel;
     if (!loadCodebook(path_codebook, visualWord)) {
         //merge all descriptors into a mat
         printf("descriptors: %d, %d\n", descriptors.rows, descriptors.cols);
-        cv::kmeans(descriptors, FLAGS_kCluster, bestLabel, cv::TermCriteria(), 3, KMEANS_PP_CENTERS, visualWord);
+        cv::kmeans(descriptors, FLAGS_kCluster, bestLabel, cv::TermCriteria(cv::TermCriteria::COUNT, 30, 1.0), 3, KMEANS_PP_CENTERS, visualWord);
         if (!path_codebook.empty())
             writeCodebook(path_codebook, visualWord);
     }
@@ -448,7 +449,7 @@ void run_multiExtract(const vector<int>& kClusters, int argc, char** argv) {
         cerr << "Usage: ./VisualWord <path-to-list>" << endl;
         return;
     }
-    CHECK(!FLAGS_model.empty());
+    CHECK(!(FLAGS_model.empty() && FLAGS_codebook.empty()));
 
     string list_path = string(argv[1]);
     ifstream listIn(list_path.c_str());
@@ -553,14 +554,16 @@ void run_multiExtract(const vector<int>& kClusters, int argc, char** argv) {
     //construct visual word
     for(auto cluster: kClusters) {
         printf("Constructing visual words, kcluster: %d...\n", cluster);
-        string path_codebook = FLAGS_model + "_codebook.txt";
+        string path_codebook;
+        sprintf(buffer, "%s_cluster%05d_codebook.txt", FLAGS_model.c_str(), cluster);
         path_codebook = string(buffer);
 
         Mat visualWord, bestLabel;
-        printf("descriptors: %d, %d\n", descriptors.rows, descriptors.cols);
-        cv::kmeans(descriptors, cluster, bestLabel, cv::TermCriteria(), 3, KMEANS_PP_CENTERS, visualWord);
-        writeCodebook(path_codebook, visualWord);
-
+        if(!loadCodebook(path_codebook, visualWord)) {
+            printf("descriptors: %d, %d\n", descriptors.rows, descriptors.cols);
+            cv::kmeans(descriptors, cluster, bestLabel, cv::TermCriteria(cv::TermCriteria::COUNT, 30, 1.0), 3, KMEANS_PP_CENTERS, visualWord);
+            writeCodebook(path_codebook, visualWord);
+        }
         const int kChannel = (int) segmentsFeature[0].size() + visualWord.rows;
         const int kSample = (int) segmentsFeature.size();
 
