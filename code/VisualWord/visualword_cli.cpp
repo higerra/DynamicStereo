@@ -198,8 +198,9 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv) {
 
     if (!FLAGS_codebook.empty())
         path_codebook = FLAGS_codebook;
-    else if (!FLAGS_model.empty())
+    else if (!FLAGS_model.empty()){
         path_codebook = FLAGS_model + "_codebook.txt";
+    }
     Mat visualWord, bestLabel;
     if (!loadCodebook(path_codebook, visualWord)) {
         //merge all descriptors into a mat
@@ -447,6 +448,7 @@ void run_multiExtract(const vector<int>& kClusters, int argc, char** argv) {
         cerr << "Usage: ./VisualWord <path-to-list>" << endl;
         return;
     }
+    CHECK(!FLAGS_model.empty());
 
     string list_path = string(argv[1]);
     ifstream listIn(list_path.c_str());
@@ -551,8 +553,7 @@ void run_multiExtract(const vector<int>& kClusters, int argc, char** argv) {
     //construct visual word
     for(auto cluster: kClusters) {
         printf("Constructing visual words, kcluster: %d...\n", cluster);
-        string path_codebook;
-        sprintf(buffer, "%s_codebook_%05d.txt", FLAGS_model.c_str(), cluster);
+        string path_codebook = FLAGS_model + "_codebook.txt";
         path_codebook = string(buffer);
 
         Mat visualWord, bestLabel;

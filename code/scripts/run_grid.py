@@ -9,20 +9,21 @@ test_feature = ['hog3d', 'color3d']
 
 # #visual word
 kCluster = [50, 100, 200, 500]
-# print 'Extracting features...'
-# for cluster in kCluster:
-#     for feature in test_feature:
-#         save_path = '{}/train_{}'.format(output_path, feature)
-#         command = '{} --mode=multiExtract --desc={} --cache={} {}/samples/list_train.txt'\
-#             .format(exec_path, feature, save_path, data_path)
-#         print command
-#         save_path = '{}/validation_{}'.format(output_path, feature)
-#         subprocess.call(command, shell=True)
-#         command = '{} --mode=multiExtract --desc={}  --cache={} {}/samples/list_validation.txt' \
-#             .format(exec_path, feature, save_path, data_path)
-#         print command
-#         subprocess.call(command, shell=True)
-#
+print 'Extracting features...'
+for cluster in kCluster:
+    for feature in test_feature:
+        codebook_path = '{}/model_{}_cluster{:05d}_codebook.txt'.format(output_path, feature, cluster)
+        save_path = '{}/train_{}'.format(output_path, feature)
+        command = '{} --mode=multiExtract --desc={} --cache={} --codebook={} {}/samples/list_train.txt'\
+            .format(exec_path, feature, save_path, codebook_path, data_path)
+        print command
+        save_path = '{}/validation_{}'.format(output_path, feature)
+        subprocess.call(command, shell=True)
+        command = '{} --mode=multiExtract --desc={} --cache={} --codebook={} {}/samples/list_validation.txt' \
+            .format(exec_path, feature, save_path,  codebook_path, data_path)
+        print command
+        subprocess.call(command, shell=True)
+
 
 #for tree classifier
 treeClassifier = ['rf', 'bt']
@@ -51,9 +52,10 @@ for classifier in treeClassifier:
                     train_path = '{}/train_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                     validation_path = '{}/validation_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                     model_path = '{}/model_{}_cluster{:05d}'.format(output_path, feature, cluster)
-                    command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --numTree={} " \
+                    codebook_path = '{}/model_{}_cluster{:05d}_codebook.txt'.format(output_path, feature, cluster)
+                    command = "{} --mode=train --cache={} --codebook={} --validation={} --model={} --classifier={} --numTree={} " \
                               "--treeDepth={} null.txt | grep 'Validation'"\
-                        .format(exec_path, train_path,validation_path, model_path, classifier, nt, td)
+                        .format(exec_path, train_path, codebook_path, validation_path, model_path, classifier, nt, td)
                     print command
                     output = subprocess.check_output(command, shell=True)
                     cur_acc = float(output.split()[-1])
@@ -75,9 +77,10 @@ for feature in test_feature:
                 train_path = '{}/train_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                 validation_path = '{}/validation_{}_cluster{:05d}.csv'.format(output_path, feature, cluster)
                 model_path = '{}/model_{}_cluster{:05d}'.format(output_path, feature, cluster)
-                command = "{} --mode=train --cache={} --validation={} --model={} --classifier={} --svmC={}" \
+                codebook_path = '{}/model_{}_cluster{:05d}_codebook.txt'.format(output_path, feature, cluster)
+                command = "{} --mode=train --cache={}  codebook_path={} --validation={} --model={} --classifier={} --svmC={}" \
                     " --svmGamma={} null.txt | grep 'Validation'"\
-                    .format(exec_path, train_path, validation_path, model_path, 'svm', c, gamma)
+                    .format(exec_path, train_path, codebook_path, validation_path, model_path, 'svm', c, gamma)
 
                 print command
                 output = subprocess.check_output(command, shell=True)
