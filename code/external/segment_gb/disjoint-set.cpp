@@ -6,7 +6,7 @@
 
 namespace segment_gb{
 	universe::universe(int elements) {
-		elts = new uni_elt[elements];
+		elts.resize(elements);
 		num = elements;
 		for (int i = 0; i < elements; i++) {
 			elts[i].rank = 0;
@@ -14,11 +14,6 @@ namespace segment_gb{
 			elts[i].p = i;
 		}
 	}
-
-	universe::~universe() {
-		delete[] elts;
-	}
-
 	int universe::find(int x) {
 		int y = x;
 		while (y != elts[y].p)

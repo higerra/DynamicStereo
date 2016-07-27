@@ -38,7 +38,8 @@ add_subdirectory(${ROOT_DIRECTORY}/external/segment_ms)
 add_subdirectory(${ROOT_DIRECTORY}/external/segment_gb)
 #add_subdirectory(${ROOT_DIRECTORY}/external/line_util)
 add_subdirectory(${ROOT_DIRECTORY}/external/video_segmentation)
-add_subdirectory(${ROOT_DIRECTORY}/external/KMeansRex)
+#add_subdirectory(${ROOT_DIRECTORY}/external/KMeansRex)
+add_subdirectory(${ROOT_DIRECTORY}/MergeSegmentation)
 
 #main code
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/common)

@@ -43,25 +43,15 @@ namespace segment_gb{
 	//output: Mat with CV_32S type. Pixel values correspond to label Id
 	//seg: grouped pixels. seg[i][j], j'th pixel in i'th segment
 	int segment_image(const cv::Mat& input, cv::Mat& output, std::vector<std::vector<int> >& seg,
-	                   float sigma, float c, int min_size){
+	                   const int smoothSize, float c, int min_size){
 		CHECK(input.data != NULL);
 		const int width = input.cols;
 		const int height = input.rows;
 		cv::Mat temp, smooth;
-
-		std::vector<float> mask;
-		makeMask(sigma, mask);
-
-		convolveMat(input, temp, mask);
-		convolveMat(temp, smooth, mask);
+		input.convertTo(temp, cv::DataType<float>::type);
+		cv::blur(temp, smooth, cv::Size(smoothSize,smoothSize));
 
 		auto colorDiff = [](const cv::Mat& i1, const cv::Mat& i2, int x1, int y1, int x2, int y2){
-			CHECK_EQ(i1.size(), i2.size());
-			CHECK(x1 >= 0 && x1 <i1.cols);
-			CHECK(y1 >= 0 && y1 <i1.rows);
-			CHECK(x2 >= 0 && x2 <i2.cols);
-			CHECK(y2 >= 0 && y2 <i2.rows);
-
 			cv::Vec3f c1 = i1.at<cv::Vec3f>(y1, x1);
 			cv::Vec3f c2 = i2.at<cv::Vec3f>(y2, x2);
 			return std::sqrt(((double)c1[0] - (double)c2[0]) * ((double)c1[0] - (double)c2[0]) +
@@ -103,7 +93,7 @@ namespace segment_gb{
 			}
 		}
 
-		std::unique_ptr<universe> u(segment_graph(width * height, num, edges.data(), c));
+		std::unique_ptr<universe> u(segment_graph(width * height, edges, c));
 
 		// post process small components
 		for (int i = 0; i < num; i++) {

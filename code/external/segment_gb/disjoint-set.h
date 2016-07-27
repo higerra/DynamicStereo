@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 
 #ifndef DISJOINT_SET
 #define DISJOINT_SET
+#include <vector>
 
 namespace segment_gb {
 // disjoint-set forests using union-by-rank and path compression (sort of).
@@ -33,8 +34,6 @@ namespace segment_gb {
 	public:
 		universe(int elements);
 
-		~universe();
-
 		int find(int x);
 
 		void join(int x, int y);
@@ -44,7 +43,7 @@ namespace segment_gb {
 		int num_sets() const { return num; }
 
 	private:
-		uni_elt *elts;
+		std::vector<uni_elt> elts;
 		int num;
 	};
 }
