@@ -15,7 +15,7 @@
 
 namespace dynamic_stereo {
 
-    void edgeAggregation(const std::vector<cv::Mat> &input, cv::Mat &output);
+
 
 }//namespace dynamic_stereo
 

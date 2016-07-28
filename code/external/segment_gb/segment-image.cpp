@@ -8,38 +8,32 @@
 
 namespace segment_gb{
 
-	void makeMask(float sigma, std::vector<float>& mask){
-		sigma = std::max(sigma, 0.01F);
-		int len = (int)ceil(sigma * 4.0) + 1;
-		mask.resize(len);
-		for(auto i=0; i<len; ++i)
-			mask[i] = (float)std::exp(-0.5 * (i*i/(sigma*sigma)));
-		float sum = 0;
-		for(int i=1; i<len; ++i)
-			sum += fabs(mask[i]);
-		sum = 2.0f * sum + fabs(mask[0]);
-		CHECK_GT(sum, 0);
-		for(int i=0; i<len; ++i)
-			mask[i] /= sum;
-	}
-
-	void convolveMat(const cv::Mat& input, cv::Mat& output, const std::vector<float>& mask){
-		cv::Mat fmat;
-		input.convertTo(fmat, CV_32F);
-		const int width = input.cols;
-		const int height = input.rows;
-		output = cv::Mat(height, width, CV_32FC3);
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				cv::Vec3f sum = mask[0] * fmat.at<cv::Vec3f>(y,x);
-				for(int i=1; i<mask.size(); ++i)
-					sum += mask[i] * (fmat.at<cv::Vec3f>(y, std::max(x-i, 0)) + fmat.at<cv::Vec3f>(y, std::min(x+i, width-1)));
-				output.at<cv::Vec3f>(y,x) = sum;
+	void edgeAggregation(const std::vector<cv::Mat> &input, cv::Mat &output){
+		CHECK(!input.empty());
+		output.create(input[0].size(), CV_32FC1);
+		output.setTo(cv::Scalar::all(0));
+		for (auto i =0; i<input.size(); ++i) {
+			cv::Mat edge_sobel(input[i].size(), CV_32FC1, cv::Scalar::all(0));
+			cv::Mat gray, gx, gy;
+			cvtColor(input[i], gray, CV_BGR2GRAY);
+			cv::Sobel(gray, gx, CV_32F, 1, 0);
+			cv::Sobel(gray, gy, CV_32F, 0, 1);
+			for(auto y=0; y<gray.rows; ++y){
+				for(auto x=0; x<gray.cols; ++x){
+					float ix = gx.at<float>(y,x);
+					float iy = gy.at<float>(y,x);
+					edge_sobel.at<float>(y,x) = std::sqrt(ix*ix+iy*iy+FLT_EPSILON);
+				}
 			}
+			output += edge_sobel;
 		}
+
+		double maxedge, minedge;
+		cv::minMaxLoc(output, &minedge, &maxedge);
+		if(maxedge > 0)
+			output /= maxedge;
 	}
 
-	//input: input image
 	//output: Mat with CV_32S type. Pixel values correspond to label Id
 	//seg: grouped pixels. seg[i][j], j'th pixel in i'th segment
 	int segment_image(const cv::Mat& input, cv::Mat& output, std::vector<std::vector<int> >& seg,
@@ -50,7 +44,6 @@ namespace segment_gb{
 		cv::Mat temp, smooth;
 		input.convertTo(temp, cv::DataType<float>::type);
 		cv::blur(temp, smooth, cv::Size(smoothSize,smoothSize));
-
 		auto colorDiff = [](const cv::Mat& i1, const cv::Mat& i2, int x1, int y1, int x2, int y2){
 			cv::Vec3f c1 = i1.at<cv::Vec3f>(y1, x1);
 			cv::Vec3f c2 = i2.at<cv::Vec3f>(y2, x2);
@@ -132,6 +125,136 @@ namespace segment_gb{
 			seg[output.at<int>(i/width, i%width)].push_back(i);
 		}
 		u.reset();
+		return nLabel;
+	}
+
+	int segment_video(const std::vector<cv::Mat>& input, cv::Mat& output,
+	                  const int smoothSize, const float c, const float theta, const int min_size){
+		CHECK(!input.empty());
+		const int width = input[0].cols;
+		const int height = input[0].rows;
+
+		printf("preprocessing\n");
+		std::vector<cv::Mat> smoothed(input.size());
+		for(auto v=0; v<input.size(); ++v){
+			cv::Mat temp;
+			input[v].convertTo(temp, cv::DataType<float>::type);
+			cv::blur(temp, smoothed[v], cv::Size(smoothSize, smoothSize));
+		}
+
+		cv::Mat edgeMap;
+		edgeAggregation(smoothed, edgeMap);
+
+		const int stride1 = 16;
+		const int stride2 = (int)input.size() / 2;
+		auto colorDiff = [&](int x1, int y1, int x2, int y2){
+			std::vector<int> binDesc1, binDesc2;
+			for(auto v=0; v<smoothed.size() - stride1; v+=stride1){
+				double d1 = cv::norm(smoothed[v].at<cv::Vec3f>(y1,x1) - smoothed[v+stride1].at<cv::Vec3f>(y1,x1));
+				double d2 = cv::norm(smoothed[v].at<cv::Vec3f>(y2,x2) - smoothed[v+stride1].at<cv::Vec3f>(y2,x2));
+				if(d1 >= theta)
+					binDesc1.push_back(1);
+				else
+					binDesc1.push_back(0);
+				if(d2 >= theta)
+					binDesc2.push_back(1);
+				else
+					binDesc2.push_back(0);
+			}
+			for(auto v=0; v<smoothed.size() - stride2; v+=stride1/2) {
+				double d1 = cv::norm(smoothed[v].at<cv::Vec3f>(y1, x1) - smoothed[v + stride2].at<cv::Vec3f>(y1, x1));
+				double d2 = cv::norm(smoothed[v].at<cv::Vec3f>(y2, x2) - smoothed[v + stride2].at<cv::Vec3f>(y2, x2));
+				if (d1 >= theta)
+					binDesc1.push_back(1);
+				else
+					binDesc1.push_back(0);
+				if (d2 >= theta)
+					binDesc2.push_back(1);
+				else
+					binDesc2.push_back(0);
+			}
+			CHECK_EQ(binDesc1.size(), binDesc2.size());
+			float diff_sum = 0.0f;
+			for(auto i=0; i<binDesc1.size(); ++i){
+				if(binDesc1[i] != binDesc2[i])
+					diff_sum += 1.0f;
+			}
+			return diff_sum / (float)binDesc1.size();
+		};
+		// build graph
+		std::vector<edge> edges((size_t)width*height*4);
+		int num = 0;
+
+		printf("Computing edge weight\n");
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				float edgeness = edgeMap.at<float>(y,x);
+				if (x < width - 1) {
+					edges[num].a = y * width + x;
+					edges[num].b = y * width + (x + 1);
+					edges[num].w = colorDiff(x, y, x+1, y) * edgeness;
+					num++;
+				}
+
+				if (y < height - 1) {
+					edges[num].a = y * width + x;
+					edges[num].b = (y + 1) * width + x;
+					edges[num].w = colorDiff(x, y, x, y+1) * edgeness;
+					num++;
+				}
+
+				if ((x < width - 1) && (y < height - 1)) {
+					edges[num].a = y * width + x;
+					edges[num].b = (y + 1) * width + (x + 1);
+					edges[num].w = colorDiff(x, y, x+1, y+1) * edgeness;
+					num++;
+				}
+
+				if ((x < width - 1) && (y > 0)) {
+					edges[num].a = y * width + x;
+					edges[num].b = (y - 1) * width + (x + 1);
+					edges[num].w = colorDiff(x, y, x+1, y-1) * edgeness;
+					num++;
+				}
+			}
+		}
+
+		printf("segment graph\n");
+
+		std::unique_ptr<universe> u(segment_graph(width * height, edges, c));
+
+		printf("post processing\n");
+		// post process small components
+		for (int i = 0; i < num; i++) {
+			int a = u->find(edges[i].a);
+			int b = u->find(edges[i].b);
+			if ((a != b) && ((u->size(a) < min_size) || (u->size(b) < min_size)))
+				u->join(a, b);
+		}
+
+		output = cv::Mat(height, width, CV_32S, cv::Scalar::all(0));
+
+		//remap labels
+		std::vector<std::pair<int, int> > labelMap((size_t)width * height);
+		int curMaxLabel = -1;
+		int nLabel = -1;
+		for (int i=0; i<width * height; ++i) {
+			int comp = u->find(i);
+			CHECK_LT(comp, width * height);
+			labelMap[i] = std::pair<int,int>(comp, i);
+		}
+		std::sort(labelMap.begin(), labelMap.end());
+		for(auto i=0; i<labelMap.size(); ++i){
+			CHECK_GE(labelMap[i].first, 0);
+			if(labelMap[i].first > curMaxLabel){
+				curMaxLabel = labelMap[i].first;
+				nLabel++;
+			}
+			int pixId = labelMap[i].second;
+			output.at<int>(pixId/width, pixId%width) = nLabel;
+		}
+
+		nLabel++;
 		return nLabel;
 	}
 

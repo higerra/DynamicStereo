@@ -32,6 +32,10 @@ namespace segment_gb {
 	int segment_image(const cv::Mat& input, cv::Mat& output, std::vector<std::vector<int> >& seg,
 	                   const int smoothSize, float c, int min_size);
 
+	void edgeAggregation(const std::vector<cv::Mat> &input, cv::Mat &output);
+
+	int segment_video(const std::vector<cv::Mat>& input, cv::Mat& output,
+	                  const int smoothSize, const float c, const float theta, const int min_size);
 	cv::Mat visualizeSegmentation(const cv::Mat& input);
 }
 #endif
