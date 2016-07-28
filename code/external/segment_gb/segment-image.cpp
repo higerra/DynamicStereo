@@ -3,10 +3,82 @@
 //
 
 #include "segment-image.h"
-#include <memory>
-#include <random>
 
 namespace segment_gb{
+
+	float TransitionPattern::compare(const std::vector<cv::Mat> &input, const int x1, const int y1, const int x2,
+	                                const int y2) const {
+		CHECK(!input.empty());
+		CHECK_EQ(input[0].type(), CV_32FC3);
+
+		std::vector<int> binDesc1, binDesc2;
+		for(auto v=0; v<input.size() - stride1; v+=stride1){
+			double d1 = cv::norm(input[v].at<cv::Vec3f>(y1,x1) - input[v+stride1].at<cv::Vec3f>(y1,x1));
+			double d2 = cv::norm(input[v].at<cv::Vec3f>(y2,x2) - input[v+stride1].at<cv::Vec3f>(y2,x2));
+			if(d1 >= theta)
+				binDesc1.push_back(1);
+			else
+				binDesc1.push_back(0);
+			if(d2 >= theta)
+				binDesc2.push_back(1);
+			else
+				binDesc2.push_back(0);
+		}
+		for(auto v=0; v<input.size() - stride2; v+=stride1/2) {
+			double d1 = cv::norm(input[v].at<cv::Vec3f>(y1, x1) - input[v + stride2].at<cv::Vec3f>(y1, x1));
+			double d2 = cv::norm(input[v].at<cv::Vec3f>(y2, x2) - input[v + stride2].at<cv::Vec3f>(y2, x2));
+			if (d1 >= theta)
+				binDesc1.push_back(1);
+			else
+				binDesc1.push_back(0);
+			if (d2 >= theta)
+				binDesc2.push_back(1);
+			else
+				binDesc2.push_back(0);
+		}
+		CHECK_EQ(binDesc1.size(), binDesc2.size());
+		float diff_sum = 0.0f;
+		for(auto i=0; i<binDesc1.size(); ++i){
+			if(binDesc1[i] != binDesc2[i])
+				diff_sum += 1.0f;
+		}
+		return diff_sum / (float)binDesc1.size();
+	}
+
+	float TransitionCounter::compare(const std::vector<cv::Mat> &input, const int x1, const int y1, const int x2,
+	                                 const int y2) const {
+		CHECK(!input.empty());
+		CHECK_EQ(input[0].type(), CV_32FC3);
+
+		float res = 0.0f;
+
+		std::vector<float> binDesc1(2, 0.0f), binDesc2(2, 0.0f);
+		float counter1 = 0.0f, counter2 = 0.0f;
+		for(auto v=0; v<input.size() - stride1; v+=stride1){
+			double d1 = cv::norm(input[v].at<cv::Vec3f>(y1,x1) - input[v+stride1].at<cv::Vec3f>(y1,x1));
+			double d2 = cv::norm(input[v].at<cv::Vec3f>(y2,x2) - input[v+stride1].at<cv::Vec3f>(y2,x2));
+			if(d1 >= theta)
+				binDesc1[0] += 1.0;
+			if(d2 >= theta)
+				binDesc2[0] += 1.0;
+			counter1 += 1.0;
+		}
+
+		res += std::abs(binDesc1[0] - binDesc2[0]) / counter1;
+
+		for(auto v=0; v<input.size() - stride2; v+=stride1/2) {
+			double d1 = cv::norm(input[v].at<cv::Vec3f>(y1, x1) - input[v + stride2].at<cv::Vec3f>(y1, x1));
+			double d2 = cv::norm(input[v].at<cv::Vec3f>(y2, x2) - input[v + stride2].at<cv::Vec3f>(y2, x2));
+			if (d1 >= theta)
+				binDesc1[1] += 1.0;
+			if (d2 >= theta)
+				binDesc2[1] += 1.0;
+			counter2 += 1.0;
+		}
+
+		res += std::abs(binDesc1[1] - binDesc2[1]) / counter2;
+		return res / 2.0f;
+	}
 
 	void edgeAggregation(const std::vector<cv::Mat> &input, cv::Mat &output){
 		CHECK(!input.empty());
@@ -145,42 +217,11 @@ namespace segment_gb{
 		cv::Mat edgeMap;
 		edgeAggregation(smoothed, edgeMap);
 
-		const int stride1 = 16;
+		const int stride1 = 8;
 		const int stride2 = (int)input.size() / 2;
-		auto colorDiff = [&](int x1, int y1, int x2, int y2){
-			std::vector<int> binDesc1, binDesc2;
-			for(auto v=0; v<smoothed.size() - stride1; v+=stride1){
-				double d1 = cv::norm(smoothed[v].at<cv::Vec3f>(y1,x1) - smoothed[v+stride1].at<cv::Vec3f>(y1,x1));
-				double d2 = cv::norm(smoothed[v].at<cv::Vec3f>(y2,x2) - smoothed[v+stride1].at<cv::Vec3f>(y2,x2));
-				if(d1 >= theta)
-					binDesc1.push_back(1);
-				else
-					binDesc1.push_back(0);
-				if(d2 >= theta)
-					binDesc2.push_back(1);
-				else
-					binDesc2.push_back(0);
-			}
-			for(auto v=0; v<smoothed.size() - stride2; v+=stride1/2) {
-				double d1 = cv::norm(smoothed[v].at<cv::Vec3f>(y1, x1) - smoothed[v + stride2].at<cv::Vec3f>(y1, x1));
-				double d2 = cv::norm(smoothed[v].at<cv::Vec3f>(y2, x2) - smoothed[v + stride2].at<cv::Vec3f>(y2, x2));
-				if (d1 >= theta)
-					binDesc1.push_back(1);
-				else
-					binDesc1.push_back(0);
-				if (d2 >= theta)
-					binDesc2.push_back(1);
-				else
-					binDesc2.push_back(0);
-			}
-			CHECK_EQ(binDesc1.size(), binDesc2.size());
-			float diff_sum = 0.0f;
-			for(auto i=0; i<binDesc1.size(); ++i){
-				if(binDesc1[i] != binDesc2[i])
-					diff_sum += 1.0f;
-			}
-			return diff_sum / (float)binDesc1.size();
-		};
+
+		std::shared_ptr<TemporalComparator> comparator(new TransitionPattern(stride1, stride2, theta));
+
 		// build graph
 		std::vector<edge> edges((size_t)width*height*4);
 		int num = 0;
@@ -192,28 +233,28 @@ namespace segment_gb{
 				if (x < width - 1) {
 					edges[num].a = y * width + x;
 					edges[num].b = y * width + (x + 1);
-					edges[num].w = colorDiff(x, y, x+1, y) * edgeness;
+					edges[num].w = comparator->compare(smoothed, x, y, x+1, y) * edgeness;
 					num++;
 				}
 
 				if (y < height - 1) {
 					edges[num].a = y * width + x;
 					edges[num].b = (y + 1) * width + x;
-					edges[num].w = colorDiff(x, y, x, y+1) * edgeness;
+					edges[num].w = comparator->compare(smoothed, x, y, x, y+1) * edgeness;
 					num++;
 				}
 
 				if ((x < width - 1) && (y < height - 1)) {
 					edges[num].a = y * width + x;
 					edges[num].b = (y + 1) * width + (x + 1);
-					edges[num].w = colorDiff(x, y, x+1, y+1) * edgeness;
+					edges[num].w = comparator->compare(smoothed, x, y, x+1, y+1) * edgeness;
 					num++;
 				}
 
 				if ((x < width - 1) && (y > 0)) {
 					edges[num].a = y * width + x;
 					edges[num].b = (y - 1) * width + (x + 1);
-					edges[num].w = colorDiff(x, y, x+1, y-1) * edgeness;
+					edges[num].w = comparator->compare(smoothed, x, y, x+1, y-1) * edgeness;
 					num++;
 				}
 			}
