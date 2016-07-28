@@ -10,8 +10,10 @@ namespace segment_gb{
 	                                const int y2) const {
 		CHECK(!input.empty());
 		CHECK_EQ(input[0].type(), CV_32FC3);
-
-		std::vector<int> binDesc1, binDesc2;
+        std::vector<float> binDesc1;
+        std::vector<float> binDesc2;
+        binDesc1.reserve(input.size() * 2);
+        binDesc2.reserve(input.size() * 2);
 		for(auto v=0; v<input.size() - stride1; v+=stride1){
 			double d1 = cv::norm(input[v].at<cv::Vec3f>(y1,x1) - input[v+stride1].at<cv::Vec3f>(y1,x1));
 			double d2 = cv::norm(input[v].at<cv::Vec3f>(y2,x2) - input[v+stride1].at<cv::Vec3f>(y2,x2));

@@ -39,6 +39,7 @@ namespace segment_gb {
 		TransitionPattern(const int param1_, const int param2_, const float param3_): stride1(param1_), stride2(param2_), theta(param3_){}
 		virtual float compare(const std::vector<cv::Mat>& input, const int x1, const int y1, const int x2, const int y2) const;
 	private:
+
 		const int stride1;
 		const int stride2;
 		const float theta;
