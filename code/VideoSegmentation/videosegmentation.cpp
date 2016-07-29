@@ -63,7 +63,7 @@ namespace dynamic_stereo {
         std::shared_ptr<TemporalFeatureExtractorBase> temporal_extractor(
                 new TransitionPattern(pixel_extractor.get(), pixel_comparator.get(), stride1, stride2, theta));
 
-        std::shared_ptr<DistanceMetricBase<float> > feature_comparator(new AverageL1<float>());
+        std::shared_ptr<DistanceMetricBase<float> > feature_comparator(new DistanceL1Average<float>());
 
         printf("Computing edge weight\n");
         vector<vector<float> > features;

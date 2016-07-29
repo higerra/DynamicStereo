@@ -32,7 +32,7 @@ namespace dynamic_stereo{
     };
 
     template<typename T>
-    class AverageL1: public DistanceMetricBase<T>{
+    class DistanceL1Average: public DistanceMetricBase<T>{
         virtual T evaluate(const std::vector<T>& a1, const std::vector<T>& a2) const {
             DistanceL1<T> l1dis;
             T res = l1dis.evaluate(a1, a2) / (T)a1.size();
