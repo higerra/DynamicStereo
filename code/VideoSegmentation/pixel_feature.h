@@ -80,7 +80,7 @@ namespace dynamic_stereo{
         inline const PixelFeatureExtractorBase* getPixelFeatureExtractor() const{
             return pixel_feature;
         }
-        inline const DistanceMetricBase<float>* getPixelFeatureComparator() const{
+        inline const DistanceMetricBase<T>* getPixelFeatureComparator() const{
             return pixel_distance;
         }
         virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<float>& feat) const = 0;
