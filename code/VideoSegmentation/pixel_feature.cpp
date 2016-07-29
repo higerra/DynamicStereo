@@ -61,8 +61,7 @@ namespace dynamic_stereo{
 
     void TransitionPattern::extractPixel(const VideoMat& input, const int x, const int y, std::vector<float>& feat) const{
         CHECK(!input.empty());
-        if(!feat.empty())
-            feat.clear();
+        feat.clear();
         feat.reserve(2 * input.size());
 
         vector<float> pix1(3), pix2(3);

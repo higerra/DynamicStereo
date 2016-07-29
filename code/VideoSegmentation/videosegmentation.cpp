@@ -63,15 +63,14 @@ namespace dynamic_stereo {
         std::shared_ptr<TemporalFeatureExtractorBase> temporal_extractor(
                 new TransitionPattern(pixel_extractor.get(), pixel_comparator.get(), stride1, stride2, theta));
 
-        std::shared_ptr<DistanceMetricBase<float> > feature_comparator(new DistanceL1<float>());
+        std::shared_ptr<DistanceMetricBase<float> > feature_comparator(new AverageL1<float>());
 
+        printf("Computing edge weight\n");
         vector<vector<float> > features;
-        temporal_extractor->extractVideo(input, features);
+        temporal_extractor->extractVideo(smoothed, features);
         // build graph
         std::vector<edge> edges((size_t)width*height*4);
         int num = 0;
-
-        printf("Computing edge weight\n");
         //8 neighbor
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -79,28 +78,28 @@ namespace dynamic_stereo {
                 if (x < width - 1) {
                     edges[num].a = y * width + x;
                     edges[num].b = y * width + (x + 1);
-                    edges[num].w = feature_comparator->evaluate(features[y*width+x], features[y*width+x+1]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
                     num++;
                 }
 
                 if (y < height - 1) {
                     edges[num].a = y * width + x;
                     edges[num].b = (y + 1) * width + x;
-                    edges[num].w = feature_comparator->evaluate(features[y*width+x], features[(y+1)*width+x]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
                     num++;
                 }
 
                 if ((x < width - 1) && (y < height - 1)) {
                     edges[num].a = y * width + x;
                     edges[num].b = (y + 1) * width + (x + 1);
-                    edges[num].w = feature_comparator->evaluate(features[y*width+x], features[(y+1)*width+x+1]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
                     num++;
                 }
 
                 if ((x < width - 1) && (y > 0)) {
                     edges[num].a = y * width + x;
                     edges[num].b = (y - 1) * width + (x + 1);
-                    edges[num].w = feature_comparator->evaluate(features[y*width+x], features[(y+1)*width+x-1]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
                     num++;
                 }
             }
