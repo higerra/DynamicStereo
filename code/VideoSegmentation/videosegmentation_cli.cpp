@@ -2,7 +2,7 @@
 // Created by yanhang on 7/27/16.
 //
 #include <fstream>
-#include "mergesegmentation.h"
+#include "videosegmentation.h"
 #include <gflags/gflags.h>
 
 using namespace std;
@@ -13,7 +13,7 @@ DEFINE_double(c, 2.0, "parameter c");
 
 int main(int argc, char** argv){
     if(argc < 2){
-        cerr << "Usage: ./MergeSegmentation <path-to-video>" << endl;
+        cerr << "Usage: ./VideoSegmentation <path-to-video>" << endl;
         return 1;
     }
 	google::InitGoogleLogging(argv[0]);
@@ -61,8 +61,8 @@ int main(int argc, char** argv){
         //test for video segmentation based on binary descriptor
         Mat segment;
         printf("Video segmentation...\n");
-        segment_gb::segment_video(images, segment, 9, (float) FLAGS_c, 100, 100);
-        Mat segment_vis = segment_gb::visualizeSegmentation(segment);
+        segment_video(images, segment, 9, (float) FLAGS_c, 100, 100);
+        Mat segment_vis = visualizeSegmentation(segment);
         Mat result;
         cv::addWeighted(images[0], 0.1, segment_vis, 0.9, 0.0, result);
 
