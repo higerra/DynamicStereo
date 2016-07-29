@@ -12,20 +12,6 @@ namespace dynamic_stereo{
 
     /////////////////////////////////////////////////////////////
     //implementation of image features
-    void PixelFeatureExtractorBase::extractImage(const cv::Mat &input,
-                                                 std::vector<std::vector<float> > &feats) const {
-        CHECK(input.data);
-        const int width = input.cols;
-        const int height = input.rows;
-        feats.resize((size_t)(width * height));
-
-        for(auto y=0; y<height; ++y){
-            for(auto x=0; x<width; ++x){
-                extractPixel(input, x,y, feats[y*width+x]);
-            }
-        }
-    }
-
     void PixelValue::extractPixel(const cv::Mat &input, const int x, const int y, std::vector<float> &feat) const {
         if(feat.size() != 3)
             feat.resize(3);
@@ -45,21 +31,7 @@ namespace dynamic_stereo{
 
     ////////////////////////////////////////////////////////////
     //implementation of temporal features
-    void TemporalFeatureExtractorBase::extractVideo(const VideoMat &input,
-                                                 std::vector<std::vector<float> > &feats) const {
-        CHECK(!input.empty());
-        const int width = input[0].cols;
-        const int height = input[0].rows;
-        feats.resize((size_t)(width * height));
-
-        for(auto y=0; y<height; ++y){
-            for(auto x=0; x<width; ++x){
-                extractPixel(input, x,y, feats[y*width+x]);
-            }
-        }
-    }
-
-    void TransitionPattern::extractPixel(const VideoMat& input, const int x, const int y, std::vector<float>& feat) const{
+    void TransitionPattern::extractPixel(const VideoMat& input, const int x, const int y, std::vector<bool>& feat) const{
         CHECK(!input.empty());
         feat.clear();
         feat.reserve(2 * input.size());
