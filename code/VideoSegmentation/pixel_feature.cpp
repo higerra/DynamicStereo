@@ -3,7 +3,6 @@
 //
 
 #include "pixel_feature.h"
-#include "distance_metric.h"
 
 using namespace std;
 using namespace cv;
@@ -31,20 +30,20 @@ namespace dynamic_stereo{
 
     ////////////////////////////////////////////////////////////
     //implementation of temporal features
-    void TransitionPattern::extractPixel(const VideoMat& input, const int x, const int y, std::vector<bool>& feat) const{
+    void TransitionPattern::extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const{
         CHECK(!input.empty());
         feat.clear();
         feat.reserve(2 * input.size());
 
-        vector<float> pix1(3), pix2(3);
+        vector<PixelType> pix1(3), pix2(3);
         for(auto v=0; v<input.size() - stride1(); ++v){
             pixel_feature->extractPixel(input[v], x, y, pix1);
             pixel_feature->extractPixel(input[v+stride1()], x, y, pix2);
             float d = pixel_distance->evaluate(pix1, pix2);
             if(d >= theta())
-                feat.push_back(1);
+                feat.push_back(true);
             else
-                feat.push_back(0);
+                feat.push_back(false);
         }
 
         if(stride2() > 0){
@@ -53,9 +52,9 @@ namespace dynamic_stereo{
                 pixel_feature->extractPixel(input[v+stride2()], x, y, pix2);
                 float d = pixel_distance->evaluate(pix1, pix2);
                 if (d >= theta())
-                    feat.push_back(1);
+                    feat.push_back(true);
                 else
-                    feat.push_back(0);
+                    feat.push_back(false);
             }
         }
     }
@@ -64,8 +63,8 @@ namespace dynamic_stereo{
                                           std::vector<float> &feat) const {
         CHECK_GE(input.size(), 2);
         feat.resize(2, 0.0f);
-        vector<float> pix1(3), pix2(3);
 
+	    vector<PixelType> pix1(3), pix2(3);
         float counter1 = 0.0f, counter2 = 0.0f;
         for(auto v=0; v<input.size() - stride1(); v+=stride1()){
             pixel_feature->extractPixel(input[v], x, y, pix1);

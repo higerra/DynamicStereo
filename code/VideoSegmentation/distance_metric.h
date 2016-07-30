@@ -8,8 +8,10 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <numeric>
 #include <glog/logging.h>
 #include <limits>
+
 namespace dynamic_stereo{
 
     template<typename T, typename R = float>
@@ -53,6 +55,29 @@ namespace dynamic_stereo{
                     std::sqrt(std::accumulate(diff.begin(), diff.end(), (T) 0) + std::numeric_limits<T>::epsilon()));
         }
     };
+
+	class DistanceHamming: public DistanceMetricBase<bool, int>{
+	public:
+		virtual int evaluate(const std::vector<bool>& a1, const std::vector<bool>& a2) const {
+			CHECK_EQ(a1.size(), a2.size());
+			int res = 0;
+			for(auto i=0; i<a1.size(); ++i){
+				if(a1[i] xor a2[i])
+					res++;
+			}
+			return res;
+		}
+	};
+
+	class DistanceHammingAverage: public DistanceMetricBase<bool, float>{
+	public:
+		virtual float evaluate(const std::vector<bool>& a1, const std::vector<bool>& a2) const{
+			CHECK(!a1.empty());
+			DistanceHamming hamming;
+			int dis = hamming.evaluate(a1, a2);
+			return (float)dis / (float)a1.size();
+		}
+	};
 
 }//namespace dynamic_stereo
 

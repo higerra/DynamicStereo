@@ -58,15 +58,18 @@ namespace dynamic_stereo {
         const int stride2 = (int)input.size() / 2;
 
 
-        std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new PixelValue());
-        std::shared_ptr<DistanceMetricBase<float> > pixel_comparator(new DistanceL2<float>());
-        std::shared_ptr<TemporalFeatureExtractorBase> temporal_extractor(
+	    using PixelType = float;
+	    using FeatureType = bool;
+
+        std::shared_ptr<PixelFeatureExtractorBase<PixelType> > pixel_extractor(new PixelValue());
+        std::shared_ptr<DistanceMetricBase<PixelType> > pixel_comparator(new DistanceL2<PixelType>());
+        std::shared_ptr<TemporalFeatureExtractorBase<FeatureType> > temporal_extractor(
                 new TransitionPattern(pixel_extractor.get(), pixel_comparator.get(), stride1, stride2, theta));
 
-        std::shared_ptr<DistanceMetricBase<float> > feature_comparator(new DistanceL1Average<float>());
+        std::shared_ptr<DistanceMetricBase<FeatureType> > feature_comparator(new DistanceHammingAverage());
 
         printf("Computing edge weight\n");
-        vector<vector<float> > features;
+        vector<vector<FeatureType> > features;
         temporal_extractor->extractVideo(smoothed, features);
         // build graph
         std::vector<edge> edges((size_t)width*height*4);

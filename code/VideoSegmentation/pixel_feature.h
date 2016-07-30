@@ -8,12 +8,10 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <glog/logging.h>
+#include "distance_metric.h"
 
 namespace dynamic_stereo{
     using VideoMat = std::vector<cv::Mat>;
-
-    template<typename T>
-    class DistanceMetricBase;
 
     /////////////////////////////////////////////////////////////
     //pixel level feature
@@ -48,7 +46,7 @@ namespace dynamic_stereo{
     template<typename T>
     class TemporalFeatureExtractorBase{
     public:
-        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<float>& feat) const = 0;
+        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<T>& feat) const = 0;
         void extractVideo(const VideoMat& input, std::vector<std::vector<T> >& feats) const{
             CHECK(!input.empty());
             const int width = input[0].cols;
@@ -63,10 +61,12 @@ namespace dynamic_stereo{
         }
     };
 
-    template<typename T>
+	template<typename T>
     class TransitionFeature: public TemporalFeatureExtractorBase<T>{
     public:
-        TransitionFeature(const PixelFeatureExtractorBase* pf_, const DistanceMetricBase<T>* pd_,
+	    using PixelType = float;
+	    using FeatureType = T;
+        TransitionFeature(const PixelFeatureExtractorBase<float>* pf_, const DistanceMetricBase<PixelType>* pd_,
                           const int s1_, const int s2_, const float theta_):
                 pixel_feature(pf_), pixel_distance(pd_), s1(s1_), s2(s2_), t(theta_){
             CHECK_GT(stride1(), 0);
@@ -77,16 +77,17 @@ namespace dynamic_stereo{
         inline int stride2() const {return s2;}
         inline float theta() const {return t;}
 
-        inline const PixelFeatureExtractorBase* getPixelFeatureExtractor() const{
+        inline const PixelFeatureExtractorBase<PixelType>* getPixelFeatureExtractor() const{
             return pixel_feature;
         }
-        inline const DistanceMetricBase<T>* getPixelFeatureComparator() const{
+        inline const DistanceMetricBase<FeatureType>* getPixelFeatureComparator() const{
             return pixel_distance;
         }
-        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<float>& feat) const = 0;
+
+	    virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const = 0;
     protected:
-        const PixelFeatureExtractorBase* pixel_feature;
-        const DistanceMetricBase<T>* pixel_distance;
+        const PixelFeatureExtractorBase<PixelType>* pixel_feature;
+        const DistanceMetricBase<PixelType>* pixel_distance;
         const int s1;
         const int s2;
         const float t;
@@ -94,18 +95,18 @@ namespace dynamic_stereo{
 
     class TransitionPattern: public TransitionFeature<bool>{
     public:
-        TransitionPattern(const PixelFeatureExtractorBase* pf_, const DistanceMetricBase<bool>* pd_,
+        TransitionPattern(const PixelFeatureExtractorBase<PixelType>* pf_, const DistanceMetricBase<PixelType>* pd_,
                           const int s1_, const int s2_, const float theta_):
                 TransitionFeature(pf_, pd_, s1_, s2_, theta_){}
-        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<bool>& feat) const;
+        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const;
     };
 
     class TransitionCounting: public TransitionFeature<float>{
     public:
-        TransitionCounting(const PixelFeatureExtractorBase* pf_, const DistanceMetricBase<float>* pd_,
+        TransitionCounting(const PixelFeatureExtractorBase<PixelType>* pf_, const DistanceMetricBase<PixelType>* pd_,
                           const int s1_, const int s2_, const float theta_)
                 : TransitionFeature(pf_, pd_, s1_, s2_, theta_){}
-        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<float>& feat) const;
+        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const;
     };
 
 

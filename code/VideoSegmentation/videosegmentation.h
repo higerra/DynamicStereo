@@ -8,7 +8,6 @@
 #include <string>
 #include <memory>
 
-#include "distance_metric.h"
 #include "pixel_feature.h"
 
 namespace dynamic_stereo {
