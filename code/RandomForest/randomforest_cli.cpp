@@ -5,6 +5,8 @@
 #include "randomforest.h"
 #include "../external/video_segmentation/segment_util/segmentation_io.h"
 #include "../external/video_segmentation/segment_util/segmentation_util.h"
+#include "../VideoSegmentation/videosegmentation.h"
+
 #include <fstream>
 #include <gflags/gflags.h>
 
@@ -58,6 +60,8 @@ void run_train(const string& path) {
 	char buffer[128] = {};
 	//prepare training data
 	cv::Ptr<ml::TrainData> traindata = ml::TrainData::loadFromCSV(FLAGS_cache, 0);
+
+
 
 	vector<float> levelList{0.1, 0.2,0.3};
 	if (!traindata.get()) {

@@ -10,195 +10,200 @@ using namespace cv;
 
 namespace dynamic_stereo{
 
-    /////////////////////////////////////////////////////////////
-    //implementation of image features
-    void PixelValue::extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const {
-        output.create(getDim(), 1, CV_32FC1);
-        Mat inputMat = input.getMat();
-        Mat outputMat = output.getMat();
-        Vec3f pix;
-        if (input.type() == CV_8UC3) {
-            pix = (Vec3f) inputMat.at<Vec3b>(y, x);
-        } else if (input.type() == CV_32FC3)
-            pix = inputMat.at<Vec3f>(y, x);
-        else
-            CHECK(true) << "Image must be either CV_8UC3 or CV_32FC3";
-        outputMat.at<float>(0,0) = pix[0];
-        outputMat.at<float>(1,0) = pix[1];
-        outputMat.at<float>(2,0) = pix[2];
-    }
+    namespace video_segment {
+        /////////////////////////////////////////////////////////////
+        //implementation of image features
+        void
+        PixelValue::extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const {
+            output.create(getDim(), 1, CV_32FC1);
+            Mat inputMat = input.getMat();
+            Mat outputMat = output.getMat();
+            Vec3f pix;
+            if (input.type() == CV_8UC3) {
+                pix = (Vec3f) inputMat.at<Vec3b>(y, x);
+            } else if (input.type() == CV_32FC3)
+                pix = inputMat.at<Vec3f>(y, x);
+            else
+                CHECK(true) << "Image must be either CV_8UC3 or CV_32FC3";
+            outputMat.at<float>(0, 0) = pix[0];
+            outputMat.at<float>(1, 0) = pix[1];
+            outputMat.at<float>(2, 0) = pix[2];
+        }
 
 
-    void PixelValue::extractAll(const cv::InputArray input, cv::OutputArray output) const {
-        Mat inputMat = input.getMat();
-        output.create(inputMat.cols * inputMat.rows, 3, CV_32FC1);
-        Mat outputMat = output.getMat();
+        void PixelValue::extractAll(const cv::InputArray input, cv::OutputArray output) const {
+            Mat inputMat = input.getMat();
+            output.create(inputMat.cols * inputMat.rows, 3, CV_32FC1);
+            Mat outputMat = output.getMat();
 
-        for(auto y=0; y<inputMat.rows; ++y){
-            for(auto x=0; x<inputMat.cols; ++x){
-                Vec3f pix;
-                if (input.type() == CV_8UC3) {
-                    pix = (Vec3f) inputMat.at<Vec3b>(y, x);
-                } else if (input.type() == CV_32FC3)
-                    pix = inputMat.at<Vec3f>(y, x);
-                else
-                    CHECK(true) << "Image must be either CV_8UC3 or CV_32FC3";
-                for(auto j=0; j<3; ++j)
-                    outputMat.at<float>(y*inputMat.cols+x, j) = pix[j];
+            for (auto y = 0; y < inputMat.rows; ++y) {
+                for (auto x = 0; x < inputMat.cols; ++x) {
+                    Vec3f pix;
+                    if (input.type() == CV_8UC3) {
+                        pix = (Vec3f) inputMat.at<Vec3b>(y, x);
+                    } else if (input.type() == CV_32FC3)
+                        pix = inputMat.at<Vec3f>(y, x);
+                    else
+                        CHECK(true) << "Image must be either CV_8UC3 or CV_32FC3";
+                    for (auto j = 0; j < 3; ++j)
+                        outputMat.at<float>(y * inputMat.cols + x, j) = pix[j];
+                }
             }
         }
-    }
 
-    BRIEFWrapper::BRIEFWrapper() {
-        cvBrief = cv::xfeatures2d::BriefDescriptorExtractor::create();
-        comparator.reset(new DistanceHammingAverage());
-        FeatureBase::dim = cvBrief->descriptorSize();
-    }
+        BRIEFWrapper::BRIEFWrapper() {
+            cvBrief = cv::xfeatures2d::BriefDescriptorExtractor::create();
+            comparator.reset(new DistanceHammingAverage());
+            FeatureBase::dim = cvBrief->descriptorSize();
+        }
 
-    void BRIEFWrapper::extractAll(const cv::InputArray input, cv::OutputArray output) const {
-        CHECK(!input.empty());
-        CHECK(cvBrief.get());
-        Mat inputMat = input.getMat();
-        const int width = inputMat.cols;
-        const int height = inputMat.rows;
-        vector<cv::KeyPoint> keypoints((size_t)width * height);
-        for(auto y=0; y<height; ++y){
-            for(auto x=0; x<width; ++x){
-                keypoints[y*width+x].pt = cv::Point2f(x,y);
-                //use octave to record pixel id
-                keypoints[y*width+x].octave = y*width+x;
+        void BRIEFWrapper::extractAll(const cv::InputArray input, cv::OutputArray output) const {
+            CHECK(!input.empty());
+            CHECK(cvBrief.get());
+            Mat inputMat = input.getMat();
+            const int width = inputMat.cols;
+            const int height = inputMat.rows;
+            vector<cv::KeyPoint> keypoints((size_t) width * height);
+            for (auto y = 0; y < height; ++y) {
+                for (auto x = 0; x < width; ++x) {
+                    keypoints[y * width + x].pt = cv::Point2f(x, y);
+                    //use octave to record pixel id
+                    keypoints[y * width + x].octave = y * width + x;
+                }
+            }
+            Mat initRes;
+            cvBrief->compute(input, keypoints, initRes);
+            //Notice: the BRIEF implementation in OpenCV removes border of the image. Here we add zero padding to the result
+            //feature image
+            output.create(inputMat.rows * inputMat.cols, initRes.cols, CV_8UC1);
+            output.setTo(Scalar::all(0));
+            Mat outputMat = output.getMat();
+            for (auto i = 0; i < keypoints.size(); ++i) {
+                int idx = keypoints[i].octave;
+                initRes.row(i).copyTo(outputMat.row(idx));
             }
         }
-        Mat initRes;
-        cvBrief->compute(input, keypoints, initRes);
-        //Notice: the BRIEF implementation in OpenCV removes border of the image. Here we add zero padding to the result
-        //feature image
-        output.create(inputMat.rows * inputMat.cols, initRes.cols, CV_8UC1);
-        output.setTo(Scalar::all(0));
-        Mat outputMat = output.getMat();
-        for(auto i=0; i<keypoints.size(); ++i){
-            int idx = keypoints[i].octave;
-            initRes.row(i).copyTo(outputMat.row(idx));
+
+        void
+        BRIEFWrapper::extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const {
+            vector<cv::KeyPoint> kpt(1);
+            kpt[0].pt = cv::Point2f(x, y);
+            CHECK_NOTNULL(cvBrief.get())->compute(input, kpt, feat);
         }
-    }
-
-    void BRIEFWrapper::extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const {
-        vector<cv::KeyPoint> kpt(1);
-        kpt[0].pt = cv::Point2f(x,y);
-        CHECK_NOTNULL(cvBrief.get())->compute(input, kpt, feat);
-    }
 
 
-    ////////////////////////////////////////////////////////////
-    //implementation of temporal features
-    int TransitionPattern::getKChannel(const int kFrames) const {
-        int kChannel = 0;
-        for(auto v=0; v<kFrames - stride1(); v += stride1()){
-            kChannel++;
-        }
-        if(stride2() > 0){
-            for(auto v=0; v<kFrames - stride2(); v+=stride1()/2) {
+        ////////////////////////////////////////////////////////////
+        //implementation of temporal features
+        int TransitionPattern::getKChannel(const int kFrames) const {
+            int kChannel = 0;
+            for (auto v = 0; v < kFrames - stride1(); v += stride1()) {
                 kChannel++;
             }
-        }
-        kChannel = std::ceil((float)kChannel / (float)binPerCell);
-        return kChannel;
-    }
-
-    void TransitionPattern::extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const{
-        CHECK(!input.empty());
-
-        vector<Mat> inputArray;
-        input.getMatVector(inputArray);
-
-        //first compute the dimension of the feature vector
-        const int kChannel = getKChannel((int)inputArray.size());
-
-        feat.create(kChannel, 1, CV_8UC1);
-        feat.setTo(cv::Scalar::all(0));
-        Mat featMat = feat.getMat();
-
-        Mat pix1, pix2;
-        int featIndex = 0;
-        for(auto v=0; v<inputArray.size() - stride1(); v += stride1()){
-            const int blockId = featIndex / binPerCell;
-            const int cellId = featIndex % binPerCell;
-            pixel_feature->extractPixel(inputArray[v], x, y, pix1);
-            pixel_feature->extractPixel(inputArray[v+stride1()], x, y, pix2);
-            float d = pixel_distance->evaluate(pix1, pix2);
-            if(d >= theta())
-                featMat.at<uchar>(blockId, 0) |= or_table[cellId];
-            featIndex++;
+            if (stride2() > 0) {
+                for (auto v = 0; v < kFrames - stride2(); v += stride1() / 2) {
+                    kChannel++;
+                }
+            }
+            kChannel = std::ceil((float) kChannel / (float) binPerCell);
+            return kChannel;
         }
 
-        if(stride2() > 0){
-            for(auto v=0; v<inputArray.size() - stride2(); v+=stride1()/2) {
+        void TransitionPattern::extractPixel(const cv::InputArray input, const int x, const int y,
+                                             cv::OutputArray feat) const {
+            CHECK(!input.empty());
+
+            vector<Mat> inputArray;
+            input.getMatVector(inputArray);
+
+            //first compute the dimension of the feature vector
+            const int kChannel = getKChannel((int) inputArray.size());
+
+            feat.create(kChannel, 1, CV_8UC1);
+            feat.setTo(cv::Scalar::all(0));
+            Mat featMat = feat.getMat();
+
+            Mat pix1, pix2;
+            int featIndex = 0;
+            for (auto v = 0; v < inputArray.size() - stride1(); v += stride1()) {
                 const int blockId = featIndex / binPerCell;
                 const int cellId = featIndex % binPerCell;
                 pixel_feature->extractPixel(inputArray[v], x, y, pix1);
-                pixel_feature->extractPixel(inputArray[v+stride2()], x, y, pix2);
+                pixel_feature->extractPixel(inputArray[v + stride1()], x, y, pix2);
                 float d = pixel_distance->evaluate(pix1, pix2);
                 if (d >= theta())
                     featMat.at<uchar>(blockId, 0) |= or_table[cellId];
                 featIndex++;
             }
-        }
-    }
 
-    void TransitionPattern::computeFromPixelFeature(const cv::InputArray pixelFeatures,
-                                                    cv::OutputArray feats) const {
-        CHECK(!pixelFeatures.empty());
-
-        vector<Mat> pixelFeatureArray;
-        pixelFeatures.getMatVector(pixelFeatureArray);
-
-        const int kPix = pixelFeatureArray[0].rows;
-        const int K = pixelFeatureArray[0].cols;
-
-        const int kChannel = getKChannel((int)pixelFeatureArray.size());
-        feats.create(kPix, kChannel, CV_8UC1);
-        Mat featMat = feats.getMat();
-        featMat.setTo(Scalar::all(0));
-
-        int featIndex = 0;
-        for(auto v=0; v<pixelFeatureArray.size() - stride1(); v += stride1()) {
-            const int blockId = featIndex / binPerCell;
-            const int cellId = featIndex % binPerCell;
-            for (auto i = 0; i < kPix; ++i) {
-                double d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
-                                                    pixelFeatureArray[v + stride1()].row(i));
-                if (d >= theta())
-                    featMat.at<uchar>(i, blockId) |= or_table[cellId];
+            if (stride2() > 0) {
+                for (auto v = 0; v < inputArray.size() - stride2(); v += stride1() / 2) {
+                    const int blockId = featIndex / binPerCell;
+                    const int cellId = featIndex % binPerCell;
+                    pixel_feature->extractPixel(inputArray[v], x, y, pix1);
+                    pixel_feature->extractPixel(inputArray[v + stride2()], x, y, pix2);
+                    float d = pixel_distance->evaluate(pix1, pix2);
+                    if (d >= theta())
+                        featMat.at<uchar>(blockId, 0) |= or_table[cellId];
+                    featIndex++;
+                }
             }
-            featIndex++;
         }
 
-        if(stride2() > 0){
-            for(auto v=0; v<pixelFeatureArray.size() - stride2(); v+=stride1()/2) {
+        void TransitionPattern::computeFromPixelFeature(const cv::InputArray pixelFeatures,
+                                                        cv::OutputArray feats) const {
+            CHECK(!pixelFeatures.empty());
+
+            vector<Mat> pixelFeatureArray;
+            pixelFeatures.getMatVector(pixelFeatureArray);
+
+            const int kPix = pixelFeatureArray[0].rows;
+            const int K = pixelFeatureArray[0].cols;
+
+            const int kChannel = getKChannel((int) pixelFeatureArray.size());
+            feats.create(kPix, kChannel, CV_8UC1);
+            Mat featMat = feats.getMat();
+            featMat.setTo(Scalar::all(0));
+
+            int featIndex = 0;
+            for (auto v = 0; v < pixelFeatureArray.size() - stride1(); v += stride1()) {
                 const int blockId = featIndex / binPerCell;
                 const int cellId = featIndex % binPerCell;
-                for(auto i=0; i<kPix; ++i){
-                    float d = pixel_distance->evaluate(pixelFeatureArray[v].row(i), pixelFeatureArray[v+stride2()].row(i));
+                for (auto i = 0; i < kPix; ++i) {
+                    double d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
+                                                        pixelFeatureArray[v + stride1()].row(i));
                     if (d >= theta())
                         featMat.at<uchar>(i, blockId) |= or_table[cellId];
                 }
                 featIndex++;
             }
-        }
-    }
 
-    void TransitionPattern::printFeature(const cv::InputArray input){
-        const Mat feat = input.getMat();
-        const uchar* pData = feat.data;
-        for(auto i=0; i<feat.rows * feat.cols; ++i){
-            std::bitset<8> bitset1(static_cast<char>(pData[i]));
-            std::cout << bitset1;
+            if (stride2() > 0) {
+                for (auto v = 0; v < pixelFeatureArray.size() - stride2(); v += stride1() / 2) {
+                    const int blockId = featIndex / binPerCell;
+                    const int cellId = featIndex % binPerCell;
+                    for (auto i = 0; i < kPix; ++i) {
+                        float d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
+                                                           pixelFeatureArray[v + stride2()].row(i));
+                        if (d >= theta())
+                            featMat.at<uchar>(i, blockId) |= or_table[cellId];
+                    }
+                    featIndex++;
+                }
+            }
         }
-        std::cout << std::endl;
-    }
 
-    void TransitionCounting::extractPixel(const cv::InputArray input, const int x, const int y,
-                                          cv::OutputArray feat) const {
+        void TransitionPattern::printFeature(const cv::InputArray input) {
+            const Mat feat = input.getMat();
+            const uchar *pData = feat.data;
+            for (auto i = 0; i < feat.rows * feat.cols; ++i) {
+                std::bitset<8> bitset1(static_cast<char>(pData[i]));
+                std::cout << bitset1;
+            }
+            std::cout << std::endl;
+        }
+
+        void TransitionCounting::extractPixel(const cv::InputArray input, const int x, const int y,
+                                              cv::OutputArray feat) const {
 //        CHECK_GE(input.size(), 2);
 //        feat.resize(2, 0.0f);
 //
@@ -223,11 +228,13 @@ namespace dynamic_stereo{
 //        }
 //        feat[0] /= counter1;
 //        feat[1] /= counter2;
-    }
+        }
 
-    void TransitionCounting::computeFromPixelFeature(const cv::InputArray pixelFeatures,
-                                                     cv::OutputArray feats) const {
+        void TransitionCounting::computeFromPixelFeature(const cv::InputArray pixelFeatures,
+                                                         cv::OutputArray feats) const {
 
-    }
+        }
+
+    }//video_segment
 }//namespace dynamic_stereo
 

@@ -12,13 +12,16 @@
 
 namespace dynamic_stereo {
 
-    void edgeAggregation(const VideoMat &input, cv::Mat &output);
+    namespace video_segment {
+        void edgeAggregation(const VideoMat &input, cv::Mat &output);
 
-    int segment_video(const VideoMat& input, cv::Mat& output,
-                      const int smoothSize, const float c, const float theta, const int min_size);
+        int segment_video(const VideoMat &input, cv::Mat &output,
+                          const int smoothSize, const float c, const float theta, const int min_size,
+                          const PixelFeature pfType,
+                          const TemporalFeature tftype);
 
-    cv::Mat visualizeSegmentation(const cv::Mat& input);
-
+        cv::Mat visualizeSegmentation(const cv::Mat &input);
+    }//namespace video_segment
 }//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_MERGESEGMENTATION_H
