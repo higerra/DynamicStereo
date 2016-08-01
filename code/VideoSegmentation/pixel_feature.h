@@ -10,6 +10,12 @@
 #include <glog/logging.h>
 #include "distance_metric.h"
 
+namespace cv{
+    namespace xfeatures2d {
+        class BriefDescriptorExtractor;
+    }
+}
+
 namespace dynamic_stereo{
     using VideoMat = std::vector<cv::Mat>;
 
@@ -19,7 +25,7 @@ namespace dynamic_stereo{
     class PixelFeatureExtractorBase{
     public:
         virtual void extractPixel(const cv::Mat& input, const int x, const int y, std::vector<T>& feat) const = 0;
-        void extractImage(const cv::Mat& input, std::vector<std::vector<T> >& feats) const{
+        virtual void extractImage(const cv::Mat& input, std::vector<std::vector<T> >& feats) const{
             CHECK(input.data);
             const int width = input.cols;
             const int height = input.rows;
@@ -30,15 +36,22 @@ namespace dynamic_stereo{
                 }
             }
         }
+        virtual void extractImage(const cv::Mat& input, cv::OutputArray& output) const;
     };
 
     class PixelValue: public PixelFeatureExtractorBase<float>{
     public:
         virtual void extractPixel(const cv::Mat& input, const int x, const int y, std::vector<float>& feat) const;
+        virtual void extractImage(const cv::Mat& input, cv::OutputArray& output) const;
     };
 
-    class BRIEFWrapper: public PixelFeatureExtractorBase<bool>{
-        virtual void extractPixel(const cv::Mat& input, const int x, const int y, std::vector<bool>& feat) const;
+    class BRIEFWrapper: public PixelFeatureExtractorBase<uchar>{
+    public:
+        BRIEFWrapper();
+        virtual void extractPixel(const cv::Mat& input, const int x, const int y, std::vector<uchar>& feat) const;
+        virtual void extractImage(const cv::Mat& input, cv::OutputArray& output) const;
+    private:
+        cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> cvBrief;
     };
 
     ////////////////////////////////////////////////////////////
@@ -47,18 +60,12 @@ namespace dynamic_stereo{
     class TemporalFeatureExtractorBase{
     public:
         virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<T>& feat) const = 0;
-        void extractVideo(const VideoMat& input, std::vector<std::vector<T> >& feats) const{
-            CHECK(!input.empty());
-            const int width = input[0].cols;
-            const int height = input[0].rows;
-            feats.resize((size_t)(width * height));
 
-            for(auto y=0; y<height; ++y){
-                for(auto x=0; x<width; ++x){
-                    extractPixel(input, x,y, feats[y*width+x]);
-                }
-            }
-        }
+        //some pixel feature algorithms achieve significant speed up when compute at image level, the below routine
+        //use precomputed pixel features as input.
+        //pixelFeatures: precomputed pixel features. Feature Mats are flattened. Each frame is a (w*h) by k Mat
+        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
+                                             std::vector<std::vector<T> >& feats) const = 0;
     };
 
 	template<typename T>
@@ -85,6 +92,9 @@ namespace dynamic_stereo{
         }
 
 	    virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const = 0;
+
+        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
+                                             std::vector<std::vector<T> >& feats) const = 0;
     protected:
         const PixelFeatureExtractorBase<PixelType>* pixel_feature;
         const DistanceMetricBase<PixelType>* pixel_distance;
@@ -99,6 +109,9 @@ namespace dynamic_stereo{
                           const int s1_, const int s2_, const float theta_):
                 TransitionFeature(pf_, pd_, s1_, s2_, theta_){}
         virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const;
+
+        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
+                                             std::vector<std::vector<FeatureType> >& feats) const;
     };
 
     class TransitionCounting: public TransitionFeature<float>{
@@ -107,6 +120,9 @@ namespace dynamic_stereo{
                           const int s1_, const int s2_, const float theta_)
                 : TransitionFeature(pf_, pd_, s1_, s2_, theta_){}
         virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const;
+
+        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
+                                             std::vector<std::vector<FeatureType> >& feats) const;
     };
 
 

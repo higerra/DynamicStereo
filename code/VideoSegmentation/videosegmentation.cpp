@@ -68,9 +68,16 @@ namespace dynamic_stereo {
 
         std::shared_ptr<DistanceMetricBase<FeatureType> > feature_comparator(new DistanceHammingAverage());
 
-        printf("Computing edge weight\n");
+        printf("Computing pixel features...\n");
+        vector<cv::Mat> pixelFeatures(smoothed.size());
+        for(auto v=0; v<smoothed.size(); ++v)
+            pixel_extractor->extractImage(smoothed[v], pixelFeatures[v]);
+
+        printf("Computing temporal features...\n");
         vector<vector<FeatureType> > features;
-        temporal_extractor->extractVideo(smoothed, features);
+        temporal_extractor->computeFromPixelFeature(pixelFeatures, features);
+
+        printf("Computing edge weight...\n");
         // build graph
         std::vector<edge> edges((size_t)width*height*4);
         int num = 0;
