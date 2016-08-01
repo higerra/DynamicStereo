@@ -10,6 +10,7 @@ using namespace cv;
 using namespace dynamic_stereo;
 
 DEFINE_double(c, 2.0, "parameter c");
+DEFINE_double(theta, 100, "parameter theta");
 
 int main(int argc, char** argv){
     if(argc < 2){
@@ -61,7 +62,7 @@ int main(int argc, char** argv){
         //test for video segmentation based on binary descriptor
         Mat segment;
         printf("Video segmentation...\n");
-        segment_video(images, segment, 9, (float) FLAGS_c, 100, 100);
+        segment_video(images, segment, 9, (float) FLAGS_c, FLAGS_theta, 100);
         Mat segment_vis = visualizeSegmentation(segment);
         Mat result;
         cv::addWeighted(images[0], 0.1, segment_vis, 0.9, 0.0, result);

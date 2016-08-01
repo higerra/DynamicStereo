@@ -8,6 +8,7 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <glog/logging.h>
+#include <memory>
 #include "distance_metric.h"
 
 namespace cv{
@@ -19,110 +20,125 @@ namespace cv{
 namespace dynamic_stereo{
     using VideoMat = std::vector<cv::Mat>;
 
+    class FeatureBase{
+    public:
+        inline const DistanceMetricBase* getDefaultComparator() const{
+            return comparator.get();
+        }
+        inline void setComparator(std::shared_ptr<DistanceMetricBase> new_comparator){
+            CHECK(new_comparator.get());
+            comparator.reset();
+            comparator = new_comparator;
+        }
+        virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const = 0;
+        virtual void extractAll(const cv::InputArray input, cv::OutputArray& output) const = 0;
+        inline int getDim() const {return dim;}
+        virtual void printFeature(const cv::InputArray input) const{
+            printf("Not implemented yet\n");
+        }
+    protected:
+        std::shared_ptr<DistanceMetricBase> comparator;
+        int dim;
+    };
+
     /////////////////////////////////////////////////////////////
     //pixel level feature
-    template<typename T>
-    class PixelFeatureExtractorBase{
+    class PixelFeatureExtractorBase: public FeatureBase{
     public:
-        virtual void extractPixel(const cv::Mat& input, const int x, const int y, std::vector<T>& feat) const = 0;
-        virtual void extractImage(const cv::Mat& input, std::vector<std::vector<T> >& feats) const{
-            CHECK(input.data);
-            const int width = input.cols;
-            const int height = input.rows;
-            feats.resize((size_t)(width * height));
-            for(auto y=0; y<height; ++y){
-                for(auto x=0; x<width; ++x){
-                    extractPixel(input, x,y, feats[y*width+x]);
-                }
-            }
+        virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const = 0;
+        virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const {}
+    };
+
+    class PixelValue: public PixelFeatureExtractorBase{
+    public:
+        PixelValue(){
+            comparator.reset(new DistanceL2());
+            FeatureBase::dim = 3;
         }
-        virtual void extractImage(const cv::Mat& input, cv::OutputArray& output) const;
+        virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const;
+        virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const;
     };
 
-    class PixelValue: public PixelFeatureExtractorBase<float>{
-    public:
-        virtual void extractPixel(const cv::Mat& input, const int x, const int y, std::vector<float>& feat) const;
-        virtual void extractImage(const cv::Mat& input, cv::OutputArray& output) const;
-    };
-
-    class BRIEFWrapper: public PixelFeatureExtractorBase<uchar>{
+    class BRIEFWrapper: public PixelFeatureExtractorBase{
     public:
         BRIEFWrapper();
-        virtual void extractPixel(const cv::Mat& input, const int x, const int y, std::vector<uchar>& feat) const;
-        virtual void extractImage(const cv::Mat& input, cv::OutputArray& output) const;
+        virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const;
+        virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const;
     private:
         cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> cvBrief;
     };
 
     ////////////////////////////////////////////////////////////
     //temporal feature
-    template<typename T>
-    class TemporalFeatureExtractorBase{
+    class TemporalFeatureExtractorBase: public FeatureBase{
     public:
-        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<T>& feat) const = 0;
-
+        virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const = 0;
+        virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const {}
         //some pixel feature algorithms achieve significant speed up when compute at image level, the below routine
         //use precomputed pixel features as input.
         //pixelFeatures: precomputed pixel features. Feature Mats are flattened. Each frame is a (w*h) by k Mat
-        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
-                                             std::vector<std::vector<T> >& feats) const = 0;
+        virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const = 0;
     };
 
-	template<typename T>
-    class TransitionFeature: public TemporalFeatureExtractorBase<T>{
+    class TransitionFeature: public TemporalFeatureExtractorBase{
     public:
-	    using PixelType = float;
-	    using FeatureType = T;
-        TransitionFeature(const PixelFeatureExtractorBase<float>* pf_, const DistanceMetricBase<PixelType>* pd_,
-                          const int s1_, const int s2_, const float theta_):
-                pixel_feature(pf_), pixel_distance(pd_), s1(s1_), s2(s2_), t(theta_){
+        TransitionFeature(const PixelFeatureExtractorBase* pf_, const int s1_, const int s2_, const float theta_):
+                pixel_feature(pf_), pixel_distance(CHECK_NOTNULL(pf_->getDefaultComparator())), s1(s1_), s2(s2_), t(theta_){
             CHECK_GT(stride1(), 0);
-            CHECK(pixel_feature);
             CHECK(pixel_distance);
         }
         inline int stride1() const {return s1;}
         inline int stride2() const {return s2;}
         inline float theta() const {return t;}
 
-        inline const PixelFeatureExtractorBase<PixelType>* getPixelFeatureExtractor() const{
+        inline const PixelFeatureExtractorBase* getPixelFeatureExtractor() const{
             return pixel_feature;
         }
-        inline const DistanceMetricBase<FeatureType>* getPixelFeatureComparator() const{
+        inline const DistanceMetricBase* getPixelFeatureComparator() const{
             return pixel_distance;
         }
 
-	    virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const = 0;
+	    virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const = 0;
 
-        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
-                                             std::vector<std::vector<T> >& feats) const = 0;
+        virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const = 0;
     protected:
-        const PixelFeatureExtractorBase<PixelType>* pixel_feature;
-        const DistanceMetricBase<PixelType>* pixel_distance;
+        const PixelFeatureExtractorBase* pixel_feature;
+        const DistanceMetricBase* pixel_distance;
         const int s1;
         const int s2;
         const float t;
     };
 
-    class TransitionPattern: public TransitionFeature<bool>{
+    class TransitionPattern: public TransitionFeature{
     public:
-        TransitionPattern(const PixelFeatureExtractorBase<PixelType>* pf_, const DistanceMetricBase<PixelType>* pd_,
+        TransitionPattern(const PixelFeatureExtractorBase* pf_,
                           const int s1_, const int s2_, const float theta_):
-                TransitionFeature(pf_, pd_, s1_, s2_, theta_){}
-        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const;
+                TransitionFeature(pf_, s1_, s2_, theta_), binPerCell(8){
+            comparator.reset(new DistanceHammingAverage());
+            or_table.resize(4);
+            or_table[0] = 0; or_table[1] = 2; or_table[2] = 4; or_table[3] = 8;
+        }
+        virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const;
+        virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const;
+        virtual void printFeature(const cv::InputArray input);
 
-        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
-                                             std::vector<std::vector<FeatureType> >& feats) const;
+    private:
+        int getKChannel(const int kFrames) const;
+        std::vector<uchar> or_table;
+        const int binPerCell;
     };
 
-    class TransitionCounting: public TransitionFeature<float>{
+    class TransitionCounting: public TransitionFeature{
     public:
-        TransitionCounting(const PixelFeatureExtractorBase<PixelType>* pf_, const DistanceMetricBase<PixelType>* pd_,
-                          const int s1_, const int s2_, const float theta_)
-                : TransitionFeature(pf_, pd_, s1_, s2_, theta_){}
-        virtual void extractPixel(const VideoMat& input, const int x, const int y, std::vector<FeatureType>& feat) const;
+        TransitionCounting(const PixelFeatureExtractorBase* pf_,
+                           const int s1_, const int s2_, const float theta_)
+                : TransitionFeature(pf_, s1_, s2_, theta_){
+            comparator.reset(new DistanceL2());
+        }
+        virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const;
 
-        virtual void computeFromPixelFeature(const VideoMat& pixelFeatures,
-                                             std::vector<std::vector<FeatureType> >& feats) const;
+        virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures,
+                                             cv::OutputArray feats) const;
     };
 
 

@@ -46,9 +46,7 @@ namespace dynamic_stereo {
         printf("preprocessing\n");
         std::vector<cv::Mat> smoothed(input.size());
         for(auto v=0; v<input.size(); ++v){
-            cv::Mat temp;
-            input[v].convertTo(temp, cv::DataType<float>::type);
-            cv::blur(temp, smoothed[v], cv::Size(smoothSize, smoothSize));
+            cv::blur(input[v], smoothed[v], cv::Size(smoothSize, smoothSize));
         }
 
         cv::Mat edgeMap;
@@ -57,25 +55,34 @@ namespace dynamic_stereo {
         const int stride1 = 8;
         const int stride2 = (int)input.size() / 2;
 
+        //std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new PixelValue());
+        std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new BRIEFWrapper());
+        std::shared_ptr<TemporalFeatureExtractorBase> temporal_extractor(
+                new TransitionPattern(pixel_extractor.get(), stride1, stride2, theta));
 
-	    using PixelType = float;
-	    using FeatureType = bool;
-
-        std::shared_ptr<PixelFeatureExtractorBase<PixelType> > pixel_extractor(new PixelValue());
-        std::shared_ptr<DistanceMetricBase<PixelType> > pixel_comparator(new DistanceL2<PixelType>());
-        std::shared_ptr<TemporalFeatureExtractorBase<FeatureType> > temporal_extractor(
-                new TransitionPattern(pixel_extractor.get(), pixel_comparator.get(), stride1, stride2, theta));
-
-        std::shared_ptr<DistanceMetricBase<FeatureType> > feature_comparator(new DistanceHammingAverage());
+        const DistanceMetricBase* feature_comparator = temporal_extractor->getDefaultComparator();
 
         printf("Computing pixel features...\n");
         vector<cv::Mat> pixelFeatures(smoothed.size());
-        for(auto v=0; v<smoothed.size(); ++v)
-            pixel_extractor->extractImage(smoothed[v], pixelFeatures[v]);
+
+#pragma omp parallel for
+        for(auto v=0; v<smoothed.size(); ++v) {
+            pixel_extractor->extractAll(smoothed[v], pixelFeatures[v]);
+        }
 
         printf("Computing temporal features...\n");
-        vector<vector<FeatureType> > features;
-        temporal_extractor->computeFromPixelFeature(pixelFeatures, features);
+        Mat featuresMat;
+        //a working around: receive Mat type from the function and fit it to vector<vector< > >
+        temporal_extractor->computeFromPixelFeature(pixelFeatures, featuresMat);
+
+        {
+            //debug, inspect some of the feature
+            const int tx = -1, ty = -1;
+            if(tx >= 0 && ty >= 0){
+                dynamic_pointer_cast<TransitionPattern>(temporal_extractor)->printFeature(featuresMat.row(ty*width + tx));
+            }
+        }
+
 
         printf("Computing edge weight...\n");
         // build graph
@@ -88,28 +95,35 @@ namespace dynamic_stereo {
                 if (x < width - 1) {
                     edges[num].a = y * width + x;
                     edges[num].b = y * width + (x + 1);
-                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
+                                                                featuresMat.row(edges[num].b)) * edgeness;
                     num++;
                 }
 
                 if (y < height - 1) {
                     edges[num].a = y * width + x;
                     edges[num].b = (y + 1) * width + x;
-                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
+                                                                featuresMat.row(edges[num].b)) * edgeness;
+
                     num++;
                 }
 
                 if ((x < width - 1) && (y < height - 1)) {
                     edges[num].a = y * width + x;
                     edges[num].b = (y + 1) * width + (x + 1);
-                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
+                                                                featuresMat.row(edges[num].b)) * edgeness;
+
                     num++;
                 }
 
                 if ((x < width - 1) && (y > 0)) {
                     edges[num].a = y * width + x;
                     edges[num].b = (y - 1) * width + (x + 1);
-                    edges[num].w = feature_comparator->evaluate(features[edges[num].a], features[edges[num].b]) * edgeness;
+                    edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
+                                                                featuresMat.row(edges[num].b)) * edgeness;
+
                     num++;
                 }
             }

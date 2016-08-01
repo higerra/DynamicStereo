@@ -13,67 +13,50 @@
 #include <limits>
 #include <string>
 #include <bitset>
+#include <opencv2/opencv.hpp>
 
 namespace dynamic_stereo{
 
-    template<typename T, typename R = float>
     class DistanceMetricBase{
     public:
-        virtual R evaluate(const std::vector<T>& a1, const std::vector<T>& a2) const = 0;
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const = 0;
     };
 
-    template<typename T, typename R = float>
-    class DistanceL1: public DistanceMetricBase<T, R>{
+    class DistanceL1: public DistanceMetricBase{
     public:
-        virtual R evaluate(const std::vector<T>& a1, const std::vector<T>& a2) const {
-            CHECK_EQ(a1.size(), a2.size());
-            CHECK(!a1.empty());
-            std::vector <T> diff(a1.size());
-            std::transform(a1.begin(), a1.end(), a2.begin(), diff.begin(),
-                           [](const T &a, const T &b) { return std::abs(a - b); });
-            return static_cast<R>(std::accumulate(diff.begin(), diff.end(), (T) 0));
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const {
+            return cv::norm(a1, a2, cv::NORM_L1);
         }
     };
 
-    template<typename T, typename R = float>
-    class DistanceL1Average: public DistanceMetricBase<T, R>{
-        virtual R evaluate(const std::vector<T>& a1, const std::vector<T>& a2) const {
-            DistanceL1<T, R> l1dis;
-            R res = static_cast<R>(l1dis.evaluate(a1, a2) / (float)a1.size());
-            return res;
+    class DistanceL1Average: public DistanceMetricBase{
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const {
+            return cv::norm(a1,a2,cv::NORM_L1) / (float)(a1.rows() * a1.cols());
         }
     };
 
-    template<typename T, typename R = float>
-    class DistanceL2: public DistanceMetricBase<T, R>{
+    class DistanceL2: public DistanceMetricBase{
     public:
-        virtual R evaluate(const std::vector<T>& a1, const std::vector<T>& a2) const {
-            CHECK_EQ(a1.size(), a2.size());
-            CHECK(!a1.empty());
-            std::vector <T> diff(a1.size());
-            std::transform(a1.begin(), a1.end(), a2.begin(), diff.begin(),
-                           [](const T &a, const T &b) { return (a - b) * (a - b); });
-            return static_cast<R>(
-                    std::sqrt(std::accumulate(diff.begin(), diff.end(), (T) 0) + std::numeric_limits<T>::epsilon()));
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const {
+            return cv::norm(a1, a2, cv::NORM_L2);
         }
     };
 
     //to use efficient std::bitset, the length of the array must be known at compile time (in byte)
-    template<typename T>
-	class DistanceHamming: public DistanceMetricBase<T, int>{
+	class DistanceHamming: public DistanceMetricBase{
 	public:
-        virtual int evaluate(const std::vector<T>& a1, const std::vector<T>& a2) const{
-            return (int)cv::norm(a1, a2, cv::NORM_HAMMING);
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const{
+            return cv::norm(a1, a2, cv::NORM_HAMMING);
         }
 	};
 
-    template<typename T>
-	class DistanceHammingAverage: public DistanceMetricBase<T, float>{
+	class DistanceHammingAverage: public DistanceMetricBase{
 	public:
-        virtual float evaluate(const std::vector<T>& a1, const std::vector<T>& a2) const{
-            DistanceHamming<T> ham;
-            int diff = ham.evaluate(a1, a2);
-            return (float)diff / (float)a1.size();
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const{
+            const double len = (double)(a1.cols() * a1.rows() * 8);
+            CHECK_GT(len, 0);
+            double diff = cv::norm(a1, a2, cv::NORM_HAMMING);
+            return diff / len;
         }
 	};
 }//namespace dynamic_stereo
