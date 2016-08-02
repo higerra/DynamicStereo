@@ -21,12 +21,11 @@ DEFINE_string(model, "", "path to model");
 DEFINE_string(classifier, "bt", "rf or bt");
 DEFINE_int32(treeDepth, 15, "max depth of the tree");
 DEFINE_int32(numTree, -1, "number of trees");
-DEFINE_int32(compressLevel, -1, "-1: auto, 1: no compress, >1: compress");
-DEFINE_int32(maxKFrame, 500, "if the video contains more than maxKFrame frames, compress");
 
-void run_train(const string& path);
-void run_detect(int argc, char** argv);
+void run_train(cv::Ptr<ml::TrainData> traindata);
+cv::Mat run_detect(int argc, char** argv);
 void run_test(const string& path);
+cv::Ptr<ml::TrainData> run_extract(int argc, char **argv);
 
 int main(int argc, char** argv){
 	if(argc < 2){
@@ -40,9 +39,9 @@ int main(int argc, char** argv){
 	string arg;
 	if(argc > 1)
 		arg = string(argv[1]);
-
 	if(FLAGS_mode == "train"){
-		run_train(arg);
+		cv::Ptr<ml::TrainData> traindata = run_extract(argc, argv);
+		run_train(traindata);
 	}else if(FLAGS_mode == "test"){
 		run_test(arg);
 	}else if(FLAGS_mode == "detect"){
@@ -54,48 +53,30 @@ int main(int argc, char** argv){
 	return 0;
 }
 
-void run_train(const string& path) {
+cv::Ptr<ml::TrainData> run_extract(int argc, char **argv){
 	string dir = path.substr(0, path.find_last_of("/"));
 	dir.append("/");
 	char buffer[128] = {};
 	//prepare training data
 	cv::Ptr<ml::TrainData> traindata = ml::TrainData::loadFromCSV(FLAGS_cache, 0);
-
-
-
 	vector<float> levelList{0.1, 0.2,0.3};
 	if (!traindata.get()) {
 		CHECK(!path.empty());
 		ifstream listIn(path.c_str());
 		CHECK(listIn.is_open()) << "Can not open list file: " << path;
 		string filename, gtname;
-
-		Feature::FeatureOption option;
 		Feature::TrainSet trainSet;
 
 		while (listIn >> filename >> gtname) {
-			int frameId = 0;
-			int readInterval = 1;
 			vector<Mat> images;
 			cv::VideoCapture cap(dir + filename);
-			double kFrame = cap.get(CV_CAP_PROP_FRAME_COUNT);
-
-			if(FLAGS_compressLevel < 0){
-				if(kFrame > FLAGS_maxKFrame)
-					readInterval = std::max((int)kFrame / FLAGS_compressLevel, 2);
-			} else{
-				readInterval = FLAGS_compressLevel;
-			}
 			CHECK(cap.isOpened()) << "Can not open video: " << dir + filename;
-			printf("Loading %s, compress level: %d\n", filename.c_str(), readInterval);
+			printf("Loading %s\n");
 			while (true) {
 				Mat frame;
 				if (!cap.read(frame))
 					break;
-				if (frameId % readInterval == 0) {
-					images.push_back(frame);
-				}
-				frameId++;
+				images.push_back(frame);
 			}
 
 			printf("number of frames: %d/%d\n", (int)images.size(), (int)kFrame);
@@ -111,18 +92,11 @@ void run_train(const string& path) {
 
 			for(auto level: levelList) {
 				printf("Segmentation level: %.3f\n", level);
-				vector<Mat> segments_all, segments;
-				sprintf(buffer, "%s/segmentation/%s.pb", dir.c_str(), filename.c_str());
-				segmentation::readSegmentAsMat(string(buffer), segments_all, level);
+				sprintf(buffer, "%s/segmentation/%s_%.2f.pb", dir.c_str(), filename.c_str(), level);
+				Mat segments = imread(buffer);
+				CHECK(segments.data);
 				//don't forget to compress segments as well (if needed)
-				for(auto i=0; i<segments_all.size(); ++i){
-					if(i % readInterval == 0)
-						segments.push_back(segments_all[i].clone());
-				}
-				segments_all.clear();
-
-				Feature::compressSegments(segments);
-				Feature::extractFeature(images, gradient, segments, gtMask, option, trainSet);
+				Feature::extractFeature(images, gradient, segments, gtMask, trainSet);
 			}
 		}
 		printf("Number of positive: %d, number of negative: %d\n", (int) trainSet[1].size(), (int) trainSet[0].size());
@@ -130,6 +104,10 @@ void run_train(const string& path) {
 			saveTrainData(FLAGS_cache, trainSet);
 		traindata = convertTrainData(trainSet);
 	}
+	return traindata;
+}
+
+void run_train(cv::Ptr<ml::TrainData> traindata) {
 	CHECK(traindata.get());
 	printf("Training classifier, total samples:%d\n", traindata->getNSamples());
 	cv::Ptr<ml::DTrees> forest;

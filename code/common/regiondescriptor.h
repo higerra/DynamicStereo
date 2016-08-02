@@ -6,6 +6,11 @@
 #define DYNAMICSTEREO_REGIONDESCRIPTOR_H
 
 #include "descriptor.h"
+#include "../VideoSegmentation/videosegmentation.h"
+
+namespace LineUtil{
+	struct KeyLine;
+}
 
 namespace dynamic_stereo {
 	namespace Feature {
@@ -14,50 +19,42 @@ namespace dynamic_stereo {
 			int id;
 		};
 
-		struct FeatureOption {
-
-		};
-
 		using TrainSet = std::vector<std::vector<SegmentFeature> >;
+		using PixelGroup = std::vector<int>;
 
 		//remove empty labels in video segments
 		int compressSegments(std::vector<cv::Mat>& segments);
 
 		//re-format video segments:
-		int regroupSegments(const std::vector<cv::Mat> &segments,
-		                    std::vector<std::vector<std::vector<int> > > &pixelGroup,
-		                    std::vector<std::vector<int> > &regionSpan);
+		int regroupSegments(const cv::Mat &segments,
+		                    std::vector<PixelGroup> &pixelGroup);
 
-		void assignSegmentLabel(const std::vector<std::vector<std::vector<int> > >& pixelGroup, const cv::Mat& mask,
+		void assignSegmentLabel(const std::vector<PixelGroup>& pixelGroup, const cv::Mat& mask,
 		                        std::vector<int>& label);
 
-		void computeHoG(const std::vector<cv::Mat>& gradient, const std::vector<std::vector<int> >& pixelIds,
+		void computeHoG(const std::vector<cv::Mat>& gradient, const PixelGroup & pixelIds,
 		                std::vector<float>& hog, const int kBin);
 
 		void extractFeature(const std::vector<cv::Mat> &images, const std::vector<cv::Mat>& gradient,
-							const std::vector<cv::Mat> &segments, const cv::Mat &mask,
-		                    const FeatureOption &option, TrainSet &trainSet);
+							const cv::Mat &segments, const cv::Mat &mask, TrainSet &trainSet);
 
 		//subroutine for computing feature bins
-		void computeColor(const std::vector<cv::Mat>& colorImage, const std::vector<std::vector<int> >& pg,
+		void computeColor(const std::vector<cv::Mat>& colorImage, const PixelGroup & pg,
 						  std::vector<float>& desc);
 
-		void computeColorChange(const std::vector<cv::Mat>& colorImage, const std::vector<int>& region,
-						  const std::vector<int>& kBin, std::vector<float>& desc);
-
-		void computeHoG(const std::vector<cv::Mat>& gradient, const std::vector<std::vector<int> >& pixelIds,
+		void computeHoG(const std::vector<cv::Mat>& gradient, const PixelGroup& pixelIds,
 						std::vector<float>& hog, const int kBin);
 
-		void computeShapeAndLength(const std::vector<std::vector<int> >& pg, const int width, const int height, std::vector<float>& desc);
+		void computeShape(const PixelGroup& pg, const int width, const int height, std::vector<float>& desc);
 
-		void computePosition(const std::vector<std::vector<int> >& pg, const int width, const int height, std::vector<float>& desc);
+		void computePosition(const PixelGroup& pg, const int width, const int height, std::vector<float>& desc);
+
+		void computeLine(const PixelGroup& pg, const std::vector<std::vector<LineUtil::KeyLine> >& lineClusters,
+						 std::vector<float>& desc);
 
 		void computeGradient(const cv::Mat& images, cv::Mat& gradient);
 
-		void visualizeSegmentGroup(const std::vector<cv::Mat> &images, const std::vector<std::vector<int> > &pixelGroup,
-		                           const std::vector<int> &regionSpan);
-
-		void visualizeSegmentLabel(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& segments,
+		void visualizeSegmentLabel(const std::vector<cv::Mat>& images, const cv::Mat& segments,
 		                           const std::vector<int>& label);
 
 	}//namespace Feature
