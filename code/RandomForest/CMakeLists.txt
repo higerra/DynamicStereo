@@ -9,8 +9,8 @@ set(SROUCE_FILE randomforest_cli.cpp randomforest.cpp)
 set(HEADER_FILE randomforest.h)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/RandomForest)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../external/video_segmentation /usr/local/include/eigen3)
+include_directories(/usr/local/include/eigen3)
 
 add_executable(RandomForest ${SROUCE_FILE} ${HEADER_FILE})
 
-target_link_libraries(RandomForest ${OpenCV_LIBS} video_segment_util common gflags glog)
+target_link_libraries(RandomForest ${OpenCV_LIBS} gflags glog video_segment_lib ML_lib)

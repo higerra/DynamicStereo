@@ -50,7 +50,7 @@ int main(int argc, char** argv){
         cv::Ptr<ml::TrainData> traindata = run_extract(argc, argv);
         CHECK(traindata.get());
         if(!FLAGS_cache.empty())
-            writeTrainData(FLAGS_cache, traindata);
+            Feature::writeTrainData(FLAGS_cache, traindata);
     }else if(FLAGS_mode == "multiExtract"){
         vector<int> kClusters{50,100,200};
         run_multiExtract(kClusters, argc, argv);
@@ -59,7 +59,7 @@ int main(int argc, char** argv){
         if(!traindata.get()) {
             traindata = run_extract(argc, argv);
             if(!FLAGS_cache.empty())
-                writeTrainData(FLAGS_cache, traindata);
+                Feature::writeTrainData(FLAGS_cache, traindata);
         }
         CHECK(traindata.get());
         cv::Ptr<ml::StatModel> classifier = run_train(traindata);

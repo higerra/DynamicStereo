@@ -5,6 +5,7 @@
 #include "regiondescriptor.h"
 #include "../base/utility.h"
 
+#include <fstream>
 #include <numeric>
 
 using namespace std;
@@ -15,12 +16,6 @@ namespace dynamic_stereo{
 	namespace Feature{
 
 		//feature based over segments
-		//6 channels for color: mean and variance in L*a*b
-		//9 channels for HoG in RGB
-		//18 channels for histogram of color changes in L*a*b.
-		//4 channels for shape: mean of variance of area, convexity (area / area of convex hall)
-		//1 channel for length of segment
-		//4 channels for the centroid position (mean, variance)
 		void extractFeature(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& gradient,
 							const cv::Mat& segments, const cv::Mat& mask, TrainSet& trainSet){
 			CHECK(!images.empty());
@@ -31,13 +26,11 @@ namespace dynamic_stereo{
 				trainSet.resize(2);
 
 			vector<PixelGroup> pixelGroup;
-			vector<vector<int> > regionSpan;
 			printf("Regrouping...\n");
 			const int kSeg = regroupSegments(segments, pixelGroup);
-
-//			for(auto tSeg=0; tSeg<kSeg; ++tSeg)
-//				visualizeSegmentGroup(images, pixelGroup[tSeg], regionSpan[tSeg]);
-
+            for(auto i=0; i<pixelGroup.size(); ++i){
+                printf("Group %d, size: %d\n", i, (int)pixelGroup[i].size());
+            }
 			printf("Assigning label...\n");
 			vector<int> segmentLabel;
 			if(mask.data) {
@@ -54,21 +47,13 @@ namespace dynamic_stereo{
 			}
 
 			//samples are based on segments. Color changes are sample from region
-			const vector<int> kBin{8,8,8};
-			const int kBinHoG = 9;
-			const int diffBin = std::accumulate(kBin.begin(), kBin.end(), 0);
-			const int kChannel = 6+ kBinHoG + diffBin + 4+ 1+ 4;
-
 			const int width = images[0].cols;
 			const int height = images[0].rows;
 			int sid = 0;
 
-			const int unitCount = (int)pixelGroup.size() / 10;
-
 			printf("Extracting feature...\n");
 			for(const auto& pg: pixelGroup){
-				if(sid % unitCount == (unitCount - 1))
-					cout << '.' << flush;
+                CHECK(!pg.empty());
 				SegmentFeature curSample;
 				curSample.id = sid;
 				curSample.feature.clear();
@@ -93,7 +78,6 @@ namespace dynamic_stereo{
 				trainSet[segmentLabel[sid]].push_back(curSample);
 				sid++;
 			}
-			cout << endl;
 		}
 
 		int compressSegments(std::vector<cv::Mat>& segments){
@@ -136,7 +120,7 @@ namespace dynamic_stereo{
 
 		int regroupSegments(const cv::Mat &segments,
 		                    std::vector<PixelGroup> &pixelGroup) {
-			CHECK(!segments.empty());
+			CHECK(segments.data);
 			CHECK_EQ(segments.type(), CV_32S);
 
 			const int width = segments.cols;
@@ -147,8 +131,6 @@ namespace dynamic_stereo{
 			cv::minMaxLoc(segments, &minid, &maxid);
 			kSeg = std::max(kSeg, (int) maxid);
 			kSeg++;
-
-			printf("Number of segments: %d\n", kSeg);
 			pixelGroup.resize((size_t) kSeg);
 
 			const int *pSeg = (int *) segments.data;
@@ -231,7 +213,7 @@ namespace dynamic_stereo{
             vector<cv::Point> chull;
             cv::convexHull(pts, chull);
             double carea = cv::contourArea(chull);
-            CHECK_GT(carea, 0);
+            CHECK_GT(carea, 0) << pg.size() << ' ' << carea;
             desc[1] = (float)pg.size() / (float)carea;
 
             //rectangleness
@@ -285,13 +267,13 @@ namespace dynamic_stereo{
 					hog[bin2] += delta * g[0];
 				}
 			}
-			normalizel2(hog);
+            MLUtility::normalizel2(hog);
 			const float cut_thres = 0.1;
 			for(auto& v: hog){
 				if(v < cut_thres)
 					v = 0.0;
 			}
-			normalizel2(hog);
+            MLUtility::normalizel2(hog);
 		}
 
 		void computeLine(const PixelGroup& pg, const std::vector<std::vector<LineUtil::KeyLine> >& lineClusters,
@@ -353,5 +335,7 @@ namespace dynamic_stereo{
 				index = (index + 1) % static_cast<int>(images.size());
 			}
 		}
+
+
 	}//namespace Fature
 }//namespace dynamic_stereo

@@ -30,27 +30,7 @@ namespace dynamic_stereo{
         }
     }
 
-    void writeTrainData(const std::string& path, const cv::Ptr<cv::ml::TrainData> traindata){
-        ofstream fout(path.c_str());
-        if(!fout.is_open()) {
-            cerr << "Can not open file to write: " << path << endl;
-            return;
-        }
 
-        Mat feature = traindata->getSamples();
-        Mat response = traindata->getResponses();
-        CHECK_EQ(feature.type(), CV_32FC1);
-        CHECK_EQ(response.type(), CV_32SC1);
-
-        for(auto i=0; i<feature.rows; ++i){
-            for(auto j=0; j<feature.cols; ++j){
-                fout << feature.at<float>(i, j) << ',';
-            }
-            fout << response.at<int>(i, 0) << endl;
-        }
-
-        fout.close();
-    }
 
     void writeCodebook(const std::string& path, const cv::Mat& codebook){
         ofstream fout(path.c_str());

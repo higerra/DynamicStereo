@@ -5,8 +5,7 @@
 #ifndef DYNAMICSTEREO_REGIONDESCRIPTOR_H
 #define DYNAMICSTEREO_REGIONDESCRIPTOR_H
 
-#include "descriptor.h"
-#include "../VideoSegmentation/videosegmentation.h"
+#include "mlutility.h"
 
 namespace LineUtil{
 	struct KeyLine;
@@ -14,14 +13,6 @@ namespace LineUtil{
 
 namespace dynamic_stereo {
 	namespace Feature {
-		struct SegmentFeature {
-			std::vector<float> feature;
-			int id;
-		};
-
-		using TrainSet = std::vector<std::vector<SegmentFeature> >;
-		using PixelGroup = std::vector<int>;
-
 		//remove empty labels in video segments
 		int compressSegments(std::vector<cv::Mat>& segments);
 
@@ -57,7 +48,7 @@ namespace dynamic_stereo {
 		void visualizeSegmentLabel(const std::vector<cv::Mat>& images, const cv::Mat& segments,
 		                           const std::vector<int>& label);
 
-	}//namespace Feature
+    }//namespace Feature
 }//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_REGIONDESCRIPTOR_H

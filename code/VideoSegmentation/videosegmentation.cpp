@@ -47,7 +47,6 @@ namespace dynamic_stereo {
             const int width = input[0].cols;
             const int height = input[0].rows;
 
-            printf("preprocessing\n");
             std::vector<cv::Mat> smoothed(input.size());
             for (auto v = 0; v < input.size(); ++v) {
                 cv::blur(input[v], smoothed[v], cv::Size(smoothSize, smoothSize));
@@ -62,33 +61,30 @@ namespace dynamic_stereo {
             //std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new PixelValue());
             std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor;
 
-            if(pfType == PixelFeature::PIXEL)
+            if (pfType == PixelFeature::PIXEL)
                 pixel_extractor.reset(new PixelValue());
-            else if(pfType == PixelFeature::BRIEF)
+            else if (pfType == PixelFeature::BRIEF)
                 pixel_extractor.reset(new BRIEFWrapper());
             else
                 CHECK(true) << "Unsupported pixel feature type";
 
             std::shared_ptr<TemporalFeatureExtractorBase> temporal_extractor;
 
-            if(tfType == TemporalFeature::TRANSITION_PATTERN)
+            if (tfType == TemporalFeature::TRANSITION_PATTERN)
                 temporal_extractor.reset(new TransitionPattern(pixel_extractor.get(), stride1, stride2, theta));
-            else if(tfType == TemporalFeature::TRANSITION_COUNTING)
+            else if (tfType == TemporalFeature::TRANSITION_COUNTING)
                 temporal_extractor.reset(new TransitionCounting(pixel_extractor.get(), stride1, stride2, theta));
             else
                 CHECK(true) << "Unsupported temporal feature type";
 
             const DistanceMetricBase *feature_comparator = temporal_extractor->getDefaultComparator();
 
-            printf("Computing pixel features...\n");
             vector<cv::Mat> pixelFeatures(smoothed.size());
-
 #pragma omp parallel for
             for (auto v = 0; v < smoothed.size(); ++v) {
                 pixel_extractor->extractAll(smoothed[v], pixelFeatures[v]);
             }
 
-            printf("Computing temporal features...\n");
             Mat featuresMat;
             //a working around: receive Mat type from the function and fit it to vector<vector< > >
             temporal_extractor->computeFromPixelFeature(pixelFeatures, featuresMat);
@@ -102,88 +98,78 @@ namespace dynamic_stereo {
                 }
             }
 
-
-            printf("Computing edge weight...\n");
             // build graph
-            std::vector<edge> edges((size_t) width * height * 4);
-            int num = 0;
+            std::vector<edge> edges;
+            edges.reserve((size_t) width * height);
             //8 neighbor
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     float edgeness = edgeMap.at<float>(y, x);
                     if (x < width - 1) {
-                        edges[num].a = y * width + x;
-                        edges[num].b = y * width + (x + 1);
-                        edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
-                                                                    featuresMat.row(edges[num].b)) * edgeness;
-                        num++;
+                        edge curEdge;
+                        curEdge.a = y * width + x;
+                        curEdge.b = y * width + (x + 1);
+                        curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
+                                                                 featuresMat.row(curEdge.b)) * edgeness;
+                        edges.push_back(curEdge);
                     }
 
                     if (y < height - 1) {
-                        edges[num].a = y * width + x;
-                        edges[num].b = (y + 1) * width + x;
-                        edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
-                                                                    featuresMat.row(edges[num].b)) * edgeness;
-
-                        num++;
+                        edge curEdge;
+                        curEdge.a = y * width + x;
+                        curEdge.b = (y + 1) * width + x;
+                        curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
+                                                                 featuresMat.row(curEdge.b)) * edgeness;
+                        edges.push_back(curEdge);
                     }
 
                     if ((x < width - 1) && (y < height - 1)) {
-                        edges[num].a = y * width + x;
-                        edges[num].b = (y + 1) * width + (x + 1);
-                        edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
-                                                                    featuresMat.row(edges[num].b)) * edgeness;
-
-                        num++;
+                        edge curEdge;
+                        curEdge.a = y * width + x;
+                        curEdge.b = (y + 1) * width + x + 1;
+                        curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
+                                                                 featuresMat.row(curEdge.b)) * edgeness;
+                        edges.push_back(curEdge);
                     }
 
                     if ((x < width - 1) && (y > 0)) {
-                        edges[num].a = y * width + x;
-                        edges[num].b = (y - 1) * width + (x + 1);
-                        edges[num].w = feature_comparator->evaluate(featuresMat.row(edges[num].a),
-                                                                    featuresMat.row(edges[num].b)) * edgeness;
-
-                        num++;
+                        edge curEdge;
+                        curEdge.a = y * width + x;
+                        curEdge.b = (y - 1) * width + x + 1;
+                        curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
+                                                                 featuresMat.row(curEdge.b)) * edgeness;
+                        edges.push_back(curEdge);
                     }
                 }
             }
 
-            printf("segment graph\n");
-
             std::unique_ptr<universe> u(segment_graph(width * height, edges, c));
-
-            printf("post processing\n");
             // post process small components
-            for (int i = 0; i < num; i++) {
-                int a = u->find(edges[i].a);
-                int b = u->find(edges[i].b);
-                if ((a != b) && ((u->size(a) < min_size) || (u->size(b) < min_size)))
+            for (const auto &e: edges) {
+                int a = u->find(e.a);
+                int b = u->find(e.b);
+                if ((a != b) && ((u->size(a) < min_size) || (u->size(b) < min_size))) {
                     u->join(a, b);
+                }
             }
 
             output = cv::Mat(height, width, CV_32S, cv::Scalar::all(0));
-
+            int *pOutput = (int *) output.data;
             //remap labels
-            std::vector<std::pair<int, int> > labelMap((size_t) width * height);
-            int curMaxLabel = -1;
+            vector<int> labelMap((size_t) width * height, -1);
             int nLabel = -1;
-            for (int i = 0; i < width * height; ++i) {
+            for (auto i = 0; i < width * height; ++i) {
                 int comp = u->find(i);
-                CHECK_LT(comp, width * height);
-                labelMap[i] = std::pair<int, int>(comp, i);
+                if (labelMap[comp] < 0)
+                    labelMap[comp] = ++nLabel;
             }
-            std::sort(labelMap.begin(), labelMap.end());
-            for (auto i = 0; i < labelMap.size(); ++i) {
-                CHECK_GE(labelMap[i].first, 0);
-                if (labelMap[i].first > curMaxLabel) {
-                    curMaxLabel = labelMap[i].first;
-                    nLabel++;
-                }
-                int pixId = labelMap[i].second;
-                output.at<int>(pixId / width, pixId % width) = nLabel;
+            nLabel++;
+
+            for (auto i = 0; i < width * height; ++i) {
+                int comp = u->find(i);
+                pOutput[i] = labelMap[comp];
             }
 
-            nLabel++;
             return nLabel;
         }
 

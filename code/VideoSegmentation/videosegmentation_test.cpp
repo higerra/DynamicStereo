@@ -11,7 +11,7 @@ using namespace cv;
 using namespace dynamic_stereo;
 
 TEST(Feature, BRIEFWrapper){
-    shared_ptr<BRIEFWrapper> brief(new BRIEFWrapper());
+    shared_ptr<video_segment::BRIEFWrapper> brief(new video_segment::BRIEFWrapper());
     Mat image = imread("brief_test.png");
     CHECK(image.data);
 

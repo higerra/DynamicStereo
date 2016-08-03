@@ -22,8 +22,6 @@ namespace dynamic_stereo {
 
     void sampleKeyPoints(const std::vector<cv::Mat>& input, std::vector<cv::KeyPoint>& keypoints, const int sigma_s, const int sigma_r);
 
-    void writeTrainData(const std::string& path, const cv::Ptr<cv::ml::TrainData> traindata);
-
     void writeCodebook(const std::string& path, const cv::Mat& codebook);
     bool loadCodebook(const std::string& path, cv::Mat& codebook);
 

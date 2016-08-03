@@ -3,8 +3,6 @@
 //
 
 #include "randomforest.h"
-#include "../external/video_segmentation/segment_util/segmentation_io.h"
-#include "../external/video_segmentation/segment_util/segmentation_util.h"
 #include "../VideoSegmentation/videosegmentation.h"
 
 #include <fstream>
@@ -18,14 +16,21 @@ DEFINE_string(mode, "train", "mode");
 DEFINE_double(segLevel, 0.2, "segmentation level");
 DEFINE_string(cache, "", "path to cached trianing data");
 DEFINE_string(model, "", "path to model");
+DEFINE_string(validation, "", "path to validation dataset");
+
 DEFINE_string(classifier, "bt", "rf or bt");
 DEFINE_int32(treeDepth, 15, "max depth of the tree");
 DEFINE_int32(numTree, -1, "number of trees");
 
-void run_train(cv::Ptr<ml::TrainData> traindata);
-cv::Mat run_detect(int argc, char** argv);
+cv::Ptr<ml::DTrees> run_train(cv::Ptr<ml::TrainData> traindata);
+void run_detect(int argc, char** argv);
 void run_test(const string& path);
-cv::Ptr<ml::TrainData> run_extract(int argc, char **argv);
+cv::Ptr<ml::TrainData> run_extract(const std::string& path);
+
+static const int smoothSize = 9;
+static const int minSize = 300;
+static const float theta = 100;
+static const vector<float> levelList{2.0, 5.0, 10.0};
 
 int main(int argc, char** argv){
 	if(argc < 2){
@@ -34,15 +39,44 @@ int main(int argc, char** argv){
 	}
 	google::InitGoogleLogging(argv[0]);
 	google::ParseCommandLineFlags(&argc, &argv, true);
-	CHECK_NE(FLAGS_compressLevel, 0);
-
-	string arg;
-	if(argc > 1)
-		arg = string(argv[1]);
+	string arg, dir;
+	if(argc > 1) {
+        arg = string(argv[1]);
+        dir = arg.substr(0, arg.find_last_of("."));
+        dir.append("/");
+    }
 	if(FLAGS_mode == "train"){
-		cv::Ptr<ml::TrainData> traindata = run_extract(argc, argv);
-		run_train(traindata);
-	}else if(FLAGS_mode == "test"){
+		cv::Ptr<ml::TrainData> traindata = run_extract(arg);
+        //compose output name
+        string classifier_path = FLAGS_model;
+        if(classifier_path.empty()){
+            classifier_path = dir + "model";
+        }
+        if(FLAGS_model.empty()) {
+            if (FLAGS_classifier == "rf") {
+                classifier_path.append(".rf");
+            } else if (FLAGS_classifier == "bt") {
+                classifier_path.append(".bt");
+            } else {
+                cerr << "Unsupported classifier." << endl;
+                return 1;
+            }
+        }
+        printf("Trainig...\n");
+        cv::Ptr<ml::DTrees> classifier = run_train(traindata);
+        printf("Done...\n");
+        CHECK_NOTNULL(classifier.get())->save(classifier_path);
+        double acc = testForest(traindata, classifier);
+        printf("Training accuracy: %.3f\n", acc);
+
+		cv::Ptr<ml::TrainData> valdata = cv::ml::TrainData::loadFromCSV(FLAGS_validation, 0);
+		if(valdata.get()){
+			double val_acc = testForest(valdata, classifier);
+			printf("Validation accuracy: %.3f\n", val_acc);
+		}
+	}else if(FLAGS_mode=="extract"){
+        cv::Ptr<ml::TrainData> traindata = run_extract(arg);
+    } else if(FLAGS_mode == "test"){
 		run_test(arg);
 	}else if(FLAGS_mode == "detect"){
 		run_detect(argc, argv);
@@ -53,14 +87,14 @@ int main(int argc, char** argv){
 	return 0;
 }
 
-cv::Ptr<ml::TrainData> run_extract(int argc, char **argv){
-	string dir = path.substr(0, path.find_last_of("/"));
-	dir.append("/");
-	char buffer[128] = {};
+cv::Ptr<ml::TrainData> run_extract(const std::string& path){
 	//prepare training data
 	cv::Ptr<ml::TrainData> traindata = ml::TrainData::loadFromCSV(FLAGS_cache, 0);
-	vector<float> levelList{0.1, 0.2,0.3};
 	if (!traindata.get()) {
+		string dir = path.substr(0, path.find_last_of("/"));
+		dir.append("/");
+		char buffer[128] = {};
+
 		CHECK(!path.empty());
 		ifstream listIn(path.c_str());
 		CHECK(listIn.is_open()) << "Can not open list file: " << path;
@@ -71,15 +105,13 @@ cv::Ptr<ml::TrainData> run_extract(int argc, char **argv){
 			vector<Mat> images;
 			cv::VideoCapture cap(dir + filename);
 			CHECK(cap.isOpened()) << "Can not open video: " << dir + filename;
-			printf("Loading %s\n");
+			printf("Loading %s\n", (dir+filename).c_str());
 			while (true) {
 				Mat frame;
 				if (!cap.read(frame))
 					break;
 				images.push_back(frame);
 			}
-
-			printf("number of frames: %d/%d\n", (int)images.size(), (int)kFrame);
 			vector<Mat> gradient(images.size());
 			for(auto i=0; i<images.size(); ++i){
 				Feature::computeGradient(images[i], gradient[i]);
@@ -92,68 +124,58 @@ cv::Ptr<ml::TrainData> run_extract(int argc, char **argv){
 
 			for(auto level: levelList) {
 				printf("Segmentation level: %.3f\n", level);
-				sprintf(buffer, "%s/segmentation/%s_%.2f.pb", dir.c_str(), filename.c_str(), level);
-				Mat segments = imread(buffer);
+                Mat segments;
+                printf("Segmenting...\n");
+                video_segment::segment_video(images, segments, smoothSize, level, theta, minSize);
 				CHECK(segments.data);
-				//don't forget to compress segments as well (if needed)
+                printf("Extracting feature...\n");
 				Feature::extractFeature(images, gradient, segments, gtMask, trainSet);
 			}
 		}
 		printf("Number of positive: %d, number of negative: %d\n", (int) trainSet[1].size(), (int) trainSet[0].size());
-		if(!FLAGS_cache.empty())
-			saveTrainData(FLAGS_cache, trainSet);
-		traindata = convertTrainData(trainSet);
+		traindata = MLUtility::convertTrainData(trainSet);
+        if(!FLAGS_cache.empty())
+            MLUtility::writeTrainData(FLAGS_cache, traindata);
 	}
 	return traindata;
 }
 
-void run_train(cv::Ptr<ml::TrainData> traindata) {
+cv::Ptr<ml::DTrees> run_train(cv::Ptr<ml::TrainData> traindata) {
 	CHECK(traindata.get());
 	printf("Training classifier, total samples:%d\n", traindata->getNSamples());
 	cv::Ptr<ml::DTrees> forest;
-
-	string classifier_path = FLAGS_model;
-	if(classifier_path.empty()){
-		classifier_path = dir + "model";
-	}
-
 	if(FLAGS_classifier == "rf"){
-		if(FLAGS_model.empty())
-			classifier_path.append(".rf");
 		forest = ml::RTrees::create();
+        if(FLAGS_numTree > 0) {
+            forest.dynamicCast<ml::RTrees>()->
+                    setTermCriteria(
+                    cv::TermCriteria(TermCriteria::MAX_ITER, FLAGS_numTree, std::numeric_limits<double>::min()));
+        }
 	}else if(FLAGS_classifier == "bt"){
-		if(FLAGS_model.empty())
-			classifier_path.append(".bt");
 		forest = ml::Boost::create();
 		if(FLAGS_numTree > 0)
 			forest.dynamicCast<ml::Boost>()->setWeakCount(FLAGS_numTree);
 		printf("Number of trees: %d\n", forest.dynamicCast<ml::Boost>()->getWeakCount());
 	}else{
 		cerr << "Unsupported classifier." << endl;
-		return;
+		return cv::Ptr<ml::DTrees>();
 	}
 	if(FLAGS_treeDepth > 0)
 		forest->setMaxDepth(FLAGS_treeDepth);
-	printf("Training. Max depth: %d\n", forest->getMaxDepth());
+	printf("Max depth: %d\n", forest->getMaxDepth());
 	forest->train(traindata);
-	printf("Saving %s\n", classifier_path.c_str());
-	CHECK_NOTNULL(forest.get())->save(classifier_path);
-
-	double acc = testForest(traindata, forest);
-	printf("Training accuracy: %.3f\n", acc);
+	return forest;
 }
 
-
 void run_detect(int argc, char** argv) {
-	if (argc < 3) {
-		cerr << "Usage: ./RandomForest --mode=detect <path-to-video> <path-to-segmentation>" << endl;
+	if (argc < 2) {
+		cerr << "Usage: ./RandomForest --mode=detect <path-to-video>" << endl;
 		return;
 	}
 	printf("Loading data...\n");
 	vector<Mat> images;
 	cv::VideoCapture cap(argv[1]);
 	CHECK(cap.isOpened()) << "Can not open input video: " << argv[1];
-
 	while (true) {
 		Mat frame;
 		if (!cap.read(frame))
@@ -172,7 +194,6 @@ void run_detect(int argc, char** argv) {
 	//empty ground truth
 	Mat gt;
 	Mat segmentVote(refImage.size(), CV_32FC1, Scalar::all(0.0f));
-
 	printf("Running classification...\n");
 	cv::Ptr<ml::DTrees> classifier;
 	if (FLAGS_classifier == "rf") {
@@ -184,46 +205,44 @@ void run_detect(int argc, char** argv) {
 	}
 	printf("Max tree depth: %d\n", classifier->getMaxDepth());
 
-	const vector<float> levelList{0.1,0.2,0.3};
 	for(auto level: levelList) {
-		printf("Level %.3f\n", level);
-		vector<Mat> segments;
-		segmentation::readSegmentAsMat(string(argv[2]), segments, level);
-		int kSeg = Feature::compressSegments(segments);
+        printf("Level %.3f\n", level);
+        Mat segments;
+        video_segment::segment_video(images, segments, smoothSize, level, theta, minSize);
+        double minL, maxL;
+        cv::minMaxLoc(segments, &minL, &maxL);
+        const int kSeg = (int)maxL + 1;
 
-		Feature::FeatureOption option;
-		Feature::TrainSet testset;
-		printf("Extracting feature...\n");
-		Feature::extractFeature(images, gradient, segments, gt, option, testset);
+        Feature::TrainSet testset;
+        printf("Extracting feature...\n");
+        Feature::extractFeature(images, gradient, segments, gt, testset);
 
-		cv::Ptr<ml::TrainData> testPtr = convertTrainData(testset);
-		CHECK(testPtr.get());
-		Mat result;
-		classifier->predict(testPtr->getSamples(), result);
-		CHECK_EQ(result.rows, testset[0].size());
-		vector<bool> segmentLabel((size_t) kSeg, false);
-		for (auto i = 0; i < result.rows; ++i) {
-			if (result.at<float>(i, 0) > 0.5) {
-				int sid = testset[0][i].id;
-				segmentLabel[sid] = true;
-			}
-		}
-		for (auto y = 0; y < segments[0].rows; ++y) {
-			for (auto x = 0; x < segments[0].cols; ++x) {
-				for (auto v = 0; v < images.size(); ++v) {
-					int sid = segments[v].at<int>(y, x);
-					if (segmentLabel[sid]) {
-						segmentVote.at<float>(y, x) += 1.0f;
-					}
-				}
-			}
-		}
-	}//for(auto levelList)
+        cv::Ptr<ml::TrainData> testPtr = MLUtility::convertTrainData(testset);
+        CHECK(testPtr.get());
+        Mat result;
+        classifier->predict(testPtr->getSamples(), result);
+        CHECK_EQ(result.rows, testset[0].size());
+        vector<bool> segmentLabel((size_t) kSeg, false);
+        for (auto i = 0; i < result.rows; ++i) {
+            if (result.at<float>(i, 0) > 0.5) {
+                int sid = testset[0][i].id;
+                segmentLabel[sid] = true;
+            }
+        }
+        for (auto y = 0; y < segments.rows; ++y) {
+            for (auto x = 0; x < segments.cols; ++x) {
+                int sid = segments.at<int>(y, x);
+                if (segmentLabel[sid]) {
+                    segmentVote.at<float>(y, x) += 1.0f;
+                }
+            }
+        }
+    }//for(auto levelList)
 
 	Mat mask(segmentVote.size(), CV_8UC3, Scalar(255, 0, 0));
 	for (auto y = 0; y < mask.rows; ++y) {
 		for (auto x = 0; x < mask.cols; ++x) {
-			if (segmentVote.at<float>(y, x) > (float)levelList.size() * (float) images.size() / 2)
+			if (segmentVote.at<float>(y, x) > (float)levelList.size() / 2)
 				mask.at<Vec3b>(y, x) = Vec3b(0, 0, 255);
 		}
 	}

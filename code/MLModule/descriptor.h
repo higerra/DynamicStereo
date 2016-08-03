@@ -19,12 +19,6 @@ namespace dynamic_stereo {
             LUV_HIST
         };
 
-        void normalizel2(std::vector<float> &array);
-        void normalizeSum(std::vector<float> &array);
-        inline void normalizel1(std::vector<float>& array){
-            normalizeSum(array);
-        }
-
         class FeatureConstructor {
         public:
             virtual void constructFeature(const std::vector<float> &array, std::vector<float> &feat) const = 0;
@@ -121,6 +115,8 @@ namespace dynamic_stereo {
             const int M;
             const int N;
         };
+
+
 
     }//namespace Feature
 }//namespace dynamic_stereo
