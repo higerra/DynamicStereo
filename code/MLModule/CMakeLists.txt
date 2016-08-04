@@ -8,8 +8,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/MLModule)
 
 include_directories(/usr/local/include/eigen3)
 
-add_library(ML_lib regiondescriptor.h regiondescriptor.cpp
+add_library(MLModule regiondescriptor.h regiondescriptor.cpp
+        CVdescriptor.h CVdescriptor.cpp
         mlutility.h mlutility.cpp
+        detectimage.h detectimage.cpp
         type_def.h)
 
-target_link_libraries(ML_lib ${OpenCV_lib} glog)
+target_link_libraries(MLModule ${OpenCV_LIBS} glog)

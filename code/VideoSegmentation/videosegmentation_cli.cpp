@@ -62,7 +62,7 @@ int main(int argc, char** argv){
         //test for video segmentation based on binary descriptor
         Mat segment;
         printf("Video segmentation...\n");
-        video_segment::segment_video(images, segment, 9, (float) FLAGS_c, FLAGS_theta, 100, video_segment::PIXEL, video_segment::TRANSITION_PATTERN);
+        video_segment::segment_video(images, segment, (float)FLAGS_c);
         Mat segment_vis = video_segment::visualizeSegmentation(segment);
         Mat result;
         cv::addWeighted(images[0], 0.1, segment_vis, 0.9, 0.0, result);

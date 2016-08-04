@@ -13,8 +13,7 @@ using namespace cv;
 using namespace Eigen;
 
 namespace dynamic_stereo{
-	namespace Feature{
-
+	namespace ML{
 		//feature based over segments
 		void extractFeature(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& gradient,
 							const cv::Mat& segments, const cv::Mat& mask, TrainSet& trainSet){
@@ -279,28 +278,6 @@ namespace dynamic_stereo{
 		void computeLine(const PixelGroup& pg, const std::vector<std::vector<LineUtil::KeyLine> >& lineClusters,
 						 std::vector<float>& desc){
 
-		}
-
-
-		void computeGradient(const cv::Mat& image, cv::Mat& gradient){
-			const float pi = 3.1415926f;
-			Mat gx, gy, gray;
-			cvtColor(image, gray, CV_BGR2GRAY);
-			cv::Sobel(gray, gx, CV_32F, 1, 0);
-			cv::Sobel(gray, gy, CV_32F, 0, 1);
-			gradient.create(image.size(), CV_32FC2);
-			for(auto y=0; y<gx.rows; ++y){
-				for(auto x=0; x<gx.cols; ++x){
-					float ix = gx.at<float>(y,x);
-					float iy = gy.at<float>(y,x);
-					Vec2f pix;
-					pix[0] = std::sqrt(ix*ix+iy*iy);
-					float tx = ix + std::copysign(0.000001f, ix);
-					//normalize atan value to [0,80PI]
-					pix[1] = (atan(iy / tx) +  pi / 2.0f) * 80;
-					gradient.at<Vec2f>(y,x) = pix;
-				}
-			}
 		}
 
 		void visualizeSegmentLabel(const std::vector<cv::Mat>& images, const cv::Mat& segments,

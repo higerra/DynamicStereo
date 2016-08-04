@@ -96,14 +96,17 @@ namespace dynamic_stereo{
         //implementation of temporal features
         int TransitionPattern::getKChannel(const int kFrames) const {
             int kChannel = 0;
-            for (auto v = 0; v < kFrames - stride1(); v += stride1()) {
-                kChannel++;
-            }
-            if (stride2() > 0) {
-                for (auto v = 0; v < kFrames - stride2(); v += stride1() / 2) {
+            if(stride1() > 0) {
+                for (auto v = 0; v < kFrames - stride1(); v += stride1()) {
                     kChannel++;
                 }
             }
+            if(stride2() > 0) {
+                for (auto v = 0; v < kFrames / 2; v += stride2()) {
+                    kChannel++;
+                }
+            }
+            CHECK_GT(kChannel, 0) << "Either stride 1 or stride 2 must be > 0";
             kChannel = std::ceil((float) kChannel / (float) binPerCell);
             return kChannel;
         }
@@ -117,6 +120,7 @@ namespace dynamic_stereo{
 
             //first compute the dimension of the feature vector
             const int kChannel = getKChannel((int) inputArray.size());
+            const int N = (int)inputArray.size();
 
             feat.create(kChannel, 1, CV_8UC1);
             feat.setTo(cv::Scalar::all(0));
@@ -124,23 +128,25 @@ namespace dynamic_stereo{
 
             Mat pix1, pix2;
             int featIndex = 0;
-            for (auto v = 0; v < inputArray.size() - stride1(); v += stride1()) {
-                const int blockId = featIndex / binPerCell;
-                const int cellId = featIndex % binPerCell;
-                pixel_feature->extractPixel(inputArray[v], x, y, pix1);
-                pixel_feature->extractPixel(inputArray[v + stride1()], x, y, pix2);
-                float d = pixel_distance->evaluate(pix1, pix2);
-                if (d >= theta())
-                    featMat.at<uchar>(blockId, 0) |= or_table[cellId];
-                featIndex++;
-            }
-
-            if (stride2() > 0) {
-                for (auto v = 0; v < inputArray.size() - stride2(); v += stride1() / 2) {
+            if(stride1() > 0) {
+                for (auto v = 0; v < N - stride1(); v += stride1()) {
                     const int blockId = featIndex / binPerCell;
                     const int cellId = featIndex % binPerCell;
                     pixel_feature->extractPixel(inputArray[v], x, y, pix1);
-                    pixel_feature->extractPixel(inputArray[v + stride2()], x, y, pix2);
+                    pixel_feature->extractPixel(inputArray[v + stride1()], x, y, pix2);
+                    float d = pixel_distance->evaluate(pix1, pix2);
+                    if (d >= theta())
+                        featMat.at<uchar>(blockId, 0) |= or_table[cellId];
+                    featIndex++;
+                }
+            }
+
+            if(stride2() > 0) {
+                for (auto v = 0; v < N / 2; v += stride2()) {
+                    const int blockId = featIndex / binPerCell;
+                    const int cellId = featIndex % binPerCell;
+                    pixel_feature->extractPixel(inputArray[v], x, y, pix1);
+                    pixel_feature->extractPixel(inputArray[v + N / 2], x, y, pix2);
                     float d = pixel_distance->evaluate(pix1, pix2);
                     if (d >= theta())
                         featMat.at<uchar>(blockId, 0) |= or_table[cellId];
@@ -158,6 +164,7 @@ namespace dynamic_stereo{
 
             const int kPix = pixelFeatureArray[0].rows;
             const int K = pixelFeatureArray[0].cols;
+            const int N = (int)pixelFeatureArray.size();
 
             const int kChannel = getKChannel((int) pixelFeatureArray.size());
             feats.create(kPix, kChannel, CV_8UC1);
@@ -165,25 +172,28 @@ namespace dynamic_stereo{
             featMat.setTo(Scalar::all(0));
 
             int featIndex = 0;
-            for (auto v = 0; v < pixelFeatureArray.size() - stride1(); v += stride1()) {
-                const int blockId = featIndex / binPerCell;
-                const int cellId = featIndex % binPerCell;
-                for (auto i = 0; i < kPix; ++i) {
-                    double d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
-                                                        pixelFeatureArray[v + stride1()].row(i));
-                    if (d >= theta())
-                        featMat.at<uchar>(i, blockId) |= or_table[cellId];
+
+            if(stride1() > 0) {
+                for (auto v = 0; v < N - stride1(); v += stride1()) {
+                    const int blockId = featIndex / binPerCell;
+                    const int cellId = featIndex % binPerCell;
+                    for (auto i = 0; i < kPix; ++i) {
+                        double d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
+                                                            pixelFeatureArray[v + stride1()].row(i));
+                        if (d >= theta())
+                            featMat.at<uchar>(i, blockId) |= or_table[cellId];
+                    }
+                    featIndex++;
                 }
-                featIndex++;
             }
 
-            if (stride2() > 0) {
-                for (auto v = 0; v < pixelFeatureArray.size() - stride2(); v += stride1() / 2) {
+            if(stride2() > 0) {
+                for (auto v = 0; v < N / 2; v += stride2()) {
                     const int blockId = featIndex / binPerCell;
                     const int cellId = featIndex % binPerCell;
                     for (auto i = 0; i < kPix; ++i) {
                         float d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
-                                                           pixelFeatureArray[v + stride2()].row(i));
+                                                           pixelFeatureArray[v + N / 2].row(i));
                         if (d >= theta())
                             featMat.at<uchar>(i, blockId) |= or_table[cellId];
                     }

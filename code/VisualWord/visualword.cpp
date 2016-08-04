@@ -30,39 +30,99 @@ namespace dynamic_stereo{
         }
     }
 
-
-
-    void writeCodebook(const std::string& path, const cv::Mat& codebook){
-        ofstream fout(path.c_str());
-        if(!fout.is_open()) {
-            cerr << "Can not open file to write: " << path << endl;
-            return;
+    void extractSegmentFeature(const std::vector<cv::Mat>& images, const std::vector<ML::PixelGroup>& pixelGroups, std::vector<std::vector<float> >& feats){
+        CHECK(!images.empty());
+        for (const auto &pg: pixelGroups) {
+            vector<float> curRegionFeat;
+            vector<float> color, shape, position;
+            ML::computeColor(images, pg, color);
+            ML::computeShape(pg, images[0].cols, images[0].rows, shape);
+            ML::computePosition(pg, images[0].cols, images[0].rows, position);
+            curRegionFeat.insert(curRegionFeat.end(), color.begin(), color.end());
+            curRegionFeat.insert(curRegionFeat.end(), shape.begin(), shape.end());
+            curRegionFeat.insert(curRegionFeat.end(), position.begin(), position.end());
+            feats.push_back(curRegionFeat);
         }
-        CHECK_EQ(codebook.type(), CV_32FC1);
-        fout << codebook.rows << ' ' << codebook.cols << endl;
-        for(auto i=0; i<codebook.rows; ++i){
-            for(auto j=0; j<codebook.cols; ++j){
-                fout << codebook.at<float>(i,j) << ' ';
+    }
+
+    void detectVideo(const std::vector<cv::Mat>& images, cv::Ptr<cv::ml::StatModel> classifier, const cv::Mat& codebook,
+                     const std::vector<float>& levelList, cv::Mat& output, const VisualWordOption& vw_option){
+        CHECK(!images.empty());
+        CHECK(classifier.get());
+        CHECK(codebook.data);
+        CHECK(!levelList.empty());
+
+        cv::Ptr<cv::Feature2D> descriptorExtractor;
+        if(vw_option.pixDesc == HOG3D)
+            descriptorExtractor.reset(new CVHoG3D(vw_option.sigma_s, vw_option.sigma_r));
+        else if(vw_option.pixDesc == COLOR3D)
+            descriptorExtractor.reset(new CVColor3D(vw_option.sigma_s, vw_option.sigma_r));
+
+
+        vector<Mat> featureImages;
+        descriptorExtractor.dynamicCast<CV3DDescriptor>()->prepareImage(images, featureImages);
+        printf("Sample keypoints...\n");
+        vector<cv::KeyPoint> keypoints;
+        sampleKeyPoints(featureImages, keypoints, vw_option.sigma_s, vw_option.sigma_r);
+
+        cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce");
+        cv::BOWImgDescriptorExtractor extractor(descriptorExtractor, matcher);
+        extractor.setVocabulary(codebook);
+        printf("descriptor size: %d\n", extractor.descriptorSize());
+
+        Mat segmentVote(images[0].size(), CV_32FC1, Scalar::all(0.0f));
+        for(auto level: levelList) {
+            Mat segments;
+            video_segment::segment_video(images, segments, level);
+            vector<ML::PixelGroup> pixelGroup;
+            const int kSeg = ML::regroupSegments(segments, pixelGroup);
+            vector<vector<KeyPoint> > segmentKeypoints((size_t) kSeg);
+            for (const auto &kpt: keypoints) {
+                int sid = segments.at<int>(kpt.pt);
+                segmentKeypoints[sid].push_back(kpt);
             }
-            fout << endl;
+            Mat bowFeature(kSeg, codebook.rows, CV_32FC1, Scalar::all(0));
+            vector<vector<float> > regionFeature;
+            extractSegmentFeature(images, pixelGroup, regionFeature);
+            for (auto sid = 0; sid < kSeg; ++sid) {
+                if (!segmentKeypoints[sid].empty()) {
+                    Mat bow;
+                    extractor.compute(featureImages, segmentKeypoints[sid], bow);
+                    bow.copyTo(bowFeature.rowRange(sid, sid + 1));
+                }
+            }
+
+            Mat featureMat(kSeg, codebook.rows + (int) regionFeature[0].size(), CV_32FC1, Scalar::all(0));
+            bowFeature.copyTo(featureMat.colRange(0, codebook.rows));
+            for (auto sid = 0; sid < kSeg; ++sid) {
+                for (auto j = 0; j < regionFeature[sid].size(); ++j)
+                    featureMat.at<float>(sid, j + codebook.rows) = regionFeature[sid][j];
+            }
+            printf("Predicting...\n");
+            Mat response;
+            classifier->predict(featureMat, response);
+            CHECK_EQ(response.rows, kSeg);
+
+            for (auto y = 0; y < segmentVote.rows; ++y) {
+                for (auto x = 0; x < segmentVote.cols; ++x) {
+                    int sid = segments.at<int>(y, x);
+                    if (response.at<float>(sid, 0) > 0.5)
+                        segmentVote.at<float>(y, x) += 1.0f;
+                }
+            }
         }
-        fout.close();
+
+        output.create(segmentVote.size(), CV_8UC1);
+        output.setTo(Scalar::all(0));
+
+        for (auto y = 0; y < segmentVote.rows; ++y) {
+            for (auto x = 0; x < segmentVote.cols; ++x) {
+                if (segmentVote.at<float>(y, x) > (float)levelList.size() / 2)
+                    output.at<uchar>(y, x) = (uchar)255;
+            }
+        }
     }
 
-    bool loadCodebook(const std::string& path, cv::Mat& codebook){
-        ifstream fin(path.c_str());
-        if(!fin.is_open())
-            return false;
-        int row, col;
-        fin >> row >> col;
-        codebook.create(row, col, CV_32FC1);
-        for(auto i=0; i<row; ++i){
-            for(auto j=0; j<col; ++j)
-                fin >> codebook.at<float>(i,j);
-        }
-        fin.close();
-        return true;
-    }
 
     double testClassifier(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::StatModel> classifier){
         CHECK(testPtr.get());

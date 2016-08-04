@@ -16,7 +16,7 @@ namespace dynamic_stereo {
         void edgeAggregation(const VideoMat &input, cv::Mat &output);
 
         int segment_video(const VideoMat &input, cv::Mat &output,
-                          const int smoothSize, const float c, const float theta, const int min_size,
+                          const float c, const int smoothSize = 9, const float theta = 100, const int min_size = 200,
                           const PixelFeature pfType = PixelFeature::PIXEL,
                           const TemporalFeature tftype = TemporalFeature::TRANSITION_PATTERN);
 

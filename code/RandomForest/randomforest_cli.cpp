@@ -4,9 +4,9 @@
 
 #include "randomforest.h"
 #include "../VideoSegmentation/videosegmentation.h"
-
 #include <fstream>
 #include <gflags/gflags.h>
+#include "../MLModule/detectimage.h"
 
 using namespace std;
 using namespace cv;
@@ -30,7 +30,7 @@ cv::Ptr<ml::TrainData> run_extract(const std::string& path);
 static const int smoothSize = 9;
 static const int minSize = 300;
 static const float theta = 100;
-static const vector<float> levelList{2.0, 5.0, 10.0};
+static const vector<float> levelList{10, 20, 30};
 
 int main(int argc, char** argv){
 	if(argc < 2){
@@ -99,7 +99,7 @@ cv::Ptr<ml::TrainData> run_extract(const std::string& path){
 		ifstream listIn(path.c_str());
 		CHECK(listIn.is_open()) << "Can not open list file: " << path;
 		string filename, gtname;
-		Feature::TrainSet trainSet;
+		ML::TrainSet trainSet;
 
 		while (listIn >> filename >> gtname) {
 			vector<Mat> images;
@@ -114,7 +114,7 @@ cv::Ptr<ml::TrainData> run_extract(const std::string& path){
 			}
 			vector<Mat> gradient(images.size());
 			for(auto i=0; i<images.size(); ++i){
-				Feature::computeGradient(images[i], gradient[i]);
+                ML::MLUtility::computeGradient(images[i], gradient[i]);
 				images[i].convertTo(images[i], CV_32FC3);
 			}
 
@@ -126,16 +126,16 @@ cv::Ptr<ml::TrainData> run_extract(const std::string& path){
 				printf("Segmentation level: %.3f\n", level);
                 Mat segments;
                 printf("Segmenting...\n");
-                video_segment::segment_video(images, segments, smoothSize, level, theta, minSize);
+                video_segment::segment_video(images, segments, level);
 				CHECK(segments.data);
                 printf("Extracting feature...\n");
-				Feature::extractFeature(images, gradient, segments, gtMask, trainSet);
+				ML::extractFeature(images, gradient, segments, gtMask, trainSet);
 			}
 		}
 		printf("Number of positive: %d, number of negative: %d\n", (int) trainSet[1].size(), (int) trainSet[0].size());
-		traindata = MLUtility::convertTrainData(trainSet);
+		traindata = ML::MLUtility::convertTrainData(trainSet);
         if(!FLAGS_cache.empty())
-            MLUtility::writeTrainData(FLAGS_cache, traindata);
+            ML::MLUtility::writeTrainData(FLAGS_cache, traindata);
 	}
 	return traindata;
 }
@@ -183,18 +183,11 @@ void run_detect(int argc, char** argv) {
 		images.push_back(frame);
 	}
 
-	Mat refImage = images[0].clone();
+    vector<Mat> segmentation(levelList.size());
+    for(auto i=0; i<segmentation.size(); ++i)
+        video_segment::segment_video(images, segmentation[i], levelList[i]);
 
-	vector<Mat> gradient(images.size());
-	for(auto i=0; i<images.size(); ++i){
-		Feature::computeGradient(images[i], gradient[i]);
-		images[i].convertTo(images[i], CV_32FC3);
-	}
-
-	//empty ground truth
-	Mat gt;
-	Mat segmentVote(refImage.size(), CV_32FC1, Scalar::all(0.0f));
-	printf("Running classification...\n");
+    //empty ground truth
 	cv::Ptr<ml::DTrees> classifier;
 	if (FLAGS_classifier == "rf") {
 		classifier = ml::RTrees::load<ml::RTrees>(FLAGS_model);
@@ -205,47 +198,20 @@ void run_detect(int argc, char** argv) {
 	}
 	printf("Max tree depth: %d\n", classifier->getMaxDepth());
 
-	for(auto level: levelList) {
-        printf("Level %.3f\n", level);
-        Mat segments;
-        video_segment::segment_video(images, segments, smoothSize, level, theta, minSize);
-        double minL, maxL;
-        cv::minMaxLoc(segments, &minL, &maxL);
-        const int kSeg = (int)maxL + 1;
 
-        Feature::TrainSet testset;
-        printf("Extracting feature...\n");
-        Feature::extractFeature(images, gradient, segments, gt, testset);
+    Mat refImage = images[0].clone();
 
-        cv::Ptr<ml::TrainData> testPtr = MLUtility::convertTrainData(testset);
-        CHECK(testPtr.get());
-        Mat result;
-        classifier->predict(testPtr->getSamples(), result);
-        CHECK_EQ(result.rows, testset[0].size());
-        vector<bool> segmentLabel((size_t) kSeg, false);
-        for (auto i = 0; i < result.rows; ++i) {
-            if (result.at<float>(i, 0) > 0.5) {
-                int sid = testset[0][i].id;
-                segmentLabel[sid] = true;
-            }
+    Mat detection;
+    ML::detectImage(images, segmentation, classifier, detection);
+
+    Mat mask(detection.size(), CV_8UC3, Scalar(255,0,0));
+    for(auto y=0; y<detection.rows; ++y){
+        for(auto x=0; x<detection.cols; ++x){
+            if(detection.at<uchar>(y,x) > (uchar)200)
+                mask.at<Vec3b>(y,x) = Vec3b(0,0,255);
         }
-        for (auto y = 0; y < segments.rows; ++y) {
-            for (auto x = 0; x < segments.cols; ++x) {
-                int sid = segments.at<int>(y, x);
-                if (segmentLabel[sid]) {
-                    segmentVote.at<float>(y, x) += 1.0f;
-                }
-            }
-        }
-    }//for(auto levelList)
+    }
 
-	Mat mask(segmentVote.size(), CV_8UC3, Scalar(255, 0, 0));
-	for (auto y = 0; y < mask.rows; ++y) {
-		for (auto x = 0; x < mask.cols; ++x) {
-			if (segmentVote.at<float>(y, x) > (float)levelList.size() / 2)
-				mask.at<Vec3b>(y, x) = Vec3b(0, 0, 255);
-		}
-	}
 	const double blend_weight = 0.4;
 	Mat vis;
 	cv::addWeighted(refImage, blend_weight, mask, 1.0 - blend_weight, 0.0, vis);

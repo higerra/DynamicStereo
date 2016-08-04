@@ -115,7 +115,6 @@ namespace dynamic_stereo {
             TransitionFeature(const PixelFeatureExtractorBase *pf_, const int s1_, const int s2_, const float theta_) :
                     pixel_feature(pf_), pixel_distance(CHECK_NOTNULL(pf_->getDefaultComparator())), s1(s1_), s2(s2_),
                     t(theta_) {
-                CHECK_GT(stride1(), 0);
                 CHECK(pixel_distance);
             }
 

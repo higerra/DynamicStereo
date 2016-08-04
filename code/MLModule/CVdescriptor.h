@@ -9,7 +9,47 @@
 #include <vector>
 #include <Eigen/Eigen>
 #include <glog/logging.h>
-#include "descriptor.h"
+
+namespace dynamic_stereo{
+    namespace ML {
+        class Feature3D {
+        public:
+            virtual void constructFeature(const std::vector<cv::Mat> &images, std::vector<float> &feat) const = 0;
+
+            int getDim() { return dim; }
+
+        protected:
+            int dim;
+        };
+
+
+
+        class HoG3D : public Feature3D {
+        public:
+            HoG3D(const int M_ = 4, const int N_ = 4, const int kSubBlock_ = 3);
+
+            //Note: input image should be gradient of 3 channels: gx, gy, gz, in float type
+            virtual void constructFeature(const std::vector<cv::Mat> &images, std::vector<float> &feat) const;
+
+        private:
+            Eigen::MatrixXf P;
+            const int kSubBlock;
+            const int M;
+            const int N;
+        };
+
+        class Color3D : public Feature3D {
+        public:
+            Color3D(const int M_ = 4, const int N_ = 4) : M(4), N(4) {}
+
+            virtual void constructFeature(const std::vector<cv::Mat> &images, std::vector<float> &feat) const;
+
+        private:
+            const int M;
+            const int N;
+        };
+    }//namespace ML
+}//namespace dynamic_stereo
 
 namespace cv {
 

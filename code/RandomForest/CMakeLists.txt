@@ -13,4 +13,4 @@ include_directories(/usr/local/include/eigen3)
 
 add_executable(RandomForest ${SROUCE_FILE} ${HEADER_FILE})
 
-target_link_libraries(RandomForest ${OpenCV_LIBS} gflags glog video_segment_lib ML_lib)
+target_link_libraries(RandomForest ${OpenCV_LIBS} gflags glog VideoSegmentModule MLModule)

@@ -40,7 +40,7 @@ namespace dynamic_stereo {
         }
 
         int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output,
-                          const int smoothSize, const float c, const float theta, const int min_size,
+                          const float c, const int smoothSize, const float theta, const int min_size,
                           const PixelFeature pfType,
                           const TemporalFeature tfType) {
             CHECK(!input.empty());
@@ -56,7 +56,7 @@ namespace dynamic_stereo {
             edgeAggregation(smoothed, edgeMap);
 
             const int stride1 = 8;
-            const int stride2 = (int) input.size() / 2;
+            const int stride2 = 4;
 
             //std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new PixelValue());
             std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor;

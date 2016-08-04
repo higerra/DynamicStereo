@@ -13,19 +13,25 @@
 #include "type_def.h"
 
 namespace dynamic_stereo {
-    namespace MLUtility {
-        cv::Ptr<cv::ml::TrainData> convertTrainData(const Feature::TrainSet &trainset);
+    namespace ML {
+        namespace MLUtility {
+            cv::Ptr<cv::ml::TrainData> convertTrainData(const TrainSet &trainset);
 
-        void writeTrainData(const std::string &path, const cv::Ptr<cv::ml::TrainData> traindata);
+            void writeTrainData(const std::string &path, const cv::Ptr<cv::ml::TrainData> traindata);
 
-        void normalizel2(std::vector<float> &array);
+            void normalizel2(std::vector<float> &array);
 
-        void normalizeSum(std::vector<float> &array);
+            void normalizeSum(std::vector<float> &array);
 
-        inline void normalizel1(std::vector<float> &array) {
-            normalizeSum(array);
-        }
-    };
+            inline void normalizel1(std::vector<float> &array) {
+                normalizeSum(array);
+            }
+
+            void computeGradient(const cv::Mat &images, cv::Mat &gradient);
+            void compute3DGradient(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &gradient);
+
+        }//namespace MLUtility
+    }//namespace ML
 }//namespace dynamic_stereo
 
 #endif //DYNAMICSTEREO_MLUTILITY_H
