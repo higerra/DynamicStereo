@@ -162,7 +162,7 @@ namespace dynamic_stereo {
 
         const theia::Camera &cam1 = sfmModel->getCamera(anchor);
 
-	    double dispMargin = 10;
+	    double dispMargin = 5;
         const double epsilon = 1e-5;
         const double min_visibleRatio = 0.4;
 

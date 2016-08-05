@@ -8,6 +8,7 @@
 using namespace std;
 using namespace cv;
 using namespace dynamic_stereo;
+using namespace VisualWord;
 
 DEFINE_string(mode, "train", "train, test or detect");
 
@@ -113,9 +114,10 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
     vector<vector<int> > descriptorMap;
 
     cv::Ptr<cv::Feature2D> descriptorExtractor;
-    if (vw_option.pixDesc == COLOR3D)
+
+    if (vw_option.pixDesc == HOG3D)
         descriptorExtractor.reset(new CVHoG3D(vw_option.sigma_s, vw_option.sigma_r));
-    else if (vw_option.pixDesc == HOG3D)
+    else if (vw_option.pixDesc == COLOR3D)
         descriptorExtractor.reset(new CVColor3D(vw_option.sigma_s, vw_option.sigma_r));
     else
         CHECK(true) << "unsupported descriptor " << FLAGS_desc;
@@ -195,14 +197,26 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
     }
     Mat visualWord, bestLabel;
     cv::FileStorage codebookIn(path_codebook, cv::FileStorage::READ);
+
     if (!codebookIn.isOpened()) {
         //merge all descriptors into a mat
         printf("descriptors: %d, %d\n", descriptors.rows, descriptors.cols);
         cv::kmeans(descriptors, FLAGS_kCluster, bestLabel, cv::TermCriteria(cv::TermCriteria::COUNT, 30, 1.0), 3, KMEANS_PP_CENTERS, visualWord);
         if (!path_codebook.empty()) {
             cv::FileStorage codebookOut(path_codebook, cv::FileStorage::WRITE);
+            codebookOut << "classifier" << vw_option.classifierType;
+            codebookOut << "pixeldesc" << vw_option.pixDesc;
             codebookOut << "codebook" << visualWord;
         }
+    }else{
+        int pixdesc, classifiertype;
+        codebookIn["classifier"] >> classifiertype;
+        codebookIn["pixeldesc"] >> pixdesc;
+        CHECK_EQ(pixdesc, (int)vw_option.pixDesc);
+        CHECK_EQ(classifiertype, (int)vw_option.classifierType);
+
+        codebookIn["codebook"] >> visualWord;
+        CHECK_EQ(visualWord.cols, descriptors.cols);
     }
 
     const int kChannel = (int) segmentsFeature[0].size() + visualWord.rows;
@@ -361,9 +375,13 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
     Mat vis;
     cv::addWeighted(refImage, blend_weight, mask, 1.0 - blend_weight, 0.0, vis);
 
-    string fullPath = string(argv[1]);
-    string filename = fullPath.substr(0, fullPath.find_last_of('.'));
-    imwrite(filename+"_result.png", vis);
+    if(argc >= 3){
+        imwrite(argv[2], vis);
+    }else {
+        string fullPath = string(argv[1]);
+        string filename = fullPath.substr(0, fullPath.find_last_of('.'));
+        imwrite(filename + "_result.png", vis);
+    }
 }
 
 void run_multiExtract(const vector<int>& kClusters, int argc, char** argvm, const VisualWordOption& vw_option) {
@@ -542,4 +560,6 @@ VisualWordOption setOption(){
     }else{
         CHECK(true) << "Unsuppored classifier: " << FLAGS_classifier;
     }
+
+    return option;
 }

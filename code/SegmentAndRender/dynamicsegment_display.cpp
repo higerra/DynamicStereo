@@ -4,113 +4,49 @@
 
 #include <unordered_set>
 #include "dynamicsegment.h"
-#include "../common/descriptor.h"
 #include "../base/thread_guard.h"
-#include "../external/segment_gb/segment-image.h"
-#include "../external/video_segmentation/segment_util/segmentation_io.h"
-#include "../external/video_segmentation/segment_util/segmentation_util.h"
+#include "../VisualWord/visualword.h"
 
 using namespace std;
 using namespace cv;
 using namespace Eigen;
 
 namespace dynamic_stereo{
-	cv::Mat getClassificationResult(const std::vector<cv::Mat>& input,
-	                                const std::shared_ptr<Feature::FeatureConstructor> descriptor, const cv::Ptr<cv::ml::StatModel> classifier,
-	                                const int stride){
-		CHECK(!input.empty());
-		CHECK(descriptor.get());
-		CHECK(classifier.get());
-
-		const int width = input[0].cols;
-		const int height = input[0].rows;
-		CHECK_EQ(width % stride, 0);
-		CHECK_EQ(height % stride, 0);
-
-		const int kFrame = (int)input.size();
-		const int nSamples = width * height / stride / stride;
-
-		vector<Mat> filtered(input.size());
-		for(auto v=0; v<input.size(); ++v){
-
-		}
-
-
-		int index = 0;
-		//Notice: input images are in BGR color space!!!
-		const int chuckSize = nSamples;
-		Mat samplesCV(chuckSize, descriptor->getDim(), CV_32F, cv::Scalar::all(0));
-		vector<float> array((size_t)kFrame * 3);
-		Mat res(height/stride, width/stride, CV_8UC1, Scalar::all(0));
-		for(auto y=0; y<height; y+=stride){
-			for(auto x=0; x<width; x+=stride, ++index){
-				for(auto v=0; v<input.size(); ++v){
-					Vec3b pix = input[v].at<Vec3b>(y,x);
-					array[v*3] = (float)pix[2];
-					array[v*3+1] = (float)pix[1];
-					array[v*3+2] = (float)pix[0];
-				}
-				vector<float> cursample;
-				descriptor->constructFeature(array, cursample);
-				for(auto d=0; d<descriptor->getDim(); ++d)
-					samplesCV.at<float>(index % chuckSize, d) = cursample[d];
-				if((index + 1) % chuckSize == 0){
-					Mat chuckResult;
-					classifier->predict(samplesCV, chuckResult);
-					CHECK_EQ(chuckResult.rows, chuckSize);
-					const float* pChuckResult = (float*) chuckResult.data;
-					for(auto i=0; i<chuckSize; ++i){
-						CHECK_GE(index-chuckSize+i+1, 0);
-						CHECK_LT(index-chuckSize+i+1, nSamples);
-						if(std::abs(pChuckResult[i] - 0.0f) < FLT_EPSILON)
-							res.data[index - chuckSize + i + 1] = (uchar)0;
-						if(std::abs(pChuckResult[i] - 1.0f) < FLT_EPSILON)
-							res.data[index - chuckSize + i + 1] = (uchar)255;
-						else
-							CHECK(true) << "Invalid classification result";
-					}
-				}
-			}
-		}
-
-		cv::resize(res, res,input[0].size(),INTER_NEAREST);
-		return res;
-	}
 
 	void segmentDisplay(const FileIO& file_io, const int anchor,
 	                    const std::vector<cv::Mat> &input, const cv::Mat& inputMask,
-	                    const string& classifierPath, cv::Mat& result){
+	                    const string& classifierPath, const string& codebookPath, cv::Mat& result){
 		CHECK(!input.empty());
-		CHECK(inputMask.data);
-		CHECK_EQ(inputMask.channels(), 1);
 		char buffer[1024] = {};
-
 		const int width = input[0].cols;
 		const int height = input[0].rows;
 
-		Mat segnetMask;
-		cv::resize(inputMask, segnetMask, cv::Size(width, height), INTER_NEAREST);
-
 		//display region
 		sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
-		Mat preSeg = imread(buffer, IMREAD_GRAYSCALE);
+		Mat preSeg = imread(buffer, false);
 
 		if(!preSeg.data) {
-			//shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::RGBHist());
-			Feature::ColorSpace cspace(Feature::ColorSpace::RGB);
-			vector<int> kBins{10, 10, 10};
-			shared_ptr<Feature::FeatureConstructor> descriptor(new Feature::ColorHist(cspace, kBins));
-			printf("Dimension: %d\n", descriptor->getDim());
-#ifdef __linux
-			cv::Ptr<ml::StatModel> classifier = ml::SVM::load<ml::SVM>(classifierPath);
-#else
-			cv::Ptr<ml::StatModel> classifier = ml::SVM::load(classifierPath);
-#endif
-			printf("Running classification...\n");
-			preSeg = getClassificationResult(input, descriptor, classifier, 2);
-			imwrite(buffer, preSeg);
-		}else{
-			cv::threshold(preSeg, preSeg, 200, 255, CV_8UC1);
+            const vector<float> levelList{10.0,20.0,30.0};
+            cv::Ptr<ml::StatModel> classifier;
+            Mat codebook;
+            VisualWord::VisualWordOption option;
+            cv::FileStorage codebookIn(codebookPath, FileStorage::READ);
+            CHECK(codebookIn.isOpened()) << "Can not open code book: " << codebookPath;
+            codebookIn["codebook"] >> codebook;
+
+            int pixeldesc = (int)codebookIn["pixeldesc"];
+            int classifiertype = (int)codebookIn["classifiertype"];
+            option.pixDesc = (VisualWord::PixelDescriptor) pixeldesc;
+            if(classifiertype == VisualWord::RANDOM_FOREST)
+                classifier = ml::RTrees::load<ml::RTrees>(classifierPath);
+            else if(classifiertype == VisualWord::BOOSTED_TREE)
+                classifier = ml::Boost::load<ml::Boost>(classifierPath);
+            else if(classifiertype == VisualWord::SVM)
+                classifier = ml::SVM::load<ml::SVM>(classifierPath);
+            CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
+
+            VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, option);
+            imwrite(buffer, preSeg);
 		}
 		//flashy region
 		Depth frequency;
@@ -130,33 +66,9 @@ namespace dynamic_stereo{
 		sprintf(buffer, "%s/temp/preSeg.jpg", file_io.getDirectory().c_str());
 		imwrite(buffer, preSeg);
 
-		//boundary filter and local refinement
-		vector<Mat> videoSeg;
-		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d.mp4.pb", file_io.getDirectory().c_str(), anchor);
-		printf("Imporing video segmentation...\n");
-		const float seg_level = 0.4f;
-		segmentation::readSegmentAsMat(string(buffer), videoSeg, seg_level);
-		CHECK_EQ(videoSeg.size(), input.size());
-
-		imshow("segnet mask", segnetMask);
-		waitKey(0);
-
-		imshow("preSeg", preSeg);
-		waitKey(0);
-
-		printf("Filter by segnet\n");
-		filterBySegnet(input, videoSeg, segnetMask, preSeg);
-		imshow("filter by segnet", preSeg);
-		waitKey(0);
-
-		printf("Filter boundary\n");
-		filterBoudary(input, videoSeg, preSeg);
-		imshow("filter by boundary", preSeg);
-		waitKey(0);
-
 		result = localRefinement(input, preSeg);
 
-		Mat segVis = segment_gb::visualizeSegmentation(result);
+		Mat segVis = video_segment::visualizeSegmentation(result);
 		Mat segVisOvl = 0.6 * segVis + 0.4 * input[input.size()/2];
 		sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		imwrite(buffer, segVisOvl);
@@ -338,7 +250,7 @@ namespace dynamic_stereo{
 				continue;
 			}
 
-			//The number of static samples inside the window should be at least twice of of area
+			//filter out mostly occlued areas
 			int nOcclu = 0;
 			for(auto y=0; y<height; ++y){
 				for(auto x=0; x<width; ++x){

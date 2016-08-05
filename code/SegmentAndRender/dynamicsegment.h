@@ -26,14 +26,10 @@ namespace dynamic_stereo {
 
 	void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result);
 
-	cv::Mat getClassificationResult(const std::vector<cv::Mat>& input,
-	                                const std::shared_ptr<Feature::FeatureConstructor> descriptor, const cv::Ptr<cv::ml::StatModel> classifier,
-	                                const int stride);
-
 	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
 
 	void segmentDisplay(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, const cv::Mat& segnetMask,
-						const std::string& classifierPath, cv::Mat& result);
+						const std::string& classifierPath, const std::string& codebookPath, cv::Mat& result);
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments);
 
