@@ -55,7 +55,6 @@ namespace dynamic_stereo {
             CHECK(classifier.get());
             CHECK(codebook.data);
             CHECK(!levelList.empty());
-
             cv::Ptr<cv::Feature2D> descriptorExtractor;
             if (vw_option.pixDesc == HOG3D)
                 descriptorExtractor.reset(new CVHoG3D(vw_option.sigma_s, vw_option.sigma_r));
@@ -74,10 +73,16 @@ namespace dynamic_stereo {
             extractor.setVocabulary(codebook);
             printf("descriptor size: %d\n", extractor.descriptorSize());
 
+            char buffer[128] = {};
             Mat segmentVote(images[0].size(), CV_32FC1, Scalar::all(0.0f));
             for (auto level: levelList) {
                 Mat segments;
                 video_segment::segment_video(images, segments, level);
+
+                Mat segvis = video_segment::visualizeSegmentation(segments);
+                sprintf(buffer, "seg%0.1f.png", level);
+                imwrite(buffer, segvis);
+
                 vector<ML::PixelGroup> pixelGroup;
                 const int kSeg = ML::regroupSegments(segments, pixelGroup);
                 vector<vector<KeyPoint> > segmentKeypoints((size_t) kSeg);

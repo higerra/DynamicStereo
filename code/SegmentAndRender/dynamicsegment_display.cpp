@@ -26,26 +26,31 @@ namespace dynamic_stereo{
 		Mat preSeg = imread(buffer, false);
 
 		if(!preSeg.data) {
-            const vector<float> levelList{10.0,20.0,30.0};
+            const vector<float> levelList{10.0, 20.0, 30.0};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
-            VisualWord::VisualWordOption option;
+            VisualWord::VisualWordOption vw_option;
             cv::FileStorage codebookIn(codebookPath, FileStorage::READ);
             CHECK(codebookIn.isOpened()) << "Can not open code book: " << codebookPath;
             codebookIn["codebook"] >> codebook;
 
             int pixeldesc = (int)codebookIn["pixeldesc"];
             int classifiertype = (int)codebookIn["classifiertype"];
-            option.pixDesc = (VisualWord::PixelDescriptor) pixeldesc;
-            if(classifiertype == VisualWord::RANDOM_FOREST)
+            printf("pixeldesc: %d, classifiertype: %d\n", pixeldesc, classifiertype);
+            vw_option.pixDesc = (VisualWord::PixelDescriptor) pixeldesc;
+
+            if(classifiertype == VisualWord::RANDOM_FOREST) {
                 classifier = ml::RTrees::load<ml::RTrees>(classifierPath);
+                cout << "Tree depth: " << classifier.dynamicCast<ml::RTrees>()->getMaxDepth() << endl;
+            }
             else if(classifiertype == VisualWord::BOOSTED_TREE)
                 classifier = ml::Boost::load<ml::Boost>(classifierPath);
             else if(classifiertype == VisualWord::SVM)
                 classifier = ml::SVM::load<ml::SVM>(classifierPath);
             CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
-
-            VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, option);
+            VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option);
+            imshow("classification", preSeg);
+            waitKey(0);
             imwrite(buffer, preSeg);
 		}
 		//flashy region

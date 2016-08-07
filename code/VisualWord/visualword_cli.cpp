@@ -362,6 +362,7 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
     codebookIn["codebook"] >> codebook;
 
     Mat detection;
+    //detectVideo(images, classifier, codebook, levelList, detection, vw_option);
     detectVideo(images, classifier, codebook, levelList, detection, vw_option);
 
     Mat mask(detection.size(), CV_8UC3, Scalar(255,0,0));

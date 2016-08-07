@@ -15,7 +15,7 @@ DEFINE_int32(testFrame, 60, "anchor frame");
 DEFINE_int32(resolution, 128, "resolution");
 DEFINE_int32(tWindow, 120, "tWindow");
 DEFINE_int32(downsample, 2, "downsample ratio");
-DEFINE_string(classifierPath, "../../../data/traindata/visualword/model.rf", "Path to svm classifier");
+DEFINE_string(classifierPath, "../../../data/traindata/visualword/model.rf", "Path to classifier");
 DEFINE_string(codebookPath, "../../../data/traindata/visualword/metainfo_cluster00050.yml", "path to codebook");
 DECLARE_string(flagfile);
 
@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
 
     Mat seg_result_display;
 	//segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
+
     segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
 
 //    Mat seg_display;
