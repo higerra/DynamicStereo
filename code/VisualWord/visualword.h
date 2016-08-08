@@ -25,7 +25,7 @@ namespace dynamic_stereo {
         };
 
         struct VisualWordOption {
-            VisualWordOption() : M(4), N(4), kSubBlock(3), sigma_s(24), sigma_r(24), pixDesc(HOG3D),
+            VisualWordOption() : M(4), N(4), kSubBlock(3), sigma_s(12), sigma_r(24), pixDesc(HOG3D),
                                  classifierType(RANDOM_FOREST) {}
 
             int M;

@@ -38,7 +38,7 @@ namespace dynamic_stereo{
             int classifiertype = (int)codebookIn["classifiertype"];
             printf("pixeldesc: %d, classifiertype: %d\n", pixeldesc, classifiertype);
             vw_option.pixDesc = (VisualWord::PixelDescriptor) pixeldesc;
-
+            vw_option.classifierType = (VisualWord::ClassifierType) classifiertype;
             if(classifiertype == VisualWord::RANDOM_FOREST) {
                 classifier = ml::RTrees::load<ml::RTrees>(classifierPath);
                 cout << "Tree depth: " << classifier.dynamicCast<ml::RTrees>()->getMaxDepth() << endl;
@@ -49,8 +49,6 @@ namespace dynamic_stereo{
                 classifier = ml::SVM::load<ml::SVM>(classifierPath);
             CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
             VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option);
-            imshow("classification", preSeg);
-            waitKey(0);
             imwrite(buffer, preSeg);
 		}
 		//flashy region
@@ -231,14 +229,14 @@ namespace dynamic_stereo{
 		int nLabel = cv::connectedComponentsWithStats(mask, labels, stats, centroid);
 		const int* pLabel = (int*) labels.data;
 
-		const int min_area = 200;
+		const int min_area = 50;
 		const double maxRatioOcclu = 0.3;
 
 		int kOutputLabel = 1;
 
 		const int testL = -1;
 
-		const int localMargin = std::min(width, height) / 30;
+		const int localMargin = std::min(width, height) / 10;
 		for(auto l=1; l<nLabel; ++l){
 			if(testL > 0 && l != testL)
 				continue;

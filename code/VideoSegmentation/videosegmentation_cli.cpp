@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 using namespace dynamic_stereo;
 
-DEFINE_double(c, 2.0, "parameter c");
+DEFINE_double(c, 20.0, "parameter c");
 DEFINE_double(theta, 100, "parameter theta");
 
 int main(int argc, char** argv){
@@ -37,7 +37,7 @@ int main(int argc, char** argv){
     CHECK(!subfix.empty());
 
     vector<string> filenames;
-    if(subfix == ".mp4")
+    if(subfix != ".txt")
         filenames.emplace_back(strArg.substr(strArg.find_last_of("/")+1));
     else{
         ifstream listIn(argv[1]);

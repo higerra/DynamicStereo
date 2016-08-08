@@ -17,6 +17,7 @@ namespace dynamic_stereo {
 
         int segment_video(const VideoMat &input, cv::Mat &output,
                           const float c, const int smoothSize = 9, const float theta = 100, const int min_size = 200,
+                          const int stride1 = 8, const int stride2 = 4,
                           const PixelFeature pfType = PixelFeature::PIXEL,
                           const TemporalFeature tftype = TemporalFeature::TRANSITION_PATTERN);
 

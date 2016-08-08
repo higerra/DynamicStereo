@@ -61,6 +61,7 @@ namespace dynamic_stereo {
             else if (vw_option.pixDesc == COLOR3D)
                 descriptorExtractor.reset(new CVColor3D(vw_option.sigma_s, vw_option.sigma_r));
 
+            printf("sigma_s: %d. sigma_r: %d\n", vw_option.sigma_s, vw_option.sigma_r);
 
             vector<Mat> featureImages;
             descriptorExtractor.dynamicCast<CV3DDescriptor>()->prepareImage(images, featureImages);
