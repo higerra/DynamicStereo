@@ -13,43 +13,6 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 
-//	void DynamicSegment::getGeometryConfidence(Depth &geoConf) const {
-//		geoConf.initialize(width, height, 0.0);
-//		const theia::Camera& refCam = sfmModel.getCamera(anchor);
-//		const double large = 1000000;
-//
-//		for(auto y=downsample; y<height-downsample; ++y){
-//			for(auto x=downsample; x<width-downsample; ++x){
-//				Vector2d refPt((double)x/(double)downsample, (double)y/(double)downsample);
-//				Vector3d spt = refCam.GetPosition() + refCam.PixelToUnitDepthRay(Vector2d(x,y)) * refDepth.getDepthAt(refPt);
-//				vector<double> repoError;
-//
-//				for(auto j=0; j<depthInd.size(); ++j){
-//					Vector2d imgpt;
-//					const theia::Camera& cam2 = sfmModel.getCamera(depthInd[j]);
-//					double d = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
-//					imgpt /= (double)downsample;
-//					if(d > 0 && imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < depths[j].getWidth()-1 && imgpt[1] < depths[j].getHeight()-1){
-//						double depth2 = depths[j].getDepthAt(imgpt);
-//						double zMargin = depths[j].getMedianDepth() / 5;
-//						if(d <= depth2 + zMargin) {
-//							Vector3d spt2 = cam2.PixelToUnitDepthRay(imgpt * downsample) * depth2 + cam2.GetPosition();
-//							Vector2d repoPt;
-//							double repoDepth = refCam.ProjectPoint(spt2.homogeneous(), &repoPt);
-//							double dis = (repoPt - Vector2d(x,y)).norm();
-//							repoError.push_back(dis);
-//						}
-//					}
-//				}
-//
-//				//take average
-//				if(!repoError.empty())
-//					geoConf(x,y) = std::accumulate(repoError.begin(), repoError.end(), 0.0) / (double)repoError.size();
-//			}
-//		}
-//	}
-
-
 	void computeFrequencyConfidence(const std::vector<cv::Mat> &warppedImg, Depth &result){
 		CHECK(!warppedImg.empty());
 		const int width = warppedImg[0].cols;
@@ -59,6 +22,25 @@ namespace dynamic_stereo{
 		const double alpha = 2, beta = 2.5;
 		const int min_frq = 4;
 		const int tx = -1, ty= -1;
+
+		//compute visible range of each pixel
+//		Mat indRange(height, width, CV_32SC2, Scalar::all(0));
+//		int* pRange = (int*)indRange.data;
+//
+//		const Vec3b invalidToken(0,0,0);
+//
+//		for(auto y=0; y<height; ++y){
+//			for(auto x=0; x<width; ++x){
+//				pRange[(y*width+x)*2] = 0;
+//				pRange[(y*width+x)*2+1] = (int)warppedImg.size()-1;
+//				for(auto v=warppedImg.size()/2; v>=0; --v){
+//					if(warppedImg[v].at<Vec3b>(y,x) == invalidToken){
+//						pRange[(y*width+x)*2] = v;
+//						break;
+//					}
+//				}
+//			}
+//		}
 
 		vector<Mat> smoothed(warppedImg.size());
 		for(auto v=0; v<warppedImg.size(); ++v){
@@ -117,9 +99,7 @@ namespace dynamic_stereo{
 		const int width = input[0].cols;
 		const int height = input[0].rows;
 
-		result = Mat(height, width, CV_8UC1, Scalar(0));
-		uchar* pResult = result.data;
-
+		Mat preSeg(height, width, CV_8UC1, Scalar::all(0));
 		//repetative pattern
 		printf("Computing frequency confidence...\n");
 		Depth frequency;
@@ -130,12 +110,16 @@ namespace dynamic_stereo{
 
 		for(auto i=0; i<width * height; ++i){
 			if(frequency[i] > freThreshold)
-				pResult[i] = (uchar)255;
+				preSeg.data[i] = (uchar)255;
 		}
+		const int rh = 5;
+		cv::dilate(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
+		cv::erode(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
 
-		//filterBoudary(input, result);
+		sprintf(buffer, "%s/temp/segment_flashy.jpg", file_io.getDirectory().c_str());
+		imwrite(buffer, preSeg);
 
-
+		result = localRefinement(input, preSeg);
 		sprintf(buffer, "%s/temp/conf_frquency.jpg", file_io.getDirectory().c_str());
 		frequency.saveImage(string(buffer), 255);
 	}

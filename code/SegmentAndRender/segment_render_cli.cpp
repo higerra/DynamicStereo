@@ -13,7 +13,7 @@ using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
 DEFINE_int32(resolution, 128, "resolution");
-DEFINE_int32(tWindow, 120, "tWindow");
+DEFINE_int32(tWindow, 100, "tWindow");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_string(classifierPath, "../../../data/traindata/visualword/model.rf", "Path to classifier");
 DEFINE_string(codebookPath, "../../../data/traindata/visualword/metainfo_cluster00050.yml", "path to codebook");
@@ -56,13 +56,12 @@ int main(int argc, char** argv) {
 	//Segmentation
     printf("Segmenting...\n");
 
-    Mat seg_result_display;
-	//segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
+    Mat seg_result_display, seg_result_flashy;
+	segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
+	segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
 
-    segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-
-//    Mat seg_display;
-//	Mat seg_flashy(height, width, CV_8UC1, Scalar::all(0));
+//	//visualize result
+//    Mat seg_display, seg_flashy;
 //    cv::resize(seg_result_display, seg_display, cv::Size(width, height), 0, 0, INTER_NEAREST);
 //    cv::resize(seg_result_flashy, seg_flashy, cv::Size(width, height), 0, 0, INTER_NEAREST);
 //    Mat seg_overlay(height, width, CV_8UC3, Scalar(0, 0, 0));
@@ -98,10 +97,14 @@ int main(int argc, char** argv) {
 		}
 	}
 	cv::resize(seg_result_display, seg_result_display, images[0].size(), 0, 0, INTER_NEAREST);
+	cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
 
 	vector<vector<Vector2d> > segmentsDisplay;
 	vector<vector<Vector2d> > segmentsFlashy;
 	groupPixel(seg_result_display, segmentsDisplay);
+	groupPixel(seg_result_flashy, segmentsFlashy);
+
+	segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
 
     vector <Mat> finalResult;
     printf("Full warping...\n");

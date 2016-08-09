@@ -127,7 +127,7 @@ namespace dynamic_stereo {
 
             for (auto y = 0; y < segmentVote.rows; ++y) {
                 for (auto x = 0; x < segmentVote.cols; ++x) {
-                    if (segmentVote.at<float>(y, x) > (float) levelList.size() / 2)
+                    if (segmentVote.at<float>(y, x) > (float) levelList.size() / 3)
                         output.at<uchar>(y, x) = (uchar) 255;
                 }
             }

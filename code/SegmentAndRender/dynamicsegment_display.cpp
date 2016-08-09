@@ -50,31 +50,16 @@ namespace dynamic_stereo{
             CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
             VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option);
             imwrite(buffer, preSeg);
-		}
-		//flashy region
-		Depth frequency;
-		computeFrequencyConfidence(input, frequency);
-		const double flashythres = 0.4;
-		for(auto i=0; i<width*height; ++i){
-			if(frequency[i] > flashythres)
-				preSeg.data[i] = 255;
-		}
-		sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		frequency.saveImage(string(buffer), 255);
+		};
 
 		const int rh = 5;
 		cv::dilate(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
 		cv::erode(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
 
-		sprintf(buffer, "%s/temp/preSeg.jpg", file_io.getDirectory().c_str());
+		sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());
 		imwrite(buffer, preSeg);
 
 		result = localRefinement(input, preSeg);
-
-		Mat segVis = video_segment::visualizeSegmentation(result);
-		Mat segVisOvl = 0.6 * segVis + 0.4 * input[input.size()/2];
-		sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		imwrite(buffer, segVisOvl);
 	}
 
 	void filterBoudary(const std::vector<cv::Mat>& images, const std::vector<cv::Mat> &seg, cv::Mat &input){

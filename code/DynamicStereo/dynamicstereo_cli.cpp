@@ -13,7 +13,7 @@ using namespace Eigen;
 using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 60, "anchor frame");
-DEFINE_int32(tWindow, 120, "tWindow");
+DEFINE_int32(tWindow, 100, "tWindow");
 DEFINE_int32(stereo_stride, 2, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 128, "disparity resolution");
@@ -30,20 +30,13 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+    google::InitGoogleLogging(argv[0]);
+    google::ParseCommandLineFlags(&argc, &argv, true);
+
 	FileIO file_io(argv[1]);
 	CHECK_GT(file_io.getTotalNum(), 0);
 
 	char buffer[1024] = {};
-	//check if chere is flag file
-	sprintf(buffer, "%s/config.txt", file_io.getDirectory().c_str());
-	ifstream flagfile(buffer);
-	if(flagfile.is_open())
-		FLAGS_flagfile = string(buffer);
-
-	google::InitGoogleLogging(argv[0]);
-	google::ParseCommandLineFlags(&argc, &argv, true);
-
-
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/temp"))
 		stlplus::folder_create(file_io.getDirectory() + "/temp");
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/midres"))
@@ -101,8 +94,6 @@ int main(int argc, char **argv) {
 				printf("Running stereo for frame %d\n", tf);
 				stereo.runStereo(curdepth, curDepthMask);
 				curdepth.saveDepthFile(string(buffer));
-				sprintf(buffer, "%s/midres/depthMask%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-				imwrite(buffer, curDepthMask);
 			}else{
 				Depth tempdepth;
 				Mat tempMask;
@@ -123,6 +114,9 @@ int main(int argc, char **argv) {
 
 	vector<Mat> prewarp;
 	warpping->preWarping(prewarp);
+
+	sprintf(buffer, "rm %s/midres/prewarp/prewarpb%05d_*.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	system(buffer);
 
 	for(auto i=0; i<prewarp.size(); ++i){
 		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);

@@ -164,7 +164,7 @@ namespace dynamic_stereo {
 
 	    double dispMargin = 5;
         const double epsilon = 1e-5;
-        const double min_visibleRatio = 0.4;
+        const double min_visibleRatio = 0.2;
 
 	    const int tx = -1;
 	    const int ty = -1;
@@ -194,37 +194,51 @@ namespace dynamic_stereo {
             return interpolation_util::bilinear<uchar,3>(images[v].data, width, height, imgpt);
         };
 
-
+        const double borderMargin = 0;
         auto threadFuncDisplay = [&](const int tid, const int num_thread){
             for(auto sid=tid; sid<segmentsDisplay.size(); sid+=num_thread){
                 printf("Segment %d(%d) on thread %d\n", sid, (int)segmentsDisplay.size(), tid);
                 const vector<Vector2d>& curSeg = segmentsDisplay[sid];
+                const int invalidMargin = (int)curSeg.size() / 50;
                 //end frame and start frame
                 int startFrame = 0, endFrame = (int)images.size() - 1;
                 vector<vector<Vector3d> > segColors(curSeg.size());
                 for(auto& segc:segColors)
                     segc.resize(images.size(), Vector3d(0,0,0));
+                vector<int> invalidCount(images.size(), 0);
                 for(auto i=0; i<curSeg.size(); ++i){
                     Vector2d dsegpt = curSeg[i] / downsample;
-                    if(dsegpt[0] < 0 || dsegpt[1] < 0 || dsegpt[0] >= refDepth->getWidth()-1 || dsegpt[1] >= refDepth->getHeight()-1)
+                    if(dsegpt[0] < -borderMargin || dsegpt[1] < -borderMargin ||
+                       dsegpt[0] >= refDepth->getWidth()-1+borderMargin || dsegpt[1] >= refDepth->getHeight()-1+borderMargin)
                         continue;
                     Vector3d spt = cam1.GetPosition() + refDepth->getDepthAt(dsegpt) * cam1.PixelToUnitDepthRay(curSeg[i]);
                     for(auto fid=anchor-offset-1; fid >= 0; --fid){
                         segColors[i][fid] = projectPoint(spt, fid);
                         if((segColors[i][fid]-outToken).norm() < epsilon){
-                            startFrame = std::max(startFrame, fid);
-                            break;
+                            invalidCount[fid]++;
                         }
                     }
                     for(auto fid=anchor-offset; fid < images.size(); ++fid){
                         segColors[i][fid] = projectPoint(spt, fid);
                         if((segColors[i][fid]-outToken).norm() < epsilon){
-                            endFrame = std::min(endFrame, fid);
-                            break;
+                            invalidCount[fid]++;
                         }
                     }
                 }
+                for(auto fid=anchor-offset-1; fid>=0; --fid){
+                    if(invalidCount[fid] > invalidMargin) {
+                        startFrame = std::max(startFrame, fid);
+                        break;
+                    }
+                }
+                for(auto fid=anchor-offset; fid < images.size(); ++fid){
+                    if(invalidCount[fid] > invalidMargin) {
+                        endFrame = std::min(endFrame, fid);
+                        break;
+                    }
+                }
                 printf("seg %d, start:%d, end:%d\n", sid, startFrame, endFrame);
+
                 if(endFrame - startFrame < min_visibleRatio * images.size())
                     continue;
                 for(auto i=0; i<curSeg.size(); ++i) {
@@ -251,10 +265,6 @@ namespace dynamic_stereo {
         }
         for(auto& t: threads_display)
             t.join();
-//        auto threadFuncFlashy = [&](const int tid, const int num_thread){
-//
-//        };
-
     }
 
     void DynamicWarpping::preWarping(std::vector<cv::Mat> &warped) const {
