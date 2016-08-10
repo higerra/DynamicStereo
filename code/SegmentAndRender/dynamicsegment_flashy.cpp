@@ -18,74 +18,57 @@ namespace dynamic_stereo{
 		const int width = warppedImg[0].cols;
 		const int height = warppedImg[0].rows;
 		result.initialize(width, height, 0.0);
-		const int N = (int)warppedImg.size();
 		const double alpha = 2, beta = 2.5;
-		const int min_frq = 4;
+		const int min_frq = 5;
 		const int tx = -1, ty= -1;
 
-		//compute visible range of each pixel
-//		Mat indRange(height, width, CV_32SC2, Scalar::all(0));
-//		int* pRange = (int*)indRange.data;
-//
-//		const Vec3b invalidToken(0,0,0);
-//
-//		for(auto y=0; y<height; ++y){
-//			for(auto x=0; x<width; ++x){
-//				pRange[(y*width+x)*2] = 0;
-//				pRange[(y*width+x)*2+1] = (int)warppedImg.size()-1;
-//				for(auto v=warppedImg.size()/2; v>=0; --v){
-//					if(warppedImg[v].at<Vec3b>(y,x) == invalidToken){
-//						pRange[(y*width+x)*2] = v;
-//						break;
-//					}
-//				}
-//			}
-//		}
+        const int N = (int)warppedImg.size();
 
 		vector<Mat> smoothed(warppedImg.size());
 		for(auto v=0; v<warppedImg.size(); ++v){
 			cv::blur(warppedImg[v], smoothed[v], cv::Size(3,3));
 		}
 
+        //Divide the visible range to kInt intervals, exhaustively search for all ranges
+        const int kInt = 10;
+        const int minInt = kInt / 2;
+        const int interval = N / kInt;
+
+#pragma omp parallel for
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
-				//seprate first half and second half
-				vector<Vector3f> meanColor(2, Vector3f(0,0,0));
-				Mat colorArray = Mat(3,N,CV_32FC1, Scalar::all(0));
+				Mat colorArray = Mat(3, N, CV_32FC1, Scalar::all(0));
 				float* pArray = (float*)colorArray.data;
-				for(auto v=0; v<smoothed.size(); ++v){
+				for(auto v=0; v<N; ++v){
 					Vec3b pixv = smoothed[v].at<Vec3b>(y,x);
-					int ind = v < N/2 ? 0 : 1;
-					if(pixv[0] != 0 && pixv[1] != 0 && pixv[2] != 0){
-						pArray[v] = (float)pixv[0];
-						pArray[N+v] = (float)pixv[1];
-						pArray[2*N+v] = (float)pixv[2];
-					}
-					meanColor[ind][0] += pArray[v];
-					meanColor[ind][1] += pArray[N+v];
-					meanColor[ind][2] += pArray[2*N+v];
+                    pArray[v] = (float)pixv[0];
+                    pArray[N+v] = (float)pixv[1];
+                    pArray[2*N+v] = (float)pixv[2];
 				}
-				for(auto h=0; h<2; ++h) {
-					meanColor[h] /= (double) N / 2.0;
-				}
-				for (auto v = 0; v < N; ++v) {
-					int ind = v < N / 2 ? 0 : 1;
-					pArray[v] -= meanColor[ind][0];
-					pArray[N + v] -= meanColor[ind][1];
-					pArray[2 * N + v] -= meanColor[ind][2];
-				}
+                Mat sumMat = Mat(3, N+1, CV_32FC1, Scalar::all(0));
+                for(auto i=1; i<sumMat.cols; ++i)
+                    sumMat.col(i) = sumMat.col(i-1) + colorArray.col(i-1);
 
-				vector<double> frqConfs{utility::getFrequencyScore(colorArray(cv::Range::all(), cv::Range(0,N/2)), min_frq),
-				                        utility::getFrequencyScore(colorArray(cv::Range::all(), cv::Range(N/2,N)), min_frq)};
-				result(x,y) = 1 / (1 + std::exp(-1*alpha*(std::max(frqConfs[0], frqConfs[1]) - beta)));
-				if(x == tx && y == ty){
-					for(auto v=0; v<N/2; ++v){
-						printf("%.2f,%.2f,%.2f\n", pArray[v], pArray[N+v], pArray[2*N+v]);
-					}
-					printf("mean1: %.2f,%.2f,%.2f\n", meanColor[0][0], meanColor[0][1], meanColor[0][2]);
-					printf("mean2: %.2f,%.2f,%.2f\n", meanColor[1][0], meanColor[1][1], meanColor[1][2]);
-					printf("(%d,%d),frqConf:[%.2f,%.2f], result:%.2f\n", tx,ty,frqConfs[0], frqConfs[1], result(x,y));
-				}
+                //start searching
+                vector<double> frqConfs;
+                for(auto sid =0; sid < minInt * interval; sid += interval){
+                    for(auto eid = sid + minInt * interval; eid < N; eid += interval){
+                        Mat curArray;
+                        colorArray.colRange(sid, eid+1).copyTo(curArray);
+                        Mat meanColor = (sumMat.col(eid+1) - sumMat.col(sid)) / (float)(eid-sid+1);
+                        for(auto i=0; i<curArray.cols; ++i)
+                            curArray.col(i) -= meanColor;
+                        double curConf = utility::getFrequencyScore(curArray, min_frq);
+                        frqConfs.push_back(curConf);
+                    }
+                }
+                double frqConf = *std::max_element(frqConfs.begin(), frqConfs.end());
+                result(x,y) = 1 / (1 + std::exp(-1*alpha*(frqConf - beta)));
+//				if(x == tx && y == ty){
+//					for(auto v=0; v<N/2; ++v){
+//						printf("%.2f,%.2f,%.2f\n", pArray[v], pArray[N+v], pArray[2*N+v]);
+//					}
+//				}
 			}
 		}
 
@@ -105,8 +88,10 @@ namespace dynamic_stereo{
 		Depth frequency;
 		computeFrequencyConfidence(input, frequency);
 		printf("Done\n");
+        sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
+        frequency.saveImage(string(buffer), 255);
 
-		double freThreshold = 0.4;
+		double freThreshold = 0.5;
 
 		for(auto i=0; i<width * height; ++i){
 			if(frequency[i] > freThreshold)
@@ -120,8 +105,7 @@ namespace dynamic_stereo{
 		imwrite(buffer, preSeg);
 
 		result = localRefinement(input, preSeg);
-		sprintf(buffer, "%s/temp/conf_frquency.jpg", file_io.getDirectory().c_str());
-		frequency.saveImage(string(buffer), 255);
+
 	}
 
 
