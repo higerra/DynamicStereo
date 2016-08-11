@@ -45,7 +45,7 @@ add_subdirectory(${ROOT_DIRECTORY}/MLModule)
 #main code
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/common)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)
-#add_subdirectory(${ROOT_DIRECTORY}/SfM)
+add_subdirectory(${ROOT_DIRECTORY}/SfM)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Line)
 add_subdirectory(${ROOT_DIRECTORY}/DynamicStereo)
 add_subdirectory(${ROOT_DIRECTORY}/SegmentAndRender)

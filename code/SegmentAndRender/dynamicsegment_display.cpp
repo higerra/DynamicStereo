@@ -48,8 +48,17 @@ namespace dynamic_stereo{
             else if(classifiertype == VisualWord::SVM)
                 classifier = ml::SVM::load<ml::SVM>(classifierPath);
             CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
-            VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option);
-            imwrite(buffer, preSeg);
+
+            vector<Mat> segments;
+            VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments);
+            CHECK_EQ(segments.size(), levelList.size());
+            for(auto i=0; i<segments.size(); ++i){
+                Mat segVis = video_segment::visualizeSegmentation(segments[i]);
+                sprintf(buffer, "%s/temp/videosegment%05d_%01f.png", file_io.getDirectory().c_str(), anchor, levelList[i]);
+                imwrite(buffer, segVis);
+            }
+            //sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
+            //imwrite(buffer, preSeg);
 		};
 
 		const int rh = 5;

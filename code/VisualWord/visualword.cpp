@@ -50,7 +50,8 @@ namespace dynamic_stereo {
 
         void detectVideo(const std::vector<cv::Mat> &images,
                          cv::Ptr<cv::ml::StatModel> classifier, const cv::Mat &codebook,
-                         const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &vw_option) {
+                         const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &vw_option,
+                         cv::OutputArrayOfArrays rawSegments) {
             CHECK(!images.empty());
             CHECK(classifier.get());
             CHECK(codebook.data);
@@ -75,14 +76,22 @@ namespace dynamic_stereo {
             printf("descriptor size: %d\n", extractor.descriptorSize());
 
             char buffer[128] = {};
+
+            if(rawSegments.needed()) {
+                rawSegments.create((int)levelList.size(), 1, CV_32S);
+                for(int i=0; i<levelList.size(); ++i)
+                    rawSegments.create(images[0].size(), CV_32S, i);
+            }
+
             Mat segmentVote(images[0].size(), CV_32FC1, Scalar::all(0.0f));
+            int index = 0;
             for (auto level: levelList) {
                 Mat segments;
                 video_segment::segment_video(images, segments, level);
 
-                Mat segvis = video_segment::visualizeSegmentation(segments);
-                sprintf(buffer, "seg%0.1f.png", level);
-                imwrite(buffer, segvis);
+                if(rawSegments.needed()){
+                    segments.copyTo(rawSegments.getMat(index++));
+                }
 
                 vector<ML::PixelGroup> pixelGroup;
                 const int kSeg = ML::regroupSegments(segments, pixelGroup);

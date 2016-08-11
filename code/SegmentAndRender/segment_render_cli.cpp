@@ -59,6 +59,7 @@ int main(int argc, char** argv) {
     Mat seg_result_display, seg_result_flashy;
 	segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
 	segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
+//	return 0;
 
 //	//visualize result
 //    Mat seg_display, seg_flashy;

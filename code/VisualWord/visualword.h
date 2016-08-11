@@ -42,7 +42,8 @@ namespace dynamic_stereo {
 
         void detectVideo(const std::vector<cv::Mat> &images,
                          cv::Ptr<cv::ml::StatModel> classifier, const cv::Mat &codebook,
-                         const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &option);
+                         const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &option,
+                         cv::OutputArrayOfArrays rawSegments = cv::noArray());
 
         void extractSegmentFeature(const std::vector<cv::Mat> &images, const std::vector<ML::PixelGroup> &pixelGroups,
                                    std::vector<std::vector<float> > &feats);
