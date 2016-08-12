@@ -280,6 +280,11 @@ namespace dynamic_stereo{
 
 		}
 
+		void computeTemporalPattern(const std::vector<cv::Mat>& colorImage, const PixelGroup& pg,
+									std::vector<float>& desc){
+
+		}
+
 		void visualizeSegmentLabel(const std::vector<cv::Mat>& images, const cv::Mat& segments,
 		                           const std::vector<int>& label){
 			CHECK(!images.empty());

@@ -21,6 +21,15 @@ namespace dynamic_stereo {
                           const PixelFeature pfType = PixelFeature::PIXEL,
                           const TemporalFeature tftype = TemporalFeature::TRANSITION_PATTERN);
 
+        //multi frame grab cut
+        //mask: for both input and output
+        void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iterCount = 10);
+
+        cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);
+
+        //joint refine the boundary of all segments based on appearance
+        cv::Mat segmentRefinement(const std::vector<cv::Mat>& images, const cv::Mat& segments, const float marginRatio = 0.1);
+
         cv::Mat visualizeSegmentation(const cv::Mat &input);
     }//namespace video_segment
 }//namespace dynamic_stereo

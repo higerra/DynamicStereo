@@ -20,10 +20,6 @@ namespace dynamic_stereo {
 	namespace Feature{
 		class FeatureConstructor;
 	}
-
-	void filterBoudary(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& videoSeg, cv::Mat& inputMask);
-	void filterBySegnet(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& videoSeg, const cv::Mat& segMask, cv::Mat& inputMask);
-
 	void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result);
 
 	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
@@ -32,13 +28,6 @@ namespace dynamic_stereo {
 						const std::string& classifierPath, const std::string& codebookPath, cv::Mat& result);
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments);
-
-	cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);
-	//multi frame grab cut
-	//mask: for both input and output
-	void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iterCount = 10);
-
-
 }//namespace dynamic_stereo
 
 

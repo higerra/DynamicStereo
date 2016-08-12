@@ -175,5 +175,131 @@ namespace dynamic_stereo {
             return segment_gb::visualizeSegmentation(input);
         }
 
+
+        Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask){
+            CHECK(!images.empty());
+            const int width = images[0].cols;
+            const int height = images[0].rows;
+
+            Mat resultMask(height, width, CV_8UC1, Scalar::all(0));
+
+            Mat labels, stats, centroid;
+            int nLabel = cv::connectedComponentsWithStats(mask, labels, stats, centroid);
+            const int* pLabel = (int*) labels.data;
+
+            const int min_area = 50;
+            const double maxRatioOcclu = 0.3;
+
+            int kOutputLabel = 1;
+
+            const int testL = -1;
+
+            const int localMargin = std::min(width, height) / 10;
+            for(auto l=1; l<nLabel; ++l){
+                if(testL > 0 && l != testL)
+                    continue;
+
+                const int area = stats.at<int>(l, CC_STAT_AREA);
+                //search for bounding box.
+                const int cx = stats.at<int>(l,CC_STAT_LEFT) + stats.at<int>(l,CC_STAT_WIDTH) / 2;
+                const int cy = stats.at<int>(l,CC_STAT_TOP) + stats.at<int>(l,CC_STAT_HEIGHT) / 2;
+
+                printf("========================\n");
+                printf("label:%d/%d, centroid:(%d,%d), area:%d\n", l, nLabel, cx, cy, area);
+                if(area < min_area) {
+                    printf("Area too small\n");
+                    continue;
+                }
+
+                //filter out mostly occlued areas
+                int nOcclu = 0;
+                for(auto y=0; y<height; ++y){
+                    for(auto x=0; x<width; ++x){
+                        if(pLabel[y*width+x] != l)
+                            continue;
+                        int pixOcclu = 0;
+                        for(auto v=0; v<images.size(); ++v){
+                            if(images[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
+                                pixOcclu++;
+                        }
+                        if(pixOcclu > (int)images.size() / 3)
+                            nOcclu++;
+                    }
+                }
+                if(nOcclu > maxRatioOcclu * area) {
+                    printf("Violate occlusion constraint\n");
+                    continue;
+                }
+
+                const int left = std::max(stats.at<int>(l, CC_STAT_LEFT)-localMargin, 0);
+                const int top = std::max(stats.at<int>(l, CC_STAT_TOP)-localMargin, 0);
+                int roiw = stats.at<int>(l, CC_STAT_WIDTH) + 2*localMargin;
+                int roih = stats.at<int>(l, CC_STAT_HEIGHT) + 2*localMargin;
+                if(roiw + left >= width)
+                    roiw = width - left;
+                if(roih + top >= height)
+                    roih = height - top;
+
+                Mat localGBMask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
+                Mat bMaskBG(roih, roiw, CV_8UC1, Scalar::all(255));
+                for(auto y=0; y<roih; ++y){
+                    for(auto x=0; x<roiw; ++x){
+                        if(labels.at<int>(y+top, x+left) == l) {
+                            localGBMask.at<uchar>(y, x) = GC_FGD;
+                            bMaskBG.at<uchar>(y,x) = 0;
+                        }
+                    }
+                }
+                cv::erode(bMaskBG, bMaskBG, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(5,5)));
+                for(auto y=0; y<roih; ++y){
+                    for(auto x=0; x<roiw; ++x){
+                        if(bMaskBG.at<uchar>(y,x) > 200) {
+                            localGBMask.at<uchar>(y, x) = GC_BGD;
+                        }
+                    }
+                }
+
+                vector<Mat> localPatches(images.size());
+                for(auto v=0; v<images.size(); ++v)
+                    localPatches[v] = images[v](cv::Rect(left, top, roiw, roih));
+
+                printf("running grabcut...\n");
+                video_segment::mfGrabCut(localPatches, localGBMask);
+                printf("done\n");
+
+//			Mat resultVis = localPatches[localPatches.size()/2].clone();
+                for (auto y = top; y < top + roih; ++y) {
+                    for (auto x = left; x < left + roiw; ++x) {
+                        if (localGBMask.at<uchar>(y - top, x - left) == GC_PR_FGD ||
+                            localGBMask.at<uchar>(y - top, x - left) == GC_FGD) {
+                            resultMask.at<uchar>(y, x) = 255;
+//						resultVis.at<Vec3b>(y-top, x-left) = resultVis.at<Vec3b>(y-top, x-left) / 2 + Vec3b(0, 0, 128);
+                        } else {
+//						resultVis.at<Vec3b>(y-top, x-left) = resultVis.at<Vec3b>(y-top, x-left) / 2 + Vec3b(128, 0, 0);
+                        }
+                    }
+                }
+//			imshow("Result of grabcut", resultVis);
+//			waitKey(0);
+                kOutputLabel++;
+            }
+
+            Mat result;
+            cv::connectedComponents(resultMask, result);
+            return result;
+        }
+
+        cv::Mat segmentRefinement(const std::vector<cv::Mat>& images, const cv::Mat& segments, const float marginRatio){
+            CHECK(!images.empty());
+            CHECK(segments.data);
+            const int width = images[0].cols;
+            const int height = images[0].rows;
+            CHECK_EQ(segments.size(), images[0].size());
+
+            double minL, maxL;
+            cv::minMaxLoc(segments, &minL, &maxL);
+            const int kSeg = (int)maxL + 1;
+
+        }
     }//video_segment
 }//namespace dynamic_stereo

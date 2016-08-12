@@ -43,6 +43,8 @@ namespace dynamic_stereo {
         void computeLine(const PixelGroup &pg, const std::vector<std::vector<LineUtil::KeyLine> > &lineClusters,
                          std::vector<float> &desc);
 
+        void computeTemporalPattern(const std::vector<cv::Mat>& colorImage, const PixelGroup& pg,
+                                    std::vector<float>& desc, const int stride1 = 8, const int stride2 = 4);
 
         void visualizeSegmentLabel(const std::vector<cv::Mat> &images, const cv::Mat &segments,
                                    const std::vector<int> &label);

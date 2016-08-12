@@ -5,7 +5,9 @@ project(VideoSegmentation)
 find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
-set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp videosegmentation.h videosegmentation.cpp)
+set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp
+        videosegmentation.h videosegmentation.cpp
+        gcgraph.hpp mfgrabcut2.cpp)
 
 add_library(VideoSegmentModule ${VIDEO_SEGMENT_LIB})
 target_link_libraries(VideoSegmentModule ${OpenCV_LIBS} glog segment_gb)
