@@ -46,7 +46,8 @@
 #include <opencv2/opencv.hpp>
 #include <glog/logging.h>
 #include <limits>
-#include "gcgraph.hpp"
+#include <memory>
+#include "../external/MRF2.2/GCoptimization.h"
 
 using namespace cv;
 using namespace std;
@@ -65,7 +66,10 @@ namespace dynamic_stereo {
         public:
             static const int componentsCount = 5;
 
-            GMM(Mat &_model);
+            GMM();
+
+            inline Mat& getModel() {return model;}
+            inline const Mat& getModel() const{return model;}
 
             double operator()(const Vec3d &color) const;
 
@@ -75,7 +79,7 @@ namespace dynamic_stereo {
 
             void initLearning();
 
-            void addSample(int ci, const Vec3d color);
+            void addSample(int ci, const Vec3d& color);
 
             void endLearning();
 
@@ -96,16 +100,10 @@ namespace dynamic_stereo {
             int totalSampleCount;
         };
 
-        GMM::GMM(Mat &_model) {
+        GMM::GMM() {
             const int modelSize = 3/*mean*/ + 9/*covariance*/ + 1/*component weight*/;
-            if (_model.empty()) {
-                _model.create(1, modelSize * componentsCount, CV_64FC1);
-                _model.setTo(Scalar(0));
-            } else if ((_model.type() != CV_64FC1) || (_model.rows != 1) ||
-                       (_model.cols != modelSize * componentsCount))
-                CV_Error(CV_StsBadArg, "_model must have CV_64FC1 type, rows == 1 and cols == 13*componentsCount");
-
-            model = _model;
+            model.create(1, modelSize * componentsCount, CV_64FC1);
+            model.setTo(Scalar(0));
 
             coefs = model.ptr<double>(0);
             mean = coefs + componentsCount;
@@ -168,7 +166,7 @@ namespace dynamic_stereo {
             totalSampleCount = 0;
         }
 
-        void GMM::addSample(int ci, const Vec3d color) {
+        void GMM::addSample(int ci, const Vec3d& color) {
             sums[ci][0] += color[0];
             sums[ci][1] += color[1];
             sums[ci][2] += color[2];
@@ -335,75 +333,82 @@ namespace dynamic_stereo {
         /*
       Check size, type and element values of mask matrix.
      */
-        static void checkMask(const Mat &img, const Mat &mask) {
-            if (mask.empty())
-                CV_Error(CV_StsBadArg, "mask is empty");
-            if (mask.type() != CV_8UC1)
-                CV_Error(CV_StsBadArg, "mask must have CV_8UC1 type");
-            if (mask.cols != img.cols || mask.rows != img.rows)
-                CV_Error(CV_StsBadArg, "mask must have as many rows and cols as img");
+        static int checkMask(const Mat &img, const Mat &mask) {
+            CHECK(!mask.empty()) << "Mask is empty";
+            CHECK_EQ(mask.type(), CV_32SC1);
+            CHECK_EQ(mask.size(), img.size());
+
+            //check whether the elements is contiguous
+            double minL, maxL;
+            minMaxLoc(mask, &minL, &maxL);
+            const int nLabel = (int)maxL + 1;
+            std::vector<bool> occupied ((size_t)nLabel, false);
             for (int y = 0; y < mask.rows; y++) {
                 for (int x = 0; x < mask.cols; x++) {
-                    uchar val = mask.at<uchar>(y, x);
-                    if (val != GC_BGD && val != GC_FGD && val != GC_PR_BGD && val != GC_PR_FGD)
-                        CV_Error(CV_StsBadArg, "mask element value must be equel"
-                                "GC_BGD or GC_FGD or GC_PR_BGD or GC_PR_FGD");
+                    int val = mask.at<int>(y, x);
+                    CHECK_LT(val, nLabel);
+                    occupied[val] = true;
                 }
             }
+
+            for(auto i=0; i<nLabel; ++i)
+                CHECK(occupied[i]) << "Label " << i << " is missing.";
+            return nLabel;
         }
 
+        static int preprocessMask(const Mat& img, Mat& mask){
+            const int nLabel = checkMask(img, mask);
+            return nLabel;
+        }
 
         /*
       Initialize GMM background and foreground models using kmeans algorithm.
     */
-        static void initGMMs(const vector<Mat> &images, const Mat &mask, GMM &bgdGMM, GMM &fgdGMM) {
+        static void initGMMs(const vector<Mat> &images, const Mat &mask, vector<GMM>& gmms) {
+            CHECK(!gmms.empty());
             const int kMeansItCount = 10;
             const int kMeansType = KMEANS_PP_CENTERS;
+            const int nLabel = gmms.size();
 
-            Mat bgdLabels, fgdLabels;
-            std::vector<Vec3f> bgdSamples, fgdSamples;
+            std::vector<std::vector<Vec3f> > samples(gmms.size());
             Point p;
             for (const auto &img: images) {
                 for (p.y = 0; p.y < img.rows; p.y++) {
                     for (p.x = 0; p.x < img.cols; p.x++) {
-                        if (mask.at<uchar>(p) == GC_BGD || mask.at<uchar>(p) == GC_PR_BGD)
-                            bgdSamples.push_back((Vec3f) img.at<Vec3b>(p));
-                        else // GC_FGD | GC_PR_FGD
-                            fgdSamples.push_back((Vec3f) img.at<Vec3b>(p));
+                        const int comId = mask.at<int>(p);
+                        if(comId >= 0){
+                            samples[comId].push_back((Vec3f) img.at<Vec3b>(p));
+                        }
                     }
                 }
             }
-            CHECK(!bgdSamples.empty());
-            CHECK(!fgdSamples.empty());
-            Mat _bgdSamples((int) bgdSamples.size(), 3, CV_32FC1, &bgdSamples[0][0]);
-            kmeans(_bgdSamples, GMM::componentsCount, bgdLabels,
-                   TermCriteria(CV_TERMCRIT_ITER, kMeansItCount, 0.0), 0, kMeansType);
-            Mat _fgdSamples((int) fgdSamples.size(), 3, CV_32FC1, &fgdSamples[0][0]);
-            kmeans(_fgdSamples, GMM::componentsCount, fgdLabels,
-                   TermCriteria(CV_TERMCRIT_ITER, kMeansItCount, 0.0), 0, kMeansType);
+            for(const auto& s: samples)
+                CHECK(!s.empty());
 
-            bgdGMM.initLearning();
-            for (int i = 0; i < (int) bgdSamples.size(); i++)
-                bgdGMM.addSample(bgdLabels.at<int>(i, 0), bgdSamples[i]);
-            bgdGMM.endLearning();
+            for(auto l=0; l<samples.size(); ++l){
+                printf("Initializing %d\n", l);
+                Mat bestLabels;
+                Mat sampleMat((int) samples[l].size(), 3, CV_32FC1, &samples[l][0][0]);
+                kmeans(sampleMat, GMM::componentsCount, bestLabels, TermCriteria(CV_TERMCRIT_ITER, kMeansItCount, 0.0), 0, kMeansType);
 
-            fgdGMM.initLearning();
-            for (int i = 0; i < (int) fgdSamples.size(); i++)
-                fgdGMM.addSample(fgdLabels.at<int>(i, 0), fgdSamples[i]);
-            fgdGMM.endLearning();
+                gmms[l].initLearning();
+                for(auto i=0; i<samples[l].size(); ++i)
+                    gmms[l].addSample(bestLabels.at<int>(i,0), samples[l][i]);
+                gmms[l].endLearning();
+            }
         }
 
 /*
   Assign GMMs components for each pixel.
 */
-        static void assignGMMsComponents(const Mat &img, const Mat &mask, const GMM &bgdGMM, const GMM &fgdGMM,
+        static void assignGMMsComponents(const Mat &img, const Mat &mask, const std::vector<GMM>& gmms,
                                          Mat &compIdxs) {
             Point p;
             for (p.y = 0; p.y < img.rows; p.y++) {
                 for (p.x = 0; p.x < img.cols; p.x++) {
-                    Vec3d color = img.at<Vec3b>(p);
-                    compIdxs.at<int>(p) = mask.at<uchar>(p) == GC_BGD || mask.at<uchar>(p) == GC_PR_BGD ?
-                                          bgdGMM.whichComponent(color) : fgdGMM.whichComponent(color);
+                    Vec3d color = (Vec3d)img.at<Vec3b>(p);
+                    const int lid = mask.at<int>(p);
+                    compIdxs.at<int>(p) = gmms[lid].whichComponent(color);
                 }
             }
         }
@@ -411,114 +416,121 @@ namespace dynamic_stereo {
 /*
   Learn GMMs parameters.
 */
-        static void learnGMMs(const vector<Mat> &images, const Mat &mask, const vector<Mat> &compIdxs_all, GMM &bgdGMM,
-                              GMM &fgdGMM) {
-            bgdGMM.initLearning();
-            fgdGMM.initLearning();
-            Point p;
-            for (auto v = 0; v < images.size(); ++v) {
-                const Mat &img = images[v];
-                const Mat &compIdxs = compIdxs_all[v];
-                for (int ci = 0; ci < GMM::componentsCount; ci++) {
+        static void learnGMMs(const vector<Mat> &images, const Mat &mask, const vector<Mat> &compIdxs_all, vector<GMM>& gmms) {
+            for (auto l = 0; l < gmms.size(); ++l) {
+                gmms[l].initLearning();
+                Point p;
+                for (auto v = 0; v < images.size(); ++v) {
+                    const Mat &img = images[v];
+                    const Mat &compIdxs = compIdxs_all[v];
                     for (p.y = 0; p.y < img.rows; p.y++) {
                         for (p.x = 0; p.x < img.cols; p.x++) {
-                            if (compIdxs.at<int>(p) == ci) {
-                                if (mask.at<uchar>(p) == GC_BGD || mask.at<uchar>(p) == GC_PR_BGD)
-                                    bgdGMM.addSample(ci, img.at<Vec3b>(p));
-                                else
-                                    fgdGMM.addSample(ci, img.at<Vec3b>(p));
-                            }
+                            const int comId = compIdxs.at<int>(p);
+                            const int lid = mask.at<int>(p);
+                            gmms[lid].addSample(comId, (Vec3d) img.at<Vec3b>(p));
                         }
                     }
                 }
+                gmms[l].endLearning();
             }
-            bgdGMM.endLearning();
-            fgdGMM.endLearning();
         }
 
 /*
   Construct GCGraph
 */
-        static void constructGCGraph(const vector<Mat> &images, const Mat &mask, const GMM &bgdGMM, const GMM &fgdGMM,
-                                     double lambda,
-                                     const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
-                                     const vector<Mat> &uprightWs,
-                                     GCGraph<double> &graph) {
+        static void runGraphCut(const vector<Mat> &images, Mat &mask,
+                                const std::vector<GMM>& gmms,
+                                double lambda,
+                                const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
+                                const vector<Mat> &uprightWs){
             CHECK(!images.empty());
             const int width = images[0].cols;
             const int height = images[0].rows;
+            const int nLabel = (int)gmms.size();
             int vtxCount = width * height;
-            int edgeCount = 2 * (4 * width * height - 3 * (width + height) + 2);
-            graph.create(vtxCount, edgeCount);
             Point p;
-            for (p.y = 0; p.y < height; p.y++) {
-                for (p.x = 0; p.x < width; p.x++) {
-                    // add node
-                    int vtxIdx = graph.addVtx();
-                    double fromSource = 0, toSink = 0;
-                    // set t-weights
-                    if (mask.at<uchar>(p) == GC_PR_BGD || mask.at<uchar>(p) == GC_PR_FGD) {
-                        for (const auto &img: images) {
-                            Vec3b color = img.at<Vec3b>(p);
-                            fromSource -= log(bgdGMM(color));
-                            toSink -= log(fgdGMM(color));
+
+            vector<double> MRF_data((size_t) nLabel * vtxCount, 0.0);
+            vector<double> MRF_smoothess((size_t) nLabel * nLabel, 1.0);
+            for(auto l1=0; l1 < nLabel; ++l1){
+                for(auto l2=0; l2 < nLabel; ++l2){
+                    if(l1 == l2)
+                        MRF_smoothess[l1*nLabel+l2] = 0.0;
+                }
+            }
+
+            for(p.y=0; p.y < height; ++p.y){
+                for(p.x = 0; p.x < width; ++p.x){
+                    const int vtxIdx = p.y * width + p.x;
+                    //assign data term
+                    for(auto l=0; l<nLabel; ++l){
+                        double e = 0.0;
+                        for(const auto& img: images){
+                            Vec3d color = (Vec3d)img.at<Vec3b>(p);
+                            e -= log(gmms[l](color));
                         }
-                    } else if (mask.at<uchar>(p) == GC_BGD) {
-                        fromSource = 0;
-                        toSink += lambda * (double) images.size();
-                    } else // GC_FGD
-                    {
-                        fromSource += lambda * (double) images.size();
-                        toSink = 0;
+                        MRF_data[vtxCount * l + vtxIdx] = e;
                     }
+                }
+            }
 
-                    graph.addTermWeights(vtxIdx, fromSource, toSink);
+            std::shared_ptr<DataCost> dataCost(
+                    new DataCost(MRF_data.data())
+            );
+            std::shared_ptr<SmoothnessCost> smoothnessCost(
+                    new SmoothnessCost(MRF_smoothess.data())
+            );
 
-                    // set n-weights
+            std::shared_ptr<EnergyFunction> energy_function(
+                    new EnergyFunction(dataCost.get(), smoothnessCost.get())
+            );
+
+            std::shared_ptr<Expansion> mrf(
+                    new Expansion(vtxCount, nLabel, energy_function.get())
+            );
+
+            mrf->initialize();
+
+            for(p.y = 0; p.y < height; ++p.y){
+                for(p.x=0; p.x < width; ++p.x){
+                    //assign smoothness weight
+                    const int vtxIdx = p.y * width + p.x;
                     if (p.x > 0) {
                         double w = 0.0;
                         for (const auto &leftW: leftWs) {
                             w += leftW.at<double>(p);
                         }
-                        graph.addEdges(vtxIdx, vtxIdx - 1, w, w);
+                        mrf->setNeighbors(vtxIdx, vtxIdx-1, w);
                     }
                     if (p.x > 0 && p.y > 0) {
                         double w = 0.0;
                         for (const auto &upleftW: upleftWs) {
                             w += upleftW.at<double>(p);
                         }
-                        graph.addEdges(vtxIdx, vtxIdx - width - 1, w, w);
+                        mrf->setNeighbors(vtxIdx, vtxIdx - width - 1, w);
                     }
                     if (p.y > 0) {
                         double w = 0.0;
                         for (const auto &upW: upWs)
                             w += upW.at<double>(p);
-                        graph.addEdges(vtxIdx, vtxIdx - width, w, w);
+                        mrf->setNeighbors(vtxIdx, vtxIdx - width, w);
                     }
                     if (p.x < width - 1 && p.y > 0) {
                         double w = 0.0;
                         for (const auto &uprightW: uprightWs)
                             w = uprightW.at<double>(p);
-                        graph.addEdges(vtxIdx, vtxIdx - width + 1, w, w);
+                        mrf->setNeighbors(vtxIdx, vtxIdx - width + 1, w);
                     }
                 }
             }
-        }
+            
+            mrf->clearAnswer();
+            //run alpha-expansion
+            mrf->expansion();
 
-/*
-  Estimate segmentation using MaxFlow algorithm
-*/
-        static void estimateSegmentation(GCGraph<double> &graph, Mat &mask) {
-            graph.maxFlow();
-            Point p;
-            for (p.y = 0; p.y < mask.rows; p.y++) {
-                for (p.x = 0; p.x < mask.cols; p.x++) {
-                    if (mask.at<uchar>(p) == GC_PR_BGD || mask.at<uchar>(p) == GC_PR_FGD) {
-                        if (graph.inSourceSegment(p.y * mask.cols + p.x /*vertex index*/ ))
-                            mask.at<uchar>(p) = GC_PR_FGD;
-                        else
-                            mask.at<uchar>(p) = GC_PR_BGD;
-                    }
+            for(p.y=0; p.y < mask.rows; ++p.y){
+                for(p.x=0; p.x < mask.cols; ++p.x){
+                    mask.at<int>(p) = mrf->getLabel(p.y*width + p.x);
                 }
             }
         }
@@ -526,15 +538,14 @@ namespace dynamic_stereo {
         void mfGrabCut(const std::vector<cv::Mat> &images, cv::Mat &mask, const int iterCount) {
             CHECK(!images.empty());
             CHECK_NOTNULL(mask.data);
+            const int nLabel = preprocessMask(images[0], mask);
 
-            Mat bgdModel, fgdModel;
-            GMM bgdGMM(bgdModel), fgdGMM(fgdModel);
             std::vector<Mat> compIdxs(images.size());
             for (auto &comid: compIdxs)
                 comid.create(images[0].size(), CV_32SC1);
 
-            checkMask(images[0], mask);
-            initGMMs(images, mask, bgdGMM, fgdGMM);
+            vector<GMM> gmms((size_t) nLabel);
+            initGMMs(images, mask, gmms);
 
             if (iterCount <= 0)
                 return;
@@ -547,12 +558,13 @@ namespace dynamic_stereo {
                 calcNWeights(images[v], leftWs[v], upleftWs[v], upWs[v], uprightWs[v], beta, gamma);
 
             for (int i = 0; i < iterCount; i++) {
-                GCGraph<double> graph;
+                printf("Iter %d\n", i);
+                printf("Updating GMM\n");
                 for (auto v = 0; v < images.size(); ++v)
-                    assignGMMsComponents(images[v], mask, bgdGMM, fgdGMM, compIdxs[v]);
-                learnGMMs(images, mask, compIdxs, bgdGMM, fgdGMM);
-                constructGCGraph(images, mask, bgdGMM, fgdGMM, lambda, leftWs, upleftWs, upWs, uprightWs, graph);
-                estimateSegmentation(graph, mask);
+                    assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
+                learnGMMs(images, mask, compIdxs, gmms);
+                printf("Graph cut...\n");
+                runGraphCut(images, mask, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
             }
         }
     }//namespace video_segment

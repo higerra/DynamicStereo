@@ -21,8 +21,8 @@ namespace dynamic_stereo {
                           const PixelFeature pfType = PixelFeature::PIXEL,
                           const TemporalFeature tftype = TemporalFeature::TRANSITION_PATTERN);
 
-        //multi frame grab cut
-        //mask: for both input and output
+        //Multi-frame multi-label grabcut algorithm
+        //mask: for both input and output, with type CV_32SC1, the number indicates label id
         void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iterCount = 10);
 
         cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);

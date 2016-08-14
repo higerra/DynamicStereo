@@ -6,11 +6,10 @@ find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
 set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp
-        videosegmentation.h videosegmentation.cpp
-        gcgraph.hpp mfgrabcut2.cpp)
+        videosegmentation.h videosegmentation.cpp mfgrabcut2.cpp)
 
 add_library(VideoSegmentModule ${VIDEO_SEGMENT_LIB})
-target_link_libraries(VideoSegmentModule ${OpenCV_LIBS} glog segment_gb)
+target_link_libraries(VideoSegmentModule ${OpenCV_LIBS} glog segment_gb MRF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/VideoSegmentation)
 
