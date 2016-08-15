@@ -48,6 +48,7 @@
 #include <limits>
 #include <memory>
 #include "../external/MRF2.2/GCoptimization.h"
+#include "videosegmentation.h"
 
 using namespace cv;
 using namespace std;
@@ -356,8 +357,41 @@ namespace dynamic_stereo {
             return nLabel;
         }
 
-        static int preprocessMask(const Mat& img, Mat& mask){
+        //preprocessing: for each label, only modify center part.
+        static int preprocessMask(const Mat& img, Mat& mask, Mat& hardConstraint){
             const int nLabel = checkMask(img, mask);
+
+            //only modify $shrinkRatio on the border
+            const double shrinkRatio = 0.02;
+            const double minShrink = 3;
+
+            hardConstraint.create(mask.size(), CV_8UC1);
+            hardConstraint.setTo(Scalar::all(0));
+
+            int *pMask = (int *) mask.data;
+            vector<Mat> labelMask((size_t)nLabel);
+            vector<vector<cv::Point> > labelPoints((size_t)nLabel);
+            for(auto& m: labelMask) {
+                m.create(mask.size(), CV_8UC1);
+                m.setTo(Scalar::all(0));
+            }
+            for(auto i=0; i<mask.cols * mask.rows; ++i){
+                labelMask[pMask[i]].data[i] = (uchar)255;
+                labelPoints[pMask[i]].emplace_back(i/mask.cols, i%mask.cols);
+            }
+
+
+            for(auto lid=0; lid < labelMask.size(); ++lid){
+                cv::RotatedRect bbox = cv::minAreaRect(labelPoints[lid]);
+                int r = std::max(std::min(bbox.size.height, bbox.size.width) * shrinkRatio, minShrink);
+                Mat structure = cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(2*r+1, 2*r+1));
+                cv::erode(labelMask[lid], labelMask[lid], structure);
+                for(auto i=0; i<mask.cols * mask.rows; ++i){
+                    if(labelMask[lid].data[i] > (uchar)200)
+                        hardConstraint.data[i] = (uchar)255;
+                }
+            }
+
             return nLabel;
         }
 
@@ -376,17 +410,14 @@ namespace dynamic_stereo {
                 for (p.y = 0; p.y < img.rows; p.y++) {
                     for (p.x = 0; p.x < img.cols; p.x++) {
                         const int comId = mask.at<int>(p);
-                        if(comId >= 0){
-                            samples[comId].push_back((Vec3f) img.at<Vec3b>(p));
-                        }
+                        samples[comId].push_back((Vec3f) img.at<Vec3b>(p));
                     }
                 }
             }
             for(const auto& s: samples)
                 CHECK(!s.empty());
-
+#pragma omp parallel for
             for(auto l=0; l<samples.size(); ++l){
-                printf("Initializing %d\n", l);
                 Mat bestLabels;
                 Mat sampleMat((int) samples[l].size(), 3, CV_32FC1, &samples[l][0][0]);
                 kmeans(sampleMat, GMM::componentsCount, bestLabels, TermCriteria(CV_TERMCRIT_ITER, kMeansItCount, 0.0), 0, kMeansType);
@@ -397,7 +428,6 @@ namespace dynamic_stereo {
                 gmms[l].endLearning();
             }
         }
-
 /*
   Assign GMMs components for each pixel.
 */
@@ -417,28 +447,27 @@ namespace dynamic_stereo {
   Learn GMMs parameters.
 */
         static void learnGMMs(const vector<Mat> &images, const Mat &mask, const vector<Mat> &compIdxs_all, vector<GMM>& gmms) {
-            for (auto l = 0; l < gmms.size(); ++l) {
-                gmms[l].initLearning();
-                Point p;
-                for (auto v = 0; v < images.size(); ++v) {
-                    const Mat &img = images[v];
-                    const Mat &compIdxs = compIdxs_all[v];
-                    for (p.y = 0; p.y < img.rows; p.y++) {
-                        for (p.x = 0; p.x < img.cols; p.x++) {
-                            const int comId = compIdxs.at<int>(p);
-                            const int lid = mask.at<int>(p);
-                            gmms[lid].addSample(comId, (Vec3d) img.at<Vec3b>(p));
-                        }
+            for(auto& g: gmms)
+                g.initLearning();
+            for(auto v=0; v<images.size(); ++v){
+                const Mat &img = images[v];
+                const Mat &compIdxs = compIdxs_all[v];
+                for (auto y = 0; y < img.rows; ++y) {
+                    for (auto x = 0; x < img.cols; ++x) {
+                        const int comId = compIdxs.at<int>(y,x);
+                        const int lid = mask.at<int>(y,x);
+                        gmms[lid].addSample(comId, (Vec3d) img.at<Vec3b>(y,x));
                     }
                 }
-                gmms[l].endLearning();
             }
+            for(auto& g: gmms)
+                g.endLearning();
         }
 
 /*
   Construct GCGraph
 */
-        static void runGraphCut(const vector<Mat> &images, Mat &mask,
+        static void runGraphCut(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
                                 const std::vector<GMM>& gmms,
                                 double lambda,
                                 const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
@@ -459,17 +488,23 @@ namespace dynamic_stereo {
                 }
             }
 
-            for(p.y=0; p.y < height; ++p.y){
-                for(p.x = 0; p.x < width; ++p.x){
-                    const int vtxIdx = p.y * width + p.x;
+#pragma omp parallel for
+            for(auto y=0; y < height; ++y){
+                for(auto x = 0; x < width; ++x){
+                    const int vtxIdx = y * width + x;
                     //assign data term
                     for(auto l=0; l<nLabel; ++l){
                         double e = 0.0;
-                        for(const auto& img: images){
-                            Vec3d color = (Vec3d)img.at<Vec3b>(p);
-                            e -= log(gmms[l](color));
+                        if(hardConstraint.at<uchar>(y,x) > (uchar)200){
+                            if(l != mask.at<int>(y,x))
+                                e = lambda * (double)images.size();
+                        }else {
+                            for (const auto &img: images) {
+                                Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
+                                e -= log(gmms[l](color));
+                            }
                         }
-                        MRF_data[vtxCount * l + vtxIdx] = e;
+                        MRF_data[vtxIdx * nLabel + l] = e;
                     }
                 }
             }
@@ -523,8 +558,13 @@ namespace dynamic_stereo {
                     }
                 }
             }
-            
+
             mrf->clearAnswer();
+            for(p.y=0; p.y<mask.rows; ++p.y){
+                for(p.x=0; p.x<mask.cols; ++p.x){
+                    mrf->setLabel(p.y*width+p.x, mask.at<int>(p));
+                }
+            }
             //run alpha-expansion
             mrf->expansion();
 
@@ -537,8 +577,10 @@ namespace dynamic_stereo {
 
         void mfGrabCut(const std::vector<cv::Mat> &images, cv::Mat &mask, const int iterCount) {
             CHECK(!images.empty());
+            CHECK_EQ(images[0].type(), CV_8UC3);
             CHECK_NOTNULL(mask.data);
-            const int nLabel = preprocessMask(images[0], mask);
+            Mat hardconstraint;
+            const int nLabel = preprocessMask(images[0], mask, hardconstraint);
 
             std::vector<Mat> compIdxs(images.size());
             for (auto &comid: compIdxs)
@@ -557,6 +599,7 @@ namespace dynamic_stereo {
             for (auto v = 0; v < images.size(); ++v)
                 calcNWeights(images[v], leftWs[v], upleftWs[v], upWs[v], uprightWs[v], beta, gamma);
 
+            char buffer[128] = {};
             for (int i = 0; i < iterCount; i++) {
                 printf("Iter %d\n", i);
                 printf("Updating GMM\n");
@@ -564,7 +607,12 @@ namespace dynamic_stereo {
                     assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
                 learnGMMs(images, mask, compIdxs, gmms);
                 printf("Graph cut...\n");
-                runGraphCut(images, mask, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+
+                Mat stepRes = visualizeSegmentation(mask);
+                cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);
+                sprintf(buffer, "iter%03d.png", i);
+                imwrite(buffer, stepRes);
             }
         }
     }//namespace video_segment

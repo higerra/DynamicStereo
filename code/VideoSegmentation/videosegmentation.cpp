@@ -40,7 +40,7 @@ namespace dynamic_stereo {
         }
 
         int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output,
-                          const float c, const int smoothSize, const float theta, const int min_size,
+                          const float c, const bool refine, const int smoothSize, const float theta, const int min_size,
                           const int stride1, const int stride2,
                           const PixelFeature pfType,
                           const TemporalFeature tfType) {
@@ -155,19 +155,22 @@ namespace dynamic_stereo {
             int *pOutput = (int *) output.data;
             //remap labels
             vector<int> labelMap((size_t) width * height, -1);
-            int nLabel = -1;
+            int nLabel = 0;
             for (auto i = 0; i < width * height; ++i) {
                 int comp = u->find(i);
                 if (labelMap[comp] < 0)
-                    labelMap[comp] = ++nLabel;
+                    labelMap[comp] = nLabel++;
             }
-            nLabel++;
 
             for (auto i = 0; i < width * height; ++i) {
                 int comp = u->find(i);
                 pOutput[i] = labelMap[comp];
             }
 
+            if(refine)
+                mfGrabCut(input, output, 1);
+
+            nLabel = compressSegment(output);
             return nLabel;
         }
 
@@ -175,6 +178,29 @@ namespace dynamic_stereo {
             return segment_gb::visualizeSegmentation(input);
         }
 
+        int compressSegment(cv::Mat& segment){
+            CHECK(segment.data);
+            CHECK_EQ(segment.type(), CV_32SC1);
+            double minL, maxL;
+            cv::minMaxLoc(segment, &minL, &maxL);
+            int kSeg = (int)maxL + 1;
+            vector<int> labelMap((size_t)kSeg, -1);
+            int index = 0;
+            for(auto y=0; y<segment.rows; ++y){
+                for(auto x=0; x<segment.cols; ++x){
+                    const int lid = segment.at<int>(y,x);
+                    if(labelMap[lid] < 0)
+                        labelMap[lid] = index++;
+                }
+            }
+            for(auto y=0; y<segment.rows; ++y){
+                for(auto x=0; x<segment.cols; ++x){
+                    const int lid = segment.at<int>(y,x);
+                    segment.at<int>(y,x) = labelMap[lid];
+                }
+            }
+            return index;
+        }
 
         Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask){
             CHECK(!images.empty());
@@ -287,19 +313,6 @@ namespace dynamic_stereo {
             Mat result;
             cv::connectedComponents(resultMask, result);
             return result;
-        }
-
-        cv::Mat segmentRefinement(const std::vector<cv::Mat>& images, const cv::Mat& segments, const float marginRatio){
-            CHECK(!images.empty());
-            CHECK(segments.data);
-            const int width = images[0].cols;
-            const int height = images[0].rows;
-            CHECK_EQ(segments.size(), images[0].size());
-
-            double minL, maxL;
-            cv::minMaxLoc(segments, &minL, &maxL);
-            const int kSeg = (int)maxL + 1;
-
         }
     }//video_segment
 }//namespace dynamic_stereo
