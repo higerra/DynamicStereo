@@ -82,7 +82,7 @@ namespace dynamic_stereo {
             int index = 0;
             for (auto level: levelList) {
                 Mat segments;
-                video_segment::segment_video(images, segments, level, true);
+                video_segment::segment_video(images, segments, level, false);
 
                 if(rawSegments.needed()){
                     segments.copyTo(rawSegments.getMat(index++));

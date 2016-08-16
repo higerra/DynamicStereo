@@ -44,6 +44,10 @@ namespace dynamic_stereo {
                    m(0, 1) * (m(1, 0) * m(2, 2) - m(1, 2) * m(2, 0)) +
                    m(0, 2) * (m(1, 0) * m(2, 1) - m(1, 1) * m(2, 0));
         }
+
+#ifdef USE_CUDA
+        void computeRawProbCuda(const cv::Mat& image, std::vector<cv::Mat>& output) const;
+#endif
     private:
         void calcInverseCovAndDeterm(int ci);
 

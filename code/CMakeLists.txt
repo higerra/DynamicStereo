@@ -23,7 +23,6 @@ if(OPENMP_FOUND)
     message("-- Compiler flags: ${CMAKE_CXX_FLAGS}")
 endif()
 
-
 if(CUDA_FOUND)
     message("-- Found CUDA")
     add_definitions("-DUSE_CUDA")

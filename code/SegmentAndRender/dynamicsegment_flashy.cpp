@@ -104,7 +104,8 @@ namespace dynamic_stereo{
 
 		sprintf(buffer, "%s/temp/segment_flashy.jpg", file_io.getDirectory().c_str());
 		imwrite(buffer, preSeg);
-        result = video_segment::localRefinement(input, preSeg);
+        //result = video_segment::localRefinement(input, preSeg);
+		result = video_segment::localRefinement(input, preSeg);
 
 	}
 

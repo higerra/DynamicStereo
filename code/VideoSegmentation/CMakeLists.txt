@@ -5,14 +5,29 @@ project(VideoSegmentation)
 find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
-set(GMM_LIB colorGMM.h colorGMM.cpp)
-add_library(ColorGMM ${GMM_LIB})
+include_directories(/usr/local/include/eigen3)
+######################################################
+#GMM library
+if(CUDA_FOUND)
+    #GPU version
+    message("-- Compiling GPU version")
+    set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -D_FORCE_INLINES -D_MWAITXINTRIN_H_INCLUDED)
+    set(GMM_LIB colorGMM.h colorGMM.cpp colorGMMcu.cu)
+    cuda_add_library(ColorGMM ${GMM_LIB})
+else(CUDA_FOUND)
+    #CPU version
+    set(GMM_LIB colorGMM.h colorGMM.cpp)
+    message("-- Compiling CPU version")
+    add_library(ColorGMM ${GMM_LIB})
+endif(CUDA_FOUND)
+
 target_link_libraries(ColorGMM glog ${OpenCV_LIB})
 
+######################################################3
+#VideoSegmentation library
 set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp
         videosegmentation.h videosegmentation.cpp mfgrabcut2.cpp)
 
-include_directories(/usr/local/include/eigen3)
 add_library(VideoSegmentModule ${VIDEO_SEGMENT_LIB})
 target_link_libraries(VideoSegmentModule ColorGMM segment_gb MRF)
 

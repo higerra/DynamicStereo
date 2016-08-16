@@ -312,6 +312,7 @@ namespace dynamic_stereo {
             }
 
             float start_t = (float)cv::getTickCount();
+            printf("data term...\n");
 #pragma omp parallel for
             for(auto y=0; y < height; ++y){
                 for(auto x = 0; x < width; ++x){
@@ -350,6 +351,7 @@ namespace dynamic_stereo {
 
             mrf->initialize();
 
+            printf("Smoothness term...\n");
             for(auto y = 0; y < height; ++y){
                 for(auto x=0; x < width; ++x){
                     //assign smoothness weight
@@ -390,6 +392,7 @@ namespace dynamic_stereo {
                 }
             }
             //run alpha-expansion
+            printf("Solving...\n");
             mrf->expansion();
 
             for(auto y=0; y < mask.rows; ++y){
@@ -408,6 +411,8 @@ namespace dynamic_stereo {
             std::vector<Mat> compIdxs(images.size());
             for (auto &comid: compIdxs)
                 comid.create(images[0].size(), CV_32SC1);
+
+            printf("Init...\n");
             vector<ColorGMM> gmms((size_t) nLabel);
             initGMMs(images, mask, gmms);
             if (iterCount <= 0)
@@ -422,10 +427,13 @@ namespace dynamic_stereo {
 
             char buffer[128] = {};
             for (int i = 0; i < iterCount; i++) {
+                printf("Iter %d\n", i);
+                printf("Assigning component...\n");
 #pragma omp parallel for
                 for (auto v = 0; v < images.size(); ++v)
                     assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
                 learnGMMs(images, mask, compIdxs, gmms);
+                printf("graph cut...\n");
                 runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
 
 //                Mat stepRes = visualizeSegmentation(mask);

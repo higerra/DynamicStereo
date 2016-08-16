@@ -59,9 +59,8 @@ namespace dynamic_stereo{
             }
             //sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
             //imwrite(buffer, preSeg);
-		};
-
-        cv::connectedComponents(input, result);
+		}
+        result = video_segment::localRefinement(input, preSeg);
 	}
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments){

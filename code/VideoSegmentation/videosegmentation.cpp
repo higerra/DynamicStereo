@@ -167,12 +167,11 @@ namespace dynamic_stereo {
                 pOutput[i] = labelMap[comp];
             }
 
-            if(refine)
+            if(refine) {
+                printf("Running refinement...\n");
                 mfGrabCut(input, output, 1);
-
-            printf("uncompressed segments:%d\n", nLabel);
+            }
             nLabel = compressSegment(output);
-            printf("compressed segments:%d\n", nLabel);
             return nLabel;
         }
 
@@ -258,57 +257,6 @@ namespace dynamic_stereo {
                     printf("Violate occlusion constraint\n");
                     continue;
                 }
-
-                const int left = std::max(stats.at<int>(l, CC_STAT_LEFT)-localMargin, 0);
-                const int top = std::max(stats.at<int>(l, CC_STAT_TOP)-localMargin, 0);
-                int roiw = stats.at<int>(l, CC_STAT_WIDTH) + 2*localMargin;
-                int roih = stats.at<int>(l, CC_STAT_HEIGHT) + 2*localMargin;
-                if(roiw + left >= width)
-                    roiw = width - left;
-                if(roih + top >= height)
-                    roih = height - top;
-
-                Mat localGBMask(roih, roiw, CV_8UC1, Scalar::all(GC_PR_BGD));
-                Mat bMaskBG(roih, roiw, CV_8UC1, Scalar::all(255));
-                for(auto y=0; y<roih; ++y){
-                    for(auto x=0; x<roiw; ++x){
-                        if(labels.at<int>(y+top, x+left) == l) {
-                            localGBMask.at<uchar>(y, x) = GC_FGD;
-                            bMaskBG.at<uchar>(y,x) = 0;
-                        }
-                    }
-                }
-                cv::erode(bMaskBG, bMaskBG, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(5,5)));
-                for(auto y=0; y<roih; ++y){
-                    for(auto x=0; x<roiw; ++x){
-                        if(bMaskBG.at<uchar>(y,x) > 200) {
-                            localGBMask.at<uchar>(y, x) = GC_BGD;
-                        }
-                    }
-                }
-
-                vector<Mat> localPatches(images.size());
-                for(auto v=0; v<images.size(); ++v)
-                    localPatches[v] = images[v](cv::Rect(left, top, roiw, roih));
-
-                printf("running grabcut...\n");
-                video_segment::mfGrabCut(localPatches, localGBMask);
-                printf("done\n");
-
-//			Mat resultVis = localPatches[localPatches.size()/2].clone();
-                for (auto y = top; y < top + roih; ++y) {
-                    for (auto x = left; x < left + roiw; ++x) {
-                        if (localGBMask.at<uchar>(y - top, x - left) == GC_PR_FGD ||
-                            localGBMask.at<uchar>(y - top, x - left) == GC_FGD) {
-                            resultMask.at<uchar>(y, x) = 255;
-//						resultVis.at<Vec3b>(y-top, x-left) = resultVis.at<Vec3b>(y-top, x-left) / 2 + Vec3b(0, 0, 128);
-                        } else {
-//						resultVis.at<Vec3b>(y-top, x-left) = resultVis.at<Vec3b>(y-top, x-left) / 2 + Vec3b(128, 0, 0);
-                        }
-                    }
-                }
-//			imshow("Result of grabcut", resultVis);
-//			waitKey(0);
                 kOutputLabel++;
             }
 
