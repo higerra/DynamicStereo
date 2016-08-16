@@ -212,14 +212,18 @@ namespace dynamic_stereo{
             vector<cv::Point> chull;
             cv::convexHull(pts, chull);
             double carea = cv::contourArea(chull);
-            CHECK_GT(carea, 0) << pg.size() << ' ' << carea;
-            desc[1] = (float)pg.size() / (float)carea;
+            if(carea == 0)
+                desc[1] = 0;
+            else
+                desc[1] = (float)pg.size() / (float)carea;
 
             //rectangleness
             cv::RotatedRect minRect = cv::minAreaRect(pts);
             float mrArea = minRect.size.width * minRect.size.height;
-            CHECK_GT(mrArea, 0);
-            desc[2] = (float)pg.size() / mrArea;
+            if(mrArea == 0)
+                desc[2] = 0;
+            else
+                desc[2] = (float)pg.size() / mrArea;
 
             //number of edge is approximated polygon
             const double approxEpsilon = (double)std::min(width, height) / 150.0;

@@ -61,14 +61,7 @@ namespace dynamic_stereo{
             //imwrite(buffer, preSeg);
 		};
 
-		const int rh = 5;
-		cv::dilate(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
-		cv::erode(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
-
-		sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());
-		imwrite(buffer, preSeg);
-
-		result = video_segment::localRefinement(input, preSeg);
+        cv::connectedComponents(input, result);
 	}
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments){

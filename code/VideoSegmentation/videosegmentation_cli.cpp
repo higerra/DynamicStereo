@@ -62,7 +62,7 @@ int main(int argc, char** argv){
         //test for video segmentation based on binary descriptor
         Mat segment;
         printf("Video segmentation...\n");
-        video_segment::segment_video(images, segment, (float)FLAGS_c, 9, 50, 200, 8, 4,
+        video_segment::segment_video(images, segment, (float)FLAGS_c, false, 9, 50, 200, 8, 4,
                                      video_segment::PixelFeature::PIXEL);
         Mat segment_vis = video_segment::visualizeSegmentation(segment);
         printf("Running refinement...\n");

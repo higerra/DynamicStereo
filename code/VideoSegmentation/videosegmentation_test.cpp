@@ -5,20 +5,16 @@
 #include <opencv2/xfeatures2d.hpp>
 #include "gtest/gtest.h"
 #include "videosegmentation.h"
+#include "colorGMM.h"
 
 using namespace std;
 using namespace cv;
+using namespace Eigen;
 using namespace dynamic_stereo;
 
-TEST(Feature, BRIEFWrapper){
-    shared_ptr<video_segment::BRIEFWrapper> brief(new video_segment::BRIEFWrapper());
-    Mat image = imread("brief_test.png");
-    CHECK(image.data);
-
-    float start_t = (float)cv::getTickCount();
-    Mat feats;
-    brief->extractAll(image, feats);
-    printf("Time: %.3fs\n", ((float)getTickCount() - start_t) / (float)cv::getTickFrequency());
-    EXPECT_EQ(feats.rows, image.rows * image.cols);
+TEST(Eigen, replicate){
+    Vector3d m = Vector3d::Random();
+    Matrix<double, 10, 3> me = m.transpose().replicate(10,1);
+    cout << m << endl;
+    cout << me << endl;
 }
-

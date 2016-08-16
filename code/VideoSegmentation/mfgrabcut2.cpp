@@ -45,13 +45,16 @@
 
 #include <opencv2/opencv.hpp>
 #include <glog/logging.h>
+#include <Eigen/Eigen>
 #include <limits>
 #include <memory>
 #include "../external/MRF2.2/GCoptimization.h"
 #include "videosegmentation.h"
+#include "colorGMM.h"
 
 using namespace cv;
 using namespace std;
+using namespace Eigen;
 /*
 This is implementation of image segmentation algorithm GrabCut described in
 "GrabCut — Interactive Foreground Extraction using Iterated Graph Cuts".
@@ -63,185 +66,7 @@ Carsten Rother, Vladimir Kolmogorov, Andrew Blake.
 */
 namespace dynamic_stereo {
     namespace video_segment {
-        class GMM {
-        public:
-            static const int componentsCount = 5;
 
-            GMM();
-
-            inline Mat& getModel() {return model;}
-            inline const Mat& getModel() const{return model;}
-
-            double operator()(const Vec3d &color) const;
-
-            double operator()(int ci, const Vec3d &color) const;
-
-            int whichComponent(const Vec3d color) const;
-
-            void initLearning();
-
-            void addSample(int ci, const Vec3d& color);
-
-            void endLearning();
-
-        private:
-            void calcInverseCovAndDeterm(int ci);
-
-            Mat model;
-            double *coefs;
-            double *mean;
-            double *cov;
-
-            double inverseCovs[componentsCount][3][3];
-            double covDeterms[componentsCount];
-
-            double sums[componentsCount][3];
-            double prods[componentsCount][3][3];
-            int sampleCounts[componentsCount];
-            int totalSampleCount;
-        };
-
-        GMM::GMM() {
-            const int modelSize = 3/*mean*/ + 9/*covariance*/ + 1/*component weight*/;
-            model.create(1, modelSize * componentsCount, CV_64FC1);
-            model.setTo(Scalar(0));
-
-            coefs = model.ptr<double>(0);
-            mean = coefs + componentsCount;
-            cov = mean + 3 * componentsCount;
-
-            for (int ci = 0; ci < componentsCount; ci++)
-                if (coefs[ci] > 0)
-                    calcInverseCovAndDeterm(ci);
-        }
-
-        double GMM::operator()(const Vec3d &color) const {
-            double res = 0;
-            for (int ci = 0; ci < componentsCount; ci++)
-                res += coefs[ci] * (*this)(ci, color);
-            return res;
-        }
-
-        double GMM::operator()(int ci, const Vec3d &color) const {
-            double res = 0;
-            if (coefs[ci] > 0) {
-                CHECK_GT(covDeterms[ci], std::numeric_limits<double>::epsilon());
-                Vec3d diff = color;
-                double *m = mean + 3 * ci;
-                diff[0] -= m[0];
-                diff[1] -= m[1];
-                diff[2] -= m[2];
-                double mult = diff[0] * (diff[0] * inverseCovs[ci][0][0] + diff[1] * inverseCovs[ci][1][0] +
-                                         diff[2] * inverseCovs[ci][2][0])
-                              + diff[1] * (diff[0] * inverseCovs[ci][0][1] + diff[1] * inverseCovs[ci][1][1] +
-                                           diff[2] * inverseCovs[ci][2][1])
-                              + diff[2] * (diff[0] * inverseCovs[ci][0][2] + diff[1] * inverseCovs[ci][1][2] +
-                                           diff[2] * inverseCovs[ci][2][2]);
-                res = 1.0f / sqrt(covDeterms[ci]) * exp(-0.5f * mult);
-            }
-            return res;
-        }
-
-        int GMM::whichComponent(const Vec3d color) const {
-            int k = 0;
-            double max = 0;
-
-            for (int ci = 0; ci < componentsCount; ci++) {
-                double p = (*this)(ci, color);
-                if (p > max) {
-                    k = ci;
-                    max = p;
-                }
-            }
-            return k;
-        }
-
-        void GMM::initLearning() {
-            for (int ci = 0; ci < componentsCount; ci++) {
-                sums[ci][0] = sums[ci][1] = sums[ci][2] = 0;
-                prods[ci][0][0] = prods[ci][0][1] = prods[ci][0][2] = 0;
-                prods[ci][1][0] = prods[ci][1][1] = prods[ci][1][2] = 0;
-                prods[ci][2][0] = prods[ci][2][1] = prods[ci][2][2] = 0;
-                sampleCounts[ci] = 0;
-            }
-            totalSampleCount = 0;
-        }
-
-        void GMM::addSample(int ci, const Vec3d& color) {
-            sums[ci][0] += color[0];
-            sums[ci][1] += color[1];
-            sums[ci][2] += color[2];
-            prods[ci][0][0] += color[0] * color[0];
-            prods[ci][0][1] += color[0] * color[1];
-            prods[ci][0][2] += color[0] * color[2];
-            prods[ci][1][0] += color[1] * color[0];
-            prods[ci][1][1] += color[1] * color[1];
-            prods[ci][1][2] += color[1] * color[2];
-            prods[ci][2][0] += color[2] * color[0];
-            prods[ci][2][1] += color[2] * color[1];
-            prods[ci][2][2] += color[2] * color[2];
-            sampleCounts[ci]++;
-            totalSampleCount++;
-        }
-
-        void GMM::endLearning() {
-            const double variance = 0.01;
-            for (int ci = 0; ci < componentsCount; ci++) {
-                int n = sampleCounts[ci];
-                if (n == 0)
-                    coefs[ci] = 0;
-                else {
-                    coefs[ci] = (double) n / totalSampleCount;
-
-                    double *m = mean + 3 * ci;
-                    m[0] = sums[ci][0] / n;
-                    m[1] = sums[ci][1] / n;
-                    m[2] = sums[ci][2] / n;
-
-                    double *c = cov + 9 * ci;
-                    c[0] = prods[ci][0][0] / n - m[0] * m[0];
-                    c[1] = prods[ci][0][1] / n - m[0] * m[1];
-                    c[2] = prods[ci][0][2] / n - m[0] * m[2];
-                    c[3] = prods[ci][1][0] / n - m[1] * m[0];
-                    c[4] = prods[ci][1][1] / n - m[1] * m[1];
-                    c[5] = prods[ci][1][2] / n - m[1] * m[2];
-                    c[6] = prods[ci][2][0] / n - m[2] * m[0];
-                    c[7] = prods[ci][2][1] / n - m[2] * m[1];
-                    c[8] = prods[ci][2][2] / n - m[2] * m[2];
-
-                    double dtrm = c[0] * (c[4] * c[8] - c[5] * c[7]) - c[1] * (c[3] * c[8] - c[5] * c[6]) +
-                                  c[2] * (c[3] * c[7] - c[4] * c[6]);
-                    if (dtrm <= std::numeric_limits<double>::epsilon()) {
-                        // Adds the white noise to avoid singular covariance matrix.
-                        c[0] += variance;
-                        c[4] += variance;
-                        c[8] += variance;
-                    }
-
-                    calcInverseCovAndDeterm(ci);
-                }
-            }
-        }
-
-        void GMM::calcInverseCovAndDeterm(int ci) {
-            if (coefs[ci] > 0) {
-                double *c = cov + 9 * ci;
-                double dtrm = c[0] * (c[4] * c[8] - c[5] * c[7]) - c[1] * (c[3] * c[8] - c[5] * c[6]) +
-                              c[2] * (c[3] * c[7] - c[4] * c[6]);
-                covDeterms[ci] = dtrm;
-
-                CV_Assert(dtrm > std::numeric_limits<double>::epsilon());
-                inverseCovs[ci][0][0] = (c[4] * c[8] - c[5] * c[7]) / dtrm;
-                inverseCovs[ci][1][0] = -(c[3] * c[8] - c[5] * c[6]) / dtrm;
-                inverseCovs[ci][2][0] = (c[3] * c[7] - c[4] * c[6]) / dtrm;
-                inverseCovs[ci][0][1] = -(c[1] * c[8] - c[2] * c[7]) / dtrm;
-                inverseCovs[ci][1][1] = (c[0] * c[8] - c[2] * c[6]) / dtrm;
-                inverseCovs[ci][2][1] = -(c[0] * c[7] - c[1] * c[6]) / dtrm;
-                inverseCovs[ci][0][2] = (c[1] * c[5] - c[2] * c[4]) / dtrm;
-                inverseCovs[ci][1][2] = -(c[0] * c[5] - c[2] * c[3]) / dtrm;
-                inverseCovs[ci][2][2] = (c[0] * c[4] - c[1] * c[3]) / dtrm;
-            }
-        }
 
 /*
   Calculate beta - parameter of GrabCut algorithm.
@@ -398,7 +223,7 @@ namespace dynamic_stereo {
         /*
       Initialize GMM background and foreground models using kmeans algorithm.
     */
-        static void initGMMs(const vector<Mat> &images, const Mat &mask, vector<GMM>& gmms) {
+        static void initGMMs(const vector<Mat> &images, const Mat &mask, vector<ColorGMM>& gmms) {
             CHECK(!gmms.empty());
             const int kMeansItCount = 10;
             const int kMeansType = KMEANS_PP_CENTERS;
@@ -420,7 +245,7 @@ namespace dynamic_stereo {
             for(auto l=0; l<samples.size(); ++l){
                 Mat bestLabels;
                 Mat sampleMat((int) samples[l].size(), 3, CV_32FC1, &samples[l][0][0]);
-                kmeans(sampleMat, GMM::componentsCount, bestLabels, TermCriteria(CV_TERMCRIT_ITER, kMeansItCount, 0.0), 0, kMeansType);
+                kmeans(sampleMat, ColorGMM::componentsCount, bestLabels, TermCriteria(CV_TERMCRIT_ITER, kMeansItCount, 0.0), 0, kMeansType);
 
                 gmms[l].initLearning();
                 for(auto i=0; i<samples[l].size(); ++i)
@@ -431,14 +256,13 @@ namespace dynamic_stereo {
 /*
   Assign GMMs components for each pixel.
 */
-        static void assignGMMsComponents(const Mat &img, const Mat &mask, const std::vector<GMM>& gmms,
+        static void assignGMMsComponents(const Mat &img, const Mat &mask, const std::vector<ColorGMM>& gmms,
                                          Mat &compIdxs) {
-            Point p;
-            for (p.y = 0; p.y < img.rows; p.y++) {
-                for (p.x = 0; p.x < img.cols; p.x++) {
-                    Vec3d color = (Vec3d)img.at<Vec3b>(p);
-                    const int lid = mask.at<int>(p);
-                    compIdxs.at<int>(p) = gmms[lid].whichComponent(color);
+            for (auto y = 0; y < img.rows; ++y) {
+                for (auto x = 0; x < img.cols; ++x) {
+                    Vec3d color = (Vec3d)img.at<Vec3b>(y,x);
+                    const int lid = mask.at<int>(y,x);
+                    compIdxs.at<int>(y,x) = gmms[lid].whichComponent(color);
                 }
             }
         }
@@ -446,7 +270,7 @@ namespace dynamic_stereo {
 /*
   Learn GMMs parameters.
 */
-        static void learnGMMs(const vector<Mat> &images, const Mat &mask, const vector<Mat> &compIdxs_all, vector<GMM>& gmms) {
+        static void learnGMMs(const vector<Mat> &images, const Mat &mask, const vector<Mat> &compIdxs_all, vector<ColorGMM>& gmms) {
             for(auto& g: gmms)
                 g.initLearning();
             for(auto v=0; v<images.size(); ++v){
@@ -468,7 +292,7 @@ namespace dynamic_stereo {
   Construct GCGraph
 */
         static void runGraphCut(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
-                                const std::vector<GMM>& gmms,
+                                const std::vector<ColorGMM>& gmms,
                                 double lambda,
                                 const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
                                 const vector<Mat> &uprightWs){
@@ -477,7 +301,6 @@ namespace dynamic_stereo {
             const int height = images[0].rows;
             const int nLabel = (int)gmms.size();
             int vtxCount = width * height;
-            Point p;
 
             vector<double> MRF_data((size_t) nLabel * vtxCount, 0.0);
             vector<double> MRF_smoothess((size_t) nLabel * nLabel, 1.0);
@@ -488,6 +311,7 @@ namespace dynamic_stereo {
                 }
             }
 
+            float start_t = (float)cv::getTickCount();
 #pragma omp parallel for
             for(auto y=0; y < height; ++y){
                 for(auto x = 0; x < width; ++x){
@@ -526,51 +350,51 @@ namespace dynamic_stereo {
 
             mrf->initialize();
 
-            for(p.y = 0; p.y < height; ++p.y){
-                for(p.x=0; p.x < width; ++p.x){
+            for(auto y = 0; y < height; ++y){
+                for(auto x=0; x < width; ++x){
                     //assign smoothness weight
-                    const int vtxIdx = p.y * width + p.x;
-                    if (p.x > 0) {
+                    const int vtxIdx = y * width + x;
+                    if (x > 0) {
                         double w = 0.0;
                         for (const auto &leftW: leftWs) {
-                            w += leftW.at<double>(p);
+                            w += leftW.at<double>(y,x );
                         }
                         mrf->setNeighbors(vtxIdx, vtxIdx-1, w);
                     }
-                    if (p.x > 0 && p.y > 0) {
+                    if (x > 0 && y > 0) {
                         double w = 0.0;
                         for (const auto &upleftW: upleftWs) {
-                            w += upleftW.at<double>(p);
+                            w += upleftW.at<double>(y,x);
                         }
                         mrf->setNeighbors(vtxIdx, vtxIdx - width - 1, w);
                     }
-                    if (p.y > 0) {
+                    if (y > 0) {
                         double w = 0.0;
                         for (const auto &upW: upWs)
-                            w += upW.at<double>(p);
+                            w += upW.at<double>(y,x);
                         mrf->setNeighbors(vtxIdx, vtxIdx - width, w);
                     }
-                    if (p.x < width - 1 && p.y > 0) {
+                    if (x < width - 1 && y > 0) {
                         double w = 0.0;
                         for (const auto &uprightW: uprightWs)
-                            w = uprightW.at<double>(p);
+                            w = uprightW.at<double>(y,x);
                         mrf->setNeighbors(vtxIdx, vtxIdx - width + 1, w);
                     }
                 }
             }
 
             mrf->clearAnswer();
-            for(p.y=0; p.y<mask.rows; ++p.y){
-                for(p.x=0; p.x<mask.cols; ++p.x){
-                    mrf->setLabel(p.y*width+p.x, mask.at<int>(p));
+            for(auto y=0; y<mask.rows; ++y){
+                for(auto x=0; x<mask.cols; ++x){
+                    mrf->setLabel(y*width+x, mask.at<int>(y,x));
                 }
             }
             //run alpha-expansion
             mrf->expansion();
 
-            for(p.y=0; p.y < mask.rows; ++p.y){
-                for(p.x=0; p.x < mask.cols; ++p.x){
-                    mask.at<int>(p) = mrf->getLabel(p.y*width + p.x);
+            for(auto y=0; y < mask.rows; ++y){
+                for(auto x=0; x < mask.cols; ++x){
+                    mask.at<int>(y,x) = mrf->getLabel(y*width + x);
                 }
             }
         }
@@ -581,14 +405,11 @@ namespace dynamic_stereo {
             CHECK_NOTNULL(mask.data);
             Mat hardconstraint;
             const int nLabel = preprocessMask(images[0], mask, hardconstraint);
-
             std::vector<Mat> compIdxs(images.size());
             for (auto &comid: compIdxs)
                 comid.create(images[0].size(), CV_32SC1);
-
-            vector<GMM> gmms((size_t) nLabel);
+            vector<ColorGMM> gmms((size_t) nLabel);
             initGMMs(images, mask, gmms);
-
             if (iterCount <= 0)
                 return;
             const double gamma = 50;
@@ -601,18 +422,16 @@ namespace dynamic_stereo {
 
             char buffer[128] = {};
             for (int i = 0; i < iterCount; i++) {
-                printf("Iter %d\n", i);
-                printf("Updating GMM\n");
+#pragma omp parallel for
                 for (auto v = 0; v < images.size(); ++v)
                     assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
                 learnGMMs(images, mask, compIdxs, gmms);
-                printf("Graph cut...\n");
                 runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
 
-                Mat stepRes = visualizeSegmentation(mask);
-                cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);
-                sprintf(buffer, "iter%03d.png", i);
-                imwrite(buffer, stepRes);
+//                Mat stepRes = visualizeSegmentation(mask);
+//                cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);
+//                sprintf(buffer, "iter%03d.png", i);
+//                imwrite(buffer, stepRes);
             }
         }
     }//namespace video_segment

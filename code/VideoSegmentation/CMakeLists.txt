@@ -5,11 +5,16 @@ project(VideoSegmentation)
 find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
+set(GMM_LIB colorGMM.h colorGMM.cpp)
+add_library(ColorGMM ${GMM_LIB})
+target_link_libraries(ColorGMM glog ${OpenCV_LIB})
+
 set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp
         videosegmentation.h videosegmentation.cpp mfgrabcut2.cpp)
 
+include_directories(/usr/local/include/eigen3)
 add_library(VideoSegmentModule ${VIDEO_SEGMENT_LIB})
-target_link_libraries(VideoSegmentModule ${OpenCV_LIBS} glog segment_gb MRF)
+target_link_libraries(VideoSegmentModule ColorGMM segment_gb MRF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/VideoSegmentation)
 

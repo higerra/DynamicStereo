@@ -170,7 +170,9 @@ namespace dynamic_stereo {
             if(refine)
                 mfGrabCut(input, output, 1);
 
+            printf("uncompressed segments:%d\n", nLabel);
             nLabel = compressSegment(output);
+            printf("compressed segments:%d\n", nLabel);
             return nLabel;
         }
 
