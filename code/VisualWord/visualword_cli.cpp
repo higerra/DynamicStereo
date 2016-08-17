@@ -334,7 +334,7 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
     }else if(vw_option.classifierType == BOOSTED_TREE){
         classifier = ml::Boost::load<ml::Boost>(FLAGS_model);
     }else if(vw_option.classifierType == SVM) {
-        classifier = ml::SVM::load<ml::SVM>(FLAGS_model);
+        classifier = ml::SVM::load(FLAGS_model);
     }
 
     printf("Reading video...\n");

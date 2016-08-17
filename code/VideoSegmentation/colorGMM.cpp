@@ -22,29 +22,29 @@ namespace dynamic_stereo{
         sampleCounts.resize(componentsCount);
     }
 
-    float ColorGMM::operator()(const Vec3f &color) const {
+    double ColorGMM::operator()(const Vec3d &color) const {
         double res = 0;
         for (int ci = 0; ci < componentsCount; ci++)
             res += coefs[ci] * (*this)(ci, color);
         return res;
     }
 
-    float ColorGMM::operator()(int ci, const Vec3f &color) const {
-        float res = 0;
+    double ColorGMM::operator()(int ci, const Vec3d &color) const {
+        double res = 0;
         if (coefs[ci] > 0) {
-            Vector3f diff(color[0], color[1], color[2]);
+            Vector3d diff(color[0], color[1], color[2]);
             diff -= mean[ci];
-            float mult = diff.transpose() * inverseCovs[ci] * diff;
+            double mult = diff.transpose() * inverseCovs[ci] * diff;
             res = 1.0f / sqrt(covDeterms[ci]) * exp(-0.5f * mult);
         }
         return res;
     }
 
-    int ColorGMM::whichComponent(const Vec3f& color) const {
+    int ColorGMM::whichComponent(const Vec3d& color) const {
         int k = 0;
-        float max = 0;
+        double max = 0;
         for (int ci = 0; ci < componentsCount; ci++) {
-            float p = (*this)(ci, color);
+            double p = (*this)(ci, color);
             if (p > max) {
                 k = ci;
                 max = p;
@@ -55,15 +55,15 @@ namespace dynamic_stereo{
 
     void ColorGMM::initLearning() {
         for (int ci = 0; ci < componentsCount; ci++) {
-            sums[ci] = Vector3f::Zero();
-            prods[ci] = Matrix3f::Zero();
+            sums[ci] = Vector3d::Zero();
+            prods[ci] = Matrix3d::Zero();
             sampleCounts[ci] = 0;
         }
         totalSampleCount = 0;
     }
 
-    void ColorGMM::addSample(int ci, const Vec3f& color) {
-        Eigen::Map<Eigen::Vector3f> data(const_cast<float*>(&color[0]));
+    void ColorGMM::addSample(int ci, const Vec3d& color) {
+        Eigen::Map<Eigen::Vector3d> data(const_cast<double*>(&color[0]));
         sums[ci] += data;
         prods[ci] += data * data.transpose();
         sampleCounts[ci]++;
@@ -71,19 +71,19 @@ namespace dynamic_stereo{
     }
 
     void ColorGMM::endLearning() {
-        const float variance = 0.01;
+        const double variance = 0.01;
         for (int ci = 0; ci < componentsCount; ci++) {
             int n = sampleCounts[ci];
             if (n == 0)
                 coefs[ci] = 0;
             else {
-                coefs[ci] = (float) n / totalSampleCount;
+                coefs[ci] = (double) n / totalSampleCount;
 
                 mean[ci] = sums[ci] / n;
                 cov[ci] = prods[ci] / n - mean[ci] * mean[ci].transpose();
 
-                float dtrm = det3(cov[ci]);
-                if (dtrm <= std::numeric_limits<float>::epsilon()) {
+                double dtrm = det3(cov[ci]);
+                if (dtrm <= std::numeric_limits<double>::epsilon()) {
                     // Adds the white noise to avoid singular covariance matrix.
                     cov[ci](0,0) += variance;
                     cov[ci](1,1) += variance;

@@ -46,7 +46,7 @@ namespace dynamic_stereo{
             else if(classifiertype == VisualWord::BOOSTED_TREE)
                 classifier = ml::Boost::load<ml::Boost>(classifierPath);
             else if(classifiertype == VisualWord::SVM)
-                classifier = ml::SVM::load<ml::SVM>(classifierPath);
+                classifier = ml::SVM::load(classifierPath);
             CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
 
             vector<Mat> segments;

@@ -325,7 +325,7 @@ namespace dynamic_stereo {
                                 e = lambda * (double)images.size();
                         }else {
                             for (const auto &img: images) {
-                                Vec3f color = (Vec3d) img.at<Vec3b>(y,x);
+                                Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
                                 e -= log(gmms[l](color));
                             }
                         }
@@ -394,6 +394,7 @@ namespace dynamic_stereo {
             //run alpha-expansion
             printf("Solving...\n");
             mrf->expansion();
+            printf("Done...\n");
 
             for(auto y=0; y < mask.rows; ++y){
                 for(auto x=0; x < mask.cols; ++x){
@@ -421,32 +422,35 @@ namespace dynamic_stereo {
             const double lambda = 9 * gamma;
             const double beta = calcBeta(images);
 
-	    //debug: test GPU feature
-	    {
-		const int N = 1;
-		printf("Testing on GPU\n");
-		float start_t = (float)cv::getTickCount();
-		Mat cudaOutput;
-		for(auto i=0; i<N; ++i)
-		    gmms[0].computeRawProbCuda(0, images[0], cudaOutput);
-		printf("Cuda time usage: %.5f\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
+            //debug: test GPU feature
+            {
+//                printf("Testing on GPU\n");
+//                float start_t = (float)cv::getTickCount();
+//                vector<Mat> gpuOutput;
+//                gmms[0].assignComponentCuda(images, gpuOutput, 200);
+//                printf("Cuda time usage: %.5f\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
+//
+//                vector<Mat> cpuOutput(images.size());
+//                for(auto& o: cpuOutput)
+//                    o.create(images[0].size(), CV_32SC1);
+//                printf("Testing on CPU\n");
+//                start_t = (float)cv::getTickCount();
+//#pragma omp parallel for
+//                for(auto v=0; v<images.size(); ++v) {
+//                    for (auto y = 0; y < images[0].rows; ++y) {
+//                        for (auto x = 0; x < images[0].cols; ++x) {
+//                            cpuOutput[v].at<int>(y, x) = gmms[0].whichComponent((Vec3f)images[v].at<Vec3b>(y,x));
+//                        }
+//                    }
+//                }
+//                printf("CPU time usage: %.5f\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
+//                CHECK_EQ(gpuOutput.size(), cpuOutput.size());
+//                float cpuGpuDiff = 0.0;
+//                for(auto v=0; v<images.size(); ++v)
+//                    cpuGpuDiff += cv::norm(gpuOutput[v] - cpuOutput[v]);
+//                printf("Result diff: %.1f\n", cpuGpuDiff);
+            }
 
-		Mat cpuOutput(images[0].size(), CV_32FC1, Scalar::all(0));
-		printf("Testing on CPU\n");
-		start_t = (float)cv::getTickCount();
-		for(auto i=0; i<N; ++i){
-		    for(auto y=0; y<images[0].rows; ++y){
-			for(auto x=0; x <images[0].cols; ++x){
-			    cpuOutput.at<float>(y,x) = gmms[0](0, (Vec3f)images[0].at<Vec3b>(y,x));
-			}
-		    }
-		}
-		printf("CPU time usage: %.5f\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
-		CHECK_EQ(cudaOutput.size(), cpuOutput.size());
-		float cpuGpuDiff = cv::norm(cudaOutput - cpuOutput);
-		printf("Result norm: %.5f, %.5f, Difference in result: %.5f\n", cv::norm(cudaOutput), cv::norm(cpuOutput), cpuGpuDiff);
-	    }
-	    
             vector<Mat> leftWs(images.size()), upleftWs(images.size()), upWs(images.size()), uprightWs(images.size());
             for (auto v = 0; v < images.size(); ++v)
                 calcNWeights(images[v], leftWs[v], upleftWs[v], upWs[v], uprightWs[v], beta, gamma);
@@ -462,10 +466,10 @@ namespace dynamic_stereo {
                 printf("graph cut...\n");
                 runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
 
-//                Mat stepRes = visualizeSegmentation(mask);
-//                cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);
-//                sprintf(buffer, "iter%03d.png", i);
-//                imwrite(buffer, stepRes);
+                Mat stepRes = visualizeSegmentation(mask);
+                cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);
+                sprintf(buffer, "iter%03d.png", i);
+                imwrite(buffer, stepRes);
             }
         }
     }//namespace video_segment
