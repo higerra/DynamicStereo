@@ -18,47 +18,47 @@ namespace dynamic_stereo {
 
         ColorGMM();
 
-        double operator()(const cv::Vec3d &color) const;
+        float operator()(const cv::Vec3f &color) const;
 
-        double operator()(int ci, const cv::Vec3d &color) const;
+        float operator()(int ci, const cv::Vec3f &color) const;
 
 //        void computeMat(const cv::Mat& input, std::vector<cv::Mat>& output) const;
 //
 //        void computeProbMat(const cv::Mat& input, cv::Mat& output) const;
 
-        int whichComponent(const cv::Vec3d& color) const;
+        int whichComponent(const cv::Vec3f& color) const;
 
         void initLearning();
 
-        void addSample(int ci, const cv::Vec3d& color);
+        void addSample(int ci, const cv::Vec3f& color);
 
         void endLearning();
 
-        inline double det3(const double* c) const {
+        inline float det3(const float* c) const {
             return c[0] * (c[4] * c[8] - c[5] * c[7]) - c[1] * (c[3] * c[8] - c[5] * c[6]) +
                    c[2] * (c[3] * c[7] - c[4] * c[6]);
         }
 
-        inline double det3(const Eigen::Matrix3d& m) const {
+        inline float det3(const Eigen::Matrix3f& m) const {
             return m(0, 0) * (m(1, 1) * m(2, 2) - m(1, 2) * m(2, 1)) -
                    m(0, 1) * (m(1, 0) * m(2, 2) - m(1, 2) * m(2, 0)) +
                    m(0, 2) * (m(1, 0) * m(2, 1) - m(1, 1) * m(2, 0));
         }
 
 #ifdef USE_CUDA
-        void computeRawProbCuda(const cv::Mat& image, std::vector<cv::Mat>& output) const;
+        void computeRawProbCuda(const int ci, const cv::Mat& image, cv::Mat& output) const;
 #endif
     private:
         void calcInverseCovAndDeterm(int ci);
 
-        std::vector<double> coefs;
-        std::vector<Eigen::Vector3d> mean;
-        std::vector<Eigen::Matrix3d> cov;
-        std::vector<Eigen::Matrix3d> inverseCovs;
-        std::vector<double> covDeterms;
+        std::vector<float> coefs;
+        std::vector<Eigen::Vector3f> mean;
+        std::vector<Eigen::Matrix<float, 3, 3, Eigen::ColMajor> > cov;
+        std::vector<Eigen::Matrix<float, 3, 3, Eigen::ColMajor> > inverseCovs;
+        std::vector<float> covDeterms;
 
-        std::vector<Eigen::Vector3d> sums;
-        std::vector<Eigen::Matrix3d> prods;
+        std::vector<Eigen::Vector3f> sums;
+        std::vector<Eigen::Matrix3f> prods;
         std::vector<int> sampleCounts;
         int totalSampleCount;
     };

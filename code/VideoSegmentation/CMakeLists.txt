@@ -9,22 +9,24 @@ include_directories(/usr/local/include/eigen3)
 ######################################################
 #GMM library
 if(CUDA_FOUND)
+	include_directories(${CUDA_INCLUDE_DIRS})
     #GPU version
     message("-- Compiling GPU version")
-    set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -D_FORCE_INLINES -D_MWAITXINTRIN_H_INCLUDED)
     set(GMM_LIB colorGMM.h colorGMM.cpp colorGMMcu.cu)
     cuda_add_library(ColorGMM ${GMM_LIB})
+    target_link_libraries(ColorGMM glog ${OpenCV_LIBS} ${CUDA_LIBRARIES})
 else(CUDA_FOUND)
     #CPU version
     set(GMM_LIB colorGMM.h colorGMM.cpp)
     message("-- Compiling CPU version")
     add_library(ColorGMM ${GMM_LIB})
+    target_link_libraries(ColorGMM glog ${OpenCV_LIB})
 endif(CUDA_FOUND)
 
-target_link_libraries(ColorGMM glog ${OpenCV_LIB})
+
 
 ######################################################3
-#VideoSegmentation library
+#VideoSegmentation libraryx
 set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp
         videosegmentation.h videosegmentation.cpp mfgrabcut2.cpp)
 

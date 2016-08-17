@@ -260,7 +260,7 @@ namespace dynamic_stereo {
                                          Mat &compIdxs) {
             for (auto y = 0; y < img.rows; ++y) {
                 for (auto x = 0; x < img.cols; ++x) {
-                    Vec3d color = (Vec3d)img.at<Vec3b>(y,x);
+                    Vec3f color = (Vec3f)img.at<Vec3b>(y,x);
                     const int lid = mask.at<int>(y,x);
                     compIdxs.at<int>(y,x) = gmms[lid].whichComponent(color);
                 }
@@ -280,7 +280,7 @@ namespace dynamic_stereo {
                     for (auto x = 0; x < img.cols; ++x) {
                         const int comId = compIdxs.at<int>(y,x);
                         const int lid = mask.at<int>(y,x);
-                        gmms[lid].addSample(comId, (Vec3d) img.at<Vec3b>(y,x));
+                        gmms[lid].addSample(comId, (Vec3f) img.at<Vec3b>(y,x));
                     }
                 }
             }
@@ -325,7 +325,7 @@ namespace dynamic_stereo {
                                 e = lambda * (double)images.size();
                         }else {
                             for (const auto &img: images) {
-                                Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
+                                Vec3f color = (Vec3d) img.at<Vec3b>(y,x);
                                 e -= log(gmms[l](color));
                             }
                         }
@@ -421,6 +421,32 @@ namespace dynamic_stereo {
             const double lambda = 9 * gamma;
             const double beta = calcBeta(images);
 
+	    //debug: test GPU feature
+	    {
+		const int N = 1;
+		printf("Testing on GPU\n");
+		float start_t = (float)cv::getTickCount();
+		Mat cudaOutput;
+		for(auto i=0; i<N; ++i)
+		    gmms[0].computeRawProbCuda(0, images[0], cudaOutput);
+		printf("Cuda time usage: %.5f\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
+
+		Mat cpuOutput(images[0].size(), CV_32FC1, Scalar::all(0));
+		printf("Testing on CPU\n");
+		start_t = (float)cv::getTickCount();
+		for(auto i=0; i<N; ++i){
+		    for(auto y=0; y<images[0].rows; ++y){
+			for(auto x=0; x <images[0].cols; ++x){
+			    cpuOutput.at<float>(y,x) = gmms[0](0, (Vec3f)images[0].at<Vec3b>(y,x));
+			}
+		    }
+		}
+		printf("CPU time usage: %.5f\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
+		CHECK_EQ(cudaOutput.size(), cpuOutput.size());
+		float cpuGpuDiff = cv::norm(cudaOutput - cpuOutput);
+		printf("Result norm: %.5f, %.5f, Difference in result: %.5f\n", cv::norm(cudaOutput), cv::norm(cpuOutput), cpuGpuDiff);
+	    }
+	    
             vector<Mat> leftWs(images.size()), upleftWs(images.size()), upWs(images.size()), uprightWs(images.size());
             for (auto v = 0; v < images.size(); ++v)
                 calcNWeights(images[v], leftWs[v], upleftWs[v], upWs[v], uprightWs[v], beta, gamma);
