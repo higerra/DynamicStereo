@@ -8,20 +8,11 @@ find_package(gflags REQUIRED)
 include_directories(/usr/local/include/eigen3)
 ######################################################
 #GMM library
-if(CUDA_FOUND)
-	include_directories(${CUDA_INCLUDE_DIRS})
-    #GPU version
-    message("-- Compiling GPU version")
-    set(GMM_LIB colorGMM.h colorGMM.cpp colorGMMcu.cu)
-    cuda_add_library(ColorGMM ${GMM_LIB})
-    target_link_libraries(ColorGMM glog ${OpenCV_LIBS} ${CUDA_LIBRARIES})
-else(CUDA_FOUND)
-    #CPU version
-    set(GMM_LIB colorGMM.h colorGMM.cpp)
-    message("-- Compiling CPU version")
-    add_library(ColorGMM ${GMM_LIB})
-    target_link_libraries(ColorGMM glog ${OpenCV_LIB})
-endif(CUDA_FOUND)
+#CPU version
+set(GMM_LIB colorGMM.h colorGMM.cpp)
+message("-- Compiling CPU version")
+add_library(ColorGMM ${GMM_LIB})
+target_link_libraries(ColorGMM glog ${OpenCV_LIB})
 
 
 

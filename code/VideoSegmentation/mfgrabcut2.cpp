@@ -187,7 +187,7 @@ namespace dynamic_stereo {
             const int nLabel = checkMask(img, mask);
 
             //only modify $shrinkRatio on the border
-            const double shrinkRatio = 0.02;
+            const double shrinkRatio = 0.03;
             const double minShrink = 3;
 
             hardConstraint.create(mask.size(), CV_8UC1);
@@ -291,7 +291,7 @@ namespace dynamic_stereo {
 /*
   Construct GCGraph
 */
-        static void runGraphCut(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
+        void runGraphCut(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
                                 const std::vector<ColorGMM>& gmms,
                                 double lambda,
                                 const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
