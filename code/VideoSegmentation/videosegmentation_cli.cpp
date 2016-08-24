@@ -49,6 +49,7 @@ int main(int argc, char** argv){
 
     for(const auto& filename: filenames) {
         //load video
+        printf("=================================\n");
         printf("Processing video %s\n", filename.c_str());
         VideoCapture cap(dir + filename);
         CHECK(cap.isOpened()) << "Can not load video: " << argv[1];

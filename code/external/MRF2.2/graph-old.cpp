@@ -19,7 +19,7 @@
 
 
 #include <stdio.h>
-#include "graph.h"
+#include "graph-old.h"
 
 Graph::Graph(void (*err_function)(const char *))
 {
@@ -114,9 +114,9 @@ void Graph::add_edge(node_id from, node_id to, captype cap, captype rev_cap)
     a_for -> r_rev_cap = rev_cap;
 
     ((node *)from) -> first_out =
-        (arc_forward *) ((PTR_CAST)(((node *)from) -> first_out) + 1);
+            (arc_forward *) ((PTR_CAST)(((node *)from) -> first_out) + 1);
     ((node *)to) -> first_in =
-        (arc_reverse *) ((PTR_CAST)(((node *)to) -> first_in) + 1);
+            (arc_reverse *) ((PTR_CAST)(((node *)to) -> first_in) + 1);
 }
 
 void Graph::set_tweights(node_id i, captype cap_source, captype cap_sink)
@@ -252,49 +252,49 @@ void Graph::prepare_graph()
     for ( ab_for=ab_for_first, ab_rev=ab_rev_first;
           ab_for;
           ab_for=ab_for->next, ab_rev=ab_rev->next )
-    for ( a_for=&ab_for->arcs_for[0], a_rev=&ab_rev->arcs_rev[0];
-          a_for<&ab_for->arcs_for[ARC_BLOCK_SIZE];
-          a_for++, a_rev++ )
-    {
-        arc_forward *af;
-        arc_reverse *ar;
-        node *from;
-        int shift = 0, shift_new;
-        captype r_cap = 0, r_rev_cap = 0, r_cap_new, r_rev_cap_new;
-
-        if (!(from=(node *)(a_rev->sister))) continue;
-        af = a_for;
-        ar = a_rev;
-
-        do
+        for ( a_for=&ab_for->arcs_for[0], a_rev=&ab_rev->arcs_rev[0];
+              a_for<&ab_for->arcs_for[ARC_BLOCK_SIZE];
+              a_for++, a_rev++ )
         {
-            ar -> sister = NULL;
+            arc_forward *af;
+            arc_reverse *ar;
+            node *from;
+            int shift = 0, shift_new;
+            captype r_cap = 0, r_rev_cap = 0, r_cap_new, r_rev_cap_new;
 
-            shift_new = (int)(((char *)(af->shift)) - (char *)from);
-            r_cap_new = af -> r_cap;
-            r_rev_cap_new = af -> r_rev_cap;
-            if (shift)
+            if (!(from=(node *)(a_rev->sister))) continue;
+            af = a_for;
+            ar = a_rev;
+
+            do
             {
-                af -> shift = shift;
-                af -> r_cap = r_cap;
-                af -> r_rev_cap = r_rev_cap;
-            }
-            shift = shift_new;
-            r_cap = r_cap_new;
-            r_rev_cap = r_rev_cap_new;
+                ar -> sister = NULL;
 
-            af = -- from -> first_out;
-            if ((arc_reverse *)(from->parent) != &a_rev_tmp)
-            {
-                from -> parent = (arc_forward *)(((arc_reverse *)(from -> parent)) - 1);
-                ar = (arc_reverse *)(from -> parent);
-            }
-        } while ((from=(node *)(ar->sister)));
+                shift_new = (int)(((char *)(af->shift)) - (char *)from);
+                r_cap_new = af -> r_cap;
+                r_rev_cap_new = af -> r_rev_cap;
+                if (shift)
+                {
+                    af -> shift = shift;
+                    af -> r_cap = r_cap;
+                    af -> r_rev_cap = r_rev_cap;
+                }
+                shift = shift_new;
+                r_cap = r_cap_new;
+                r_rev_cap = r_rev_cap_new;
 
-        af -> shift = shift;
-        af -> r_cap = r_cap;
-        af -> r_rev_cap = r_rev_cap;
-    }
+                af = -- from -> first_out;
+                if ((arc_reverse *)(from->parent) != &a_rev_tmp)
+                {
+                    from -> parent = (arc_forward *)(((arc_reverse *)(from -> parent)) - 1);
+                    ar = (arc_reverse *)(from -> parent);
+                }
+            } while ((from=(node *)(ar->sister)));
+
+            af -> shift = shift;
+            af -> r_cap = r_cap;
+            af -> r_rev_cap = r_rev_cap;
+        }
 
     for (ab_for=arc_for_block_first; ab_for; ab_for=ab_for->next)
     {
@@ -314,25 +314,25 @@ void Graph::prepare_graph()
     }
 
     for (nb=node_block_first; nb; nb=nb->next)
-    for (i=&nb->nodes[0]; i<nb->current; i++)
-    {
-        arc_forward *a_for_first, *a_for_last;
-
-        a_for_first = i -> first_out;
-        if (IS_ODD(a_for_first))
+        for (i=&nb->nodes[0]; i<nb->current; i++)
         {
-            a_for_first = (arc_forward *) (((char *)a_for_first) + 1);
-            a_for_last = (arc_forward *) ((a_for_first ++) -> shift);
-        }
-        else a_for_last = (i + 1) -> first_out;
+            arc_forward *a_for_first, *a_for_last;
 
-        for (a_for=a_for_first; a_for<a_for_last; a_for++)
-        {
-            node *to = NEIGHBOR_NODE(i, a_for -> shift);
-            a_rev = -- to -> first_in;
-            a_rev -> sister = a_for;
+            a_for_first = i -> first_out;
+            if (IS_ODD(a_for_first))
+            {
+                a_for_first = (arc_forward *) (((char *)a_for_first) + 1);
+                a_for_last = (arc_forward *) ((a_for_first ++) -> shift);
+            }
+            else a_for_last = (i + 1) -> first_out;
+
+            for (a_for=a_for_first; a_for<a_for_last; a_for++)
+            {
+                node *to = NEIGHBOR_NODE(i, a_for -> shift);
+                a_rev = -- to -> first_in;
+                a_rev -> sister = a_for;
+            }
         }
-    }
 
     for (ab_rev=arc_rev_block_first; ab_rev; ab_rev=ab_rev->next)
     {

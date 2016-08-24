@@ -15,7 +15,6 @@ add_library(ColorGMM ${GMM_LIB})
 target_link_libraries(ColorGMM glog ${OpenCV_LIB})
 
 
-
 ######################################################3
 #VideoSegmentation libraryx
 set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp

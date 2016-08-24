@@ -19,15 +19,15 @@
 
 
 #include <stdio.h>
-#include "graph.h"
-
+#include "graph-old.h"
+#include <limits>
 /*
     special constants for node->parent
 */
 #define TERMINAL ( (arc_forward *) 1 )      /* to terminal */
 #define ORPHAN   ( (arc_forward *) 2 )      /* orphan */
 
-#define INFINITE_D 1000000000       /* infinite distance to the terminal */
+#define INFINITE_D  std::numeric_limits<int>::max()   /* infinite distance to the terminal */
 
 /***********************************************************************/
 

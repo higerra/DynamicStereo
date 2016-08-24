@@ -1,14 +1,12 @@
-#include "energy.h"
-#include "graph.h"
 #include "GCoptimization.h"
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
+#include <limits>
 #include "string.h"
 #include <glog/logging.h>
 
-#define MAX_INTT 1000000000
-
+#define MAX_INTT std::numeric_limits<int>::max()
 
 
 /**************************************************************************************/

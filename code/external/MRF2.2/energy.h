@@ -111,10 +111,10 @@
 #define __ENERGY_H__
 
 #include <assert.h>
-#include "graph.h"
+#include "maxflow-v3.04.src/graph.h"
 
-class Energy : Graph
-{
+
+class Energy : Graph<double, double, double> {
 public:
     typedef node_id Var;
 
@@ -123,8 +123,8 @@ public:
        TotalValue is a type of a value of the total energy.
        By default Value = short, TotalValue = int.
        To change it, change the corresponding types in graph.h */
-    typedef captype Value;
-    typedef flowtype TotalValue;
+    typedef double Value;
+    typedef double TotalValue;
 
     /* interface functions */
 
@@ -199,6 +199,11 @@ private:
     void        (*error_function)(const char *);  /* this function is called if a error occurs,
                                             with a corresponding error message
                                             (or exit(1) is called if it's NULL) */
+
+    const int NODE_BLOCK_SIZE = 512;
+    const int ARC_BLOCK_SIZE = 1024;
+    const int NODEPTR_BLOCK_SIZE = 128;
+
 };
 
 
@@ -219,7 +224,7 @@ private:
 /************************  Implementation ******************************/
 /***********************************************************************/
 
-inline Energy::Energy(void (*err_function)(const char *)) : Graph(err_function)
+inline Energy::Energy(void (*err_function)(const char *)) : Graph(NODE_BLOCK_SIZE, ARC_BLOCK_SIZE, err_function)
 {
     Econst = 0;
     error_function = err_function;
@@ -243,20 +248,20 @@ inline void Energy::add_term2(Var x, Var y,
 {
     /*  Added "truncation" code below to ensure regularity / submodularity */
     if ( A+D > C+B) {
-	Value delta = A+D-C-B;
+        Value delta = A+D-C-B;
         Value subtrA = delta/3;
 
         A = A-subtrA;
         C = C+subtrA;
         B = B+(delta-subtrA*2);
 #ifdef COUNT_TRUNCATIONS
-	truncCnt++;
+        truncCnt++;
 #endif
-    }    
+    }
 #ifdef COUNT_TRUNCATIONS
     totalCnt++;
 #endif
-    
+
     /* 
        E = A A  +  0   B-A
            D D     C-D 0

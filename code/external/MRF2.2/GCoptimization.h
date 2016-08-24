@@ -30,15 +30,16 @@
 
 #include "LinkedBlockList.h"
 #include <assert.h>
-#include "graph.h"
 #include "energy.h"
+#include "mrf.h"
+
 #define m_datacost(pix,lab)     (m_datacost[(pix)*m_nLabels+(lab)] )
 #define m_smoothcost(lab1,lab2) (m_smoothcost[(lab1)+(lab2)*m_nLabels] )
 #define USE_MEMBER_FUNCTION 0
 #define PASS_AS_PARAMETER   1
 
 
-class GCoptimization:public MRF
+class GCoptimization: public MRF
 {
 public:
 
@@ -46,10 +47,10 @@ public:
     //    First define needed data types                                                 //
     ///////////////////////////////////////////////////////////////////////////////////////
     /* Type for the total energy calculation. Change it in Graph.h   */
-    typedef Graph::flowtype EnergyType;
+    typedef Energy::TotalValue EnergyType;
 
     /* Type for the individual terms in the energy function.Change it in Graph.h */
-    typedef Graph::captype EnergyTermType;
+    typedef Energy::Value EnergyTermType;
 
     /* Type of label. Can be set to char, short, int, long */
     typedef int LabelType;
