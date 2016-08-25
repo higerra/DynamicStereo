@@ -132,9 +132,35 @@ namespace dynamic_stereo{
 			kSeg++;
 			pixelGroup.resize((size_t) kSeg);
 
-			const int *pSeg = (int *) segments.data;
-			for (auto i = 0; i < width * height; ++i) {
-				pixelGroup[pSeg[i]].push_back(i);
+			//pixels with the same label are not garranted to be contigueous. Thus for each label,
+			//take the contiguous largest contiguous region
+			for(auto l=0; l<kSeg; ++l){
+				Mat binMask(segments.size(), CV_8UC1, Scalar::all(0));
+				for(auto y=0; y<height; ++y){
+					for(auto x=0; x<width; ++x){
+						if(segments.at<int>(y,x) == l)
+							binMask.at<uchar>(y,x) = (uchar)255;
+					}
+				}
+				Mat com, stats, centroid;
+				cv::connectedComponentsWithStats(binMask, com, stats, centroid);
+				int maxArea = -1, bestLabel = -1;
+				for(auto i=1; i<stats.rows; ++i){
+					int area = stats.at<int>(i, cv::CC_STAT_AREA);
+					if(area > maxArea){
+						maxArea = area;
+						bestLabel = i;
+					}
+				}
+				for(auto y=stats.at<int>(bestLabel, cv::CC_STAT_TOP);
+						y < stats.at<int>(bestLabel, CC_STAT_TOP) + stats.at<int>(bestLabel, CC_STAT_HEIGHT); ++y){
+					for(auto x=stats.at<int>(bestLabel, cv::CC_STAT_LEFT);
+						x < stats.at<int>(bestLabel, CC_STAT_LEFT) + stats.at<int>(bestLabel, CC_STAT_WIDTH); ++x) {
+						if(com.at<int>(y,x) == bestLabel) {
+							pixelGroup[l].push_back(y * width + x);
+						}
+					}
+				}
 			}
 
 			return kSeg;

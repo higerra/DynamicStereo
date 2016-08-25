@@ -49,16 +49,16 @@
 #include <limits>
 #include <memory>
 
-//#include <opengm/opengm.hxx>
-//#include <opengm/functions/explicit_function.hxx>
-//#include <opengm/functions/potts.hxx>
-//#include <opengm/graphicalmodel/graphicalmodel.hxx>
-//#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
-//#include <opengm/inference/graphcut.hxx>
-//#include <opengm/inference/alphaexpansion.hxx>
-//#include <opengm/operations/adder.hxx>
-//#include <opengm/operations/minimizer.hxx>
-//#include <opengm/inference/auxiliary/minstcutkolmogorov.hxx>
+#include <opengm/opengm.hxx>
+#include <opengm/functions/explicit_function.hxx>
+#include <opengm/functions/potts.hxx>
+#include <opengm/graphicalmodel/graphicalmodel.hxx>
+#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
+#include <opengm/inference/graphcut.hxx>
+#include <opengm/inference/alphaexpansion.hxx>
+#include <opengm/operations/adder.hxx>
+#include <opengm/operations/minimizer.hxx>
+#include <opengm/inference/auxiliary/minstcutkolmogorov.hxx>
 
 #include "../external/MRF2.2/GCoptimization.h"
 #include "videosegmentation.h"
@@ -390,18 +390,18 @@ namespace dynamic_stereo {
                 }
             }
 
-            for(auto y=0; y<mask.rows; ++y){
-                for(auto x=0; x<mask.cols; ++x){
-                    mrf->setLabel(y*width+x, mask.at<int>(y,x));
+            for (auto y = 0; y < mask.rows; ++y) {
+                for (auto x = 0; x < mask.cols; ++x) {
+                    mrf->setLabel(y * width + x, mask.at<int>(y, x));
                 }
             }
             mrf->clearAnswer();
-
             //run alpha-expansion
-            printf("Solving...\n");
             printf("Inital energy: %.3f\n", mrf->totalEnergy());
+            printf("Solving...\n");
             mrf->expansion();
             printf("Done, final energy: %.3f\n", mrf->totalEnergy());
+
 
             for(auto y=0; y < mask.rows; ++y){
                 for(auto x=0; x < mask.cols; ++x){
@@ -415,124 +415,137 @@ namespace dynamic_stereo {
 
         }
 
-//        static void runGraphCutOpenGM(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
-//                                const std::vector<ColorGMM>& gmms,
-//                                double lambda,
-//                                const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
-//                                const vector<Mat> &uprightWs){
-//            CHECK(!images.empty());
-//
-//            //typedef
-//            using GMSpace = opengm::SimpleDiscreteSpace<size_t, size_t>;
-//            using UnaryFunction = opengm::ExplicitFunction<double>;
-//            using PairwiseFunction = opengm::PottsFunction<double>;
-//            using GMModel = opengm::GraphicalModel<double, opengm::Adder, GMFunction, GMSpace>;
-//
-//            const int width = images[0].cols;
-//            const int height = images[0].rows;
-//            const int nLabel = (int)gmms.size();
-//            int vtxCount = width * height;
-//
-//            GMSpace space(vtxCount, (size_t)nLabel);
-//            GMModel model(space);
-//
-//            //the energy if divided by ratio, to avoid exceed the limit of int
-//            float start_t = (float)cv::getTickCount();
-//            printf("data term...\n");
-//#pragma omp parallel for
-//            for(auto y=0; y < height; ++y){
-//                for(auto x = 0; x < width; ++x){
-//                    const int vtxIdx = y * width + x;
-//                    //assign data term
-//                    const size_t shape[] = {(size_t)nLabel};
-//                    UnaryFunction unary(shape, shape+1);
-//                    for(size_t l=0; l<nLabel; ++l){
-//                        double e = 0.0;
-//                        if(hardConstraint.at<uchar>(y,x) > (uchar)200){
-//                            if(l != mask.at<int>(y,x))
-//                                e = lambda * (double)images.size();
-//                        }else {
-//                            for (const auto &img: images) {
-//                                Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
-//                                e -= log(gmms[l](color));
-//                            }
-//                        }
-//                        unary(l) = e;
-//                    }
-//                    GMModel::FunctionIdentifier fid = model.addFunction(unary);
-//
-//                    vector<size_t> vid{vtxIdx};
-//                    model.addFactor(fid, vid.begin(), vid.end());
-//                }
-//            }
-//
-//            printf("Smoothness term...\n");
-//            for(auto y = 0; y < height; ++y){
-//                for(auto x=0; x < width; ++x){
-//                    //assign smoothness weight
-//                    const int vtxIdx = y * width + x;
-//                    if (x > 0) {
-//                        double w = 0.0;
-//                        for (const auto &leftW: leftWs) {
-//                            w += leftW.at<double>(y,x );
-//                        }
-//                        vector<size_t> vid{vtxIdx, vtxIdx-1};
-//                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
-//                        opengm::FunctionIdentifier fid = model.addFunction(pf);
-//                        model.addFactor(fid, vid.begin(), vid.end());
-//                    }
-//                    if (x > 0 && y > 0) {
-//                        double w = 0.0;
-//                        for (const auto &upleftW: upleftWs) {
-//                            w += upleftW.at<double>(y,x);
-//                        }
-//                        vector<size_t> vid{vtxIdx, vtxIdx - width -1};
-//                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
-//                        opengm::FunctionIdentifier fid = model.addFunction(pf);
-//                        model.addFactor(fid, vid.begin(), vid.end());
-//                    }
-//                    if (y > 0) {
-//                        double w = 0.0;
-//                        for (const auto &upW: upWs)
-//                            w += upW.at<double>(y,x);
-//                        vector<size_t> vid{vtxIdx, vtxIdx - width};
-//                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
-//                        opengm::FunctionIdentifier fid = model.addFunction(pf);
-//                        model.addFactor(fid, vid.begin(), vid.end());
-//
-//                    }
-//                    if (x < width - 1 && y > 0) {
-//                        double w = 0.0;
-//                        for (const auto &uprightW: uprightWs)
-//                            w = uprightW.at<double>(y,x);
-//                        vector<size_t> vid{vtxIdx, vtxIdx - width + 1};
-//                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
-//                        opengm::FunctionIdentifier fid = model.addFunction(pf);
-//                        model.addFactor(fid, vid.begin(), vid.end());
-//                    }
-//                }
-//            }
-//
-//            using MinStCutType = opengm::external::MinSTCutKolmogorov<size_t, double>;
-//            using MinGraphCut = opengm::GraphCut<GMModel, opengm::Minimizer, MinStCutType>;
-//            using MinAlphaExpansion = opengm::AlphaExpansion<GMModel, MinGraphCut>;
-//
-//            MinAlphaExpansion expansion(model);
-//            //run alpha-expansion
-//            printf("Solving...\n");
-//            printf("Inital energy: %.3f\n", expansion.value());
-//            expansion.infer();
-//            printf("Done, final energy: %.3f\n", expansion.value());
-//
-//            vector<size_t> result;
-//            expansion.arg(result);
-//            CHECK_EQ(result.size(), mask.rows * mask.cols);
-//            for(auto y=0; y < mask.rows; ++y){
-//                for(auto x=0; x < mask.cols; ++x){
-//                    mask.at<int>(y,x) = result[y*width + x];
-//                }
-//            }
-//        }
+        static void runGraphCutOpenGM(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
+                                const std::vector<ColorGMM>& gmms,
+                                double lambda,
+                                const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
+                                const vector<Mat> &uprightWs){
+            CHECK(!images.empty());
+
+            //typedef
+            using GMSpace = opengm::SimpleDiscreteSpace<size_t, size_t>;
+            using UnaryFunction = opengm::ExplicitFunction<double>;
+            using PairwiseFunction = opengm::PottsFunction<double>;
+            using GMModel = opengm::GraphicalModel<double, opengm::Adder,
+                    OPENGM_TYPELIST_2(UnaryFunction, PairwiseFunction), GMSpace>;
+
+            const int width = images[0].cols;
+            const int height = images[0].rows;
+            const int nLabel = (int)gmms.size();
+            int vtxCount = width * height;
+
+            GMSpace space(vtxCount, (size_t)nLabel);
+            GMModel model(space);
+
+            //the energy if divided by ratio, to avoid exceed the limit of int
+            float start_t = (float)cv::getTickCount();
+            printf("data term...\n");
+
+            vector<double> MRF_data(vtxCount * nLabel, 0.0);
+#pragma omp parallel for
+            for(auto y=0; y < height; ++y){
+                for(auto x = 0; x < width; ++x){
+                    const int vtxIdx = y * width + x;
+                    //assign data term
+                    for(size_t l=0; l<nLabel; ++l){
+                        double e = 0.0;
+                        if(hardConstraint.at<uchar>(y,x) > (uchar)200){
+                            if(l != mask.at<int>(y,x))
+                                e = lambda * (double)images.size();
+                        }else {
+                            for (const auto &img: images) {
+                                Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
+                                e -= log(gmms[l](color));
+                            }
+                        }
+                        MRF_data[vtxIdx * nLabel + l] = e;
+                    }
+
+                }
+            }
+
+            for(auto y=0; y<height; ++y){
+                for(auto x=0; x<width; ++x){
+                    vector<size_t> shape{(size_t)nLabel};
+                    const size_t vtxIdx = y * width + x;
+                    UnaryFunction unary(shape.begin(), shape.end());
+                    for(auto l=0; l<nLabel; ++l){
+                        unary(l) = MRF_data[vtxIdx * nLabel + l];
+                    }
+                    GMModel::FunctionIdentifier fid = model.addFunction(unary);
+                    vector<size_t> vid{(size_t)vtxIdx};
+                    model.addFactor(fid, vid.begin(), vid.end());
+                }
+            }
+            MRF_data.clear();
+
+            printf("Smoothness term...\n");
+            for(auto y = 0; y < height; ++y){
+                for(auto x=0; x < width; ++x){
+                    //assign smoothness weight
+                    const int vtxIdx = y * width + x;
+                    if (x > 0) {
+                        double w = 0.0;
+                        for (const auto &leftW: leftWs) {
+                            w += leftW.at<double>(y,x );
+                        }
+                        vector<size_t> vid{(size_t)vtxIdx - 1, (size_t)vtxIdx};
+                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
+                        GMModel::FunctionIdentifier fid = model.addFunction(pf);
+                        model.addFactor(fid, vid.begin(), vid.end());
+                    }
+                    if (x > 0 && y > 0) {
+                        double w = 0.0;
+                        for (const auto &upleftW: upleftWs) {
+                            w += upleftW.at<double>(y,x);
+                        }
+                        vector<size_t> vid{(size_t)vtxIdx - width - 1, (size_t)(vtxIdx)};
+                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
+                        GMModel::FunctionIdentifier fid = model.addFunction(pf);
+                        model.addFactor(fid, vid.begin(), vid.end());
+                    }
+                    if (y > 0) {
+                        double w = 0.0;
+                        for (const auto &upW: upWs)
+                            w += upW.at<double>(y,x);
+                        vector<size_t> vid{(size_t)vtxIdx - width, (size_t)(vtxIdx)};
+                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
+                        GMModel::FunctionIdentifier fid = model.addFunction(pf);
+                        model.addFactor(fid, vid.begin(), vid.end());
+
+                    }
+                    if (x < width - 1 && y > 0) {
+                        double w = 0.0;
+                        for (const auto &uprightW: uprightWs)
+                            w = uprightW.at<double>(y,x);
+                        vector<size_t> vid{(size_t)vtxIdx - width + 1, (size_t)(vtxIdx)};
+                        PairwiseFunction pf((size_t)nLabel, (size_t)nLabel, 0.0, w);
+                        GMModel::FunctionIdentifier fid = model.addFunction(pf);
+                        model.addFactor(fid, vid.begin(), vid.end());
+                    }
+                }
+            }
+
+            using MinStCutType = opengm::external::MinSTCutKolmogorov<size_t, double>;
+            using MinGraphCut = opengm::GraphCut<GMModel, opengm::Minimizer, MinStCutType>;
+            using MinAlphaExpansion = opengm::AlphaExpansion<GMModel, MinGraphCut>;
+
+            MinAlphaExpansion expansion(model);
+            //run alpha-expansion
+            printf("Solving...\n");
+            printf("Inital energy: %.3f\n", expansion.value());
+            expansion.infer();
+            printf("Done, final energy: %.3f\n", expansion.value());
+
+            vector<size_t> result;
+            expansion.arg(result);
+            CHECK_EQ(result.size(), mask.rows * mask.cols);
+            for(auto y=0; y < mask.rows; ++y){
+                for(auto x=0; x < mask.cols; ++x){
+                    mask.at<int>(y,x) = result[y*width + x];
+                }
+            }
+        }
 
         void mfGrabCut(const std::vector<cv::Mat> &images, cv::Mat &mask, const int iterCount) {
             CHECK(!images.empty());
@@ -595,7 +608,8 @@ namespace dynamic_stereo {
                     assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
                 learnGMMs(images, mask, compIdxs, gmms);
                 printf("graph cut...\n");
-                runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                //runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                runGraphCutOpenGM(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
 
                 Mat stepRes = visualizeSegmentation(mask);
                 cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);

@@ -114,7 +114,7 @@
 #include "maxflow-v3.04.src/graph.h"
 
 
-class Energy : Graph<double, double, double> {
+class Energy : maxflowLib::Graph<double, double, double> {
 public:
     typedef node_id Var;
 
