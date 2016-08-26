@@ -41,6 +41,7 @@ namespace dynamic_stereo{
             vw_option.classifierType = (VisualWord::ClassifierType) classifiertype;
             if(classifiertype == VisualWord::RANDOM_FOREST) {
                 classifier = ml::RTrees::load<ml::RTrees>(classifierPath);
+                CHECK(classifier.get());
                 cout << "Tree depth: " << classifier.dynamicCast<ml::RTrees>()->getMaxDepth() << endl;
             }
             else if(classifiertype == VisualWord::BOOSTED_TREE)
@@ -48,7 +49,6 @@ namespace dynamic_stereo{
             else if(classifiertype == VisualWord::SVM)
                 classifier = ml::SVM::load(classifierPath);
             CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
-
             vector<Mat> segments;
             VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments);
             CHECK_EQ(segments.size(), levelList.size());

@@ -33,6 +33,9 @@ namespace dynamic_stereo {
         void computeColor(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
                           std::vector<float> &desc);
 
+        void computeColorHoG(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
+                             std::vector<float> &desc);
+
         void computeHoG(const std::vector<cv::Mat> &gradient, const PixelGroup &pixelIds,
                         std::vector<float> &hog, const int kBin);
 

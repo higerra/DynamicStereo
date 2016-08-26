@@ -15,8 +15,8 @@ DEFINE_int32(testFrame, 60, "anchor frame");
 DEFINE_int32(resolution, 128, "resolution");
 DEFINE_int32(tWindow, 100, "tWindow");
 DEFINE_int32(downsample, 2, "downsample ratio");
-DEFINE_string(classifierPath, "../../../data/traindata/visualword/model.rf", "Path to classifier");
-DEFINE_string(codebookPath, "../../../data/traindata/visualword/metainfo_cluster00050.yml", "path to codebook");
+DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_new.rf", "Path to classifier");
+DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 DECLARE_string(flagfile);
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);

@@ -220,7 +220,13 @@ namespace dynamic_stereo{
 			}
 		}
 
-		void computeShape(const PixelGroup& pg, const int width, const int height, std::vector<float>& desc){
+        void computeColorHoG(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
+                             std::vector<float> &desc){
+
+        }
+
+
+        void computeShape(const PixelGroup& pg, const int width, const int height, std::vector<float>& desc){
 			//shape descriptor: [area|convexity|rectangleness|number of polygons]
 			desc.resize(4, 0.0f);
             //area

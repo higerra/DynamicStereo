@@ -29,6 +29,5 @@ namespace dynamic_stereo{
 				acc += 1.0f;
 		}
 		return acc / (float)result.rows;
-
 	}
 }//namespace dynamic_stereo
