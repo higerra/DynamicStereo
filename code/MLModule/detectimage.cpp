@@ -34,6 +34,7 @@ namespace dynamic_stereo{
                 printf("Extracting feature...\n");
                 extractFeature(images, gradient, seg, gt, testset);
 
+
                 cv::Ptr<ml::TrainData> testPtr = MLUtility::convertTrainData(testset);
                 CHECK(testPtr.get());
                 Mat result;

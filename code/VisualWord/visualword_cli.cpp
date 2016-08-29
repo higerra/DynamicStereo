@@ -168,7 +168,7 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
             response.insert(response.end(), curResponse.begin(), curResponse.end());
             printf("Extracting features...\n");
             vector<vector<float> > curSegFeatures;
-            extractSegmentFeature(images, pixelGroup, curSegFeatures);
+            ML::extractSegmentFeature(images, pixelGroup, curSegFeatures);
             segmentsFeature.insert(segmentsFeature.end(), curSegFeatures.begin(), curSegFeatures.end());
             //update descriptor map
             printf("Updating descriptor map...\n");

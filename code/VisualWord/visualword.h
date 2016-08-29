@@ -45,8 +45,7 @@ namespace dynamic_stereo {
                          const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &option,
                          cv::OutputArrayOfArrays rawSegments = cv::noArray());
 
-        void extractSegmentFeature(const std::vector<cv::Mat> &images, const std::vector<ML::PixelGroup> &pixelGroups,
-                                   std::vector<std::vector<float> > &feats);
+
 
         double testClassifier(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::StatModel> classifier);
     }//namespace VisualWord

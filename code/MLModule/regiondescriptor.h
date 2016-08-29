@@ -26,15 +26,18 @@ namespace dynamic_stereo {
         void computeHoG(const std::vector<cv::Mat> &gradient, const PixelGroup &pixelIds,
                         std::vector<float> &hog, const int kBin);
 
-        void extractFeature(const std::vector<cv::Mat> &images, const std::vector<cv::Mat> &gradient,
-                            const cv::Mat &segments, const cv::Mat &mask, TrainSet &trainSet);
+        void extractSegmentFeature(const std::vector<cv::Mat> &images, const std::vector<ML::PixelGroup> &pixelGroups,
+                                   std::vector<std::vector<float> > &feats);
+
+//        void extractFeature(const std::vector<cv::Mat> &images, const std::vector<cv::Mat> &gradient,
+//                            const cv::Mat &segments, const cv::Mat &mask, TrainSet &trainSet);
 
         //subroutine for computing feature bins
         void computeColor(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
                           std::vector<float> &desc);
 
-        void computeColorHoG(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
-                             std::vector<float> &desc);
+        void computeColorHist(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
+                             std::vector<float> &desc, const std::vector<int>& kBin);
 
         void computeHoG(const std::vector<cv::Mat> &gradient, const PixelGroup &pixelIds,
                         std::vector<float> &hog, const int kBin);

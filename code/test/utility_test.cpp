@@ -12,20 +12,22 @@ using namespace cv;
 
 const double epsilon = 1e-6;
 
-TEST(OpenCV, horizontalIntegral){
-    Mat data(3, 10, CV_32FC1, Scalar::all(1.0f));
-    Mat inte(3, 11, CV_32FC1, Scalar::all(0.0f));
-    for(auto i=1; i<inte.cols; ++i)
-        inte.col(i) = inte.col(i-1) + data.col(i-1);
-    cout << "Data: " << endl << data << endl;
-    cout << "Horizontal integral: " << endl << inte << endl;
-
-    for(auto sid=0; sid < 5; sid+=2){
-        for(auto eid=5; eid<10; eid+=2){
-            printf("sid: %d, eid:%d\n", sid, eid);
-            Mat mv = (inte.col(eid+1) - inte.col(sid)) / (float)(eid-sid+1);
-            cout << data.colRange(sid, eid+1) << endl;
-            cout << mv << endl;
-        }
+TEST(OpenCV, HSVRange){
+    Mat image(1000,1000,CV_32FC3);
+    cv::RNG rng;
+    rng.fill(image, RNG::UNIFORM, Scalar::all(0), Scalar::all(1));
+    Mat hsvImg;
+    cv::cvtColor(image, hsvImg, CV_BGR2HSV);
+    vector<Mat> spl;
+    cv::split(hsvImg, spl);
+    EXPECT_EQ(spl.size(),3);
+    vector<double> minv(3), maxv(3);
+    vector<double> range{360,1,1};
+    for(auto c=0; c<3; ++c) {
+        cv::minMaxIdx(spl[c], &minv[c], &maxv[c]);
+        printf("Channel %d, min %.2f, max %.2f\n", c, minv[c], maxv[c]);
+        EXPECT_GT(maxv[c], range[c]/2);
+        EXPECT_LE(maxv[c], range[c]);
+        EXPECT_GE(minv[c], 0);
     }
 }

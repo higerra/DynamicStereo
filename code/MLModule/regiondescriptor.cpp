@@ -14,70 +14,96 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 	namespace ML{
-		//feature based over segments
-		void extractFeature(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& gradient,
-							const cv::Mat& segments, const cv::Mat& mask, TrainSet& trainSet){
-			CHECK(!images.empty());
-			CHECK(segments.data);
-			CHECK_EQ(images[0].size(), segments.size());
-
-			if(trainSet.empty())
-				trainSet.resize(2);
-
-			vector<PixelGroup> pixelGroup;
-			printf("Regrouping...\n");
-			const int kSeg = regroupSegments(segments, pixelGroup);
-            for(auto i=0; i<pixelGroup.size(); ++i){
-                printf("Group %d, size: %d\n", i, (int)pixelGroup[i].size());
+        void extractSegmentFeature(const std::vector<cv::Mat> &images, const std::vector<ML::PixelGroup> &pixelGroups,
+                                   std::vector<std::vector<float> > &feats) {
+            CHECK(!images.empty());
+            vector<Mat> colorImage(images.size());
+            for(auto i=0; i<images.size(); ++i){
+                Mat temp;
+                images[i].convertTo(temp, CV_32F);
+                temp /= 255.0f;
+                cvtColor(temp, colorImage[i], CV_BGR2HSV);
             }
-			printf("Assigning label...\n");
-			vector<int> segmentLabel;
-			if(mask.data) {
-				CHECK_EQ(mask.size(), images[0].size());
-				assignSegmentLabel(pixelGroup, mask, segmentLabel);
-			}else{
-				segmentLabel.resize(pixelGroup.size(), 0);
-			}
 
-			vector<Mat> colorImage(images.size());
-			for(auto i=0; i<images.size(); ++i){
-				Mat tmp = images[i] / 255.0;
-				cvtColor(tmp, colorImage[i], CV_BGR2Lab);
-			}
+            const vector<int> kBin{8,8,8};
+            for (const auto &pg: pixelGroups) {
+                vector<float> curRegionFeat;
+                vector<float> color, colorhist, shape, position;
+                ML::computeColor(colorImage, pg, color);
+                ML::computeColorHist(colorImage, pg, colorhist, kBin);
+                ML::computeShape(pg, images[0].cols, images[0].rows, shape);
+                ML::computePosition(pg, images[0].cols, images[0].rows, position);
+                curRegionFeat.insert(curRegionFeat.end(), color.begin(), color.end());
+                curRegionFeat.insert(curRegionFeat.end(), colorhist.begin(), colorhist.end());
+                curRegionFeat.insert(curRegionFeat.end(), shape.begin(), shape.end());
+                curRegionFeat.insert(curRegionFeat.end(), position.begin(), position.end());
+                feats.push_back(curRegionFeat);
+            }
+        }
 
-			//samples are based on segments. Color changes are sample from region
-			const int width = images[0].cols;
-			const int height = images[0].rows;
-			int sid = 0;
-
-			printf("Extracting feature...\n");
-			for(const auto& pg: pixelGroup){
-                CHECK(!pg.empty());
-				SegmentFeature curSample;
-				curSample.id = sid;
-				curSample.feature.clear();
-
-				//mean and variance in L*a*b
-				vector<float> desc_color;
-				computeColor(colorImage, pg, desc_color);
-				curSample.feature.insert(curSample.feature.end(), desc_color.begin(), desc_color.end());
-				//HoG feature
-//				vector<float> hog;
-//				computeHoG(gradient, pg, hog, kBinHoG);
-//				curSample.feature.insert(curSample.feature.end(), hog.begin(), hog.end());
-				//shape
-				vector<float> desc_shape;
-				computeShape(pg, width, height, desc_shape);
-				curSample.feature.insert(curSample.feature.end(), desc_shape.begin(), desc_shape.end());
-
-				vector<float> desc_position;
-				computePosition(pg, width, height, desc_position);
-				curSample.feature.insert(curSample.feature.end(), desc_position.begin(), desc_position.end());
-
-				trainSet[segmentLabel[sid]].push_back(curSample);
-				sid++;
-			}
-		}
+		//feature based over segments
+//		void extractFeature(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& gradient,
+//							const cv::Mat& segments, const cv::Mat& mask, TrainSet& trainSet){
+//			CHECK(!images.empty());
+//			CHECK(segments.data);
+//			CHECK_EQ(images[0].size(), segments.size());
+//
+//			if(trainSet.empty())
+//				trainSet.resize(2);
+//
+//			vector<PixelGroup> pixelGroup;
+//			printf("Regrouping...\n");
+//			const int kSeg = regroupSegments(segments, pixelGroup);
+//            for(auto i=0; i<pixelGroup.size(); ++i){
+//                printf("Group %d, size: %d\n", i, (int)pixelGroup[i].size());
+//            }
+//			printf("Assigning label...\n");
+//			vector<int> segmentLabel;
+//			if(mask.data) {
+//				CHECK_EQ(mask.size(), images[0].size());
+//				assignSegmentLabel(pixelGroup, mask, segmentLabel);
+//			}else{
+//				segmentLabel.resize(pixelGroup.size(), 0);
+//			}
+//
+//			vector<Mat> HSVImage(images.size());
+//			for(auto i=0; i<images.size(); ++i){
+//				cvtColor(images[i], HSVImage[i], CV_BGR2Lab);
+//			}
+//
+//			//samples are based on segments. Color changes are sample from region
+//			const int width = images[0].cols;
+//			const int height = images[0].rows;
+//			int sid = 0;
+//
+//			printf("Extracting feature...\n");
+//			for(const auto& pg: pixelGroup){
+//                CHECK(!pg.empty());
+//				SegmentFeature curSample;
+//				curSample.id = sid;
+//				curSample.feature.clear();
+//
+//				//mean and variance in L*a*b
+//				vector<float> desc_color;
+//				computeColor(colorImage, pg, desc_color);
+//				curSample.feature.insert(curSample.feature.end(), desc_color.begin(), desc_color.end());
+//				//HoG feature
+////				vector<float> hog;
+////				computeHoG(gradient, pg, hog, kBinHoG);
+////				curSample.feature.insert(curSample.feature.end(), hog.begin(), hog.end());
+//				//shape
+//				vector<float> desc_shape;
+//				computeShape(pg, width, height, desc_shape);
+//				curSample.feature.insert(curSample.feature.end(), desc_shape.begin(), desc_shape.end());
+//
+//				vector<float> desc_position;
+//				computePosition(pg, width, height, desc_position);
+//				curSample.feature.insert(curSample.feature.end(), desc_position.begin(), desc_position.end());
+//
+//				trainSet[segmentLabel[sid]].push_back(curSample);
+//				sid++;
+//			}
+//		}
 
 		int compressSegments(std::vector<cv::Mat>& segments){
 			int kSeg = 0;
@@ -220,9 +246,33 @@ namespace dynamic_stereo{
 			}
 		}
 
-        void computeColorHoG(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
-                             std::vector<float> &desc){
+        void computeColorHist(const std::vector<cv::Mat> &colorImage, const PixelGroup &pg,
+                             std::vector<float> &desc, const std::vector<int>& kBin){
+            CHECK(!colorImage.empty());
+            vector<vector<float> > hist(kBin.size());
+            const vector<float> range{361,2,2};
+            vector<float> binUnit(kBin.size());
+            for(auto i=0; i<kBin.size(); ++i){
+                binUnit[i] = range[i] / ((float)kBin[i]);
+            }
+            const int width = colorImage[0].cols;
+            for(auto i=0; i<kBin.size(); ++i)
+                hist[i].resize(kBin[i]);
 
+            for(auto id: pg){
+                for(const auto& img: colorImage){
+                    Vec3f pix = img.at<Vec3f>(id/width, id%width);
+                    for(auto c=0; c<3; ++c){
+                        int bin = pix[c] / binUnit[c];
+                        CHECK_LT(bin, kBin[c]);
+                        hist[c][bin] += 1.0;
+                    }
+                }
+            }
+            for(auto& h: hist){
+                MLUtility::normalizel1(h);
+                desc.insert(desc.end(), h.begin(), h.end());
+            }
         }
 
 

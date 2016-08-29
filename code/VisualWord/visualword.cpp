@@ -32,21 +32,7 @@ namespace dynamic_stereo {
             }
         }
 
-        void extractSegmentFeature(const std::vector<cv::Mat> &images, const std::vector<ML::PixelGroup> &pixelGroups,
-                                   std::vector<std::vector<float> > &feats) {
-            CHECK(!images.empty());
-            for (const auto &pg: pixelGroups) {
-                vector<float> curRegionFeat;
-                vector<float> color, shape, position;
-                ML::computeColor(images, pg, color);
-                ML::computeShape(pg, images[0].cols, images[0].rows, shape);
-                ML::computePosition(pg, images[0].cols, images[0].rows, position);
-                curRegionFeat.insert(curRegionFeat.end(), color.begin(), color.end());
-                curRegionFeat.insert(curRegionFeat.end(), shape.begin(), shape.end());
-                curRegionFeat.insert(curRegionFeat.end(), position.begin(), position.end());
-                feats.push_back(curRegionFeat);
-            }
-        }
+
 
         void detectVideo(const std::vector<cv::Mat> &images,
                          cv::Ptr<cv::ml::StatModel> classifier, const cv::Mat &codebook,
@@ -97,7 +83,7 @@ namespace dynamic_stereo {
                 }
                 Mat bowFeature(kSeg, codebook.rows, CV_32FC1, Scalar::all(0));
                 vector<vector<float> > regionFeature;
-                extractSegmentFeature(images, pixelGroup, regionFeature);
+                ML::extractSegmentFeature(images, pixelGroup, regionFeature);
                 for (auto sid = 0; sid < kSeg; ++sid) {
                     if (!segmentKeypoints[sid].empty()) {
                         Mat bow;
