@@ -19,6 +19,7 @@ DEFINE_string(model, "", "path to trained model");
 DEFINE_string(codebook, "", "path to code book");
 DEFINE_string(classifier, "rf", "random forest(rf) or boosted tree(bt), or SVM(svm)");
 DEFINE_string(validation, "", "path to validation set");
+DEFINE_string(segmentationPath, "", "path to segmentation");
 
 //hyperparameter
 //trees
@@ -158,7 +159,18 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
         //load segment
         for (auto level: levelList) {
             Mat segments;
-            video_segment::segment_video(images, segments, level);
+            sprintf(buffer, "%s/segment_%s_c%.1f.yml", FLAGS_segmentationPath.c_str(), filename.c_str(), level);
+            cv::FileStorage segmentIn(buffer, cv::FileStorage::READ);
+            if(segmentIn.isOpened()){
+                segmentIn["segment"] >> segments;
+            }else {
+                video_segment::segment_video(images, segments, level);
+                if(!FLAGS_segmentationPath.empty()){
+                    cv::FileStorage segmentOut(buffer, cv::FileStorage::WRITE);
+                    if(segmentOut.isOpened())
+                        segmentOut << "segment" << segments;
+                }
+            }
             vector<ML::PixelGroup> pixelGroup;
             ML::regroupSegments(segments, pixelGroup);
             printf("Level %.2f, %d segments\n", level, (int) pixelGroup.size());

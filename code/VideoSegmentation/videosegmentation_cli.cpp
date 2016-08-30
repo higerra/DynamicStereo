@@ -61,14 +61,13 @@ int main(int argc, char** argv){
             images.push_back(frame);
         }
         //test for video segmentation based on binary descriptor
-        Mat segment;
+        Mat segment, segment_refine;
         printf("Video segmentation...\n");
-        video_segment::segment_video(images, segment, (float)FLAGS_c, false, 9, 100, 200, 8, 4,
-                                     video_segment::PixelFeature::PIXEL);
+        video_segment::segment_video(images, segment, (float)FLAGS_c, false);
+        video_segment::segment_video(images, segment_refine, (float)FLAGS_c);
+
         Mat segment_vis = video_segment::visualizeSegmentation(segment);
-        printf("Running refinement...\n");
-        video_segment::mfGrabCut(images, segment);
-        Mat segment_vis2 = video_segment::visualizeSegmentation(segment);
+        Mat segment_vis2 = video_segment::visualizeSegmentation(segment_refine);
 
         Mat result, result_refined;
         const double blend_weight = 0.2;

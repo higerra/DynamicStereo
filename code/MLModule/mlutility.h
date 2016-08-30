@@ -30,6 +30,9 @@ namespace dynamic_stereo {
             void computeGradient(const cv::Mat &images, cv::Mat &gradient);
             void compute3DGradient(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &gradient);
 
+            //deep debug of the random forest
+            void compareSampleRandomForest(const cv::Ptr<cv::ml::RTrees> forest, const cv::Mat& sample1, const cv::Mat& sample2);
+
         }//namespace MLUtility
     }//namespace ML
 }//namespace dynamic_stereo

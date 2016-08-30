@@ -128,6 +128,9 @@ namespace dynamic_stereo {
                 }
             }
 
+            void compareSampleRandomForest(const cv::Ptr<cv::ml::RTrees> forest, const cv::Mat& sample1, const cv::Mat& sample2){
+                
+            }
         }//namespace MLUtility
     }//namespace ML
 

@@ -250,10 +250,10 @@ namespace dynamic_stereo{
                              std::vector<float> &desc, const std::vector<int>& kBin){
             CHECK(!colorImage.empty());
             vector<vector<float> > hist(kBin.size());
-            const vector<float> range{361,2,2};
+            const vector<float> range{360,1,1};
             vector<float> binUnit(kBin.size());
             for(auto i=0; i<kBin.size(); ++i){
-                binUnit[i] = range[i] / ((float)kBin[i]);
+                binUnit[i] = range[i] / ((float)kBin[i]) + 0.00001;
             }
             const int width = colorImage[0].cols;
             for(auto i=0; i<kBin.size(); ++i)
