@@ -303,117 +303,120 @@ namespace dynamic_stereo {
 /*
   Construct GCGraph
 */
-//        static void runGraphCut(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
-//                                const std::vector<ColorGMM>& gmms,
-//                                double lambda,
-//                                const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
-//                                const vector<Mat> &uprightWs){
-//            CHECK(!images.empty());
-//            const int width = images[0].cols;
-//            const int height = images[0].rows;
-//            const int nLabel = (int)gmms.size();
-//            int vtxCount = width * height;
-//
-//            //the energy if divided by ratio, to avoid exceed the limit of int
-//            const double ratio = 1000.0;
-//
-//            vector<double> MRF_data((size_t) nLabel * vtxCount, 0.0);
-//            vector<double> MRF_smoothess((size_t) nLabel * nLabel, 1.0 / ratio);
-//            for(auto l1=0; l1 < nLabel; ++l1){
-//                for(auto l2=0; l2 < nLabel; ++l2){
-//                    if(l1 == l2)
-//                        MRF_smoothess[l1*nLabel+l2] = 0.0;
-//                }
-//            }
-//
-//            float start_t = (float)cv::getTickCount();
-//            printf("data term...\n");
-//#pragma omp parallel for
-//            for(auto y=0; y < height; ++y){
-//                for(auto x = 0; x < width; ++x){
-//                    const int vtxIdx = y * width + x;
-//                    //assign data term
-//                    for(auto l=0; l<nLabel; ++l){
-//                        double e = 0.0;
-//                        if(hardConstraint.at<uchar>(y,x) > (uchar)200){
-//                            if(l != mask.at<int>(y,x))
-//                                e = lambda * (double)images.size();
-//                        }else {
-//                            for (const auto &img: images) {
-//                                Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
-//                                e -= log(gmms[l](color));
-//                            }
-//                        }
-//                        MRF_data[vtxIdx * nLabel + l] = e / ratio;
-//                    }
-//                }
-//            }
-//
-//            DataCost* dataCost = new DataCost(MRF_data.data());
-//            SmoothnessCost* smoothnessCost = new SmoothnessCost(MRF_smoothess.data());
-//            EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
-//            Expansion* mrf = new Expansion(vtxCount, nLabel, energy_function);
-//
-//            mrf->initialize();
-//
-//            printf("Smoothness term...\n");
-//            for(auto y = 0; y < height; ++y){
-//                for(auto x=0; x < width; ++x){
-//                    //assign smoothness weight
-//                    const int vtxIdx = y * width + x;
-//                    if (x > 0) {
-//                        double w = 0.0;
-//                        for (const auto &leftW: leftWs) {
-//                            w += leftW.at<double>(y,x );
-//                        }
-//                        mrf->setNeighbors(vtxIdx, vtxIdx-1, w);
-//                    }
-//                    if (x > 0 && y > 0) {
-//                        double w = 0.0;
-//                        for (const auto &upleftW: upleftWs) {
-//                            w += upleftW.at<double>(y,x);
-//                        }
-//                        mrf->setNeighbors(vtxIdx, vtxIdx - width - 1, w);
-//                    }
-//                    if (y > 0) {
-//                        double w = 0.0;
-//                        for (const auto &upW: upWs)
-//                            w += upW.at<double>(y,x);
-//                        mrf->setNeighbors(vtxIdx, vtxIdx - width, w);
-//                    }
-//                    if (x < width - 1 && y > 0) {
-//                        double w = 0.0;
-//                        for (const auto &uprightW: uprightWs)
-//                            w = uprightW.at<double>(y,x);
-//                        mrf->setNeighbors(vtxIdx, vtxIdx - width + 1, w);
-//                    }
-//                }
-//            }
-//
-//            for (auto y = 0; y < mask.rows; ++y) {
-//                for (auto x = 0; x < mask.cols; ++x) {
-//                    mrf->setLabel(y * width + x, mask.at<int>(y, x));
-//                }
-//            }
-//            mrf->clearAnswer();
-//            //run alpha-expansion
-//            printf("Inital energy: %.3f\n", mrf->totalEnergy());
-//            printf("Solving...\n");
-//            mrf->expansion();
-//            printf("Done, final energy: %.3f\n", mrf->totalEnergy());
-//
-//
-//            for(auto y=0; y < mask.rows; ++y){
-//                for(auto x=0; x < mask.cols; ++x){
-//                    mask.at<int>(y,x) = mrf->getLabel(y*width + x);
-//                }
-//            }
-//            delete mrf;
-//            delete energy_function;
-//            delete smoothnessCost;
-//            delete dataCost;
-//
-//        }
+        static void runGraphCut(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
+                                const std::vector<ColorGMM>& gmms,
+                                double lambda,
+                                const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
+                                const vector<Mat> &uprightWs){
+            CHECK(!images.empty());
+            printf("Using MRF2.2\n");
+            const int width = images[0].cols;
+            const int height = images[0].rows;
+            const int nLabel = (int)gmms.size();
+            int vtxCount = width * height;
+
+            //the energy if divided by ratio, to avoid exceed the limit of int
+            const double ratio = 1000.0;
+
+            vector<double> MRF_data((size_t) nLabel * vtxCount, 0.0);
+            vector<double> MRF_smoothess((size_t) nLabel * nLabel, 1.0 / ratio);
+            for(auto l1=0; l1 < nLabel; ++l1){
+                for(auto l2=0; l2 < nLabel; ++l2){
+                    if(l1 == l2)
+                        MRF_smoothess[l1*nLabel+l2] = 0.0;
+                }
+            }
+
+            float start_t = (float)cv::getTickCount();
+            printf("data term...\n");
+#pragma omp parallel for
+            for(auto y=0; y < height; ++y){
+                for(auto x = 0; x < width; ++x){
+                    const int vtxIdx = y * width + x;
+                    //assign data term
+                    for(auto l=0; l<nLabel; ++l){
+                        double e = 0.0;
+                        if(hardConstraint.at<uchar>(y,x) > (uchar)200){
+                            if(l != mask.at<int>(y,x))
+                                e = lambda * (double)images.size();
+                        }else {
+                            for (const auto &img: images) {
+                                Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
+                                e -= log(gmms[l](color));
+                            }
+                        }
+                        MRF_data[vtxIdx * nLabel + l] = e / ratio;
+                    }
+                }
+            }
+
+            DataCost* dataCost = new DataCost(MRF_data.data());
+            SmoothnessCost* smoothnessCost = new SmoothnessCost(MRF_smoothess.data());
+            EnergyFunction* energy_function = new EnergyFunction(dataCost, smoothnessCost);
+            Expansion* mrf = new Expansion(vtxCount, nLabel, energy_function);
+
+            mrf->initialize();
+
+            printf("Smoothness term...\n");
+            for(auto y = 0; y < height; ++y){
+                for(auto x=0; x < width; ++x){
+                    //assign smoothness weight
+                    const int vtxIdx = y * width + x;
+                    if (x > 0) {
+                        double w = 0.0;
+                        for (const auto &leftW: leftWs) {
+                            w += leftW.at<double>(y,x );
+                        }
+                        mrf->setNeighbors(vtxIdx, vtxIdx-1, w);
+                    }
+                    if (x > 0 && y > 0) {
+                        double w = 0.0;
+                        for (const auto &upleftW: upleftWs) {
+                            w += upleftW.at<double>(y,x);
+                        }
+                        mrf->setNeighbors(vtxIdx, vtxIdx - width - 1, w);
+                    }
+                    if (y > 0) {
+                        double w = 0.0;
+                        for (const auto &upW: upWs)
+                            w += upW.at<double>(y,x);
+                        mrf->setNeighbors(vtxIdx, vtxIdx - width, w);
+                    }
+                    if (x < width - 1 && y > 0) {
+                        double w = 0.0;
+                        for (const auto &uprightW: uprightWs)
+                            w = uprightW.at<double>(y,x);
+                        mrf->setNeighbors(vtxIdx, vtxIdx - width + 1, w);
+                    }
+                }
+            }
+
+            for (auto y = 0; y < mask.rows; ++y) {
+                for (auto x = 0; x < mask.cols; ++x) {
+                    mrf->setLabel(y * width + x, mask.at<int>(y, x));
+                }
+            }
+            mrf->clearAnswer();
+            //run alpha-expansion
+            printf("Inital energy: %.3f\n", mrf->totalEnergy());
+            printf("Solving...\n");
+            start_t = (float)getTickCount();
+            mrf->expansion();
+            printf("Done, final energy: %.3f, time usage: %.2fs\n", mrf->totalEnergy(),
+                   ((float)getTickCount() - start_t) / (float)getTickFrequency());
+
+
+            for(auto y=0; y < mask.rows; ++y){
+                for(auto x=0; x < mask.cols; ++x){
+                    mask.at<int>(y,x) = mrf->getLabel(y*width + x);
+                }
+            }
+            delete mrf;
+            delete energy_function;
+            delete smoothnessCost;
+            delete dataCost;
+
+        }
 
         static void runGraphCutOpenGM(const vector<Mat> &images, Mat &mask, const Mat& hardConstraint,
                                 const std::vector<ColorGMM>& gmms,
@@ -421,7 +424,7 @@ namespace dynamic_stereo {
                                 const vector<Mat> &leftWs, const vector<Mat> &upleftWs, const vector<Mat> &upWs,
                                 const vector<Mat> &uprightWs){
             CHECK(!images.empty());
-
+            printf("Using OpenGM\n");
             //typedef
             using GMSpace = opengm::SimpleDiscreteSpace<size_t, size_t>;
             using UnaryFunction = opengm::ExplicitFunction<double>;
@@ -535,8 +538,10 @@ namespace dynamic_stereo {
             //run alpha-expansion
             printf("Solving...\n");
             printf("Inital energy: %.3f\n", expansion.value());
+            start_t = (float)getTickCount();
             expansion.infer();
-            printf("Done, final energy: %.3f\n", expansion.value());
+            printf("Done, final energy: %.3f, time usage: %.2fs\n", expansion.value(),
+                   ((float)getTickCount() - start_t) / (float)getTickFrequency());
 
             vector<size_t> result;
             expansion.arg(result);
@@ -609,8 +614,8 @@ namespace dynamic_stereo {
                     assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
                 learnGMMs(images, mask, compIdxs, gmms);
                 printf("graph cut...\n");
-                //runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
-                runGraphCutOpenGM(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                //runGraphCutOpenGM(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
 
                 Mat stepRes = visualizeSegmentation(mask);
                 cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);

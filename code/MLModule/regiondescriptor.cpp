@@ -312,9 +312,12 @@ namespace dynamic_stereo{
             vector<vector<cv::Point> > oriContour;
             vector<cv::Point> approxContour;
             cv::findContours(binMat, oriContour, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-            CHECK(!oriContour.empty());
-            cv::approxPolyDP(oriContour[0], approxContour, approxEpsilon, true);
-            desc[3] = (float)approxContour.size();
+			if(oriContour.empty())
+				desc[3] = 0.0;
+			else {
+				cv::approxPolyDP(oriContour[0], approxContour, approxEpsilon, true);
+				desc[3] = (float) approxContour.size();
+			}
 		}
 
 		void computePosition(const PixelGroup& pg, const int width, const int height, std::vector<float>& desc){

@@ -37,7 +37,7 @@ namespace dynamic_stereo {
         void detectVideo(const std::vector<cv::Mat> &images,
                          cv::Ptr<cv::ml::StatModel> classifier, const cv::Mat &codebook,
                          const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &vw_option,
-                         cv::OutputArrayOfArrays rawSegments) {
+                         cv::InputArrayOfArrays inputSegments, cv::OutputArrayOfArrays rawSegments) {
             CHECK(!images.empty());
             CHECK(classifier.get());
             CHECK(codebook.data);
@@ -64,21 +64,31 @@ namespace dynamic_stereo {
                     rawSegments.create(images[0].size(), CV_32S, i);
             }
 
+            vector<Mat> segments;
+            if(!inputSegments.empty()) {
+                inputSegments.getMatVector(segments);
+                CHECK_EQ(segments.size(), levelList.size());
+            }
+
             Mat segmentVote(images[0].size(), CV_32FC1, Scalar::all(0.0f));
             int index = 0;
             for (auto level: levelList) {
-                Mat segments;
-                video_segment::segment_video(images, segments, level, false);
-
-                if(rawSegments.needed()){
-                    segments.copyTo(rawSegments.getMat(index++));
+                Mat segment;
+                if(!segments.empty()) {
+                    segment = segments[index];
+                    CHECK_EQ(segment.size(), images[0].size());
                 }
+                else
+                    video_segment::segment_video(images, segment, level);
+
+                if(rawSegments.needed())
+                    segment.copyTo(rawSegments.getMat(index++));
 
                 vector<ML::PixelGroup> pixelGroup;
-                const int kSeg = ML::regroupSegments(segments, pixelGroup);
+                const int kSeg = ML::regroupSegments(segment, pixelGroup);
                 vector<vector<KeyPoint> > segmentKeypoints((size_t) kSeg);
                 for (const auto &kpt: keypoints) {
-                    int sid = segments.at<int>(kpt.pt);
+                    int sid = segment.at<int>(kpt.pt);
                     segmentKeypoints[sid].push_back(kpt);
                 }
                 Mat bowFeature(kSeg, codebook.rows, CV_32FC1, Scalar::all(0));
@@ -98,14 +108,13 @@ namespace dynamic_stereo {
                     for (auto j = 0; j < regionFeature[sid].size(); ++j)
                         featureMat.at<float>(sid, j + codebook.rows) = regionFeature[sid][j];
                 }
-                printf("Predicting...\n");
                 Mat response;
                 classifier->predict(featureMat, response);
                 CHECK_EQ(response.rows, kSeg);
 
                 for (auto y = 0; y < segmentVote.rows; ++y) {
                     for (auto x = 0; x < segmentVote.cols; ++x) {
-                        int sid = segments.at<int>(y, x);
+                        int sid = segment.at<int>(y, x);
                         if (response.at<float>(sid, 0) > 0.5)
                             segmentVote.at<float>(y, x) += 1.0f;
                     }

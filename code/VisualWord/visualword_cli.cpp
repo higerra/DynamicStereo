@@ -331,8 +331,8 @@ void run_test(int argc, char** argv){
 
 }
 void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
-    if(argc < 3){
-        CHECK(true) <<  "Usage: ./VisualWord --mode=detect <path-to-video> <path-to-segment>";
+    if(argc < 2){
+        CHECK(true) <<  "Usage: ./VisualWord --mode=detect <path-to-video>";
     }
 
     char buffer[256] = {};
