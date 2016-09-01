@@ -73,7 +73,6 @@ namespace dynamic_stereo{
                 for(int i=0; i<levelList.size(); ++i){
                     segmentIn["level"+std::to_string(i)] >> segments[i];
                 }
-                VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
                 run_segmentation = false;
             }
             if(run_segmentation) {
@@ -87,6 +86,8 @@ namespace dynamic_stereo{
                 segmentOut << "levelList" << levelMat;
                 for(int i=0; i<levelList.size(); ++i)
                     segmentOut << "level"+std::to_string(i) << segments[i];
+            }else{
+                VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
             }
 
             //dump out segmentation result
@@ -96,6 +97,9 @@ namespace dynamic_stereo{
                 imwrite(buffer, segVis);
             }
 		}
+
+        sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());
+        imwrite(buffer, preSeg);
         result = video_segment::localRefinement(input, preSeg);
 	}
 

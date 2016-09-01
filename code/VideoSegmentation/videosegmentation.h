@@ -18,7 +18,7 @@ namespace dynamic_stereo {
         int compressSegment(cv::Mat& segment);
 
         int segment_video(const VideoMat &input, cv::Mat &output,
-                          const float c,  const bool refine = true,
+                          const float c,  const bool hasInvalid = false, const bool refine = true,
                           const int smoothSize = 9, const float theta = 100, const int min_size = 200,
                           const int stride1 = 8, const int stride2 = 4,
                           const PixelFeature pfType = PixelFeature::PIXEL,
@@ -26,7 +26,8 @@ namespace dynamic_stereo {
 
         //Multi-frame multi-label grabcut algorithm
         //mask: for both input and output, with type CV_32SC1, the number indicates label id
-        void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask, const int iterCount = 3);
+        void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask,
+                       const bool hasInvalid_ = false, const int iterCount = 3);
 
         cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);
 

@@ -40,7 +40,7 @@ namespace dynamic_stereo {
         }
 
         int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output,
-                          const float c, const bool refine, const int smoothSize, const float theta, const int min_size,
+                          const float c, const bool hasInvalid, const bool refine, const int smoothSize, const float theta, const int min_size,
                           const int stride1, const int stride2,
                           const PixelFeature pfType,
                           const TemporalFeature tfType) {
@@ -257,7 +257,13 @@ namespace dynamic_stereo {
                     printf("Violate occlusion constraint\n");
                     continue;
                 }
-                kOutputLabel++;
+
+                for(auto y=0; y<height; ++y){
+                    for(auto x=0; x<width; ++x){
+                        if(pLabel[y*width+x] == l)
+                            resultMask.at<uchar>(y,x) = (uchar)255;
+                    }
+                }
             }
 
             Mat result;

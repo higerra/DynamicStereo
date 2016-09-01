@@ -46,8 +46,6 @@ namespace dynamic_stereo {
                          cv::InputArrayOfArrays inputSegments = cv::noArray(),
                          cv::OutputArrayOfArrays rawSegments = cv::noArray());
 
-
-
         double testClassifier(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::StatModel> classifier);
     }//namespace VisualWord
 }//namespace dynamic_stereo

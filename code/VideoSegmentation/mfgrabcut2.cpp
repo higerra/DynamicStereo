@@ -79,6 +79,9 @@ Carsten Rother, Vladimir Kolmogorov, Andrew Blake.
 namespace dynamic_stereo {
     namespace video_segment {
 
+        //Ungly global variable... This is really used on every functions, so
+        //declare here to avoid massive function parameter...
+        static bool hasInvalid = false;
 
 /*
   Calculate beta - parameter of GrabCut algorithm.
@@ -91,29 +94,43 @@ namespace dynamic_stereo {
                 for (int y = 0; y < img.rows; y++) {
                     for (int x = 0; x < img.cols; x++) {
                         Vec3d color = img.at<Vec3b>(y, x);
+                        if(cv::norm(color) < numeric_limits<double>::min())
+                            continue;
                         if (x > 0) // left
                         {
-                            Vec3d diff = color - (Vec3d) img.at<Vec3b>(y, x - 1);
-                            beta += diff.dot(diff);
-                            count += 1.0;
+                            Vec3d neiColor = (Vec3d) img.at<Vec3b>(y,x-1);
+                            if((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                                Vec3d diff = color - neiColor;
+                                beta += diff.dot(diff);
+                                count += 1.0;
+                            }
                         }
                         if (y > 0 && x > 0) // upleft
                         {
-                            Vec3d diff = color - (Vec3d) img.at<Vec3b>(y - 1, x - 1);
-                            beta += diff.dot(diff);
-                            count += 1.0;
+                            Vec3d neiColor = (Vec3d) img.at<Vec3b>(y-1, x-1);
+                            if((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                                Vec3d diff = color - neiColor;
+                                beta += diff.dot(diff);
+                                count += 1.0;
+                            }
                         }
                         if (y > 0) // up
                         {
-                            Vec3d diff = color - (Vec3d) img.at<Vec3b>(y - 1, x);
-                            beta += diff.dot(diff);
-                            count += 1.0;
+                            Vec3d neiColor = (Vec3d) img.at<Vec3b>(y-1, x);
+                            if((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                                Vec3d diff = color - neiColor;
+                                beta += diff.dot(diff);
+                                count += 1.0;
+                            }
                         }
                         if (y > 0 && x < img.cols - 1) // upright
                         {
-                            Vec3d diff = color - (Vec3d) img.at<Vec3b>(y - 1, x + 1);
-                            beta += diff.dot(diff);
-                            count += 1.0;
+                            Vec3d neiColor = (Vec3d) img.at<Vec3b>(y - 1, x + 1);
+                            if ((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                                Vec3d diff = color - neiColor;
+                                beta += diff.dot(diff);
+                                count += 1.0;
+                            }
                         }
                     }
                 }
@@ -137,33 +154,46 @@ namespace dynamic_stereo {
             upleftW.create(img.rows, img.cols, CV_64FC1);
             upW.create(img.rows, img.cols, CV_64FC1);
             uprightW.create(img.rows, img.cols, CV_64FC1);
+
+            leftW.setTo(Scalar::all(0));
+            upW.setTo(Scalar::all(0));
+            upleftW.setTo(Scalar::all(0));
+            uprightW.setTo(Scalar::all(0));
+
             for (int y = 0; y < img.rows; y++) {
                 for (int x = 0; x < img.cols; x++) {
                     Vec3d color = img.at<Vec3b>(y, x);
-                    if (x - 1 >= 0) // left
-                    {
-                        Vec3d diff = color - (Vec3d) img.at<Vec3b>(y, x - 1);
-                        leftW.at<double>(y, x) = gamma * exp(-beta * diff.dot(diff));
-                    } else
-                        leftW.at<double>(y, x) = 0;
-                    if (x - 1 >= 0 && y - 1 >= 0) // upleft
-                    {
-                        Vec3d diff = color - (Vec3d) img.at<Vec3b>(y - 1, x - 1);
-                        upleftW.at<double>(y, x) = gammaDivSqrt2 * exp(-beta * diff.dot(diff));
-                    } else
-                        upleftW.at<double>(y, x) = 0;
-                    if (y - 1 >= 0) // up
-                    {
-                        Vec3d diff = color - (Vec3d) img.at<Vec3b>(y - 1, x);
-                        upW.at<double>(y, x) = gamma * exp(-beta * diff.dot(diff));
-                    } else
-                        upW.at<double>(y, x) = 0;
-                    if (x + 1 < img.cols && y - 1 >= 0) // upright
-                    {
-                        Vec3d diff = color - (Vec3d) img.at<Vec3b>(y - 1, x + 1);
-                        uprightW.at<double>(y, x) = gammaDivSqrt2 * exp(-beta * diff.dot(diff));
-                    } else
-                        uprightW.at<double>(y, x) = 0;
+                    if(hasInvalid && cv::norm(color) < numeric_limits<double>::min()){
+                        continue;
+                    }
+                    if (x - 1 >= 0) {
+                        Vec3d neiColor = (Vec3d) img.at<Vec3b>(y, x - 1);
+                        if ((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                            Vec3d diff = color - neiColor;
+                            leftW.at<double>(y, x) = gamma * exp(-beta * diff.dot(diff));
+                        }
+                    }
+                    if (x - 1 >= 0 && y - 1 >= 0){
+                        Vec3d neiColor = (Vec3d) img.at<Vec3b>(y - 1, x - 1);
+                        if ((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                            Vec3d diff = color - neiColor;
+                            upleftW.at<double>(y, x) = gammaDivSqrt2 * exp(-beta * diff.dot(diff));
+                        }
+                    }
+                    if (y - 1 >= 0){
+                        Vec3d neiColor = (Vec3d) img.at<Vec3b>(y - 1, x);
+                        if ((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                            Vec3d diff = color - (Vec3d) img.at<Vec3b>(y - 1, x);
+                            upW.at<double>(y, x) = gamma * exp(-beta * diff.dot(diff));
+                        }
+                    }
+                    if (x + 1 < img.cols && y - 1 >= 0){
+                        Vec3d neiColor = (Vec3d) img.at<Vec3b>(y - 1, x + 1);
+                        if ((!hasInvalid) || (hasInvalid && cv::norm(neiColor) > numeric_limits<double>::min())) {
+                            Vec3d diff = color - neiColor;
+                            uprightW.at<double>(y, x) = gammaDivSqrt2 * exp(-beta * diff.dot(diff));
+                        }
+                    }
                 }
             }
         }
@@ -199,7 +229,7 @@ namespace dynamic_stereo {
             const int nLabel = checkMask(img, mask);
 
             //only modify $shrinkRatio on the border
-            const double shrinkRatio = 0.03;
+            const double shrinkRatio = 0.02;
             const double minShrink = 3;
 
             hardConstraint.create(mask.size(), CV_8UC1);
@@ -246,8 +276,11 @@ namespace dynamic_stereo {
             for (const auto &img: images) {
                 for (p.y = 0; p.y < img.rows; p.y++) {
                     for (p.x = 0; p.x < img.cols; p.x++) {
-                        const int comId = mask.at<int>(p);
-                        samples[comId].push_back((Vec3f) img.at<Vec3b>(p));
+                        Vec3b c = img.at<Vec3b>(p);
+                        if (!hasInvalid || (hasInvalid && (cv::norm(c) > 0))) {
+                            const int comId = mask.at<int>(p);
+                            samples[comId].push_back((Vec3f) img.at<Vec3b>(p));
+                        }
                     }
                 }
             }
@@ -268,13 +301,18 @@ namespace dynamic_stereo {
 /*
   Assign GMMs components for each pixel.
 */
+        //if a pixel is invalid (black), the component id will be set to -1
         static void assignGMMsComponents(const Mat &img, const Mat &mask, const std::vector<ColorGMM>& gmms,
                                          Mat &compIdxs) {
             for (auto y = 0; y < img.rows; ++y) {
                 for (auto x = 0; x < img.cols; ++x) {
                     Vec3f color = (Vec3f)img.at<Vec3b>(y,x);
-                    const int lid = mask.at<int>(y,x);
-                    compIdxs.at<int>(y,x) = gmms[lid].whichComponent(color);
+                    if(hasInvalid && cv::norm(color) < numeric_limits<float>::min()){
+                        compIdxs.at<int>(y,x) = -1;
+                    }else {
+                        const int lid = mask.at<int>(y, x);
+                        compIdxs.at<int>(y, x) = gmms[lid].whichComponent(color);
+                    }
                 }
             }
         }
@@ -291,6 +329,8 @@ namespace dynamic_stereo {
                 for (auto y = 0; y < img.rows; ++y) {
                     for (auto x = 0; x < img.cols; ++x) {
                         const int comId = compIdxs.at<int>(y,x);
+                        if(comId < 0)
+                            continue;
                         const int lid = mask.at<int>(y,x);
                         gmms[lid].addSample(comId, (Vec3f) img.at<Vec3b>(y,x));
                     }
@@ -342,7 +382,8 @@ namespace dynamic_stereo {
                         }else {
                             for (const auto &img: images) {
                                 Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
-                                e -= log(gmms[l](color));
+                                if(!hasInvalid || (hasInvalid && (cv::norm(color) > numeric_limits<double>::min())))
+                                    e -= log(gmms[l](color));
                             }
                         }
                         MRF_data[vtxIdx * nLabel + l] = e / ratio;
@@ -459,7 +500,8 @@ namespace dynamic_stereo {
                         }else {
                             for (const auto &img: images) {
                                 Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
-                                e -= log(gmms[l](color));
+                                if(!hasInvalid || (hasInvalid && (cv::norm(color) > numeric_limits<double>::min())))
+                                    e -= log(gmms[l](color));
                             }
                         }
                         MRF_data[vtxIdx * nLabel + l] = e / ratio;
@@ -553,10 +595,13 @@ namespace dynamic_stereo {
             }
         }
 
-        void mfGrabCut(const std::vector<cv::Mat> &images, cv::Mat &mask, const int iterCount) {
+        void mfGrabCut(const std::vector<cv::Mat> &images, cv::Mat &mask,
+                       const bool hasInvalid_, const int iterCount) {
             CHECK(!images.empty());
             CHECK_EQ(images[0].type(), CV_8UC3);
             CHECK_NOTNULL(mask.data);
+            hasInvalid = hasInvalid_;
+
             Mat hardconstraint;
             const int nLabel = preprocessMask(images[0], mask, hardconstraint);
             std::vector<Mat> compIdxs(images.size());
@@ -614,8 +659,8 @@ namespace dynamic_stereo {
                     assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
                 learnGMMs(images, mask, compIdxs, gmms);
                 printf("graph cut...\n");
-                runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
-                //runGraphCutOpenGM(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                //runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                runGraphCutOpenGM(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
 
                 Mat stepRes = visualizeSegmentation(mask);
                 cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);

@@ -38,7 +38,9 @@ cv::Ptr<cv::ml::StatModel> run_train(cv::Ptr<cv::ml::TrainData> traindata, const
 
 void run_test(int argc, char** argv);
 void run_detect(int argc, char** argv, const VisualWordOption& vw_option);
+void run_detectWithMask(int argc, char** argv, const VisualWordOption& vw_option);
 void run_multiExtract(const std::vector<int>& kClusters, int argc, char** argv, const VisualWordOption& vw_option);
+
 
 VisualWordOption setOption();
 
@@ -83,6 +85,8 @@ int main(int argc, char** argv){
         run_test(argc, argv);
     }else if(FLAGS_mode == "detect"){
         run_detect(argc, argv, vw_option);
+    }else if(FLAGS_mode == "detectWithMask"){
+        run_detectWithMask(argc, argv, vw_option);
     }else if(FLAGS_mode == "grid"){
         cerr << "Grid search Not implemented" << endl;
         return 1;
@@ -373,8 +377,30 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
     CHECK(codebookIn.isOpened()) << "Can not load code book: " << path_codebook;
     codebookIn["codebook"] >> codebook;
 
+    vector<Mat> segments;
+    bool run_segment = true;
+    if(!FLAGS_segmentationPath.empty()){
+        FileStorage segmentIn(FLAGS_segmentationPath, FileStorage::READ);
+        if(segmentIn.isOpened()){
+            Mat levelMat;
+            segmentIn["levelList"] >> levelMat;
+            if(levelMat.rows == levelList.size()){
+                segments.resize(levelList.size());
+                for(int i=0; i<levelList.size(); ++i) {
+                    segmentIn["level" + to_string(i)] >> segments[i];
+                }
+                CHECK_EQ(segments[0].size(), images[0].size());
+                run_segment = false;
+            }
+        }
+    }
+
     Mat detection;
-    detectVideo(images, classifier, codebook, levelList, detection, vw_option);
+    if(run_segment)
+        detectVideo(images, classifier, codebook, levelList, detection, vw_option, noArray(), segments);
+    else
+        detectVideo(images, classifier, codebook, levelList, detection, vw_option, segments, noArray());
+
     imwrite("binary.png", detection);
 
     Mat mask(detection.size(), CV_8UC3, Scalar(255,0,0));
@@ -396,6 +422,73 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
         imwrite(filename + "_result.png", vis);
     }
 }
+
+void run_detectWithMask(int argc, char** argv, const VisualWordOption& vw_option){
+    if(argc < 3){
+        printf("Usage: ./VisualWord --mode=detectWithMask <path-to-video> <path-to-mask>\n");
+        return;
+    }
+    char buffer[256] = {};
+
+    cv::Ptr<ml::StatModel> classifier;
+    if(vw_option.classifierType == RANDOM_FOREST){
+        classifier = ml::RTrees::load<ml::RTrees>(FLAGS_model);
+        CHECK(classifier.get()) << "Can not load classifier: " << FLAGS_model;
+        printf("random forest, max depth: %d\n",
+               classifier.dynamicCast<ml::RTrees>()->getMaxDepth());
+    }else if(vw_option.classifierType == BOOSTED_TREE){
+        classifier = ml::Boost::load<ml::Boost>(FLAGS_model);
+    }else if(vw_option.classifierType == SVM) {
+        classifier = ml::SVM::load(FLAGS_model);
+    }
+
+    printf("Reading video...\n");
+    cv::VideoCapture cap(argv[1]);
+    CHECK(cap.isOpened()) << "Can not open video: " << argv[1];
+    vector<Mat> images;
+    while(true){
+        Mat frame;
+        if(!cap.read(frame))
+            break;
+        images.push_back(frame);
+    }
+    CHECK(!images.empty());
+    Mat refImage = images[0].clone();
+    Mat codebook;
+    cv::FileStorage codebookIn(FLAGS_codebook, FileStorage::READ);
+    CHECK(codebookIn.isOpened()) << "Can not load code book: " << FLAGS_codebook;
+    codebookIn["codebook"] >> codebook;
+
+    Mat gtmask = imread(argv[2], false);
+    CHECK(gtmask.data) << "Can not read mask " << argv[2];
+    CHECK_EQ(gtmask.size(), refImage.size());
+    vector<Mat> segment(1);
+    cv::connectedComponents(gtmask, segment[0]);
+
+    Mat output;
+    const vector<float> dummyList{1.0};
+    detectVideo(images, classifier, codebook, dummyList, output, vw_option, segment);
+
+    Mat mask(output.size(), CV_8UC3, Scalar(255,0,0));
+    for (auto y = 0; y < mask.rows; ++y) {
+        for (auto x = 0; x < mask.cols; ++x) {
+            if (output.at<uchar>(y, x) > (uchar)200)
+                mask.at<Vec3b>(y, x) = Vec3b(0, 0, 255);
+        }
+    }
+    const double blend_weight = 0.4;
+    Mat vis;
+    cv::addWeighted(refImage, blend_weight, mask, 1.0 - blend_weight, 0.0, vis);
+
+    if(argc >= 4){
+        imwrite(argv[3], vis);
+    }else {
+        string fullPath = string(argv[1]);
+        string filename = fullPath.substr(0, fullPath.find_last_of('.'));
+        imwrite(filename + "_resWithMask.png", vis);
+    }
+}
+
 
 void run_multiExtract(const vector<int>& kClusters, int argc, char** argvm, const VisualWordOption& vw_option) {
 //    if (argc < 2) {

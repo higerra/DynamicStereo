@@ -33,7 +33,6 @@ namespace dynamic_stereo {
         }
 
 
-
         void detectVideo(const std::vector<cv::Mat> &images,
                          cv::Ptr<cv::ml::StatModel> classifier, const cv::Mat &codebook,
                          const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &vw_option,
@@ -58,14 +57,14 @@ namespace dynamic_stereo {
             extractor.setVocabulary(codebook);
             char buffer[128] = {};
 
-            if(rawSegments.needed()) {
-                rawSegments.create((int)levelList.size(), 1, CV_32S);
-                for(int i=0; i<levelList.size(); ++i)
+            if (rawSegments.needed()) {
+                rawSegments.create((int) levelList.size(), 1, CV_32S);
+                for (int i = 0; i < levelList.size(); ++i)
                     rawSegments.create(images[0].size(), CV_32S, i);
             }
 
             vector<Mat> segments;
-            if(!inputSegments.empty()) {
+            if (!inputSegments.empty()) {
                 inputSegments.getMatVector(segments);
                 CHECK_EQ(segments.size(), levelList.size());
             }
@@ -74,14 +73,13 @@ namespace dynamic_stereo {
             int index = 0;
             for (auto level: levelList) {
                 Mat segment;
-                if(!segments.empty()) {
+                if (!segments.empty()) {
                     segment = segments[index];
                     CHECK_EQ(segment.size(), images[0].size());
-                }
-                else
-                    video_segment::segment_video(images, segment, level);
+                } else
+                    video_segment::segment_video(images, segment, level, true);
 
-                if(rawSegments.needed())
+                if (rawSegments.needed())
                     segment.copyTo(rawSegments.getMat(index++));
 
                 vector<ML::PixelGroup> pixelGroup;
@@ -131,7 +129,6 @@ namespace dynamic_stereo {
                 }
             }
         }
-
 
         double testClassifier(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::StatModel> classifier) {
             CHECK(testPtr.get());
