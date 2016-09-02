@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.0)
 
 project(SegmentAndRender)
 
-set(SOURCE_FILES dynamicregularizer.cpp dynamicsegment_display.cpp dynamicsegment_flashy.cpp
+set(SOURCE_FILES dynamicregularizer.cpp dynamicsegment_display.cpp dynamicsegment_flashy.cpp RPCA.cpp
         segment_render_cli.cpp)
-set(HEADER_FILES dynamicsegment.h dynamicregularizer.h)
+set(HEADER_FILES dynamicsegment.h dynamicregularizer.h RPCA.h)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/SegmentAndRender)
 

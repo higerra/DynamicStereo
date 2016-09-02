@@ -169,7 +169,7 @@ namespace dynamic_stereo {
 
             if(refine) {
                 printf("Running refinement...\n");
-                mfGrabCut(input, output, 1);
+                mfGrabCut(input, output, 1, 1);
             }
             nLabel = compressSegment(output);
             return nLabel;
