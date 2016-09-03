@@ -131,6 +131,11 @@ namespace math_util {
 			return alpha * (std::abs(v) - 0.5*alpha);
 	}
 
+	template <typename MatrixType>
+	inline double matrix2Norm(const MatrixType& m){
+		Eigen::JacobiSVD<MatrixType> svd(m);
+		return static_cast<double>(svd.singularValues()[0]);
+	}
 
 
 }//namespace math_util
