@@ -22,7 +22,7 @@ namespace dynamic_stereo{
         bool continuationFlag;
         double eta;
         double mu;
-        RPCAOption(): lambda(1.0), maxIter(10000), tol(1e-7), lineSearhFlag(false), continuationFlag(false),
+        RPCAOption(): lambda(-1), maxIter(10000), tol(1e-7), lineSearhFlag(false), continuationFlag(true),
                       eta(0.9), mu(1e-3){}
     };
 

@@ -8,8 +8,16 @@ set(HEADER_FILES dynamicsegment.h dynamicregularizer.h RPCA.h)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/SegmentAndRender)
 
+add_library(RPCA RPCA.h RPCA.cpp)
+target_link_libraries(RPCA glog ${OpenCV_LIBS})
+
 include_directories(/usr/local/include/eigen3 /usr/include/suitesparse ${CMAKE_CURRENT_BINARY_DIR}/../external/video_segmentation)
 #link_directories(/usr/local/lib /usr/lib/x86_64-linux-gnu)
 add_executable(SegmentAndRender ${HEADER_FILES} ${SOURCE_FILES})
 
 target_link_libraries(SegmentAndRender base gflags glog common VideoSegmentModule VisualWordModule MRF cholmod spqr)
+
+#add test
+add_executable(SegmentAndRender_test ${ROOT_DIRECTORY}/test/test_main.cpp render_test.cpp)
+target_link_libraries(SegmentAndRender_test RPCA gtest)
+add_test(NAME SegmentAndRender_test COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/SegmentAndRender_test)
