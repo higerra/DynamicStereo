@@ -6,6 +6,7 @@
 #include "../base/utility.h"
 #include "../base/thread_guard.h"
 #include "../base/depth.h"
+#include "RPCA.h"
 #include <Eigen/Sparse>
 #include <Eigen/SPQRSupport>
 
@@ -244,5 +245,57 @@ namespace dynamic_stereo{
 		for(auto& t: threads)
 			t.join();
 	}
+
+	void regularizationRPCA(const std::vector<cv::Mat> &input,
+							const std::vector<std::vector<Eigen::Vector3d> > &segments,
+							std::vector<cv::Mat> &output, double lambda){
+        CHECK(!input.empty());
+        const int width = input[0].cols;
+        const int height = input[0].rows;
+
+        output.resize(input.size());
+        for(auto v=0; v<input.size(); ++v)
+            output[v] = input[v].clone();
+
+        if(lambda < 0)
+            lambda = std::sqrt((double)input.size());
+
+        const int numThread = 6;
+        auto threadFunc = [&](int tid, int nt){
+            for(auto pid=tid; pid < segments.size(); pid += nt){
+                const int x = pid % width;
+                const int y = pid / width;
+
+                MatrixXd pixMat(3, (int)input.size());
+                for(auto v=0; v<input.size(); ++v){
+                    Vec3b pix = input[v].at<Vec3b>(y,x);
+                    for(auto j=0; j<3; ++j)
+                        pixMat(j,v) = (double)pix[j];
+                }
+
+                MatrixXd res, error;
+                int numIter;
+                RPCAOption option;
+                option.lambda = lambda;
+                solveRPCA(pixMat, res, error, numIter, option);
+
+                for(auto v=0; v<input.size(); ++v){
+                    Vec3b pix((uchar)res(0,v), (uchar)res(1,v), (uchar)res(2,v));
+                    output[v].at<Vec3b>(y,x) = pix;
+                }
+            }
+        };
+
+        vector<thread_guard> threads((size_t) numThread);
+        for(int tid=0; tid < threads.size(); ++tid){
+            std::thread t(threadFunc, tid, numThread);
+            threads[tid].bind(t);
+        }
+
+        for(auto& t: threads)
+            t.join();
+
+	}
+
 
 }//namespace dynamic_stereo

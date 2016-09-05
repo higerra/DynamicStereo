@@ -14,7 +14,7 @@ include_directories(/usr/local/include/eigen3 /usr/include/suitesparse ${CMAKE_C
 #link_directories(/usr/local/lib /usr/lib/x86_64-linux-gnu)
 add_executable(SegmentAndRender ${HEADER_FILES} ${SOURCE_FILES})
 
-target_link_libraries(SegmentAndRender base gflags glog common VideoSegmentModule VisualWordModule MRF cholmod spqr)
+target_link_libraries(SegmentAndRender base gflags glog common RPCA VideoSegmentModule VisualWordModule MRF cholmod spqr)
 
 #add test
 add_executable(SegmentAndRender_test ${ROOT_DIRECTORY}/test/test_main.cpp render_test.cpp)

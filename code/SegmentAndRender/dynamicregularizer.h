@@ -11,17 +11,21 @@
 #include <glog/logging.h>
 #include <Eigen/Eigen>
 
-namespace dynamic_stereo{
+namespace dynamic_stereo {
 
     class Depth;
 
-    void dynamicRegularization(const std::vector<cv::Mat>& input,
-                               const std::vector<std::vector<Eigen::Vector2d> >& segments,
-                               std::vector<cv::Mat>& output, const double weight_smooth);
+    void dynamicRegularization(const std::vector<cv::Mat> &input,
+                               const std::vector<std::vector<Eigen::Vector2d> > &segments,
+                               std::vector<cv::Mat> &output, const double weight_smooth);
 
-    void regularizationPoisson(const std::vector<cv::Mat>& input,
-                               const std::vector<std::vector<Eigen::Vector2d> >& segments,
-                               std::vector<cv::Mat>& output, const double ws, const double wt);
+    void regularizationPoisson(const std::vector<cv::Mat> &input,
+                               const std::vector<std::vector<Eigen::Vector2d> > &segments,
+                               std::vector<cv::Mat> &output, const double ws, const double wt);
+
+    void regularizationRPCA(const std::vector<cv::Mat> &input,
+                            const std::vector<std::vector<Eigen::Vector3d> > &segments,
+                            std::vector<cv::Mat> &output, double lambda = -1);
 
 }//namespace dynamic_stereo
 
