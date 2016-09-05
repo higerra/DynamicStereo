@@ -7,10 +7,8 @@
 #define DYNAMICSTEREO_RPCA_H
 
 #include <Eigen/Eigen>
-#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <vector>
-#include <glog/logging.h>
 
 namespace dynamic_stereo{
 

@@ -4,13 +4,17 @@
 
 #include <limits>
 #include "RPCA.h"
-#include "../base/utility.h"
 
 using namespace std;
 using namespace Eigen;
-using namespace cv;
 
 namespace dynamic_stereo{
+
+    template <typename MatrixType>
+    static inline double matrix2Norm(const MatrixType& m){
+        Eigen::JacobiSVD<MatrixType> svd(m);
+        return static_cast<double>(svd.singularValues()[0]);
+    }
 
     static MatrixXd posMat(const MatrixXd& m){
         MatrixXd res(m);
@@ -57,7 +61,7 @@ namespace dynamic_stereo{
 
         double mu_k = option.mu, mu_0, mu_bar;
         if(option.continuationFlag){
-            double dn = math_util::matrix2Norm<MatrixXd>(D);
+            double dn = matrix2Norm<MatrixXd>(D);
             if(option.lineSearhFlag)
                 mu_0 = option.eta * dn;
             else
@@ -109,9 +113,49 @@ namespace dynamic_stereo{
 
                 double tau_hat = option.eta * tau_k;
 
-                while(!convergedLineSearch){
+                MatrixXd SG_A, SG_E;
+                while (!convergedLineSearch) {
+                    MatrixXd minu = (1 / tau_hat) * (Y_k_A + Y_k_E - D);
+                    MatrixXd G_A = Y_k_A - minu;
+                    MatrixXd G_E = Y_k_E - minu;
 
+                    JacobiSVD<MatrixXd> svd(G_A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+                    auto diagS = svd.singularValues();
+                    MatrixXd tmp1 = diagS.array() - mu_k / tau_hat;
+                    MatrixXd posM1 = posMat(tmp1);
+                    SG_A = svd.matrixU() * posM1.asDiagonal() * svd.matrixV().transpose();
+
+                    MatrixXd tmp2 = G_E.array().abs() - lambda * mu_k / tau_hat;
+                    MatrixXd posM2 = posMat(tmp2);
+                    SG_E = signMat(G_E).array() * posM2.array();
+
+                    MatrixXd SG_AE(SG_A.rows(), SG_A.cols() + SG_E.cols());
+                    SG_AE << SG_A, SG_E;
+                    MatrixXd G_AE(G_A.rows(), G_A.rows() + G_A.cols());
+                    G_AE << G_A, G_E;
+
+                    double diff = (D - SG_A - SG_E).norm();
+                    double F_SG = 0.5 * diff * diff;
+
+                    diff = (SG_AE - G_AE).norm();
+                    double diff2 = (D - Y_k_A - Y_k_E).norm();
+                    double Q_SG_Y = 0.5 * tau_hat * diff * diff + (0.5 - 1 / tau_hat) * diff2 * diff2;
+
+                    if (F_SG <= Q_SG_Y) {
+                        tau_k = tau_hat;
+                        convergedLineSearch = true;
+                    } else {
+                        tau_hat = std::min(tau_hat / option.eta, tau_0);
+                    }
+
+                    numLineSearchIter += 1;
+
+                    if (!convergedLineSearch && numLineSearchIter >= maxLineSearchIter)
+                        convergedLineSearch = true;
                 }
+
+                X_kp1_A = SG_A;
+                X_kp1_E = SG_E;
             }
 
             double t_kp1 = 0.5 * (1 + std::sqrt(1+4*t_k*t_k));
