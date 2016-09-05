@@ -23,8 +23,12 @@ namespace dynamic_stereo {
                                const std::vector<std::vector<Eigen::Vector2d> > &segments,
                                std::vector<cv::Mat> &output, const double ws, const double wt);
 
+    void regularizationFlashy(const std::vector<cv::Mat> &input,
+                              const std::vector<std::vector<Eigen::Vector2d> > &segments,
+                              std::vector<cv::Mat> &output);
+
     void regularizationRPCA(const std::vector<cv::Mat> &input,
-                            const std::vector<std::vector<Eigen::Vector3d> > &segments,
+                            const std::vector<std::vector<Eigen::Vector2d> > &segments,
                             std::vector<cv::Mat> &output, double lambda = -1);
 
 }//namespace dynamic_stereo

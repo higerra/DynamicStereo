@@ -247,7 +247,7 @@ namespace dynamic_stereo{
 	}
 
 	void regularizationRPCA(const std::vector<cv::Mat> &input,
-							const std::vector<std::vector<Eigen::Vector3d> > &segments,
+							const std::vector<std::vector<Eigen::Vector2d> > &segments,
 							std::vector<cv::Mat> &output, double lambda){
         CHECK(!input.empty());
         const int width = input[0].cols;
@@ -256,32 +256,50 @@ namespace dynamic_stereo{
         output.resize(input.size());
         for(auto v=0; v<input.size(); ++v)
             output[v] = input[v].clone();
-
         if(lambda < 0)
             lambda = std::sqrt((double)input.size());
 
         const int numThread = 6;
         auto threadFunc = [&](int tid, int nt){
-            for(auto pid=tid; pid < segments.size(); pid += nt){
-                const int x = pid % width;
-                const int y = pid / width;
+            for(auto sid=tid; sid < segments.size(); sid += nt){
+                printf("Running RPCA for segment %d on thread %d\n", sid, tid);
+                for(const auto& pt: segments[sid]) {
+                    const int x = (int)pt[0];
+                    const int y = (int)pt[1];
 
-                MatrixXd pixMat(3, (int)input.size());
-                for(auto v=0; v<input.size(); ++v){
-                    Vec3b pix = input[v].at<Vec3b>(y,x);
-                    for(auto j=0; j<3; ++j)
-                        pixMat(j,v) = (double)pix[j];
-                }
+                    vector<double> pixV(input.size() * 3, 0.0);
+                    Vector3d medV(0,0,0);
+                    double count = 0;
+                    for (auto v = 0; v < input.size(); ++v) {
+                        Vec3b pix = input[v].at<Vec3b>(y, x);
+                        if(cv::norm(pix) > numeric_limits<double>::min())
+                            count++;
+                        for (auto j = 0; j < 3; ++j) {
+                            pixV[3 * v + j] = (double) pix[j];
+                            medV[j] += (double) pix[j];
+                        }
+                    }
 
-                MatrixXd res, error;
-                int numIter;
-                RPCAOption option;
-                option.lambda = lambda;
-                solveRPCA(pixMat, res, error, numIter, option);
+                    CHECK_GT(count, 0);
+                    for(auto i=0; i<3; ++i)
+                        medV[i] /= count;
+//                    for(auto v=0; v<input.size(); ++v){
+//                        for(auto i=0; i<3; ++i)
+//                            pixV[3 * v + i] -= medV[i];
+//                    }
 
-                for(auto v=0; v<input.size(); ++v){
-                    Vec3b pix((uchar)res(0,v), (uchar)res(1,v), (uchar)res(2,v));
-                    output[v].at<Vec3b>(y,x) = pix;
+                    Eigen::Map<Eigen::MatrixXd> pixMat(pixV.data(), 3, (int)input.size());
+                    MatrixXd res, error;
+                    int numIter;
+                    RPCAOption option;
+                    option.lambda = lambda;
+                    solveRPCA(pixMat, res, error, numIter, option);
+
+                    for (auto v = 0; v < input.size(); ++v) {
+                        Vec3b pix((uchar) res(0, v), (uchar) res(1, v), (uchar) res(2, v));
+                        //output[v].at<Vec3b>(y, x) = pix + Vec3b((uchar)medV[0], (uchar)medV[1], (uchar)medV[2]);
+                        output[v].at<Vec3b>(y, x) = pix;
+                    }
                 }
             }
         };
@@ -296,6 +314,27 @@ namespace dynamic_stereo{
             t.join();
 
 	}
+
+    void regularizationFlashy(const std::vector<cv::Mat> &input,
+                              const std::vector<std::vector<Eigen::Vector2d> > &segments,
+                              std::vector<cv::Mat> &output){
+        CHECK(!input.empty());
+        CHECK_EQ(input.size(), output.size());
+
+        const int numThreads = 6;
+        auto threadFunc = [&](const int tid, const int nt){
+
+        };
+
+        vector<thread_guard> threads((size_t) numThreads);
+        for(int tid=0; tid < numThreads; ++tid){
+            std::thread t(threadFunc, tid, numThreads);
+            threads[tid].bind(t);
+        }
+
+        for(auto& t: threads)
+            t.join();
+    }
 
 
 }//namespace dynamic_stereo

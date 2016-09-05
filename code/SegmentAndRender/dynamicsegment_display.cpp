@@ -96,6 +96,9 @@ namespace dynamic_stereo{
                 sprintf(buffer, "%s/temp/videosegment%05d_%.1f.png", file_io.getDirectory().c_str(), anchor, levelList[i]);
                 imwrite(buffer, segVis);
             }
+
+            sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
+            imwrite(buffer, preSeg);
 		}
 
         sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());
