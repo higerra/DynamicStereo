@@ -50,7 +50,7 @@ namespace dynamic_stereo{
 
         double lambda = option.lambda;
         if(lambda < 0)
-            lambda = std::sqrt(std::max(m, n));
+            lambda = 1.0 / std::sqrt(std::min(m, n));
 
         //initialization
         double t_k = 1, t_km1 = 1, tau_0 = 2;
