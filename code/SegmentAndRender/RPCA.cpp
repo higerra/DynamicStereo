@@ -95,15 +95,11 @@ namespace dynamic_stereo{
                 MatrixXd G_k_A = Y_k_A - (1 / tau_k) * (Y_k_A + Y_k_E - D);
                 MatrixXd G_k_E = Y_k_E - (1 / tau_k) * (Y_k_A + Y_k_E - D);
 
-
                 JacobiSVD<MatrixXd> svd(G_k_A, Eigen::ComputeThinU | Eigen::ComputeThinV);
                 auto diagS = svd.singularValues();
-
                 MatrixXd tmp1 = (diagS.array() - mu_k / tau_k);
                 MatrixXd posM1 = posMat(tmp1);
-
                 X_kp1_A = svd.matrixU() * posM1.asDiagonal() * svd.matrixV().transpose();
-
                 MatrixXd tmp2 = G_k_E.array().abs() - lambda * mu_k / tau_k;
                 MatrixXd posM2 = posMat(tmp2);
                 X_kp1_E = signMat(G_k_E).array() * posM2.array();
@@ -166,7 +162,7 @@ namespace dynamic_stereo{
 
             MatrixXd S_kp1_AE(S_kp1_A.rows(), S_kp1_A.cols() + S_kp1_E.cols());
             S_kp1_AE << S_kp1_A, S_kp1_E;
-            MatrixXd X_kp1_AE(X_kp1_A.rows(), X_kp1_A.cols() * X_kp1_E.cols());
+            MatrixXd X_kp1_AE(X_kp1_A.rows(), X_kp1_A.cols() + X_kp1_E.cols());
             X_kp1_AE << X_kp1_A, X_kp1_E;
 
             double stoppingCriterion = S_kp1_AE.norm() / (tau_k * std::max(1.0, X_kp1_AE.norm()));

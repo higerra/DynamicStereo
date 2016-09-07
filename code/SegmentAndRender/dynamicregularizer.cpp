@@ -263,46 +263,75 @@ namespace dynamic_stereo{
         auto threadFunc = [&](int tid, int nt){
             for(auto sid=tid; sid < segments.size(); sid += nt){
                 printf("Running RPCA for segment %d on thread %d\n", sid, tid);
-                for(const auto& pt: segments[sid]) {
-                    const int x = (int)pt[0];
-                    const int y = (int)pt[1];
+				for(auto c=0; c<3; ++c){
+					MatrixXd pixelMat((int)input.size(), (int)segments[sid].size());
+					for(auto v=0; v<input.size(); ++v){
+						int index = 0;
+						for(const auto& pt: segments[sid]){
+							pixelMat(v, index) = (double)input[v].at<Vec3b>((int)pt[1], (int)pt[0])[c];
+							index++;
+						}
+					}
 
-                    vector<double> pixV(input.size() * 3, 0.0);
-                    Vector3d medV(0,0,0);
-                    double count = 0;
-                    for (auto v = 0; v < input.size(); ++v) {
-                        Vec3b pix = input[v].at<Vec3b>(y, x);
-                        if(cv::norm(pix) > numeric_limits<double>::min())
-                            count++;
-                        for (auto j = 0; j < 3; ++j) {
-                            pixV[3 * v + j] = (double) pix[j];
-                            medV[j] += (double) pix[j];
-                        }
-                    }
+					MatrixXd res, error;
+					int numIter;
+					RPCAOption option;
+					option.lambda = lambda;
+					solveRPCA(pixelMat, res, error, numIter, option);
 
-                    CHECK_GT(count, 0);
-                    for(auto i=0; i<3; ++i)
-                        medV[i] /= count;
-//                    for(auto v=0; v<input.size(); ++v){
-//                        for(auto i=0; i<3; ++i)
-//                            pixV[3 * v + i] -= medV[i];
+					for(auto v=0; v<output.size(); ++v){
+						int index = 0;
+						for(const auto& pt: segments[sid]){
+							output[v].at<Vec3b>((int)pt[1], (int)pt[0])[c] = (uchar)pixelMat(v, index);
+							index++;
+						}
+					}
+				}
+
+//                for(const auto& pt: segments[sid]) {
+//                    const int x = (int)pt[0];
+//                    const int y = (int)pt[1];
+//
+//                    vector<double> pixV(input.size() * 3, 0.0);
+//                    Vector3d medV(0,0,0);
+//                    double count = 0;
+//                    for (auto v = 0; v < input.size(); ++v) {
+//                        Vec3b pix = input[v].at<Vec3b>(y, x);
+//                        if(cv::norm(pix) > numeric_limits<double>::min())
+//                            count++;
+//                        for (auto j = 0; j < 3; ++j) {
+//                            pixV[3 * v + j] = (double) pix[j];
+//                            medV[j] += (double) pix[j];
+//                        }
 //                    }
-
-                    Eigen::Map<Eigen::MatrixXd> pixMat(pixV.data(), 3, (int)input.size());
-                    MatrixXd res, error;
-                    int numIter;
-                    RPCAOption option;
-                    option.lambda = lambda;
-                    solveRPCA(pixMat, res, error, numIter, option);
-
-                    for (auto v = 0; v < input.size(); ++v) {
-                        Vec3b pix((uchar) res(0, v), (uchar) res(1, v), (uchar) res(2, v));
-                        //output[v].at<Vec3b>(y, x) = pix + Vec3b((uchar)medV[0], (uchar)medV[1], (uchar)medV[2]);
-                        output[v].at<Vec3b>(y, x) = pix;
-                    }
-                }
+//
+//                    CHECK_GT(count, 0);
+//                    for(auto i=0; i<3; ++i)
+//                        medV[i] /= count;
+////                    for(auto v=0; v<input.size(); ++v){
+////                        for(auto i=0; i<3; ++i)
+////                            pixV[3 * v + i] -= medV[i];
+////                    }
+//
+//                    Eigen::Map<Eigen::MatrixXd> pixMat(pixV.data(), 3, (int)input.size());
+//                    MatrixXd res, error;
+//                    int numIter;
+//                    RPCAOption option;
+//                    option.lambda = lambda;
+//                    solveRPCA(pixMat, res, error, numIter, option);
+//
+//                    for (auto v = 0; v < input.size(); ++v) {
+//                        Vec3b pix((uchar) res(0, v), (uchar) res(1, v), (uchar) res(2, v));
+//                        //output[v].at<Vec3b>(y, x) = pix + Vec3b((uchar)medV[0], (uchar)medV[1], (uchar)medV[2]);
+//                        output[v].at<Vec3b>(y, x) = pix;
+//                    }
+//                }
             }
         };
+
+//		for(auto tid=0; tid < segments.size(); ++tid){
+//			threadFunc(tid, 1);
+//		}
 
         vector<thread_guard> threads((size_t) numThread);
         for(int tid=0; tid < threads.size(); ++tid){

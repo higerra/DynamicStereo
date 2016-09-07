@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
 
     Mat seg_result_display, seg_result_flashy;
 	segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-	segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
+	//segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
 
 //	//visualize result
 //    Mat seg_display, seg_flashy;
@@ -97,14 +97,14 @@ int main(int argc, char** argv) {
 		}
 	}
 	cv::resize(seg_result_display, seg_result_display, images[0].size(), 0, 0, INTER_NEAREST);
-	cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
+	//cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
 
 	vector<vector<Vector2d> > segmentsDisplay;
 	vector<vector<Vector2d> > segmentsFlashy;
 	groupPixel(seg_result_display, segmentsDisplay);
-	groupPixel(seg_result_flashy, segmentsFlashy);
+	//groupPixel(seg_result_flashy, segmentsFlashy);
 
-	segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
+	//segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
 
     vector <Mat> finalResult;
     printf("Full warping...\n");
@@ -117,12 +117,14 @@ int main(int argc, char** argv) {
         imwrite(buffer, finalResult[i]);
     }
 
-	printf("Running regularizaion\n");
+
     vector <Mat> regulared;
 	float reg_t = (float)cv::getTickCount();
+    const double regular_lambda = 1.0 / std::sqrt((double)finalResult.size());
 //	//dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
 //	regularizationPoisson(finalResult, segmentsDisplay, regulared, 0.1, 0.5);
-	regularizationRPCA(finalResult, segmentsDisplay, regulared, 0.1);
+    printf("Running regularizaion, lambda: %.3f\n", regular_lambda);
+	regularizationRPCA(finalResult, segmentsDisplay, regulared, 1.0 / std::sqrt((double)finalResult.size()));
 	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
 	CHECK_EQ(regulared.size(), finalResult.size());
 
