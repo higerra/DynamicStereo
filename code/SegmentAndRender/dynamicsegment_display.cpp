@@ -106,7 +106,7 @@ namespace dynamic_stereo{
         result = video_segment::localRefinement(input, preSeg);
 	}
 
-	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments){
+	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments){
 		CHECK_NOTNULL(labels.data);
 		CHECK_EQ(labels.type(), CV_32S);
 		double minl, maxl;
@@ -119,7 +119,7 @@ namespace dynamic_stereo{
 			for(auto x=0; x<labels.cols; ++x){
 				int l = labels.at<int>(y,x);
 				if(l > 0)
-					segments[l-1].push_back(Vector2d(x,y));
+					segments[l-1].push_back(Vector2i(x,y));
 			}
 		}
 	}

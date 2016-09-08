@@ -148,8 +148,8 @@ namespace dynamic_stereo {
     }
 
     void DynamicWarpping::warpToAnchor(const vector<Mat>& images,
-                                       const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
-                                       const std::vector<std::vector<Eigen::Vector2d> >& segmentsFlashy,
+                                       const std::vector<std::vector<Eigen::Vector2i> >& segmentsDisplay,
+                                       const std::vector<std::vector<Eigen::Vector2i> >& segmentsFlashy,
                                        std::vector<cv::Mat> &output,
                                        const int kFrame) const {
         printf("Warpping...\n");
@@ -198,7 +198,7 @@ namespace dynamic_stereo {
         auto threadFuncDisplay = [&](const int tid, const int num_thread){
             for(auto sid=tid; sid<segmentsDisplay.size(); sid+=num_thread){
                 printf("Segment %d(%d) on thread %d\n", sid, (int)segmentsDisplay.size(), tid);
-                const vector<Vector2d>& curSeg = segmentsDisplay[sid];
+                const vector<Vector2i>& curSeg = segmentsDisplay[sid];
                 const int invalidMargin = (int)curSeg.size() / 50;
                 //end frame and start frame
                 int startFrame = 0, endFrame = (int)images.size() - 1;
@@ -207,11 +207,11 @@ namespace dynamic_stereo {
                     segc.resize(images.size(), Vector3d(0,0,0));
                 vector<int> invalidCount(images.size(), 0);
                 for(auto i=0; i<curSeg.size(); ++i){
-                    Vector2d dsegpt = curSeg[i] / downsample;
+                    Vector2d dsegpt = curSeg[i].cast<double>() / downsample;
                     if(dsegpt[0] < -borderMargin || dsegpt[1] < -borderMargin ||
                        dsegpt[0] >= refDepth->getWidth()-1+borderMargin || dsegpt[1] >= refDepth->getHeight()-1+borderMargin)
                         continue;
-                    Vector3d spt = cam1.GetPosition() + refDepth->getDepthAt(dsegpt) * cam1.PixelToUnitDepthRay(curSeg[i]);
+                    Vector3d spt = cam1.GetPosition() + refDepth->getDepthAt(dsegpt) * cam1.PixelToUnitDepthRay(curSeg[i].cast<double>());
                     for(auto fid=anchor-offset-1; fid >= 0; --fid){
                         segColors[i][fid] = projectPoint(spt, fid);
                         if((segColors[i][fid]-outToken).norm() < epsilon){

@@ -23,8 +23,8 @@ namespace dynamic_stereo {
 						const double wSmooth = -1);
 
         void warpToAnchor(const std::vector<cv::Mat>& images,
-						  const std::vector<std::vector<Eigen::Vector2d> >& segmentsDisplay,
-						  const std::vector<std::vector<Eigen::Vector2d> >& segmentsFlashy,
+						  const std::vector<std::vector<Eigen::Vector2i> >& segmentsDisplay,
+						  const std::vector<std::vector<Eigen::Vector2i> >& segmentsFlashy,
 						  std::vector<cv::Mat>& output, const int kFrame) const;
 		void preWarping(std::vector<cv::Mat>& warped) const;
 

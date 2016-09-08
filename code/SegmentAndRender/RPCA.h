@@ -20,8 +20,9 @@ namespace dynamic_stereo{
         bool continuationFlag;
         double eta;
         double mu;
+        bool verbose;
         RPCAOption(): lambda(-1), maxIter(10000), tol(1e-7), lineSearhFlag(false), continuationFlag(true),
-                      eta(0.9), mu(1e-3){}
+                      eta(0.9), mu(1e-3), verbose(false){}
     };
 
     void solveRPCA(const Eigen::MatrixXd& D, Eigen::MatrixXd& A_hat, Eigen::MatrixXd& E_hat, int& numIter,

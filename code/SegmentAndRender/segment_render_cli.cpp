@@ -17,6 +17,7 @@ DEFINE_int32(tWindow, 100, "tWindow");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_new.rf", "Path to classifier");
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
+DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
 DECLARE_string(flagfile);
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);
@@ -60,25 +61,6 @@ int main(int argc, char** argv) {
 	segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
 	//segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
 
-//	//visualize result
-//    Mat seg_display, seg_flashy;
-//    cv::resize(seg_result_display, seg_display, cv::Size(width, height), 0, 0, INTER_NEAREST);
-//    cv::resize(seg_result_flashy, seg_flashy, cv::Size(width, height), 0, 0, INTER_NEAREST);
-//    Mat seg_overlay(height, width, CV_8UC3, Scalar(0, 0, 0));
-//    for (auto y = 0; y < height; ++y) {
-//        for (auto x = 0; x < width; ++x) {
-//            if (seg_display.at<int>(y, x) > 0)
-//                seg_overlay.at<Vec3b>(y, x) = refImage.at<Vec3b>(y, x) * 0.4 + Vec3b(255, 0, 0) * 0.6;
-//            else if (seg_flashy.at<int>(y, x) > 0)
-//                seg_overlay.at<Vec3b>(y, x) = refImage.at<Vec3b>(y, x) * 0.4 + Vec3b(0, 255, 0) * 0.6;
-//            else
-//                seg_overlay.at<Vec3b>(y, x) = refImage.at<Vec3b>(y, x) * 0.4 + Vec3b(0, 0, 255) * 0.6;
-//        }
-//    }
-//    sprintf(buffer, "%s/temp/segment%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//    imwrite(buffer, seg_overlay);
-
-
 	//////////////////////////////////////////////////////////
 	//Rendering
 	//reload full resolution image, set black pixel to (1,1,1)
@@ -97,10 +79,10 @@ int main(int argc, char** argv) {
 		}
 	}
 	cv::resize(seg_result_display, seg_result_display, images[0].size(), 0, 0, INTER_NEAREST);
-	//cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
+    //cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
 
-	vector<vector<Vector2d> > segmentsDisplay;
-	vector<vector<Vector2d> > segmentsFlashy;
+	vector<vector<Vector2i> > segmentsDisplay;
+	vector<vector<Vector2i> > segmentsFlashy;
 	groupPixel(seg_result_display, segmentsDisplay);
 	//groupPixel(seg_result_flashy, segmentsFlashy);
 
@@ -117,23 +99,35 @@ int main(int argc, char** argv) {
         imwrite(buffer, finalResult[i]);
     }
 
-
     vector <Mat> regulared;
-	float reg_t = (float)cv::getTickCount();
-    const double regular_lambda = 1.0 / std::sqrt((double)finalResult.size());
-//	//dynamicRegularization(finalResult, segmentsDisplay, regulared, 0.6);
-//	regularizationPoisson(finalResult, segmentsDisplay, regulared, 0.1, 0.5);
-    printf("Running regularizaion, lambda: %.3f\n", regular_lambda);
-	regularizationRPCA(finalResult, segmentsDisplay, regulared, 1.0 / std::sqrt((double)finalResult.size()));
-	printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
-	CHECK_EQ(regulared.size(), finalResult.size());
 
-//	vector<Mat> medianResult;
-//	utility::temporalMedianFilter(finalResult, medianResult, 2);
-//    utility::temporalMedianFilter(finalResult, regulared, 3);
+	float reg_t = (float)cv::getTickCount();
+
+    if(FLAGS_regularization == "median"){
+        const int medianR = 2;
+        printf("Running regularization with median filter, r: %d\n", medianR);
+        temporalMedianFilter(finalResult, segmentsDisplay, regulared, medianR);
+    }else if(FLAGS_regularization == "RPCA"){
+        const double regular_lambda = 0.01;
+        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
+        regularizationRPCA(finalResult, segmentsDisplay, regulared, 1.0 / std::sqrt((double)finalResult.size()));
+    }else if(FLAGS_regularization == "anisotropic"){
+        const double ws = 0.6;
+        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
+        regularizationAnisotropic(finalResult, segmentsDisplay, regulared, ws);
+    }else if(FLAGS_regularization == "poisson"){
+        const double ws = 0.1, wt = 0.5;
+        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
+        regularizationPoisson(finalResult, segmentsDisplay, regulared, ws, wt);
+    }else{
+        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
+        return 1;
+    }
+    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
 
     for (auto i = 0; i < regulared.size(); ++i) {
-        sprintf(buffer, "%s/temp/regulared%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame,
+        cv::putText(regulared[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
+        sprintf(buffer, "%s/temp/regulared_%s_%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_regularization.c_str(), FLAGS_testFrame,
                 i );
         imwrite(buffer, regulared[i]);
     }

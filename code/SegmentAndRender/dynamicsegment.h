@@ -27,7 +27,7 @@ namespace dynamic_stereo {
 	void segmentDisplay(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, const cv::Mat& segnetMask,
 						const std::string& classifierPath, const std::string& codebookPath, cv::Mat& result);
 
-	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2d> >& segments);
+	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments);
 }//namespace dynamic_stereo
 
 

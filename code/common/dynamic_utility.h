@@ -32,7 +32,7 @@ namespace dynamic_stereo{
                                     cv::Mat &imgL, cv::Mat &imgR);
         void computeMinMaxDepth(const dynamic_stereo::SfMModel& sfm, const int refId, double& min_depth, double& max_depth);
 
-        void temporalMedianFilter(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const int r);
+
 
         double getFrequencyScore(const cv::Mat& colorArray, const int min_frq);
     }//namespace utility
