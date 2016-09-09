@@ -104,13 +104,13 @@ int main(int argc, char** argv) {
 	float reg_t = (float)cv::getTickCount();
 
     if(FLAGS_regularization == "median"){
-        const int medianR = 2;
+        const int medianR = 5;
         printf("Running regularization with median filter, r: %d\n", medianR);
         temporalMedianFilter(finalResult, segmentsDisplay, regulared, medianR);
     }else if(FLAGS_regularization == "RPCA"){
         const double regular_lambda = 0.01;
         printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
-        regularizationRPCA(finalResult, segmentsDisplay, regulared, 1.0 / std::sqrt((double)finalResult.size()));
+        regularizationRPCA(finalResult, segmentsDisplay, regulared, regular_lambda);
     }else if(FLAGS_regularization == "anisotropic"){
         const double ws = 0.6;
         printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
