@@ -33,9 +33,6 @@ namespace interpolation_util {
 			return res;
 		}
 
-//	char buffer[100] = {};
-//		sprintf(buffer, "bilinear(): coordinate out of range: (%.2f,%.2f), (%d,%d,%d,%d), l1:%d, l2:%d!",
-//		        loc[0], loc[1], xl, yl, xh, yh, l1, l2);
 		CHECK(!(l1 < 0 || l2 < 0 || l1 >= w * h || l2 >= w * h)) << loc[0] << ' ' << loc[1] << ' '<< w << ' '<< h;
 
 		double lm = loc[0] - (double) xl, rm = (double) xh - loc[0];
