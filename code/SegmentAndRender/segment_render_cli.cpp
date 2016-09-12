@@ -5,6 +5,7 @@
 #include <gflags/gflags.h>
 #include "dynamicregularizer.h"
 #include "../common/dynamicwarpping.h"
+#include "stabilization.h"
 
 using namespace std;
 using namespace cv;
@@ -18,6 +19,8 @@ DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_new.rf", "Path to classifier");
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
+
+DEFINE_double(weight_stab, 1.0, "Weight for similarity term in grid stabilization");
 DECLARE_string(flagfile);
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);
@@ -99,10 +102,26 @@ int main(int argc, char** argv) {
         imwrite(buffer, finalResult[i]);
     }
 
+    //three step regularization:
+    //1. Apply a small poisson smoothing, fill in holes
+    //2. Geometric stablization by grid warping
+    //3. Apply RPCA to smooth transition and remove high frequency noise
+
     vector <Mat> regulared;
 
-	float reg_t = (float)cv::getTickCount();
+    vector <Mat> midRes;
+    printf("Step 1: fill holes by poisson smoothing\n");
+    const double small_poisson = 0.01;
+    regularizationPoisson(finalResult, segmentsDisplay, midRes, small_poisson, small_poisson);
+    finalResult.swap(midRes);
+    midRes.clear();
 
+    printf("Step 2: geometric stablization\n");
+    float stab_t = (float)cv::getTickCount();
+    stablizeSegments(finalResult, midRes, segmentsDisplay, FLAGS_weight_stab);
+    printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
+    
+	float reg_t = (float)cv::getTickCount();
     if(FLAGS_regularization == "median"){
         const int medianR = 5;
         printf("Running regularization with median filter, r: %d\n", medianR);

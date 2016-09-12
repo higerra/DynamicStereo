@@ -44,10 +44,10 @@ namespace dynamic_stereo {
                 :fixedV(fixedV_), weight(std::sqrt(weight_)){}
         template<typename T>
         bool operator()(const T* const g, T* residual) const{
-            T res1, res2;
-            if(fixedV){
-                res1 = g[0] - (*fixedV)[0];
-                res2 = g[1] - (*fixedV)[1];
+            T res1 = g[0], res2 = g[1];
+            if(fixedV !=  nullptr){
+                res1 -= (T)(*fixedV)[0];
+                res2 -= (T)(*fixedV)[1];
             }
             residual[0] = ceres::sqrt(res1 * res1 + res2 * res2 + (T)std::numeric_limits<double>::min()) * weight;
             return true;

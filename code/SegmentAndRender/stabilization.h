@@ -18,10 +18,14 @@ namespace dynamic_stereo {
         double blockW, blockH;
     };
 
+    void warpbyGrid(const cv::Mat& input, cv::Mat& output, const WarpGrid& grid);
+
     void getGridIndAndWeight(const WarpGrid& grid, const Eigen::Vector2d& pt, Eigen::Vector4i& ind, Eigen::Vector4d& w);
 
     void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double ws, const int step = 1);
 
+    void stablizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
+                          const std::vector<std::vector<Eigen::Vector2i> >& segments, const double ws);
 
 }//namespace dynamic_stereo
 
