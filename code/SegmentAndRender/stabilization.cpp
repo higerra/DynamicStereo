@@ -124,8 +124,8 @@ namespace dynamic_stereo {
         //Pay attention to the directioin of warping:
         //to match frame v against v-1, we need to compute warping
         //field from v-1 to v
+#pragma omp parallel for
         for (auto v = 1; v < input.size(); ++v) {
-            printf("Frame %d -> %d\n", v-1, v);
             vector<vector<double> > vars(grid.gridLoc.size());
             for (auto &v: vars)
                 v.resize(2, 0.0);
@@ -175,10 +175,6 @@ namespace dynamic_stereo {
                     gid1 = y * (gridW + 1) + x;
                     gid2 = (y - 1) * (gridW + 1) + x;
                     gid3 = y * (gridW + 1) + x + 1;
-                    CHECK_LT(gid1, grid.gridLoc.size());
-                    CHECK_LT(gid2, grid.gridLoc.size());
-                    CHECK_LT(gid3, grid.gridLoc.size());
-
                     problem.AddResidualBlock(
                             new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
                                     new WarpFunctorSimilarity(grid.gridLoc[gid1], grid.gridLoc[gid2], grid.gridLoc[gid3], ws)),
@@ -198,7 +194,7 @@ namespace dynamic_stereo {
             ceres::Solver::Summary summary;
             float start_t = cv::getTickCount();
             ceres::Solve(ceres_option, &problem, &summary);
-            cout << summary.BriefReport() << endl;
+//            cout << summary.BriefReport() << endl;
 
             for(auto i=0; i<vars.size(); ++i){
                 warpingField[v][i][0] = vars[i][0];
@@ -211,7 +207,6 @@ namespace dynamic_stereo {
                 warpingField[v][i] += warpingField[v-1][i];
         }
 
-        printf("Warping...");
 #pragma omp parallel for
         for(auto v=1; v<input.size(); ++v) {
             WarpGrid warpGrid(width, height, gridW, gridH);
@@ -236,6 +231,7 @@ namespace dynamic_stereo {
         const int margin = 5;
         int index = 0;
         for(const auto& segment: segments){
+            printf("Segment %d/%d\n", index, (int)segments.size());
             cv::Point2i tl(width+1, height+1);
             cv::Point2i br(-1, -1);
             for(const auto& pt: segment){

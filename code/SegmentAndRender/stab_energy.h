@@ -16,7 +16,8 @@ namespace dynamic_stereo {
         WarpFunctorDense(const cv::Mat& srcImg_, const Eigen::Vector3d& tgtColor_,
                          const Eigen::Vector4i& biInd_, const Eigen::Vector4d& biW_,
                          const std::vector<Eigen::Vector2d>& loc_, const double weight_)
-                : srcImg(srcImg_), tgtColor(tgtColor_), biInd(biInd_), biW(biW_), loc(loc_), weight(std::sqrt(weight_)){
+                : srcImg(srcImg_), tgtColor(tgtColor_), biInd(biInd_), biW(biW_), loc(loc_),
+                  large_penalty(1000), weight(std::sqrt(weight_)){
         }
 
         bool operator()(const double* const g1, const double* const g2, const double* const g3,
@@ -25,6 +26,10 @@ namespace dynamic_stereo {
                     (Eigen::Vector2d(g2[0], g2[1]) + loc[biInd[1]]) * biW[1] +
                     (Eigen::Vector2d(g3[0], g3[1]) + loc[biInd[2]]) * biW[2] +
                     (Eigen::Vector2d(g4[0], g4[1]) + loc[biInd[3]]) * biW[3];
+            if(pt2[0] < 0 || pt2[1] < 0 || pt2[0] >= srcImg.cols -1 || pt2[1] >= srcImg.rows - 1){
+                residual[0] = 1000.0;
+                return true;
+            }
             Eigen::Vector3d srcColor = interpolation_util::bilinear<uchar,3>(srcImg.data, srcImg.cols, srcImg.rows, pt2);
             residual[0] = (srcColor - tgtColor).norm() * weight;
             return true;
@@ -37,6 +42,7 @@ namespace dynamic_stereo {
         const Eigen::Vector4d biW;
         const std::vector<Eigen::Vector2d>& loc;
 
+        const double large_penalty;
         const double weight;
     };
 
