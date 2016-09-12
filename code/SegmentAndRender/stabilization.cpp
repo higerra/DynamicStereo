@@ -3,6 +3,7 @@
 //
 
 #include "stabilization.h"
+#include "stab_energy.h"
 
 using namespace std;
 using namespace cv;
@@ -62,7 +63,7 @@ namespace dynamic_stereo {
         CHECK_LT(error, 0.0001) << pt[0] << ' ' << pt[1] << ' ' << pt2[0] << ' ' << pt2[1];
     }
 
-    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double ws){
+    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double ws, const int step){
         CHECK(!input.empty());
         const int width = input[0].cols;
         const int height = input[0].rows;
@@ -71,10 +72,18 @@ namespace dynamic_stereo {
 
         //variables for optimization: offset from original grid.
         //Note, defination different from old gridWarpping
-        vector<vector<double> > vars(grid.gridLoc.size());
-        for(auto& v: vars)
-            v.resize(2, 0.0);
+        //from frame v to frame v-1
+        for(auto v=1; v<input.size(); ++v) {
+            vector<vector<double> > vars(grid.gridLoc.size());
+            for (auto &v: vars)
+                v.resize(2, 0.0);
+            //create problem
+            //appearance term
 
+            //boundary constraint
 
+            //similarity term
+
+        }
     }
 }//namespace dynamic_stereo

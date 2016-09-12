@@ -20,7 +20,7 @@ namespace dynamic_stereo {
 
     void getGridIndAndWeight(const WarpGrid& grid, const Eigen::Vector2d& pt, Eigen::Vector4i& ind, Eigen::Vector4d& w);
 
-    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double ws);
+    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double ws, const int step = 1);
 
 
 }//namespace dynamic_stereo
