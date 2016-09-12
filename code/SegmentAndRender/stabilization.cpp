@@ -65,9 +65,8 @@ namespace dynamic_stereo {
 
     void warpbyGrid(const cv::Mat& input, cv::Mat& output, const WarpGrid& grid){
         output = input.clone();
-#pragma omp parallel for
         for(auto y=0; y<output.rows; ++y){
-            for(auto x=0; x<output.cols; ++y){
+            for(auto x=0; x<output.cols; ++x){
                 Vector4d biW;
                 Vector4i biInd;
                 getGridIndAndWeight(grid, Vector2d(x,y), biInd, biW);
@@ -84,8 +83,24 @@ namespace dynamic_stereo {
         }
     }
 
+    static bool isOnGrid(const WarpGrid& grid, const Eigen::Vector2d& pt, const double margin = 0.01){
+        for(const auto& loc: grid.gridLoc){
+            if(std::abs(pt[0] - loc[0]) < margin)
+                return true;
+            else if(std::abs(pt[1] - loc[1]) < margin)
+                return true;
+        }
+        return false;
+    }
+
+
     void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double ws, const int step) {
         CHECK(!input.empty());
+        output.resize(input.size());
+
+        //Don't forget to copy the first frame!
+        output[0] = input[0].clone();
+
         const int width = input[0].cols;
         const int height = input[0].rows;
         const int gridW = 64, gridH = 64;
@@ -110,7 +125,6 @@ namespace dynamic_stereo {
         //to match frame v against v-1, we need to compute warping
         //field from v-1 to v
         for (auto v = 1; v < input.size(); ++v) {
-            printf("----------------\n");
             printf("Frame %d -> %d\n", v-1, v);
             vector<vector<double> > vars(grid.gridLoc.size());
             for (auto &v: vars)
@@ -121,11 +135,17 @@ namespace dynamic_stereo {
             //appearance term
             for (auto y = 0; y < height; y += step) {
                 for (auto x = 0; x < width; x += step) {
+                    //skip pixels on the grid to ease boundary handling
+                    if(isOnGrid(grid, Vector2d(x,y)))
+                        continue;
+
                     Vec3b pix = input[v].at<Vec3b>(y, x);
                     Vector3d tgtColor((double) pix[0], (double) pix[1], (double) pix[2]);
                     Vector4i biInd;
                     Vector4d biW;
+
                     getGridIndAndWeight(grid, Vector2d(x, y), biInd, biW);
+
                     ceres::CostFunction *cost_data =
                             new ceres::NumericDiffCostFunction<WarpFunctorDense, ceres::CENTRAL, 1, 2, 2, 2, 2>(
                                     new WarpFunctorDense(input[v-1], tgtColor, biInd, biW, grid.gridLoc, 1.0)
@@ -150,11 +170,15 @@ namespace dynamic_stereo {
 
             //similarity term
             for(auto y=1; y<=gridH; ++y){
-                for(auto x=1; x<=gridW; ++x){
+                for(auto x=0; x< gridW; ++x){
                     int gid1, gid2, gid3;
                     gid1 = y * (gridW + 1) + x;
                     gid2 = (y - 1) * (gridW + 1) + x;
                     gid3 = y * (gridW + 1) + x + 1;
+                    CHECK_LT(gid1, grid.gridLoc.size());
+                    CHECK_LT(gid2, grid.gridLoc.size());
+                    CHECK_LT(gid3, grid.gridLoc.size());
+
                     problem.AddResidualBlock(
                             new ceres::AutoDiffCostFunction<WarpFunctorSimilarity, 1, 2, 2, 2>(
                                     new WarpFunctorSimilarity(grid.gridLoc[gid1], grid.gridLoc[gid2], grid.gridLoc[gid3], ws)),
@@ -176,16 +200,22 @@ namespace dynamic_stereo {
             ceres::Solve(ceres_option, &problem, &summary);
             cout << summary.BriefReport() << endl;
 
-            //aggregate result
             for(auto i=0; i<vars.size(); ++i){
-                warpingField[v][i][0] = warpingField[v-1][i][0] + vars[i][0];
-                warpingField[v][i][1] = warpingField[v-1][i][1] + vars[i][1];
+                warpingField[v][i][0] = vars[i][0];
+                warpingField[v][i][1] = vars[i][1];
             }
+        }
 
-            printf("Warping...\n");
+        for(auto v=1; v<input.size(); ++v){
+            for(auto i=0; i<warpingField[v].size(); ++i)
+                warpingField[v][i] += warpingField[v-1][i];
+        }
+
+        printf("Warping...");
+#pragma omp parallel for
+        for(auto v=1; v<input.size(); ++v) {
             WarpGrid warpGrid(width, height, gridW, gridH);
-            CHECK_EQ(warpGrid.gridLoc.size(), warpingField.size());
-            for(auto i=0; i<warpingField.size(); ++i){
+            for (auto i = 0; i < warpingField[v].size(); ++i) {
                 warpGrid.gridLoc[i] += warpingField[v][i];
             }
             warpbyGrid(input[v], output[v], warpGrid);
@@ -204,6 +234,7 @@ namespace dynamic_stereo {
         const int height = input[0].rows;
 
         const int margin = 5;
+        int index = 0;
         for(const auto& segment: segments){
             cv::Point2i tl(width+1, height+1);
             cv::Point2i br(-1, -1);
@@ -222,8 +253,10 @@ namespace dynamic_stereo {
             for(auto v=0; v<input.size(); ++v)
                 warp_input[v] = input[v](roi);
             gridStabilization(warp_input, warp_output, ws);
-            for(auto v=0; v<output.size(); ++v)
+            for(auto v=0; v<output.size(); ++v) {
                 warp_output[v].copyTo(output[v](roi));
+            }
+            index++;
         }
     }
 }//namespace dynamic_stereo

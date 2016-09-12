@@ -16,7 +16,9 @@ namespace dynamic_stereo {
         WarpFunctorDense(const cv::Mat& srcImg_, const Eigen::Vector3d& tgtColor_,
                          const Eigen::Vector4i& biInd_, const Eigen::Vector4d& biW_,
                          const std::vector<Eigen::Vector2d>& loc_, const double weight_)
-                : srcImg(srcImg_), tgtColor(tgtColor_), biInd(biInd_), biW(biW_), loc(loc_), weight(std::sqrt(weight_)){}
+                : srcImg(srcImg_), tgtColor(tgtColor_), biInd(biInd_), biW(biW_), loc(loc_), weight(std::sqrt(weight_)){
+        }
+
         bool operator()(const double* const g1, const double* const g2, const double* const g3,
                         const double* const g4, double* residual) const{
             Eigen::Vector2d pt2 = (Eigen::Vector2d(g1[0], g1[1]) + loc[biInd[0]]) * biW[0] +
@@ -30,9 +32,9 @@ namespace dynamic_stereo {
 
     private:
         const cv::Mat& srcImg;
-        const Eigen::Vector3d& tgtColor;
-        const Eigen::Vector4i& biInd;
-        const Eigen::Vector4d& biW;
+        const Eigen::Vector3d tgtColor;
+        const Eigen::Vector4i biInd;
+        const Eigen::Vector4d biW;
         const std::vector<Eigen::Vector2d>& loc;
 
         const double weight;
