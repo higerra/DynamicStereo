@@ -78,8 +78,14 @@ namespace dynamic_stereo {
             for (auto &v: vars)
                 v.resize(2, 0.0);
             //create problem
+            ceres::Problem problem;
+            
             //appearance term
+            for(auto y=0 y < height; y+=step){
+                for(auto x=0; x<width; x+=step){
 
+                }
+            }
             //boundary constraint
 
             //similarity term
