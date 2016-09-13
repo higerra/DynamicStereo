@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
     float stab_t = (float)cv::getTickCount();
     vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
     
-    stablizeSegments(debugInput, regulared, segmentsDisplay, FLAGS_weight_stab);
+    stabilizeSegments(debugInput, regulared, segmentsDisplay, FLAGS_weight_stab);
     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
     finalResult.swap(regulared);
     regulared.clear();

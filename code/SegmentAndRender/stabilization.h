@@ -11,21 +11,20 @@
 
 namespace dynamic_stereo {
 
-    struct WarpGrid{
-        WarpGrid(const int width, const int height, const int gridW_, const int gridH_);
-        std::vector<Eigen::Vector2d> gridLoc;
-        int gridW, gridH;
-        double blockW, blockH;
+    enum StabAlg{
+        GRID,
+        FLOW
     };
 
-    void warpbyGrid(const cv::Mat& input, cv::Mat& output, const WarpGrid& grid);
+    void stabilizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
+                           const std::vector<std::vector<Eigen::Vector2i> >& segments, const double lambda,
+                           const StabAlg alg = FLOW);
 
-    void getGridIndAndWeight(const WarpGrid& grid, const Eigen::Vector2d& pt, Eigen::Vector4i& ind, Eigen::Vector4d& w);
+    void flowStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
+                           const cv::InputArray mask = cv::noArray());
 
-    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double ws, const int step = 1);
-
-    void stablizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
-                          const std::vector<std::vector<Eigen::Vector2i> >& segments, const double ws);
+    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
+                           const int step = 1);
 
 }//namespace dynamic_stereo
 
