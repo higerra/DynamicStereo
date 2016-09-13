@@ -20,7 +20,7 @@ DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/da
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
 
-DEFINE_double(weight_stab, 1.0, "Weight for similarity term in grid stabilization");
+DEFINE_double(weight_stab, 0.1, "Weight for similarity term in grid stabilization");
 DECLARE_string(flagfile);
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);
@@ -117,7 +117,9 @@ int main(int argc, char** argv) {
 
     printf("Step 2: geometric stablization\n");
     float stab_t = (float)cv::getTickCount();
-    stablizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab);
+    vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
+    
+    stablizeSegments(debugInput, regulared, segmentsDisplay, FLAGS_weight_stab);
     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
     finalResult.swap(regulared);
     regulared.clear();

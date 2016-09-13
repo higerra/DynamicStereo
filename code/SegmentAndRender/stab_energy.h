@@ -32,6 +32,9 @@ namespace dynamic_stereo {
             }
             Eigen::Vector3d srcColor = interpolation_util::bilinear<uchar,3>(srcImg.data, srcImg.cols, srcImg.rows, pt2);
             residual[0] = (srcColor - tgtColor).norm() * weight;
+	    /* printf("pt2:(%.2f,%.2f), srcColor:(%.1f,%.1f,%.1f), residual:%.2f\n", pt2[0], pt2[1], */
+	    /* 	   srcColor[0], srcColor[1], srcColor[2], residual[0]); */
+	    
             return true;
         }
 
