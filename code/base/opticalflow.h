@@ -11,7 +11,6 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <list>
-#include "frame.h"
 #include <glog/logging.h>
 #include "utility.h"
 #ifdef USE_CUDA
@@ -43,6 +42,15 @@ namespace dynamic_stereo {
 		inline int height() const {return h;}
 		inline Eigen::Vector2d getFlowAt(const Eigen::Vector2d& loc)const{
 			return interpolation_util::bilinear<double, 2>(img.data(), width(),height(), loc);
+		}
+		inline Eigen::Vector2d getFlowAt(const int x, const int y) const{
+			CHECK_LT(x, w);
+			CHECK_LT(y, h);
+			return getFlowAt(y*w+x);
+		}
+		inline Eigen::Vector2d getFlowAt(const int ind) const{
+			CHECK_LT(2 * ind, w * h);
+			return Eigen::Vector2d(img[2*ind], img[2*ind+1]);
 		}
 		inline void allocate(const int w_, const int h_){
 			img.resize(w * h * 2);
@@ -86,9 +94,7 @@ namespace dynamic_stereo {
 #ifdef USE_CUDA
 	class FlowEstimatorGPU: public FlowEstimator{
 	public:
-		FlowEstimatorGPU(){
-			brox = cv::cuda::BroxOpticalFlow::create(0.197f, 50.0f, 0.8f, 10, 77, 10);
-		}
+		FlowEstimatorGPU();
 		virtual void estimate(const cv::Mat& img1, const cv::Mat& img2, FlowFrame& flow, const int nLevel);
 	private:
 		cv::Ptr<cv::cuda::BroxOpticalFlow> brox;

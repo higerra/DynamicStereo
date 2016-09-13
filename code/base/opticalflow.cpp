@@ -103,6 +103,10 @@ namespace dynamic_stereo {
 	}
 
 #ifdef USE_CUDA
+    FlowEstimatorGPU::FlowEstimatorGPU(){
+        brox = cv::cuda::BroxOpticalFlow::create(0.197f, 50.0f, 0.8f, 10, 77, 10);
+    }
+
 	void FlowEstimatorGPU::estimate(const cv::Mat &img1, const cv::Mat &img2, FlowFrame &flow, const int nLevel) {
 		CHECK(!img1.empty());
 		CHECK_EQ(img1.channels(), 1);
@@ -209,9 +213,9 @@ namespace dynamic_stereo {
 			return true;
 		}
 
-		Mat drawFlowDot(const Frame &frame, const Vector2d &loc, const int nlevel) {
+		Mat drawFlowDot(const cv::Mat &frame, const Vector2d &loc, const int nlevel) {
 			vector<Mat> pyramid(nlevel);
-			pyramid[0] = frame.getImage().clone();
+			pyramid[0] = frame.clone();
 			for (int i = 1; i < nlevel; ++i)
 				pyrDown(pyramid[i - 1], pyramid[i]);
 			circle(pyramid.back(), cv::Point(loc[0], loc[1]), 3, Scalar(0, 255, 255), 3);

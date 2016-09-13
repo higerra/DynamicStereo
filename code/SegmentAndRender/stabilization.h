@@ -21,7 +21,7 @@ namespace dynamic_stereo {
                            const StabAlg alg = FLOW);
 
     void flowStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
-                           const cv::InputArray mask = cv::noArray());
+                           const cv::InputArray inputMask = cv::noArray());
 
     void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
                            const int step = 1);
