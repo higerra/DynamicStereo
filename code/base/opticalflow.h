@@ -49,11 +49,11 @@ namespace dynamic_stereo {
 			return getFlowAt(y*w+x);
 		}
 		inline Eigen::Vector2d getFlowAt(const int ind) const{
-			CHECK_LT(2 * ind, w * h);
+			CHECK_LT(2 * ind, img.size());
 			return Eigen::Vector2d(img[2*ind], img[2*ind+1]);
 		}
 		inline void allocate(const int w_, const int h_){
-			img.resize(w * h * 2);
+			img.resize(w * h * 2, 0.0);
 			w = w_;
 			h = h_;
 		}

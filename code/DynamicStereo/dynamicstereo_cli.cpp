@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 	warpping->preWarping(prewarp);
 
 	sprintf(buffer, "rm %s/midres/prewarp/prewarpb%05d_*.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	system(buffer);
+	int ret = system(buffer);
 
 	for(auto i=0; i<prewarp.size(); ++i){
 		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);
