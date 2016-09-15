@@ -40,7 +40,7 @@ add_subdirectory(${ROOT_DIRECTORY}/external/video_segmentation)
 #add_subdirectory(${ROOT_DIRECTORY}/external/KMeansRex)
 add_subdirectory(${ROOT_DIRECTORY}/VideoSegmentation)
 add_subdirectory(${ROOT_DIRECTORY}/MLModule)
-
+add_subdirectory(${ROOT_DIRECTORY}/SubspaceStab)
 #main code
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/common)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)

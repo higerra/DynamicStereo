@@ -61,7 +61,7 @@ namespace CudaVision{
 
     template<typename T>
     T findMedian(T* array) {
-        
+
     }
 
 

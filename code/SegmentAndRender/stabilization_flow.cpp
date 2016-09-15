@@ -4,6 +4,7 @@
 
 #include "stabilization.h"
 #include "../base/opticalflow.h"
+#include "RPCA.h"
 
 using namespace std;
 using namespace Eigen;
@@ -67,10 +68,13 @@ namespace dynamic_stereo{
         CHECK_EQ(rowInd, kPix);
 
         //run RPCA
-        Eigen::MatrixXd resFlow;
-
-        //pass through
-        resFlow = flowMat;
+        Eigen::MatrixXd resFlow, errorFlow;
+        RPCAOption option;
+        option.lambda = lambda;
+        int numIter;
+        printf("Runing RPCA...\n");
+        solveRPCA(flowMat, resFlow, errorFlow, numIter, option);
+        printf("Done\n");
 
         //warp by result flow
         output[0] = input[0].clone();
