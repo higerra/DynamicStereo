@@ -18,7 +18,6 @@ namespace interpolation_util {
 		const double epsilon = 0.00001;
 		int xl = floor(loc[0] - epsilon), xh = (int) round(loc[0] + 0.5 - epsilon);
 		int yl = floor(loc[1] - epsilon), yh = (int) round(loc[1] + 0.5 - epsilon);
-
 		if (loc[0] <= epsilon)
 			xl = 0;
 		if (loc[1] <= epsilon)
@@ -51,6 +50,7 @@ namespace interpolation_util {
 			return (v[0] * rm + v[2] * lm) / (lm + rm);
 
 		Vector4d vw(rm * bm, lm * bm, lm * tm, rm * tm);
+
 		double sum = vw.sum();
 //	sprintf(buffer, "loc:(%.2f,%.2f), integer: (%d,%d,%d,%d), margin: (%.2f,%.2f,%.2f,%.2f), sum: %.2f",
 //		loc[0], loc[1], xl, yl, xh, yh, lm, rm, tm, bm, sum);

@@ -87,6 +87,7 @@ namespace dynamic_stereo{
                     rowInd++;
                 }
             }
+            flow_util::warpImage(input[v], output[v], curFlow);
         }
     }
 }//namespace dynamic_stereo
