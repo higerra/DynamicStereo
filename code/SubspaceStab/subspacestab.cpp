@@ -17,6 +17,7 @@ namespace substab{
         FeatureTracks trackMatrix;
         LOG(INFO) << "Computing track matrix";
         Tracking::genTrackMatrix(input, trackMatrix, option.tWindow, option.stride);
+        LOG(INFO) << "Total number of tracks: " << trackMatrix.offset.size();
         Eigen::MatrixXd coe, bas, smoothedBas;
 
         vector<vector<int> > wMatrix(trackMatrix.offset.size());

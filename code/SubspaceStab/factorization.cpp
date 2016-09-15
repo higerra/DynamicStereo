@@ -30,10 +30,9 @@ namespace substab{
 							fullTrackInd.push_back(tid);
 					}
 				}
-//				printf("First window, complete track: %d\n", (int) fullTrackInd.size());
 
-				filterDynamicTrack(images, trackMatrix, fullTrackInd, testV, tWindow, wMatrix);
 
+//				filterDynamicTrack(images, trackMatrix, fullTrackInd, testV, tWindow, wMatrix);
 				MatrixXd A((int) fullTrackInd.size() * 2, tWindow);
 
 				for (auto ftid = 0; ftid < fullTrackInd.size(); ++ftid) {
@@ -130,8 +129,8 @@ namespace substab{
 					}
 				}
 
-				filterDynamicTrack(images, trackMatrix, preFullTrackInd, v, tWindow, wMatrix);
-				filterDynamicTrack(images, trackMatrix, newFullTrackInd, v, tWindow, wMatrix);
+//				filterDynamicTrack(images, trackMatrix, preFullTrackInd, v, tWindow, wMatrix);
+//				filterDynamicTrack(images, trackMatrix, newFullTrackInd, v, tWindow, wMatrix);
 
 				MatrixXd A12 = MatrixXd::Zero((int) preFullTrackInd.size() * 2, stride);
 				MatrixXd A2 = MatrixXd::Zero((int) newFullTrackInd.size() * 2, tWindow);

@@ -3,6 +3,7 @@
 //
 
 #include "stabilization.h"
+#include "../SubspaceStab/subspacestab.h"
 
 using namespace std;
 using namespace cv;
@@ -55,7 +56,15 @@ namespace dynamic_stereo{
                 gridStabilization(warp_input, warp_output, lambda);
             else if(alg == FLOW)
                 flowStabilization(warp_input, warp_output, lambda);
+            else if(alg == SUBSTAB){
+                substab::SubSpaceStabOption option;
+                option.output_crop = false;
+                option.output_drawpoints = true;
+                substab::subSpaceStabilization(warp_input, warp_output, option);
+            }
             for (auto v = 0; v < output.size(); ++v) {
+                imshow("warpout", warp_output[v]);
+                waitKey(0);
                 warp_output[v].copyTo(output[v](roi));
             }
             index++;

@@ -116,20 +116,19 @@ int main(int argc, char** argv) {
 
     vector <Mat> regulared;
 
-    printf("Step 1: Fill holes by poisson smoothing\n");
-    const double small_poisson = 0.01;
-    regularizationPoisson(finalResult, segmentsDisplay, regulared, small_poisson, small_poisson);
-    finalResult.swap(regulared);
-    regulared.clear();
-
-//    printf("Step 2: geometric stablization\n");
-//    float stab_t = (float)cv::getTickCount();
-    //vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
-    
-//    stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab);
-//    printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
+//    printf("Step 1: Fill holes by poisson smoothing\n");
+//    const double small_poisson = 0.01;
+//    regularizationPoisson(finalResult, segmentsDisplay, regulared, small_poisson, small_poisson);
 //    finalResult.swap(regulared);
 //    regulared.clear();
+
+    printf("Step 2: geometric stablization\n");
+    float stab_t = (float)cv::getTickCount();
+//    vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
+    stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::SUBSTAB);
+    printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
+    finalResult.swap(regulared);
+    regulared.clear();
 
     sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);

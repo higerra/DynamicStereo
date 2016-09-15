@@ -6,21 +6,22 @@
 #define DYNAMICSTEREO_SUBSPACESTAB_H
 
 #include <vector>
+#include <opencv2/opencv.hpp>
 
-namespace cv{
-    class Mat;
-}
 namespace substab {
 
     struct SubSpaceStabOption {
-        SubSpaceStabOption(int tWindow_ = 30, int stride_ = 5, int smoothR_ = -1,
+        SubSpaceStabOption(int tWindow_, int stride_, int smoothR_,
                            bool resize = false, bool crop = false, bool drawpoints = false,
                            int num_threads_ = 6)
                 : tWindow(tWindow_), stride(stride_), smoothR(smoothR_),
-                  input_resize(resize) ,output_crop(crop), output_drawpoints(drawpoints), num_thread(num_threads_){
-            if(smoothR < 0)
+                  input_resize(resize), output_crop(crop), output_drawpoints(drawpoints), num_thread(num_threads_) {
+            if (smoothR < 0)
                 smoothR = tWindow / 2;
         }
+
+        SubSpaceStabOption() : tWindow(30), stride(5), smoothR(15), input_resize(false),
+                  output_crop(true), output_drawpoints(false), num_thread(6) {}
 
         int tWindow;
         int stride;
