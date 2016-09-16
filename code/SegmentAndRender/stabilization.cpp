@@ -63,8 +63,6 @@ namespace dynamic_stereo{
                 substab::subSpaceStabilization(warp_input, warp_output, option);
             }
             for (auto v = 0; v < output.size(); ++v) {
-                imshow("warpout", warp_output[v]);
-                waitKey(0);
                 warp_output[v].copyTo(output[v](roi));
             }
             index++;

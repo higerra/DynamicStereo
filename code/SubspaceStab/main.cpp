@@ -20,31 +20,31 @@ DEFINE_bool(verbose, true, "Print running information");
 
 void importVideo(const std::string& path, std::vector<cv::Mat>& images, double& fps, int& vcodec);
 int main(int argc, char** argv){
-	if(argc < 2){
-		cerr << "Usage ./SubspaceStab <path-to-input> <path-to-output>" << endl;
-		cerr << "Use './SubspaceStab --help' to view full list of options" << endl;
-		return 1;
-	}
-	google::InitGoogleLogging(argv[0]);
-	google::ParseCommandLineFlags(&argc, &argv, true);
+    if(argc < 2){
+	cerr << "Usage ./SubspaceStab <path-to-input> <path-to-output>" << endl;
+	cerr << "Use './SubspaceStab --help' to view full list of options" << endl;
+	return 1;
+    }
+    google::InitGoogleLogging(argv[0]);
+    google::ParseCommandLineFlags(&argc, &argv, true);
 
-	if(FLAGS_verbose)
-		FLAGS_logtostderr = true;
+    if(FLAGS_verbose)
+	FLAGS_logtostderr = true;
 
-	vector<Mat> images;
-	LOG(INFO) << "Reading video...";
-	int vcodec; double frameRate;
-	importVideo(string(argv[1]), images, frameRate, vcodec);
+    vector<Mat> images;
+    LOG(INFO) << "Reading video...";
+    int vcodec; double frameRate;
+    importVideo(string(argv[1]), images, frameRate, vcodec);
 
-	LOG(INFO) << "Running stabilization...";
-	substab::SubSpaceStabOption option(FLAGS_tWindow, FLAGS_stride, FLAGS_kernelR,
+    LOG(INFO) << "Running stabilization...";
+    substab::SubSpaceStabOption option(FLAGS_tWindow, FLAGS_stride, FLAGS_kernelR,
                                        FLAGS_resize, FLAGS_crop, FLAGS_draw_points, FLAGS_num_thread);
-	vector<Mat> output;
-	substab::subSpaceStabilization(images, output, option);
+    vector<Mat> output;
+    substab::subSpaceStabilization(images, output, option);
 
-	CHECK(!output.empty());
+    CHECK_EQ(images.size(), output.size());
 
-	string outputFileName;
+    string outputFileName;
     if(argc > 2)
         outputFileName = argv[2];
     else{
@@ -52,33 +52,33 @@ int main(int argc, char** argv){
         outputFileName = "stabilized.avi";
 
     }
-
-	LOG(INFO) << "Writing output...";
-	cv::Size frameSize(output[0].cols, output[0].rows);
-	VideoWriter writer(outputFileName, CV_FOURCC('x','2','6','4'), frameRate, frameSize);
+    
+    LOG(INFO) << "Writing output...";
+    cv::Size frameSize(output[0].cols, output[0].rows);
+    VideoWriter writer(outputFileName, CV_FOURCC('x','2','6','4'), frameRate, frameSize);
     CHECK(writer.isOpened()) << "Can not open video to write: " << outputFileName;
-	for(auto v=0; v<output.size(); ++v){
-		writer << output[v];
-	}
-	LOG(INFO) << "All done";
+    for(auto v=0; v<output.size(); ++v){
+	writer << output[v];
+    }
+    LOG(INFO) << "All done";
     return 0;
 }
 
 void importVideo(const std::string& path, std::vector<cv::Mat>& images, double& fps, int& vcodec){
-	VideoCapture cap(path);
-	CHECK(cap.isOpened()) << "Can not open video " << path;
-	cv::Size dsize(640,320);
-	while(true){
-		Mat frame;
-		bool success = cap.read(frame);
-		if(!success)
-			break;
-		if(FLAGS_resize)
-			cv::resize(frame, frame, dsize);
-		images.push_back(frame);
-	}
-	fps = cap.get(CV_CAP_PROP_FPS);
-	vcodec = (int)cap.get(CV_CAP_PROP_FOURCC);
+    VideoCapture cap(path);
+    CHECK(cap.isOpened()) << "Can not open video " << path;
+    cv::Size dsize(640,320);
+    while(true){
+	Mat frame;
+	bool success = cap.read(frame);
+	if(!success)
+	    break;
+	if(FLAGS_resize)
+	    cv::resize(frame, frame, dsize);
+	images.push_back(frame);
+    }
+    fps = cap.get(CV_CAP_PROP_FPS);
+    vcodec = (int)cap.get(CV_CAP_PROP_FOURCC);
 
 }
 

@@ -71,6 +71,7 @@ namespace dynamic_stereo{
         Eigen::MatrixXd resFlow, errorFlow;
         RPCAOption option;
         option.lambda = lambda;
+        option.maxIter = 200;
         int numIter;
         printf("Runing RPCA...\n");
         solveRPCA(flowMat, resFlow, errorFlow, numIter, option);

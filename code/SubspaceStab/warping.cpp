@@ -122,6 +122,7 @@ namespace substab{
 		const int kSimTerm = (gridW-1)*(gridH-1)*8;
 		const int kVar = (int)gridLoc.size() * 2;
 
+
 		vector<Eigen::Triplet<double> > triplets;
 		VectorXd B(kDataTerm+kSimTerm);
 		//add data constraint
@@ -145,14 +146,6 @@ namespace substab{
 			B[cInd + 1] = wdata * pts1[i][1];
 			cInd += 2;
 		}
-
-		// Mat inputOutput = input.clone();
-		// visualizeGrid(gridLoc, inputOutput);
-		// for(const auto& pt: pts1)
-		// 	cv::circle(inputOutput, cv::Point2d(pt[0], pt[1]), 1, Scalar(0,0,255), 2);
-		// sprintf(buffer, "vis_input%05d.jpg", id);
-		// imwrite(buffer, inputOutput);
-
 //		vector<double> saliency;
 //		computeSimilarityWeight(input, saliency);
 
@@ -162,12 +155,6 @@ namespace substab{
 			Vector2d v = p1 - p2;
 			return Vector2d(v.dot(axis1)/axis1.squaredNorm(), v.dot(axis2)/axis2.squaredNorm());
 		};
-		{
-			//test for local coord
-//			Vector2d p1(0,0), p2(0,-1), p3(1,0);
-//			Vector2d uv = getLocalCoord(p1,p2,p3);
-//			printf("(%.2f,%.2f)\n", uv[0], uv[1]);
-		}
 		for(auto y=1; y< gridH; ++y) {
 			for (auto x = 1; x < gridW; ++x) {
 				vector<Vector2i> gids{
