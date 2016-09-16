@@ -59,7 +59,6 @@ namespace CudaVision{
         TOut* newPatch = new TOut[(2*R+1) * (2*R+1) * 3];
         memset(newPatch, -1, (2*R+1) * (2*R+1) *3 * sizeof(TOut));
 
-        //compute space point of the pixel patch
         for(int v=0; v<N; ++v) {
             //project space point and extract pixel
             int ind = 0;
