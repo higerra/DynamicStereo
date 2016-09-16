@@ -84,7 +84,8 @@ namespace dynamic_stereo {
     };
 
 #ifdef USE_CUDA
-	void computeMatchingCostGPU();
+	void computeMatchingCostGPU(const std::vector<cv::Mat>& images, const SfMModel& sfmModel, const StereoModel& stereoModel,
+								const int anchor);
 #else
 	void computeMatchingCostCPU();
 #endif
