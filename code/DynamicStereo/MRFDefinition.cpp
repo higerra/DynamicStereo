@@ -6,6 +6,10 @@
 #include "external/MRF2.2/GCoptimization.h"
 #include "local_matcher.h"
 #include "../base/thread_guard.h"
+
+#ifdef USE_CUDA
+#include "../CudaVision/cuStereoMatching.h"
+#endif
 using namespace std;
 using namespace cv;
 using namespace Eigen;
@@ -122,6 +126,40 @@ namespace dynamic_stereo {
 		return utility::getFrequencyScore(colorArray(cv::Rect(0,0,arrayInd,3)), min_frq);
 	}
 
+#ifndef USE_CUDA
+    void DynamicStereo::computeMatchingCostCPU(){
+    			const theia::Camera& cam1 = sfmModel.getCamera(anchor);
+            int unit = height / 10;
+			//compute matching cost in multiple threads
+			//Be careful about down sample ratio!!!!!
+			auto threadFun = [&](int offset, const int N){
+				for(auto y=offset; y<height; y+=N) {
+					for (auto x = 0; x < width; ++x) {
+						for (auto d = 0; d < dispResolution; ++d) {
+							vector<vector<double> > patches;
+							getPatchArray((double) x, (double) y, d, pR, cam1, patches);
+							//assume that the patch of reference view is in the middle
+							double mCost = local_matcher::sumMatchingCost(patches, patches.size() / 2);
+							//double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
+							//model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
+							model->operator()(y * width + x, d) = (EnergyType)((1 - mCost) * model->MRFRatio);
+						}
+					}
+				}
+			};
+
+			const int num_threads = 6;
+	        vector<thread_guard> threads((size_t)num_threads);
+	        for(auto tid=0; tid<num_threads; ++tid){
+		        std::thread t(threadFun,tid,num_threads);
+		        threads[tid].bind(t);
+	        }
+	        for(auto& t: threads)
+		        t.join();
+
+
+    }
+#endif
     void DynamicStereo::assignDataTerm() {
 	    CHECK_GT(model->min_disp, 0);
 	    CHECK_GT(model->max_disp, 0);
@@ -154,35 +192,6 @@ namespace dynamic_stereo {
         if(recompute) {
             //const theia::Camera& cam1 = reconstruction.View(orderedId[anchor].second)->Camera();
 
-			const theia::Camera& cam1 = sfmModel.getCamera(anchor);
-            int unit = height / 10;
-			//compute matching cost in multiple threads
-			//Be careful about down sample ratio!!!!!
-			auto threadFun = [&](int offset, const int N){
-				for(auto y=offset; y<height; y+=N) {
-					for (auto x = 0; x < width; ++x) {
-						for (auto d = 0; d < dispResolution; ++d) {
-							vector<vector<double> > patches;
-							getPatchArray((double) x, (double) y, d, pR, cam1, patches);
-							//assume that the patch of reference view is in the middle
-							double mCost = local_matcher::sumMatchingCost(patches, patches.size() / 2);
-							//double mCost = local_matcher::medianMatchingCost(patches, (int)patches.size() / 2);
-							//model->operator()(y*width+x, d) = (EnergyType) ((1 + mCost) * model->MRFRatio);
-							model->operator()(y * width + x, d) = (EnergyType)((1 - mCost) * model->MRFRatio);
-						}
-					}
-				}
-			};
-
-			const int num_threads = 6;
-	        vector<thread_guard> threads((size_t)num_threads);
-	        for(auto tid=0; tid<num_threads; ++tid){
-		        std::thread t(threadFun,tid,num_threads);
-		        threads[tid].bind(t);
-	        }
-	        for(auto& t: threads)
-		        t.join();
-
             cout << "done" << endl;
             //caching
             ofstream fout(buffer, ios::binary);
@@ -203,8 +212,6 @@ namespace dynamic_stereo {
 
             fout.close();
         }
-
-
 
     }
 

@@ -54,6 +54,7 @@ namespace dynamic_stereo {
         void initMRF();
 
         void assignDataTerm();
+
 	    void assignSmoothWeight();
 		void computeFrequencyConfidence(const double alpha = 3, const double beta = 2.0);
 
@@ -81,6 +82,13 @@ namespace dynamic_stereo {
 		SfMModel sfmModel;
         Depth dispUnary; //Noisy disparity map only based on unary term
     };
+
+#ifdef USE_CUDA
+	void computeMatchingCostGPU();
+#else
+	void computeMatchingCostCPU();
+#endif
+
 }
 
 #endif //DYNAMICSTEREO_DYNAMICSTEREO_H
