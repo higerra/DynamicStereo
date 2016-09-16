@@ -11,3 +11,9 @@ include_directories(/usr/local/include/eigen3 ${THEIA_INCLUDE_DIRS})
 add_executable(DynamicStereo ${HEADER_FILES} ${SOURCE_FILES})
 
 target_link_libraries(DynamicStereo base gflags glog ${THEIA_LIBRARIES} MRF common)
+
+if(USE_CUDA)
+    cuda_add_library(cudaWrapper cudaWrapper.h cudaWrapper.cu)
+    target_link_libraries(DynamicStereo cudaWrapper)
+endif()
+
