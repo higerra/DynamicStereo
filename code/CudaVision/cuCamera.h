@@ -94,11 +94,11 @@ namespace CudaVision{
         //intrinsic parameters: focal_length, skew, aspect_ratio, px, py
         T intrinsic[kIntrinsicSize];
         T extrinsic[kExtrinsicSize];
-        __device__ __host__ T projectPoint(const T* pt, T* pixel);
+        __device__ __host__ T projectPoint(const T* pt, T* pixel) const;
     };
 
     template<typename T>
-    __device__ __host__ T CudaCamera<T>::projectPoint(const T* pt, T* pixel) {
+    __device__ __host__ T CudaCamera<T>::projectPoint(const T* pt, T* pixel) const{
         //transform to camera coordinate
         T adjusted_point[3];
         for(int i=0; i<3; ++i)
