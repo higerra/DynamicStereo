@@ -25,7 +25,6 @@ endif()
 if(CUDA_FOUND)
     message("-- Found CUDA")
     add_definitions("-DUSE_CUDA")
-    add_subdirectory(${ROOT_DIRECTORY}/CudaVision)
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
