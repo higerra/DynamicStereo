@@ -7,18 +7,16 @@
 
 namespace dynamic_stereo{
 
-    bool checkDevice(){
-	return true;
-    }
-    
-    void callStereoMatching(const unsigned char* images, const unsigned char* refImage,
-                    const int width, const int height, const int N,
-                    const TCam* position, const TCam* axis,
-                    const TCam min_disp, const TCam max_disp, const int resolution,
-                    TOut* result){
-        std::vector<CudaVision::CudaCamera<TCam> > cameras((size_t) N);
+	bool checkDevice(){
+		return true;
+	}
 
-    }
+	void callStereoMatching(const std::vector<unsigned char>& images, const std::vector<unsigned char>& refImage,
+	                        const int width, const int height, const int N,
+	                        const std::vector<TCam>& intrinsics, const std::vector<TCam>& extrinsics,
+	                        const int resolution, const int R,
+	                        std::vector<TOut>& result){
 
+	}
 }//namespace dynamic_stereo
 

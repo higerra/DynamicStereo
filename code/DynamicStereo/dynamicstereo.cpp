@@ -36,15 +36,6 @@ namespace dynamic_stereo{
 			for(auto k=1; k<nLevel; ++k)
 				pyrDown(pyramid[k-1], pyramid[k]);
 			images[i] = pyramid.back().clone();
-
-//			const theia::Camera& cam = sfmModel.getCamera(i+offset);
-//			cout << "Projection matrix for view " << i+offset << endl;
-//			theia::Matrix3x4d pm;
-//			cam.GetProjectionMatrix(&pm);
-//			cout << pm << endl;
-//			double dis1 = cam.RadialDistortion1();
-//			double dis2 = cam.RadialDistortion2();
-//			printf("Radio distortion:(%.5ff,%.5f)\n", dis1, dis2);
 		}
 		CHECK_GT(images.size(), 2) << "Too few images";
 		width = images.front().cols;

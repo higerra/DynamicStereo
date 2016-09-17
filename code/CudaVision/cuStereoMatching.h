@@ -18,7 +18,6 @@ namespace CudaVision{
     __global__ void stereoMatchingKernel(const unsigned char* images, const unsigned char* refImage,
                                          const int width, const int height, const int N,
                                          const CudaCamera<TCam>* cameras, const CudaCamera<TCam>* refCam,
-                                         const TCam min_disp, const TCam max_disp,
                                          const TCam* spacePt, const int resolution, const int R, const int offset,
                                          TOut* output){
         int x = blockIdx.x;
@@ -67,7 +66,8 @@ namespace CudaVision{
                     int curx = x + dx, cury = y + dy;
                     if (curx >= 0 && curx < width && cury >= 0 && cury < height) {
                         TCam projected[2];
-                        cameras[v].projectPoint(spacePt + (cury * width + curx) * 3, projected[2]);
+                        cameras[v].projectPoint(spacePt + ((cury * width + curx) * resolution + d) * 3,
+		                        projected[2]);
                         if(projected[0] >= 0 && projected[1] >= 0 && projected[0] < width - 1 && projected[1] < height - 1){
                             bilinearInterpolation<unsigned char, TCam, TOut>(images[v], projected, newPatch + ind * 3);
                         }

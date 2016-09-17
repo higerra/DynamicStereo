@@ -53,12 +53,8 @@ namespace dynamic_stereo {
     private:
         void initMRF();
 
-#ifdef USE_CUDA
-	void computeMatchingCostGPU(const std::vector<cv::Mat>& images, const SfMModel& sfmModel, const StereoModel& stereoModel,
-				    const int anchor);
-#else
+	void computeMatchingCostGPU();
 	void computeMatchingCostCPU();
-#endif
 
 	
         void assignDataTerm();
