@@ -207,8 +207,9 @@ namespace dynamic_stereo {
 
 		//compute space point coordinate
 		vector<TCam> spts(width * height * 3 * dispResolution);
+
+		const theia::Camera& refCam = sfmModel.getCamera(anchor);
 #pragma omp parallel for
-		const theia::Camera &refCam = sfmModel.getCamera(anchor);
 		for (auto y = 0; y < height; ++y) {
 			for (auto x = 0; x < width; ++x) {
 				Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y) * downsample);
@@ -224,7 +225,7 @@ namespace dynamic_stereo {
 		//allocate space for result
 		vector<TOut> result(width * height * dispResolution);
 		callStereoMatching(images_data, refImage_data, width, height, N,
-		                   intrinsics, extrinsics, dispResolution, result);
+		                   intrinsics, extrinsics, dispResolution, pR, result);
 
 		for (auto i = 0; i < result.size(); ++i)
 			model->unary[i] = (double) result[i];

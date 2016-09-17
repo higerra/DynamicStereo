@@ -12,7 +12,8 @@ add_executable(DynamicStereo ${HEADER_FILES} ${SOURCE_FILES})
 
 target_link_libraries(DynamicStereo base gflags glog ${THEIA_LIBRARIES} MRF common)
 
-if(USE_CUDA)
+if(CUDA_FOUND)
+	set(NVCC_CXX_FLAGS "${NVCC_CXX_FLAGS} -std=c++11 -O3 -gencode arch=compute_30,code=sm_30")
     cuda_add_library(cudaWrapper cudaWrapper.h cudaWrapper.cu)
     target_link_libraries(DynamicStereo cudaWrapper)
 endif()
