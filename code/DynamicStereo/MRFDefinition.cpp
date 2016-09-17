@@ -76,7 +76,7 @@ namespace dynamic_stereo {
 						patches[index].push_back(-1);
 					} else {
 						Vector3d c = interpolation_util::bilinear<uchar, 3>(images[v].data, width,
-						                                                    height, imgpt);
+																			height, imgpt);
 						patches[index].push_back(c[0]);
 						patches[index].push_back(c[1]);
 						patches[index].push_back(c[2]);
@@ -87,46 +87,8 @@ namespace dynamic_stereo {
 		}
 	}
 
-	double DynamicStereo::getFrequencyConfidence(const int fid, const int x, const int y, const int d) const {
-		//printf("(%d,%d,%d)\n", x, y, d);
-		const theia::Camera& refCam = sfmModel.getCamera(fid+offset);
-		Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x*downsample, y*downsample));
-		Vector3d spt = ray * model->dispToDepth(d) + refCam.GetPosition();
-		const int N = (int)images.size();
-		Mat colorArray(3, N, CV_32FC1);
-		float* pArray = (float*) colorArray.data;
-		Vector3d meanColor(0,0,0);
-		//compose input array
-
-		int arrayInd = 0;
-		for(auto v=0; v<images.size(); ++v){
-			Vector2d imgpt;
-			sfmModel.getCamera(v+offset).ProjectPoint(spt.homogeneous(), &imgpt);
-			imgpt = imgpt / (double)downsample;
-			if(imgpt[0] >=0 && imgpt[1] >=0 && imgpt[0]<images[v].cols-1 && imgpt[1] < images[v].rows-1){
-				Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows, imgpt);
-				CHECK_LT(2*N + arrayInd, N * 3);
-				pArray[arrayInd] = (float)pix[0];
-				pArray[N+arrayInd] = (float)pix[1];
-				pArray[2*N+arrayInd] = (float)pix[2];
-				meanColor += pix;
-				arrayInd++;
-			}
-		}
-		//Normalize
-		if(arrayInd == 0)
-			return 0;
-		meanColor = meanColor / (double)arrayInd;
-		for(auto i=0; i<arrayInd; ++i){
-			pArray[i] -= meanColor[0];
-			pArray[N+i] -= meanColor[1];
-			pArray[2*N+i] -= meanColor[2];
-		}
-		const int min_frq = 4;
-		return utility::getFrequencyScore(colorArray(cv::Rect(0,0,arrayInd,3)), min_frq);
-	}
-
 	void DynamicStereo::computeMatchingCostCPU(){
+        LOG(INFO) << "Computing matching cost on CPU";
 		const theia::Camera& cam1 = sfmModel.getCamera(anchor);
 		int unit = height / 10;
 		//compute matching cost in multiple threads
@@ -159,12 +121,13 @@ namespace dynamic_stereo {
 
 #ifdef USE_CUDA
 	void DynamicStereo::computeMatchingCostGPU() {
+        LOG(INFO) << "Computing matching cost on GPU...";
 		if (!checkDevice()) {
 			printf("The GPU doesn't meet the requirement, switch to CPU mode...\n");
 			computeMatchingCostCPU();
 			return;
 		}
-		const int N = (int) images.size() / stereo_stride;
+        const int N = (int) images.size() / stereo_stride;
 		vector<unsigned char> images_data(N * width * height * 3);
 		vector<unsigned char> refImage_data(width * height * 3);
 
@@ -196,7 +159,7 @@ namespace dynamic_stereo {
 			for (auto i = 0; i < width * height * 3; ++i)
 				images_data[v * width * height * 3 + i] = images[v].data[i];
 			copyCamera(sfmModel.getCamera(v + offset), intrinsics.data() + intSize * index,
-			           extrinsics.data() + extSize * index);
+					   extrinsics.data() + extSize * index);
 		}
 
 		vector<TCam> refIntrinsic(intSize, 0.0f);
@@ -207,7 +170,6 @@ namespace dynamic_stereo {
 
 		//compute space point coordinate
 		vector<TCam> spts(width * height * 3 * dispResolution);
-
 		const theia::Camera& refCam = sfmModel.getCamera(anchor);
 #pragma omp parallel for
 		for (auto y = 0; y < height; ++y) {
@@ -215,9 +177,9 @@ namespace dynamic_stereo {
 				Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y) * downsample);
 				for (auto d = 0; d < dispResolution; ++d) {
 					Vector3d spt = refCam.GetPosition() + model->dispToDepth((double) d) * ray;
-					spts[((y * width + x) * dispResolution + d) * 3] = spt[0];
-					spts[((y * width + x) * dispResolution + d) * 3 + 1] = spt[1];
-					spts[((y * width + x) * dispResolution + d) * 3 + 2] = spt[2];
+					spts[((y * width + x) * dispResolution + d) * 3] = (TCam)spt[0];
+					spts[((y * width + x) * dispResolution + d) * 3 + 1] = (TCam)spt[1];
+					spts[((y * width + x) * dispResolution + d) * 3 + 2] = (TCam)spt[2];
 				}
 			}
 		};
@@ -225,7 +187,7 @@ namespace dynamic_stereo {
 		//allocate space for result
 		vector<TOut> result(width * height * dispResolution);
 		callStereoMatching(images_data, refImage_data, width, height, N,
-		                   intrinsics, extrinsics, dispResolution, pR, result);
+						   intrinsics, extrinsics, refIntrinsic, refExtrinsic, spts, dispResolution, pR, result);
 
 		for (auto i = 0; i < result.size(); ++i)
 			model->unary[i] = (double) result[i];
@@ -251,11 +213,11 @@ namespace dynamic_stereo {
 			fin.read((char *) &mindisp, sizeof(double));
 			fin.read((char *) &maxdisp, sizeof(double));
 			printf("Cached data: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
-			       frame, resolution, st, ds, type, mindisp, maxdisp);
+				   frame, resolution, st, ds, type, mindisp, maxdisp);
 			printf("Current config:: anchor:%d, resolution:%d, twindow:%d, downsample:%d, Energytype:%d, min_disp:%.15f, max_disp:%.15f\n",
-			       anchor, dispResolution, stereo_stride, downsample, (int)sizeof(EnergyType), model->min_disp, model->max_disp);
+				   anchor, dispResolution, stereo_stride, downsample, (int)sizeof(EnergyType), model->min_disp, model->max_disp);
 			if (frame == anchor && resolution == dispResolution && st == stereo_stride &&
-			    type == sizeof(EnergyType) && ds == downsample) {
+				type == sizeof(EnergyType) && ds == downsample) {
 				printf("Reading unary term from cache...\n");
 				fin.read((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
 				recompute = false;
@@ -334,105 +296,5 @@ namespace dynamic_stereo {
 //		}
 //		sprintf(buffer, "%s/temp/cueH.png", file_io.getDirectory().c_str());
 //		imwrite(buffer, outimgh);
-	}
-
-	void DynamicStereo::computeFrequencyConfidence(const double alpha, const double beta) {
-		CHECK(model.get());
-		CHECK_EQ(model->unary.size(), width * height * dispResolution);
-		vector<double> frqConf(width * height * dispResolution);
-		char buffer[1024] = {};
-		sprintf(buffer, "%s/midres/frq%05dR%dD%d", file_io.getDirectory().c_str(), anchor, dispResolution, downsample);
-		ifstream fin(buffer, ios::binary);
-		bool recompute = true;
-		const double epsilon = 1e-05;
-		if(fin.is_open()){
-			double a,b;
-			printf("Reading frequency confidence from cache...\n");
-			fin.read((char *) &a, sizeof(double));
-			fin.read((char *) &b, sizeof(double));
-			fin.read((char *) frqConf.data(), frqConf.size() * sizeof(double));
-			recompute = false;
-			fin.close();
-		}
-		if(recompute){
-			cout << "Computing frequency confidence..." << endl << flush;
-			int unit = width * height / 10;
-			for(auto y=0; y<height; ++y){
-				for(auto x=0; x<width; ++x){
-					if((y*width+x) % unit == 0)
-						cout << '.' << flush;
-//#pragma omp parallel for
-					for(auto d=0; d<dispResolution; ++d) {
-						double conf = getFrequencyConfidence(anchor - offset, x, y, d);
-						CHECK_GE(conf, 0.0) << x << ' ' << y << ' ' << d;
-						frqConf[dispResolution * (y * width + x) + d] = conf;
-
-					}
-				}
-			}
-			cout <<"done" << endl;
-			ofstream fout(buffer, ios::binary);
-			CHECK(fout.is_open());
-			fout.write((char*)&alpha, sizeof(double));
-			fout.write((char*)&beta, sizeof(double));
-			fout.write((char*)frqConf.data(), frqConf.size() * sizeof(double));
-			fout.close();
-		}
-
-		const auto remap = [alpha, beta](const double conf, const double weight){
-			return 1 - weight / (1 + std::exp(-1*alpha*(conf - beta)));
-		};
-
-		const double weight_frq = 0.0;
-
-		if(dbtx >=0 && dbty >= 0){
-			printf("====================\n");
-			printf("alpha:%.3f, beta:%.3f\n", alpha, beta);
-			printf("unary term for (%d,%d) before reweight:\n", (int)dbtx, (int)dbty);
-			double min_cost = numeric_limits<double>::max();
-			int optDisp = -1;
-			const int pixId = (int)dbtx / downsample + (int)dbty / downsample * width;
-			for(auto d=0; d<dispResolution; ++d){
-				EnergyType c = model->operator()(pixId, d);
-				double frq = frqConf[dispResolution*pixId+d];
-				printf("disp: %03d\tmatching:%.3f\tfrq:%.3f\n", d, c, remap(frq, weight_frq));
-				if(c < min_cost){
-					min_cost = c;
-					optDisp = d;
-				}
-			}
-			cout << endl;
-			printf("min cost %.2f at disparity %d\n", min_cost, optDisp);
-			printf("====================\n");
-		}
-
-		CHECK_EQ(frqConf.size(), model->unary.size());
-
-		for(auto i=0; i<frqConf.size(); ++i){
-			double w = remap(frqConf[i], weight_frq);
-			CHECK_GE(w, 1-weight_frq) << frqConf[i] << ' ' << w;
-			CHECK_LE(w,1.0) << frqConf[i] << ' ' << w;
-			model->unary[i] *= w;
-		}
-
-		if(dbtx >=0 && dbty >= 0){
-			printf("====================\n");
-			printf("unary term for (%d,%d) after reweight:\n", (int)dbtx, (int)dbty);
-			double min_cost = numeric_limits<double>::max();
-			int optDisp = -1;
-			const int pixId = (int)dbtx / downsample + (int)dbty / downsample * width;
-			for(auto d=0; d<dispResolution; ++d){
-				EnergyType c = model->operator()(pixId, d);
-				printf("disp: %03d\tmatching:%.3f\tfrq:%.3f\n", d, c, remap(frqConf[dispResolution*pixId+d], weight_frq));
-				if(c < min_cost){
-					min_cost = c;
-					optDisp = d;
-				}
-			}
-			cout << endl;
-			printf("min cost %.2f at disparity %d\n", min_cost, optDisp);
-			printf("====================\n");
-		}
-
 	}
 }//namespace dynamic_stereo

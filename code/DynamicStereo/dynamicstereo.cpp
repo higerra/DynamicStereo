@@ -13,8 +13,8 @@ namespace dynamic_stereo{
 
 
 	DynamicStereo::DynamicStereo(const dynamic_stereo::FileIO &file_io_, const int anchor_,
-	                             const int tWindow_, const int stereo_stride_, const int downsample_, const double weight_smooth_, const int dispResolution_,
-	                             const double min_disp_, const double max_disp_):
+								 const int tWindow_, const int stereo_stride_, const int downsample_, const double weight_smooth_, const int dispResolution_,
+								 const double min_disp_, const double max_disp_):
 			file_io(file_io_), anchor(anchor_), tWindow(tWindow_), stereo_stride(stereo_stride_), downsample(downsample_), dispResolution(dispResolution_),
 			pR(2), dbtx(-1), dbty(-1){
 		CHECK_GE(stereo_stride, 1);
@@ -194,7 +194,7 @@ namespace dynamic_stereo{
 	}
 
 	void DynamicStereo::bilateralFilter(const Depth &input, const cv::Mat &inputImg, Depth &output,
-						 const int size, const double sigmas, const double sigmar, const double sigmau) {
+										const int size, const double sigmas, const double sigmar, const double sigmau) {
 		CHECK_EQ(input.getWidth(), inputImg.cols);
 		CHECK_EQ(input.getHeight(), inputImg.rows);
 		CHECK_EQ(size % 2, 1);

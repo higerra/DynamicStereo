@@ -11,5 +11,5 @@ find_package(CUDA REQUIRED)
 #target_link_libraries(CudaStereoTest gtest ${THEIA_LIBRARIES} ${OpenCV_LIBS})
 #add_test(NAME CudaStereoTest COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/CudaStereoTest)
 
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O3 -std=c++11 -gencode arch=compute_30,code=sm_30")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O3 -gencode arch=compute_30,code=sm_30")
 cuda_add_library(cudaStereoMatching cuCamera.h cuStereoUtil.h cuStereoMatching.h cudaStereoMatching.cu)
