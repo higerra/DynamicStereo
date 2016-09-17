@@ -51,8 +51,6 @@ namespace CudaVision{
 
         int outputOffset = (y * width + x) * blockDim.x + d - offset;
 
-        TCam depth = 1.0/(min_disp + d * (max_disp - min_disp) / (TCam) resolution);
-
         //allocate memory
         TOut* nccArray = new TOut[N];
         TOut* newPatch = new TOut[(2*R+1) * (2*R+1) * 3];
