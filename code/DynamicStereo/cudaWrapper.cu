@@ -3,6 +3,8 @@
 //
 
 #include "cudaWrapper.h"
+#include <cuda_runtime.h>
+#include "../CudaVision
 #include <vector>
 
 namespace dynamic_stereo{

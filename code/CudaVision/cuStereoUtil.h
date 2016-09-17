@@ -8,6 +8,7 @@
 #include <cfloat>
 #include <stdlib.h>
 #include <iostream>
+#include <cuda_runtime.h>
 
 namespace CudaVision{
 

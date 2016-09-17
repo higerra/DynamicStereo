@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cfloat>
 #include <stdlib.h>
-
+#include <cuda_runtime.h>
 namespace CudaVision{
     template <typename T>
     __device__ __host__ void RadialDistortPoint(const T undistorted_point_x,
