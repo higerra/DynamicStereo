@@ -224,14 +224,14 @@ namespace dynamic_stereo {
 			}
 		}
 		if(recompute) {
+            float start_t = getTickCount();
 #ifdef USE_CUDA
 			computeMatchingCostGPU();
 #else
 			computeMatchingCostCPU();
 #endif
 
-
-			cout << "done" << endl;
+            printf("Time usage for stereo matching: %.2fs\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
 			//caching
 //			ofstream fout(buffer, ios::binary);
 //			if (!fout.is_open()) {

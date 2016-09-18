@@ -13,7 +13,7 @@
 
 namespace CudaVision{
 
-    static const int BLOCKDIM = 1;
+    static const int BLOCKDIM = 32;
     static const int MAXFRAME = 50;
     static const int MAXPATCHSIZE = 25;
 
