@@ -100,7 +100,7 @@ namespace CudaVision{
             result.resize(width * height * resolution);
         for(auto i=0; i<result.size(); ++i)
             result[i] = 0;
-        
+
         LOG(INFO) << "Uploading Cameras";
         HandleCuError(cudaMemcpyToSymbol(device_cameras, host_cameras, N * sizeof(CudaVision::CudaCamera<TCam>)));
         HandleCuError(cudaMemcpyToSymbol(device_refCam, host_refCam, sizeof(CudaVision::CudaCamera<TCam>)));

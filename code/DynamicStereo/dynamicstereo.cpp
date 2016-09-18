@@ -65,6 +65,9 @@ namespace dynamic_stereo{
 				}
 			}
 		}
+
+		dispUnary.saveImage("unary.png", -1);
+
 		depthMask = Mat(height, width, CV_8UC1, Scalar(255));
 		if(dbtx >= 0 && dbty >= 0){
 			//debug: inspect unary term
