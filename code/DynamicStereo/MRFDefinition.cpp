@@ -154,12 +154,11 @@ namespace dynamic_stereo {
 		};
 
 		//copy data
-		int index = 0;
-		for (auto v = 0; v < images.size(); v += stereo_stride, ++index) {
+		for (auto v = 0; v < N; ++v) {
 			for (auto i = 0; i < width * height * 3; ++i)
-				images_data[v * width * height * 3 + i] = images[v].data[i];
-			copyCamera(sfmModel.getCamera(v + offset), intrinsics.data() + intSize * index,
-					   extrinsics.data() + extSize * index);
+				images_data[v * width * height * 3 + i] = images[v * stereo_stride].data[i];
+			copyCamera(sfmModel.getCamera(v * stereo_stride + offset), intrinsics.data() + intSize * v,
+					   extrinsics.data() + extSize * v);
 		}
 
 		vector<TCam> refIntrinsic(intSize, 0.0f);
@@ -169,24 +168,22 @@ namespace dynamic_stereo {
 			refImage_data[i] = images[anchor - offset].data[i];
 
 		//compute space point coordinate
-		vector<TCam> spts(width * height * 3 * dispResolution);
+		vector<TCam> spts(width * height * 3);
 		const theia::Camera& refCam = sfmModel.getCamera(anchor);
 #pragma omp parallel for
 		for (auto y = 0; y < height; ++y) {
 			for (auto x = 0; x < width; ++x) {
-				Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y) * downsample);
-				for (auto d = 0; d < dispResolution; ++d) {
-					Vector3d spt = refCam.GetPosition() + model->dispToDepth((double) d) * ray;
-					spts[((y * width + x) * dispResolution + d) * 3] = (TCam)spt[0];
-					spts[((y * width + x) * dispResolution + d) * 3 + 1] = (TCam)spt[1];
-					spts[((y * width + x) * dispResolution + d) * 3 + 2] = (TCam)spt[2];
-				}
+                Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y) * downsample);
+                spts[(y * width + x) * 3] = (TCam)ray[0];
+                spts[(y * width + x) * 3 + 1] = (TCam)ray[1];
+                spts[(y * width + x) * 3 + 2] = (TCam)ray[2];
 			}
 		};
 
 		//allocate space for result
 		vector<TOut> result(width * height * dispResolution);
 		callStereoMatching(images_data, refImage_data, width, height, N,
+                           model->min_disp, model->max_disp, model->downsample,
 						   intrinsics, extrinsics, refIntrinsic, refExtrinsic, spts, dispResolution, pR, result);
 
 		for (auto i = 0; i < result.size(); ++i)
@@ -233,23 +230,23 @@ namespace dynamic_stereo {
 
 			cout << "done" << endl;
 			//caching
-			ofstream fout(buffer, ios::binary);
-			if (!fout.is_open()) {
-				printf("Can not open cache file to write: %s\n", buffer);
-				return;
-			}
-			printf("Writing unary term to cache...\n");
-			int sz = sizeof(EnergyType);
-			fout.write((char *) &anchor, sizeof(int));
-			fout.write((char *) &dispResolution, sizeof(int));
-			fout.write((char *) &stereo_stride, sizeof(int));
-			fout.write((char *) &downsample, sizeof(int));
-			fout.write((char *) &sz, sizeof(int));
-			fout.write((char *) &model->min_disp, sizeof(double));
-			fout.write((char *) &model->max_disp, sizeof(double));
-			fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
-
-			fout.close();
+//			ofstream fout(buffer, ios::binary);
+//			if (!fout.is_open()) {
+//				printf("Can not open cache file to write: %s\n", buffer);
+//				return;
+//			}
+//			printf("Writing unary term to cache...\n");
+//			int sz = sizeof(EnergyType);
+//			fout.write((char *) &anchor, sizeof(int));
+//			fout.write((char *) &dispResolution, sizeof(int));
+//			fout.write((char *) &stereo_stride, sizeof(int));
+//			fout.write((char *) &downsample, sizeof(int));
+//			fout.write((char *) &sz, sizeof(int));
+//			fout.write((char *) &model->min_disp, sizeof(double));
+//			fout.write((char *) &model->max_disp, sizeof(double));
+//			fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
+//
+//			fout.close();
 		}
 
 	}

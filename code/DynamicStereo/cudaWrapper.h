@@ -16,6 +16,7 @@ namespace dynamic_stereo {
 
 	void callStereoMatching(const std::vector<unsigned char>& images, const std::vector<unsigned char>& refImage,
 	                        const int width, const int height, const int N,
+                            const TCam min_disp, const TCam max_disp, const TCam downsample,
 	                        const std::vector<TCam>& intrinsics, const std::vector<TCam>& extrinsics,
                             const std::vector<TCam>& refInt, const std::vector<TCam>& refExt, const std::vector<TCam>& spts,
 	                        const int resolution, const int R,

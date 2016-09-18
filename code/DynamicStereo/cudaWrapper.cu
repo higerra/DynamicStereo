@@ -15,11 +15,13 @@ namespace dynamic_stereo{
 
 	void callStereoMatching(const std::vector<unsigned char>& images, const std::vector<unsigned char>& refImage,
 	                        const int width, const int height, const int N,
+                            const TCam min_disp, const TCam max_disp, const TCam downsample,
 	                        const std::vector<TCam>& intrinsics, const std::vector<TCam>& extrinsics,
                             const std::vector<TCam>& refInt, const std::vector<TCam>& refExt,
-                            const std::vector<TCam>& spts, const int resolution, const int R,
+                            const std::vector<TCam>& rays, const int resolution, const int R,
 	                        std::vector<TOut>& result) {
-        CHECK_LE(R, 3) << "The patch size can not be greater than 3.";
+        CHECK_LE((2*R+1) * (2*R+1), CudaVision::MAXPATCHSIZE) << "The patch size can not be greater than 3.";
+        CHECK_LE(N, CudaVision::MAXFRAME);
         CHECK_EQ(result.size(), width * height * resolution);
 
         LOG(INFO) << "Constructing CudaCamera";
@@ -44,18 +46,25 @@ namespace dynamic_stereo{
         LOG(INFO) << "Calling kernel";
         //calling kernel
         if (width == 960 && height == 540) {
-            CudaVision::CudaStereoMatching<TCam, TOut, 960, 540> matching(N, resolution, R);
-            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, spts.data(), result);
+            CudaVision::CudaStereoMatching<TCam, TOut, 960, 540> matching(N, resolution, R, min_disp, max_disp, downsample);
+            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, rays.data(), result);
         } else if (width == 540 && height == 960) {
-            CudaVision::CudaStereoMatching<TCam, TOut, 540, 960> matching(N, resolution, R);
-            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, spts.data(), result);
+            CudaVision::CudaStereoMatching<TCam, TOut, 540, 960> matching(N, resolution, R, min_disp, max_disp, downsample);
+            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, rays.data(), result);
         } else if (width == 640 && height == 360) {
-            CudaVision::CudaStereoMatching<TCam, TOut, 640, 360> matching(N, resolution, R);
-            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, spts.data(), result);
+            CudaVision::CudaStereoMatching<TCam, TOut, 640, 360> matching(N, resolution, R, min_disp, max_disp, downsample);
+            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, rays.data(), result);
         } else if (width == 360 && height == 640) {
-            CudaVision::CudaStereoMatching<TCam, TOut, 360, 640> matching(N, resolution, R);
-            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, spts.data(), result);
+            CudaVision::CudaStereoMatching<TCam, TOut, 360, 640> matching(N, resolution, R, min_disp, max_disp, downsample);
+            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, rays.data(), result);
+        } else if (width == 480 && height == 270) {
+            CudaVision::CudaStereoMatching<TCam, TOut, 480, 270> matching(N, resolution, R, min_disp, max_disp, downsample);
+            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, rays.data(), result);
+        } else if (width == 320 && height == 180) {
+            CudaVision::CudaStereoMatching<TCam, TOut, 320, 180> matching(N, resolution, R, min_disp, max_disp, downsample);
+            matching.run(images.data(), refImage.data(), cuCameras.data(), &refCam, rays.data(), result);
         } else {
+            printf("Unsupprted size\n");
             CHECK(true) << "Unsupported image size: " << width << ' ' << height;
         }
 

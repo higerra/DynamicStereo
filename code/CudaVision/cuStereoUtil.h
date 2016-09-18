@@ -76,7 +76,7 @@ namespace CudaVision{
             return (T)0;
         T res = 0;
         for(int i=0; i<N; ++i){
-            res += (a-mean) * (a-mean);
+            res = res + (a[i] - mean) * (a[i] - mean);
         }
         res /= (T)N;
         return sqrt(res);
@@ -87,7 +87,7 @@ namespace CudaVision{
         T mean = 0;
         for(int i=0; i<N; ++i)
             mean += a[i];
-        return variance(a, mean, N);
+        return variance<T>(a, mean, N);
     }
 
     template<typename T>
@@ -100,8 +100,8 @@ namespace CudaVision{
         m1 /= (T)N;
         m2 /= (T)N;
 
-        T var1 = variance(a1, m1, N);
-        T var2 = variance(a2, m2, N);
+        T var1 = variance<T>(a1, m1, N);
+        T var2 = variance<T>(a2, m2, N);
         if(var1 == 0 || var2 == 0 )
             return 0;
 
@@ -141,12 +141,13 @@ namespace CudaVision{
         int left = 0 , right = N - 1;
         while(left < right){
             int pivInd = left;
-            pivInd = partition(array, left, right, left);
+            pivInd = partition<T>(array, left, right, left);
             if(pivInd < nth){
                 left = pivInd + 1;
             }else if(pivInd > nth){
                 right = pivInd - 1;
-            }
+            }else
+                break;
         }
         return array[nth];
     }

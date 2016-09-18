@@ -13,9 +13,9 @@
 
 namespace CudaVision{
 
-    static const int BLOCKDIM = 2;
-    static const int MAXFRAME = 60;
-    static const int MAXPATCHSIZE = 50;
+    static const int BLOCKDIM = 1;
+    static const int MAXFRAME = 50;
+    static const int MAXPATCHSIZE = 25;
 
     __constant__ CudaCamera<double> device_cameras[MAXFRAME];
     __constant__ CudaCamera<double> device_refCam;
@@ -24,8 +24,10 @@ namespace CudaVision{
     //Kernel
     //--------------------------------------
     template<typename TCam, typename TOut>
-    __global__ void stereoMatchingKernel(const unsigned char* images, const unsigned char* refImage, const int width, const int height, const int N,
-                                         const CudaCamera<TCam>* cameras, const CudaCamera<TCam>* refCam, const TCam* spacePt, const int resolution, const int R, TOut* output);
+    __global__ void stereoMatchingKernel(const unsigned char* images, const unsigned char* refImage,
+                                         const int width, const int height, const int N,
+                                         const TCam* rays,
+                                         const TCam min_disp, const TCam max_disp, const TCam downsample, const int resolution, const int R, TOut* output);
 
 
 
@@ -33,21 +35,22 @@ namespace CudaVision{
     template <typename TCam, typename TOut, int WIDTH, int HEIGHT>
     class CudaStereoMatching {
     public:
-        CudaStereoMatching(const int N_, const int resolution_, const int R_)
+        CudaStereoMatching(const int N_, const int resolution_, const int R_, const double mind, const double maxd, const double downsample_)
                 : width(WIDTH), height(HEIGHT), blockSize(WIDTH, HEIGHT), N(N_), resolution(resolution_), R(R_),
-                  images(nullptr), refImage(nullptr), spacePt(nullptr), output(nullptr) {
+                  min_disp(mind), max_disp(maxd), downsample(downsample_),
+                  images(nullptr), refImage(nullptr), rays(nullptr), output(nullptr) {
             allocate();
         }
 
         ~CudaStereoMatching(){
             HandleCuError(cudaFree(images));
             HandleCuError(cudaFree(refImage));
-            HandleCuError(cudaFree(spacePt));
+            HandleCuError(cudaFree(rays));
             HandleCuError(cudaFree(output));
         }
         void run(const unsigned char* host_images, const unsigned char* host_refImage,
                  const CudaCamera<TCam>* host_cameras, const CudaCamera<TCam>* host_refCam,
-                 const TCam* host_spts,
+                 const TCam* host_rays,
                  std::vector<TOut>& result);
 
     private:
@@ -58,12 +61,14 @@ namespace CudaVision{
         const int N;
         const int resolution;
         const int R;
-
+        const TCam min_disp;
+        const TCam max_disp;
+        const TCam downsample;
 
         //pointer to device data
         unsigned char *images;
         unsigned char *refImage;
-        TCam *spacePt;
+        TCam *rays;
         TOut *output;
 
         void allocate(){
@@ -72,8 +77,8 @@ namespace CudaVision{
             CudaVision::HandleCuError(cudaMalloc((void**)& images, width * height * N * 3 * sizeof(unsigned char)));
             LOG(INFO) << "Allocate refImage";
             CudaVision::HandleCuError(cudaMalloc((void**)& refImage, width * height * 3 * sizeof(unsigned char)));
-            LOG(INFO) << "Allocate space points";
-            CudaVision::HandleCuError(cudaMalloc((void**)& spacePt, width * height * resolution * 3 * sizeof(TCam)));
+            LOG(INFO) << "Allocate rays";
+            CudaVision::HandleCuError(cudaMalloc((void**)& rays, width * height * 3 * sizeof(TCam)));
             LOG(INFO) << "Allocate output";
             CudaVision::HandleCuError(cudaMalloc((void**)& output, width * height * resolution * sizeof(TOut)));
 
@@ -89,34 +94,36 @@ namespace CudaVision{
     template<typename TCam, typename TOut, int WIDTH, int HEIGHT>
     void CudaStereoMatching<TCam, TOut, WIDTH, HEIGHT>::run(const unsigned char* host_images, const unsigned char* host_refImage,
                                                             const CudaCamera<TCam>* host_cameras, const CudaCamera<TCam>* host_refCam,
-                                                            const TCam* host_spts,
+                                                            const TCam* host_rays,
                                                             std::vector<TOut>& result) {
         if(result.size() != width * height * resolution)
             result.resize(width * height * resolution);
+
+        LOG(INFO) << "Uploading Cameras";
         HandleCuError(cudaMemcpyToSymbol(device_cameras, host_cameras, N * sizeof(CudaVision::CudaCamera<TCam>)));
-        HandleCuError(cudaMemcpyToSymbol(&device_refCam, host_refCam, sizeof(CudaVision::CudaCamera<TCam>)));
+        HandleCuError(cudaMemcpyToSymbol(device_refCam, host_refCam, sizeof(CudaVision::CudaCamera<TCam>)));
 
         LOG(INFO) << "Uploading images";
         CudaVision::HandleCuError(cudaMemcpy(images, host_images, width * height * N * 3 * sizeof(unsigned char),
                                              cudaMemcpyHostToDevice));
         CudaVision::HandleCuError(cudaMemcpy(refImage, host_refImage, width * height * 3 * sizeof(unsigned char),
                                              cudaMemcpyHostToDevice));
-        LOG(INFO) << "Uploading space points";
+        LOG(INFO) << "Uploading rays";
         CudaVision::HandleCuError(
-                cudaMemcpy(spacePt, host_spts, width * height * resolution * 3 * sizeof(TCam), cudaMemcpyHostToDevice));
+                cudaMemcpy(rays, host_rays, width * height * 3 * sizeof(TCam), cudaMemcpyHostToDevice));
 
         //call kernel
-        stereoMatchingKernel<TCam, TOut> <<<blockSize, BLOCKDIM>>>(images, refImage, width, height, N, device_cameras, &device_refCam, spacePt, resolution, R, output);
-
+        stereoMatchingKernel<TCam, TOut> <<<blockSize, BLOCKDIM>>>(images, refImage, width, height, N, rays, min_disp, max_disp, downsample, resolution, R, output);
         LOG(INFO) << "Copy back result";
         CudaVision::HandleCuError(cudaMemcpy(result.data(), output, width * height * resolution * sizeof(TOut), cudaMemcpyDeviceToHost));
+        cudaDeviceSynchronize();
     }
 
 
 
     template<typename TCam, typename TOut>
     __global__ void stereoMatchingKernel(const unsigned char* images, const unsigned char* refImage, const int width, const int height, const int N,
-                                         const CudaCamera<TCam>* cameras, const CudaCamera<TCam>* refCam, const TCam* spacePt, const int resolution, const int R, TOut* output){
+                                         const TCam* rays, const TCam min_disp, const TCam max_disp, const TCam downsample, const int resolution, const int R, TOut* output){
         int x = blockIdx.x;
         int y = blockIdx.y;
 
@@ -145,7 +152,10 @@ namespace CudaVision{
         __syncthreads();
 
         //allocate memory
-        TOut nccArray[MAXFRAME];
+        TOut nccArray[MAXFRAME] = {};
+        for(int i=0; i<MAXFRAME; ++i)
+            nccArray[i] = i;
+
         TOut newPatch[MAXPATCHSIZE * 3];
 
         const int patchSize = (2*R+1) * (2*R+1);
@@ -154,70 +164,79 @@ namespace CudaVision{
             //position inside output array
             int outputOffset = (y * width + x) * resolution + d;
 
-            for(int v=0; v<N; ++v) {
-                //reset new patch
-                for(auto i=0; i<MAXPATCHSIZE * 3; ++i)
-                    newPatch[i] = -1;
-                //project space point and extract pixel
-                int ind = 0;
-                for (int dx = -1 * R; dx <= R; ++dx) {
-                    for (int dy = -1 * R; dy <= R; ++dy) {
-                        int curx = x + dx, cury = y + dy;
-                        if (curx >= 0 && curx < width && cury >= 0 && cury < height) {
-                            TCam projected[2];
-                            cameras[v].projectPoint(spacePt + ((cury * width + curx) * resolution + d) * 3,
-                                                    projected);
-                            if (projected[0] >= 0 && projected[1] >= 0 && projected[0] < width - 1 &&
-                                projected[1] < height - 1) {
-                                bilinearInterpolation<unsigned char, TCam, TOut>(images + width * height * v * 3, width,
-                                                                                 projected, newPatch + ind * 3);
-                            }
-                        }
-                        ind++;
-                    }
-                }
+            TCam depth = 1.0/(min_disp + d * (max_disp - min_disp) / (TCam) resolution);
 
-                //compute NCC
-                TOut mean1 = 0, mean2 = 0, count = 0;
-                for(int i=0; i<patchSize; ++i){
-                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
-                        mean1 += refPatch[3*i] + refPatch[3*i+1] + refPatch[3*i+2];
-                        mean2 += newPatch[3*i] + newPatch[3*i+1] + newPatch[3*i+2];
-                        count += 1;
-                    }
-                }
-                mean1 /= (3 * count);
-                mean2 /= (3 * count);
+//            for(int v=0; v<N; ++v) {
+//                //reset new patch
+//                for(auto i=0; i<MAXPATCHSIZE * 3; ++i)
+//                    newPatch[i] = -1;
+//                //project space point and extract pixel
+//                int ind = 0;
+//                for (int dx = -1 * R; dx <= R; ++dx) {
+//                    for (int dy = -1 * R; dy <= R; ++dy) {
+//                        int curx = x + dx, cury = y + dy;
+//                        if (curx >= 0 && curx < width && cury >= 0 && cury < height) {
+//                            //project points. Be careful with the downsample factor
+//                            TCam spt[3];
+//                            spt[0] = device_refCam.extrinsic[0 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3] * depth;
+//                            spt[1] = device_refCam.extrinsic[1 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 1] * depth;
+//                            spt[2] = device_refCam.extrinsic[2 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 2] * depth;
+//                            TCam projected[2];
+//                            device_cameras[v].projectPoint(spt, projected);
+//                            projected[0] /= downsample;
+//                            projected[1] /= downsample;
+//                            if (projected[0] >= 0 && projected[1] >= 0 && projected[0] < width - 1 &&
+//                                projected[1] < height - 1) {
+//                                bilinearInterpolation<unsigned char, TCam, TOut>(images + width * height * v * 3, width,
+//                                                                                 projected, newPatch + ind * 3);
+//                            }
+//                        }
+//                        ind++;
+//                    }
+//                }
+//
+//                //compute NCC
+//                TOut mean1 = 0, mean2 = 0, count = 0;
+//                for(int i=0; i<patchSize; ++i){
+//                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
+//                        mean1 += refPatch[3*i] + refPatch[3*i+1] + refPatch[3*i+2];
+//                        mean2 += newPatch[3*i] + newPatch[3*i+1] + newPatch[3*i+2];
+//                        count += 1;
+//                    }
+//                }
+//                mean1 /= (3 * count);
+//                mean2 /= (3 * count);
+//
+//                TOut var1 = 0, var2 = 0;
+//                for(int i=0; i<patchSize; ++i){
+//                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
+//                        var1 += (refPatch[3*i] - mean1) * (refPatch[3*i] - mean1) +
+//                                (refPatch[3*i + 1] - mean1) * (refPatch[3*i + 1] - mean1) +
+//                                (refPatch[3*i + 2] - mean1) * (refPatch[3*i + 2] - mean1);
+//                        var2 += (newPatch[3*i] - mean2) * (newPatch[3*i] - mean2) +
+//                                (newPatch[3*i + 1] - mean2) * (newPatch[3*i + 1] - mean2) +
+//                                (newPatch[3*i + 2] - mean2) * (newPatch[3*i + 2] - mean2);
+//                    }
+//                }
+//                if(var1 < FLT_EPSILON || var2 < FLT_EPSILON)
+//                    nccArray[v] = 0;
+//                else {
+//                    var1 = sqrt(var1 / count);
+//                    var2 = sqrt(var2 / count);
+//                    TOut ncc = 0;
+//                    for (int i = 0; i < patchSize; ++i) {
+//                        if (newPatch[3 * i] >= 0 && refPatch[3 * i] >= 0) {
+//                            ncc += (refPatch[3 * i] - mean1) * (newPatch[3 * i] - mean2) +
+//                                   (refPatch[3 * i + 1] - mean1) * (newPatch[3 * i + 1] - mean2) +
+//                                   (refPatch[3 * i + 2] - mean1) * (newPatch[3 * i + 2] - mean2);
+//                        }
+//                    }
+//                    nccArray[v] = ncc / (var1 * var2 * (N-1));
+//                }
+//            }
 
-                TOut var1 = 0, var2 = 0;
-                for(int i=0; i<patchSize; ++i){
-                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
-                        var1 += (refPatch[3*i] - mean1) * (refPatch[3*i] - mean1) +
-                                (refPatch[3*i + 1] - mean1) * (refPatch[3*i + 1] - mean1) +
-                                (refPatch[3*i + 2] - mean1) * (refPatch[3*i + 2] - mean1);
-                        var2 += (newPatch[3*i] - mean2) * (newPatch[3*i] - mean2) +
-                                (newPatch[3*i + 1] - mean2) * (newPatch[3*i + 1] - mean2) +
-                                (newPatch[3*i + 2] - mean2) * (newPatch[3*i + 2] - mean2);
-                    }
-                }
-                if(var1 < FLT_EPSILON || var2 < FLT_EPSILON)
-                    nccArray[v] = 0;
-                else {
-                    var1 = sqrt(var1 / count);
-                    var2 = sqrt(var2 / count);
-                    TOut ncc = 0;
-                    for (int i = 0; i < patchSize; ++i) {
-                        if (newPatch[3 * i] >= 0 && refPatch[3 * i] >= 0) {
-                            ncc += (refPatch[3 * i] - mean1) * (newPatch[3 * i] - mean2) +
-                                   (refPatch[3 * i + 1] - mean1) * (newPatch[3 * i + 1] - mean2) +
-                                   (refPatch[3 * i + 2] - mean1) * (newPatch[3 * i + 2] - mean2);
-                        }
-                    }
-                    nccArray[v] = ncc / (var1 * var2 * (N-1));
-                }
-            }
-
-            output[outputOffset] = find_nth(nccArray, N, N/2);
+            output[outputOffset] = find_nth<TOut>(nccArray, N, N/2);
+            //output[outputOffset] = 0;
         }
     }
 }//namespace CudaVision
