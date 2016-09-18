@@ -166,74 +166,74 @@ namespace CudaVision{
 
             TCam depth = 1.0/(min_disp + d * (max_disp - min_disp) / (TCam) resolution);
 
-//            for(int v=0; v<N; ++v) {
-//                //reset new patch
-//                for(auto i=0; i<MAXPATCHSIZE * 3; ++i)
-//                    newPatch[i] = -1;
-//                //project space point and extract pixel
-//                int ind = 0;
-//                for (int dx = -1 * R; dx <= R; ++dx) {
-//                    for (int dy = -1 * R; dy <= R; ++dy) {
-//                        int curx = x + dx, cury = y + dy;
-//                        if (curx >= 0 && curx < width && cury >= 0 && cury < height) {
-//                            //project points. Be careful with the downsample factor
-//                            TCam spt[3];
-//                            spt[0] = device_refCam.extrinsic[0 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3] * depth;
-//                            spt[1] = device_refCam.extrinsic[1 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 1] * depth;
-//                            spt[2] = device_refCam.extrinsic[2 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 2] * depth;
-//                            TCam projected[2];
-//                            device_cameras[v].projectPoint(spt, projected);
-//                            projected[0] /= downsample;
-//                            projected[1] /= downsample;
-//                            if (projected[0] >= 0 && projected[1] >= 0 && projected[0] < width - 1 &&
-//                                projected[1] < height - 1) {
-//                                bilinearInterpolation<unsigned char, TCam, TOut>(images + width * height * v * 3, width,
-//                                                                                 projected, newPatch + ind * 3);
-//                            }
-//                        }
-//                        ind++;
-//                    }
-//                }
-//
-//                //compute NCC
-//                TOut mean1 = 0, mean2 = 0, count = 0;
-//                for(int i=0; i<patchSize; ++i){
-//                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
-//                        mean1 += refPatch[3*i] + refPatch[3*i+1] + refPatch[3*i+2];
-//                        mean2 += newPatch[3*i] + newPatch[3*i+1] + newPatch[3*i+2];
-//                        count += 1;
-//                    }
-//                }
-//                mean1 /= (3 * count);
-//                mean2 /= (3 * count);
-//
-//                TOut var1 = 0, var2 = 0;
-//                for(int i=0; i<patchSize; ++i){
-//                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
-//                        var1 += (refPatch[3*i] - mean1) * (refPatch[3*i] - mean1) +
-//                                (refPatch[3*i + 1] - mean1) * (refPatch[3*i + 1] - mean1) +
-//                                (refPatch[3*i + 2] - mean1) * (refPatch[3*i + 2] - mean1);
-//                        var2 += (newPatch[3*i] - mean2) * (newPatch[3*i] - mean2) +
-//                                (newPatch[3*i + 1] - mean2) * (newPatch[3*i + 1] - mean2) +
-//                                (newPatch[3*i + 2] - mean2) * (newPatch[3*i + 2] - mean2);
-//                    }
-//                }
-//                if(var1 < FLT_EPSILON || var2 < FLT_EPSILON)
-//                    nccArray[v] = 0;
-//                else {
-//                    var1 = sqrt(var1 / count);
-//                    var2 = sqrt(var2 / count);
-//                    TOut ncc = 0;
-//                    for (int i = 0; i < patchSize; ++i) {
-//                        if (newPatch[3 * i] >= 0 && refPatch[3 * i] >= 0) {
-//                            ncc += (refPatch[3 * i] - mean1) * (newPatch[3 * i] - mean2) +
-//                                   (refPatch[3 * i + 1] - mean1) * (newPatch[3 * i + 1] - mean2) +
-//                                   (refPatch[3 * i + 2] - mean1) * (newPatch[3 * i + 2] - mean2);
-//                        }
-//                    }
-//                    nccArray[v] = ncc / (var1 * var2 * (N-1));
-//                }
-//            }
+            for(int v=0; v<N; ++v) {
+                //reset new patch
+                for(auto i=0; i<MAXPATCHSIZE * 3; ++i)
+                    newPatch[i] = -1;
+                //project space point and extract pixel
+                int ind = 0;
+                for (int dx = -1 * R; dx <= R; ++dx) {
+                    for (int dy = -1 * R; dy <= R; ++dy) {
+                        int curx = x + dx, cury = y + dy;
+                        if (curx >= 0 && curx < width && cury >= 0 && cury < height) {
+                            //project points. Be careful with the downsample factor
+                            TCam spt[3];
+                            spt[0] = device_refCam.extrinsic[0 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3] * depth;
+                            spt[1] = device_refCam.extrinsic[1 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 1] * depth;
+                            spt[2] = device_refCam.extrinsic[2 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 2] * depth;
+                            TCam projected[2];
+                            device_cameras[v].projectPoint(spt, projected);
+                            projected[0] /= downsample;
+                            projected[1] /= downsample;
+                            if (projected[0] >= 0 && projected[1] >= 0 && projected[0] < width - 1 &&
+                                projected[1] < height - 1) {
+                                bilinearInterpolation<unsigned char, TCam, TOut>(images + width * height * v * 3, width,
+                                                                                 projected, newPatch + ind * 3);
+                            }
+                        }
+                        ind++;
+                    }
+                }
+
+                //compute NCC
+                TOut mean1 = 0, mean2 = 0, count = 0;
+                for(int i=0; i<patchSize; ++i){
+                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
+                        mean1 += refPatch[3*i] + refPatch[3*i+1] + refPatch[3*i+2];
+                        mean2 += newPatch[3*i] + newPatch[3*i+1] + newPatch[3*i+2];
+                        count += 1;
+                    }
+                }
+                mean1 /= (3 * count);
+                mean2 /= (3 * count);
+
+                TOut var1 = 0, var2 = 0;
+                for(int i=0; i<patchSize; ++i){
+                    if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
+                        var1 += (refPatch[3*i] - mean1) * (refPatch[3*i] - mean1) +
+                                (refPatch[3*i + 1] - mean1) * (refPatch[3*i + 1] - mean1) +
+                                (refPatch[3*i + 2] - mean1) * (refPatch[3*i + 2] - mean1);
+                        var2 += (newPatch[3*i] - mean2) * (newPatch[3*i] - mean2) +
+                                (newPatch[3*i + 1] - mean2) * (newPatch[3*i + 1] - mean2) +
+                                (newPatch[3*i + 2] - mean2) * (newPatch[3*i + 2] - mean2);
+                    }
+                }
+                if(var1 < FLT_EPSILON || var2 < FLT_EPSILON)
+                    nccArray[v] = 0;
+                else {
+                    var1 = sqrt(var1 / count);
+                    var2 = sqrt(var2 / count);
+                    TOut ncc = 0;
+                    for (int i = 0; i < patchSize; ++i) {
+                        if (newPatch[3 * i] >= 0 && refPatch[3 * i] >= 0) {
+                            ncc += (refPatch[3 * i] - mean1) * (newPatch[3 * i] - mean2) +
+                                   (refPatch[3 * i + 1] - mean1) * (newPatch[3 * i + 1] - mean2) +
+                                   (refPatch[3 * i + 2] - mean1) * (newPatch[3 * i + 2] - mean2);
+                        }
+                    }
+                    nccArray[v] = ncc / (var1 * var2 * (N-1));
+                }
+            }
 
             output[outputOffset] = find_nth<TOut>(nccArray, N, N/2);
             //output[outputOffset] = 0;
