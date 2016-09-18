@@ -144,13 +144,16 @@ namespace dynamic_stereo {
 				extrinsic[i] = pos[i];
 				extrinsic[i + 3] = ax[i];
 			}
-			intrinsic[0] = (TCam) cam.FocalLength();
-			intrinsic[1] = (TCam) cam.AspectRatio();
-			intrinsic[2] = (TCam) cam.Skew();
-			intrinsic[3] = (TCam) cam.PrincipalPointX();
-			intrinsic[4] = (TCam) cam.PrincipalPointY();
-			intrinsic[5] = (TCam) cam.RadialDistortion1();
-			intrinsic[6] = (TCam) cam.RadialDistortion2();
+
+//            CHECK_EQ(cam.GetCameraIntrinsicsModelType(), theia::CameraIntrinsicsModelType::PINHOLE);
+            const double* intParam = cam.intrinsics();
+			intrinsic[0] = (TCam) intParam[theia::PinholeCameraModel::FOCAL_LENGTH];
+			intrinsic[1] = (TCam) intParam[theia::PinholeCameraModel::ASPECT_RATIO];
+			intrinsic[2] = (TCam) intParam[theia::PinholeCameraModel::SKEW];
+			intrinsic[3] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_X];
+			intrinsic[4] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_Y];
+			intrinsic[5] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_1];
+			intrinsic[6] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_2];
 		};
 
 		//copy data
