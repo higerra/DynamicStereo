@@ -113,10 +113,13 @@ namespace CudaVision{
                 cudaMemcpy(rays, host_rays, width * height * 3 * sizeof(TCam), cudaMemcpyHostToDevice));
 
         //call kernel
+        LOG(INFO) << "Computing...";
         stereoMatchingKernel<TCam, TOut> <<<blockSize, BLOCKDIM>>>(images, refImage, width, height, N, rays, min_disp, max_disp, downsample, resolution, R, output);
+        cudaDeviceSynchronize();
+
         LOG(INFO) << "Copy back result";
         CudaVision::HandleCuError(cudaMemcpy(result.data(), output, width * height * resolution * sizeof(TOut), cudaMemcpyDeviceToHost));
-        cudaDeviceSynchronize();
+
     }
 
 
