@@ -13,7 +13,7 @@
 
 namespace CudaVision{
 
-    static const int BLOCKDIM = 32;
+    static const int BLOCKDIM = 128;
     static const int MAXFRAME = 50;
     static const int MAXPATCHSIZE = 25;
 
@@ -119,7 +119,6 @@ namespace CudaVision{
 
         LOG(INFO) << "Copy back result";
         CudaVision::HandleCuError(cudaMemcpy(result.data(), output, width * height * resolution * sizeof(TOut), cudaMemcpyDeviceToHost));
-
     }
 
 
@@ -239,7 +238,6 @@ namespace CudaVision{
             }
 
             output[outputOffset] = find_nth<TOut>(nccArray, N, N/2);
-            //output[outputOffset] = 0;
         }
     }
 }//namespace CudaVision
