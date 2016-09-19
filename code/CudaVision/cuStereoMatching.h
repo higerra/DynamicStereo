@@ -274,7 +274,7 @@ namespace CudaVision{
             if(validCount < 2){
                 output[outputOffset] = 1;
             }else{
-                quick_sort(nccValid, 0, validCount - 1);
+                insert_sort(nccValid, validCount);
                 int kth = validCount / 2;
                 TOut res = 0;
                 for(int i=0; i<kth; ++i){

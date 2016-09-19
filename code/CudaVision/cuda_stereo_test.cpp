@@ -69,7 +69,7 @@ TEST(CudaStereo, ProjectPointToImage){
     cam_prior.radial_distortion.value[0] = r1;
     cam_prior.radial_distortion.value[1] = r2;
 
-    
+
     theia::Camera cam;
     cam.SetFromCameraIntrinsicsPriors(cam_prior);
     cam.SetPosition(position);
@@ -77,28 +77,28 @@ TEST(CudaStereo, ProjectPointToImage){
 
     using TCam = double;
     auto copyCamera = [](const theia::Camera &cam, TCam *intrinsic, TCam *extrinsic) {
-	Vector3d pos = cam.GetPosition();
-	Vector3d ax = cam.GetOrientationAsAngleAxis();
-	for (auto i = 0; i < 3; ++i) {
-	    extrinsic[i] = pos[i];
-	    extrinsic[i + 3] = ax[i];
-	}
+        Vector3d pos = cam.GetPosition();
+        Vector3d ax = cam.GetOrientationAsAngleAxis();
+        for (auto i = 0; i < 3; ++i) {
+            extrinsic[i] = pos[i];
+            extrinsic[i + 3] = ax[i];
+        }
 
 //            CHECK_EQ(cam.GetCameraIntrinsicsModelType(), theia::CameraIntrinsicsModelType::PINHOLE);
-	const double* intParam = cam.intrinsics();
-	intrinsic[0] = (TCam) intParam[theia::PinholeCameraModel::FOCAL_LENGTH];
-	intrinsic[1] = (TCam) intParam[theia::PinholeCameraModel::ASPECT_RATIO];
-	intrinsic[2] = (TCam) intParam[theia::PinholeCameraModel::SKEW];
-	intrinsic[3] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_X];
-	intrinsic[4] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_Y];
-	intrinsic[5] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_1];
-	intrinsic[6] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_2];
+        const double* intParam = cam.intrinsics();
+        intrinsic[0] = (TCam) intParam[theia::PinholeCameraModel::FOCAL_LENGTH];
+        intrinsic[1] = (TCam) intParam[theia::PinholeCameraModel::ASPECT_RATIO];
+        intrinsic[2] = (TCam) intParam[theia::PinholeCameraModel::SKEW];
+        intrinsic[3] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_X];
+        intrinsic[4] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_Y];
+        intrinsic[5] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_1];
+        intrinsic[6] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_2];
     };
 
 
     CudaVision::CudaCamera<double> cudacam;
     copyCamera(cam, cudacam.intrinsic, cudacam.extrinsic);
-    
+
     Vector2d pixel_cuda, pixel_theia;
     cam.ProjectPoint(spt, &pixel_theia);
     cudacam.projectPoint(spt.data(), pixel_cuda.data());
@@ -153,31 +153,44 @@ TEST(CudaUtil, quick_sort){
     std::default_random_engine engine;
     std::uniform_int_distribution<int> dist(0, 100);
     for(auto i=0; i<array.size(); ++i)
-	array[i] = dist(engine);
+        array[i] = dist(engine);
 
     printf("Before sort:\n");
     for(auto v: array)
-	cout << v << ' ';
+        cout << v << ' ';
     cout << endl;
-    
-    vector<int> array_ori = array;
+
+    vector<int> array_quick = array;
+    vector<int> array_insert = array;
     std::sort(array.begin(), array.end());
-    CudaVision::quick_sort<int>(array_ori.data(), 0, (int)array.size() - 1);
+    CudaVision::quick_sort<int>(array_quick.data(), 0, (int)array.size() - 1);
+    CudaVision::insert_sort<int>(array_insert.data(), (int)array.size());
 
     printf("After sort:\n");
     printf("STL:");
     for(auto v: array)
-	cout << v << ' ';
+        cout << v << ' ';
     cout << endl;
 
-    printf("CUV:");
-    for(auto v: array_ori)
-	cout << v << ' ';
+    printf("CUQ:");
+    for(auto v: array_quick)
+        cout << v << ' ';
+    cout << endl;
+
+    printf("CUI:");
+    for(auto v: array_quick)
+        cout << v << ' ';
     cout << endl;
 
     int diff = 0;
     for(auto i=0; i<array.size(); ++i){
-	diff += array[i] - array_ori[i];
+        diff += array[i] - array_quick[i];
+    }
+    EXPECT_EQ(diff, 0);
+
+    diff = 0;
+    for(auto i=0; i<array.size(); ++i){
+        diff += array[i] - array_insert[i];
     }
     EXPECT_EQ(diff, 0);
 }
