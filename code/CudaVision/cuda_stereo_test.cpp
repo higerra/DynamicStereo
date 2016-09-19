@@ -51,17 +51,18 @@ TEST(CudaStereo, ProjectPointToImage){
     Vector4d spt = Vector4d::Random();
     spt[3] = 1.0;
 
-    const double focal = 1048;
-    const double px = 746.6, py = 1019.21;
-    const double r1 = 0.01, r2 = 0.001;
+    const double focal = 1066.53;
+    const double px = 821.791, py = 1021.12;
+    const double r1 = -0.0354408, r2 = -0.00696851;
     Vector3d position(1,1,1);
     Vector3d axis(0.3,0.7,0.4);
     //generate a theia camera, and convert to CudaCamera
+	
     theia::CameraIntrinsicsPrior cam_prior;
     cam_prior.camera_intrinsics_model_type = "PINHOLE";
     cam_prior.focal_length.value[0] = focal;
-    cam_prior.image_width = px * 2;
-    cam_prior.image_height = py * 2;
+    cam_prior.image_width = 540;
+    cam_prior.image_height = 960;
     cam_prior.principal_point.value[0] = px;
     cam_prior.principal_point.value[1] = py;
     cam_prior.aspect_ratio.value[0] = 1.0;
