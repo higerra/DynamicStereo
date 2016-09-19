@@ -225,7 +225,7 @@ namespace dynamic_stereo {
         }
         if(recompute) {
             float start_t = getTickCount();
-#if 0
+#if USE_CUDA
             computeMatchingCostGPU();
 #else
             computeMatchingCostCPU();
