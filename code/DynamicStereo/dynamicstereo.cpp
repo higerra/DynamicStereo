@@ -95,14 +95,17 @@ namespace dynamic_stereo{
 
             printf("CPU 3d point: (%.3f,%.3f,%.3f)\n", spt[0], spt[1], spt[2]);
             for (auto v = 0; v < images.size(); ++v) {
-
                 Mat curimg = imread(file_io.getImage(v + offset));
                 Vector2d imgpt;
-                double curdepth = sfmModel.getCamera(v+offset).ProjectPoint(
+                const theia::Camera& tgtCam = sfmModel.getCamera(v+offset);
+                double curdepth = tgtCam.ProjectPoint(
                         Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
                 if(v == 0){
+                    printf("Target camera:\n");
+                    tgtCam.PrintCameraIntrinsics();
+                    printf("CPU camera position:(%.3f,%.3f,%.3f)\n", tgtCam.GetPosition()[0], tgtCam.GetPosition()[1], tgtCam.GetPosition()[2]);
+                    printf("CPU camera axis:(%.3f,%.3f,%.3f)\n", tgtCam.GetOrientationAsAngleAxis()[0], tgtCam.GetOrientationAsAngleAxis()[1], tgtCam.GetOrientationAsAngleAxis()[2]);
                     printf("CPU projected point: (%.3f,%.3f)\n", imgpt[0], imgpt[1]);
-                    sfmModel.getCamera(v+offset).PrintCameraIntrinsics();
                 }
                 if (imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < curimg.cols && imgpt[1] < curimg.rows)
                     cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(255, 0, 0), 2);

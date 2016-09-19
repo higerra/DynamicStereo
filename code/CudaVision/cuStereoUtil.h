@@ -166,7 +166,7 @@ namespace CudaVision{
     template<typename T>
     __device__ __host__ void insert_sort(T* array, const int N){
         for(int i=1; i<N; ++i){
-            int x = array[i];
+            T x = array[i];
             int j = i-1;
             while(j >= 0 && array[j] > x){
                 array[j+1] = array[j];

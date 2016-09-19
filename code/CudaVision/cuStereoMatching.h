@@ -204,10 +204,11 @@ namespace CudaVision{
                         int curx = x + dx, cury = y + dy;
                         if (curx >= 0 && curx < width && cury >= 0 && cury < height) {
                             //project points. Be careful with the downsample factor
-                            TCam spt[3];
+                            TCam spt[4];
                             spt[0] = device_refCam.extrinsic[0 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3] * depth;
                             spt[1] = device_refCam.extrinsic[1 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 1] * depth;
                             spt[2] = device_refCam.extrinsic[2 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 2] * depth;
+                            spt[3] = 1.0;
                             TCam projected[2];
                             device_cameras[v].projectPoint(spt, projected);
                             projected[0] /= downsample;
@@ -281,10 +282,10 @@ namespace CudaVision{
             if(validCount < 2){
                 output[outputOffset] = 1;
             }else{
-                insert_sort(nccValid, validCount);
+                insert_sort<TOut>(nccValid, validCount);
                 int kth = validCount / 2;
                 TOut res = 0;
-                for(int i=0; i<kth; ++i){
+                for(int i=kth; i < validCount; ++i){
                     if(nccValid[i] < thetancc)
                         res += thetancc;
                     else
@@ -347,10 +348,11 @@ namespace CudaVision{
                     int curx = x + dx, cury = y + dy;
                     if (curx >= 0 && curx < width && cury >= 0 && cury < height) {
                         //project points. Be careful with the downsample factor
-                        TCam spt[3];
+                        TCam spt[4];
                         spt[0] = refCam->extrinsic[0 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3] * depth;
                         spt[1] = refCam->extrinsic[1 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 1] * depth;
                         spt[2] = refCam->extrinsic[2 + CudaCamera<TCam>::POSITION] + rays[(cury * width + curx) * 3 + 2] * depth;
+                        spt[3] = 1.0;
                         TCam projected[2];
                         cameras[v].projectPoint(spt, projected);
                         projected[0] /= downsample;
@@ -359,7 +361,7 @@ namespace CudaVision{
                             printf("Camera pos:(%.3f,%.3f,%.3f)\n", refCam->extrinsic[0], refCam->extrinsic[1], refCam->extrinsic[2]);
                             printf("Camera ori:(%.3f,%.3f,%.3f)\n", refCam->extrinsic[3], refCam->extrinsic[4], refCam->extrinsic[5]);
                             printf("ray:(%.3f,%.3f,%.3f)\n", rays[(cury * width + curx) * 3], rays[(cury * width + curx) * 3 + 1], rays[(cury * width + curx) * 3 + 2]);
-                            printf("3d point: (%.2f,%.2f,%.2f)\nprojected point: (%.1f,%.1f)\n", spt[0], spt[1], spt[2], projected[0], projected[1]);
+                            printf("3d point: (%.3f,%.3f,%.3ff)\nprojected point: (%.3f,%.3f)\n", spt[0], spt[1], spt[2], projected[0], projected[1]);
                         }
                         if (projected[0] >= 0 && projected[1] >= 0 && projected[0] < width - 1 &&
                             projected[1] < height - 1) {
@@ -430,16 +432,16 @@ namespace CudaVision{
         if(validCount < 2){
             return (TOut)1.0;
         }else{
-            insert_sort(nccValid, validCount);
+            insert_sort<TOut>(nccValid, validCount);
             int kth = validCount / 2;
             TOut res = 0;
-            for(int i=0; i<kth; ++i){
+            for(int i=kth; i<validCount; ++i){
                 if(nccValid[i] < thetancc)
                     res += thetancc;
                 else
                     res += nccValid[i];
             }
-            return res;
+            return 1.0 - res / (TOut)kth;
         }
     }
 }//namespace CudaVision

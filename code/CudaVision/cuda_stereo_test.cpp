@@ -48,33 +48,38 @@ using namespace cv;
 // }
 
 TEST(CudaStereo, ProjectPointToImage){
-    Vector4d spt = Vector4d::Random();
-    spt[3] = 1.0;
+    Vector4d spt(-381.556,26.472,213.060,1.0);
 
     const double focal = 1066.53;
     const double px = 821.791, py = 1021.12;
     const double r1 = -0.0354408, r2 = -0.00696851;
-    Vector3d position(1,1,1);
-    Vector3d axis(0.3,0.7,0.4);
+    Vector3d position(-31.233,6.488,-20.537);
+    Vector3d axis(0.082,0.432,-0.044);
     //generate a theia camera, and convert to CudaCamera
-	
     theia::CameraIntrinsicsPrior cam_prior;
     cam_prior.camera_intrinsics_model_type = "PINHOLE";
     cam_prior.focal_length.value[0] = focal;
+    cam_prior.focal_length.is_set = true;
     cam_prior.image_width = 540;
     cam_prior.image_height = 960;
     cam_prior.principal_point.value[0] = px;
     cam_prior.principal_point.value[1] = py;
+    cam_prior.principal_point.is_set = true;
     cam_prior.aspect_ratio.value[0] = 1.0;
+    cam_prior.aspect_ratio.is_set = true;
     cam_prior.skew.value[0] = 0.0;
+    cam_prior.skew.is_set = true;
     cam_prior.radial_distortion.value[0] = r1;
     cam_prior.radial_distortion.value[1] = r2;
-
+    cam_prior.radial_distortion.is_set = true;
 
     theia::Camera cam;
     cam.SetFromCameraIntrinsicsPriors(cam_prior);
     cam.SetPosition(position);
     cam.SetOrientationFromAngleAxis(axis);
+
+    printf("Cam extrinsics:\n");
+    cam.PrintCameraIntrinsics();
 
     using TCam = double;
     auto copyCamera = [](const theia::Camera &cam, TCam *intrinsic, TCam *extrinsic) {
@@ -100,6 +105,14 @@ TEST(CudaStereo, ProjectPointToImage){
     CudaVision::CudaCamera<double> cudacam;
     copyCamera(cam, cudacam.intrinsic, cudacam.extrinsic);
 
+    printf("Cuda cam:\nIntrinsic:");
+    for(auto i=0; i<cudacam.kIntrinsicSize; ++i)
+        cout << cudacam.intrinsic[i] << ' ';
+    cout << endl << "Extrinsic:";
+    for(auto i=0; i<cudacam.kExtrinsicSize; ++i)
+        cout << cudacam.extrinsic[i] << ' ';
+    cout << endl;
+
     Vector2d pixel_cuda, pixel_theia;
     cam.ProjectPoint(spt, &pixel_theia);
     cudacam.projectPoint(spt.data(), pixel_cuda.data());
@@ -109,25 +122,25 @@ TEST(CudaStereo, ProjectPointToImage){
     EXPECT_NEAR((pixel_cuda - pixel_theia).norm(), 0.0, DBL_EPSILON);
 }
 
-TEST(CudaStereo, bilinear) {
-    Mat ranMat(10, 10, CV_8UC3);
-    cv::RNG rng;
-    rng.fill(ranMat, RNG::UNIFORM, Scalar(0, 0, 0), Scalar(255, 255, 255));
-
-    std::default_random_engine engine;
-    std::uniform_real_distribution<double> dist(1, 9);
-    for (int k = 0; k < 5; ++k) {
-        double loc[2]{dist(engine), dist(engine)};
-        double pixCuda[3];
-        CudaVision::bilinearInterpolation<unsigned char, double, double>(ranMat.data, ranMat.cols, loc, pixCuda);
-        Vector3d pixUtility = interpolation_util::bilinear<unsigned char, 3>(ranMat.data, ranMat.cols, ranMat.rows,
-                                                                             Eigen::Map<Vector2d>(loc));
-
-        printf("pt:(%.3f,%.3f), utility:(%.3f,%.3f,%.3f), cuda:(%.3f,%.3f,%.3f)\n", loc[0], loc[1],
-               pixUtility[0], pixUtility[1], pixUtility[2], pixCuda[0], pixCuda[1], pixCuda[2]);
-        EXPECT_NEAR((pixUtility - Eigen::Map<Eigen::Vector3d>(pixCuda) ).norm(), 0.0, 0.1);
-    }
-}
+//TEST(CudaStereo, bilinear) {
+//    Mat ranMat(10, 10, CV_8UC3);
+//    cv::RNG rng;
+//    rng.fill(ranMat, RNG::UNIFORM, Scalar(0, 0, 0), Scalar(255, 255, 255));
+//
+//    std::default_random_engine engine;
+//    std::uniform_real_distribution<double> dist(1, 9);
+//    for (int k = 0; k < 5; ++k) {
+//        double loc[2]{dist(engine), dist(engine)};
+//        double pixCuda[3];
+//        CudaVision::bilinearInterpolation<unsigned char, double, double>(ranMat.data, ranMat.cols, loc, pixCuda);
+//        Vector3d pixUtility = interpolation_util::bilinear<unsigned char, 3>(ranMat.data, ranMat.cols, ranMat.rows,
+//                                                                             Eigen::Map<Vector2d>(loc));
+//
+//        printf("pt:(%.3f,%.3f), utility:(%.3f,%.3f,%.3f), cuda:(%.3f,%.3f,%.3f)\n", loc[0], loc[1],
+//               pixUtility[0], pixUtility[1], pixUtility[2], pixCuda[0], pixCuda[1], pixCuda[2]);
+//        EXPECT_NEAR((pixUtility - Eigen::Map<Eigen::Vector3d>(pixCuda) ).norm(), 0.0, 0.1);
+//    }
+//}
 
 TEST(CudaUtil, find_nth){
     vector<float> array(10);

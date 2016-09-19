@@ -93,7 +93,10 @@ namespace local_matcher {
         sort(mCost.begin(), mCost.end());
         const size_t kth = mCost.size() / 2;
         double res = 0.0;
-        for(auto i=0; i<kth; ++i){
+
+        //Sum the best half
+        //Notice: when using NCC, the higher value the better!
+        for(auto i=kth; i<mCost.size(); ++i){
             res += phidncc(mCost[i]);
         }
         return res / (double)kth;
