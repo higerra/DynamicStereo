@@ -106,45 +106,45 @@ namespace CudaVision{
         for(auto i=0; i<result.size(); ++i)
             result[i] = 0;
 
-//        LOG(INFO) << "Uploading Cameras";
-//        HandleCuError(cudaMemcpyToSymbol(device_cameras, host_cameras, N * sizeof(CudaVision::CudaCamera<TCam>)));
-//        HandleCuError(cudaMemcpyToSymbol(device_refCam, host_refCam, sizeof(CudaVision::CudaCamera<TCam>)));
-//        cudaDeviceSynchronize();
-//
-//        LOG(INFO) << "Uploading images";
-//        CudaVision::HandleCuError(cudaMemcpy(images, host_images, width * height * N * 3 * sizeof(unsigned char),
-//                                             cudaMemcpyHostToDevice));
-//        CudaVision::HandleCuError(cudaMemcpy(refImage, host_refImage, width * height * 3 * sizeof(unsigned char),
-//                                             cudaMemcpyHostToDevice));
-//        cudaDeviceSynchronize();
-//
-//        LOG(INFO) << "Uploading rays";
-//        CudaVision::HandleCuError(
-//                cudaMemcpy(rays, host_rays, width * height * 3 * sizeof(TCam), cudaMemcpyHostToDevice));
-//        cudaDeviceSynchronize();
-//
-//        //call kernel
-//        LOG(INFO) << "Computing...";
-//        stereoMatchingKernel<TCam, TOut> <<<blockSize, BLOCKDIM>>>(images, refImage, width, height, N, rays, min_disp, max_disp, downsample, resolution, R, output);
-//        cudaDeviceSynchronize();
-//
-//        LOG(INFO) << "Copy back result";
-//        CudaVision::HandleCuError(cudaMemcpy(result.data(), output, width * height * resolution * sizeof(TOut), cudaMemcpyDeviceToHost));
-//        cudaDeviceSynchronize();
-//
-//        TOut saniv = 0;
-//        for(int i=0; i<result.size(); ++i){
-//            CHECK_GE(result[i], 0);
-//            CHECK_LE(result[i], 1);
-//            saniv += result[i];
-//        }
-//        LOG(INFO) << "Sum of result: " << saniv;
-//        CHECK_GT(saniv, 0) << "Error copying data from GPU to CPU";
+        LOG(INFO) << "Uploading Cameras";
+        HandleCuError(cudaMemcpyToSymbol(device_cameras, host_cameras, N * sizeof(CudaVision::CudaCamera<TCam>)));
+        HandleCuError(cudaMemcpyToSymbol(device_refCam, host_refCam, sizeof(CudaVision::CudaCamera<TCam>)));
+        cudaDeviceSynchronize();
+
+        LOG(INFO) << "Uploading images";
+        CudaVision::HandleCuError(cudaMemcpy(images, host_images, width * height * N * 3 * sizeof(unsigned char),
+                                             cudaMemcpyHostToDevice));
+        CudaVision::HandleCuError(cudaMemcpy(refImage, host_refImage, width * height * 3 * sizeof(unsigned char),
+                                             cudaMemcpyHostToDevice));
+        cudaDeviceSynchronize();
+
+        LOG(INFO) << "Uploading rays";
+        CudaVision::HandleCuError(
+                cudaMemcpy(rays, host_rays, width * height * 3 * sizeof(TCam), cudaMemcpyHostToDevice));
+        cudaDeviceSynchronize();
+
+        //call kernel
+        LOG(INFO) << "Computing...";
+        stereoMatchingKernel<TCam, TOut> <<<blockSize, BLOCKDIM>>>(images, refImage, width, height, N, rays, min_disp, max_disp, downsample, resolution, R, output);
+        cudaDeviceSynchronize();
+
+        LOG(INFO) << "Copy back result";
+        CudaVision::HandleCuError(cudaMemcpy(result.data(), output, width * height * resolution * sizeof(TOut), cudaMemcpyDeviceToHost));
+        cudaDeviceSynchronize();
+
+        TOut saniv = 0;
+        for(int i=0; i<result.size(); ++i){
+            CHECK_GE(result[i], 0);
+            CHECK_LE(result[i], 1);
+            saniv += result[i];
+        }
+        LOG(INFO) << "Sum of result: " << saniv;
+        CHECK_GT(saniv, 0) << "Error copying data from GPU to CPU";
 
         //debug run
-        const int dx = 181 / 2, dy = 1028 / 2, dd = 82;
-        TOut debRes = stereoMatchingKernelDebug<TCam, TOut>(host_images, host_refImage, width, height, N, host_cameras, host_refCam, host_rays, min_disp, max_disp, downsample, resolution, R, dx, dy, dd);
-        printf("Matching cost for (%d,%d) at %d is: %.3f\n", dx, dy, dd, debRes);
+//        const int dx = 181 / 2, dy = 1028 / 2, dd = 82;
+//        TOut debRes = stereoMatchingKernelDebug<TCam, TOut>(host_images, host_refImage, width, height, N, host_cameras, host_refCam, host_rays, min_disp, max_disp, downsample, resolution, R, dx, dy, dd);
+//        printf("Matching cost for (%d,%d) at %d is: %.3f\n", dx, dy, dd, debRes);
     }
 
     template<typename TCam, typename TOut>
