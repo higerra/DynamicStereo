@@ -278,7 +278,10 @@ namespace CudaVision{
                 int kth = validCount / 2;
                 TOut res = 0;
                 for(int i=0; i<kth; ++i){
-                    res += nccValid[i];
+                    if(nccValid[i] < thetancc)
+                        res += thetancc;
+                    else
+                        res += nccValid[i];
                 }
                 output[outputOffset] = 1.0 - res / (TOut)kth;
             }
