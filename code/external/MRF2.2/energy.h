@@ -112,6 +112,7 @@
 
 #include <assert.h>
 #include "graph.h"
+#include <glog/logging.h>
 
 
 class Energy : Graph {
