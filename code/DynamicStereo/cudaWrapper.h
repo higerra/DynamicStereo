@@ -10,7 +10,7 @@
 namespace dynamic_stereo {
 
 	using TCam = double;
-	using TOut = float;
+	using TOut = double;
 
 	bool checkDevice();
 
