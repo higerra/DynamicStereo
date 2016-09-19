@@ -22,6 +22,8 @@ DEFINE_double(weight_smooth, 0.2, "smoothness weight for stereo");
 DEFINE_string(classifierPath, "", "not used");
 DEFINE_double(min_disp, -1, "min disp");
 DEFINE_double(max_disp, -1, "max_disp");
+DEFINE_bool(noOptimize, false, "only compute matching const");
+
 DECLARE_string(flagfile);
 
 int main(int argc, char **argv) {
@@ -71,7 +73,7 @@ int main(int argc, char **argv) {
 				const int tf1 = FLAGS_testFrame;
 				Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
-				Vector2d pt(181, 1028);
+				Vector2d pt(-1, -1);
 				stereo.dbtx = pt[0];
 				stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
@@ -90,7 +92,7 @@ int main(int argc, char **argv) {
 			Depth curdepth;
 			Mat curDepthMask;
 			sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
-			if(!curdepth.readDepthFromFile(string(buffer))) {
+			if((!curdepth.readDepthFromFile(string(buffer)))) {
 				printf("Running stereo for frame %d\n", tf);
 				stereo.runStereo(curdepth, curDepthMask);
 				curdepth.saveDepthFile(string(buffer));

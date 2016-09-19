@@ -46,7 +46,7 @@ namespace dynamic_stereo{
     }
 
 
-    void DynamicStereo::runStereo(Depth& depth_firstOrder, cv::Mat& depthMask, bool dryrun) {
+    void DynamicStereo::runStereo(Depth& depth_firstOrder, cv::Mat& depthMask, const bool dryrun) {
 
         if(dryrun && dbtx < 0 && dbty < 0)
             return;

@@ -270,8 +270,7 @@ inline void Energy::add_term2(Var x, Var y,
        0 B
        C 0
     */
-
-    assert(B + C >= 0); /* check regularity */
+    CHECK_GE(B+C, 0) << B << ' ' <<C;
     if (B < 0)
     {
         /* Write it as
