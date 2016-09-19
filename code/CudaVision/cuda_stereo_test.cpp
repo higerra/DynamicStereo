@@ -51,8 +51,8 @@ TEST(CudaStereo, ProjectPointToImage){
     Vector4d spt = Vector4d::Random();
     spt[3] = 1.0;
 
-    const double focal = 600;
-    const int px = 300, py = 400;
+    const double focal = 1048;
+    const double px = 746.6, py = 1019.21;
     const double r1 = 0.01, r2 = 0.001;
     Vector3d position(1,1,1);
     Vector3d axis(0.3,0.7,0.4);

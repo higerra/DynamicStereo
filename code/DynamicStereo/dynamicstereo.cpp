@@ -78,7 +78,6 @@ namespace dynamic_stereo{
             //const theia::Camera &cam = reconstruction.View(orderedId[anchor].second)->Camera();
             const theia::Camera &cam = sfmModel.getCamera(anchor);
             Vector3d ray = cam.PixelToUnitDepthRay(Vector2d(dbtx, dbty));
-            //ray.normalize();
 
             int tdisp = (int) dispUnary(dtx, dty);
 //			int tdisp = 142;
@@ -88,12 +87,23 @@ namespace dynamic_stereo{
             cout<< endl;
             cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
+            printf("CPU ray: (%.3f,%.3f,%.3f)\n", ray[0], ray[1], ray[2]);
             Vector3d spt = cam.GetPosition() + ray * td;
+            printf("CPU camera position:(%.3f,%.3f,%.3f)\n", cam.GetPosition()[0], cam.GetPosition()[1], cam.GetPosition()[2]);
+            printf("CPU camera axis:(%.3f,%.3f,%.3f)\n", cam.GetOrientationAsAngleAxis()[0], cam.GetOrientationAsAngleAxis()[1], cam.GetOrientationAsAngleAxis()[2]);
+            cam.PrintCameraIntrinsics();
+
+            printf("CPU 3d point: (%.3f,%.3f,%.3f)\n", spt[0], spt[1], spt[2]);
             for (auto v = 0; v < images.size(); ++v) {
+
                 Mat curimg = imread(file_io.getImage(v + offset));
                 Vector2d imgpt;
                 double curdepth = sfmModel.getCamera(v+offset).ProjectPoint(
                         Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
+                if(v == 0){
+                    printf("CPU projected point: (%.3f,%.3f)\n", imgpt[0], imgpt[1]);
+                    sfmModel.getCamera(v+offset).PrintCameraIntrinsics();
+                }
                 if (imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < curimg.cols && imgpt[1] < curimg.rows)
                     cv::circle(curimg, cv::Point(imgpt[0], imgpt[1]), 1, cv::Scalar(255, 0, 0), 2);
                 sprintf(buffer, "%s/temp/project_b%05d_v%05d.jpg", file_io.getDirectory().c_str(), anchor,

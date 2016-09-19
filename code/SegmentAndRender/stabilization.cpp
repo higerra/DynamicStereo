@@ -59,7 +59,7 @@ namespace dynamic_stereo{
             else if(alg == SUBSTAB){
                 substab::SubSpaceStabOption option;
                 option.output_crop = false;
-                option.output_drawpoints = true;
+                //option.output_drawpoints = true;
                 substab::subSpaceStabilization(warp_input, warp_output, option);
             }
             for (auto v = 0; v < output.size(); ++v) {
