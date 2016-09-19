@@ -42,7 +42,7 @@ namespace dynamic_stereo{
         height = images.front().rows;
         dispUnary.initialize(width, height, 0.0);
 
-        model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 1, weight_smooth_));
+        model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 100, weight_smooth_));
     }
 
 
