@@ -146,7 +146,7 @@ namespace dynamic_stereo {
             }
 
 //            CHECK_EQ(cam.GetCameraIntrinsicsModelType(), theia::CameraIntrinsicsModelType::PINHOLE);
-            const double* intParam = cam.intrinsics();
+            const double *intParam = cam.intrinsics();
             intrinsic[0] = (TCam) intParam[theia::PinholeCameraModel::FOCAL_LENGTH];
             intrinsic[1] = (TCam) intParam[theia::PinholeCameraModel::ASPECT_RATIO];
             intrinsic[2] = (TCam) intParam[theia::PinholeCameraModel::SKEW];
@@ -172,14 +172,14 @@ namespace dynamic_stereo {
 
         //compute space point coordinate
         vector<TCam> spts(width * height * 3);
-        const theia::Camera& refCam = sfmModel.getCamera(anchor);
+        const theia::Camera &refCam = sfmModel.getCamera(anchor);
 #pragma omp parallel for
         for (auto y = 0; y < height; ++y) {
             for (auto x = 0; x < width; ++x) {
                 Vector3d ray = refCam.PixelToUnitDepthRay(Vector2d(x, y) * downsample);
-                spts[(y * width + x) * 3] = (TCam)ray[0];
-                spts[(y * width + x) * 3 + 1] = (TCam)ray[1];
-                spts[(y * width + x) * 3 + 2] = (TCam)ray[2];
+                spts[(y * width + x) * 3] = (TCam) ray[0];
+                spts[(y * width + x) * 3 + 1] = (TCam) ray[1];
+                spts[(y * width + x) * 3 + 2] = (TCam) ray[2];
             }
         };
 
@@ -189,8 +189,12 @@ namespace dynamic_stereo {
                            model->min_disp, model->max_disp, model->downsample,
                            intrinsics, extrinsics, refIntrinsic, refExtrinsic, spts, model->nLabel, pR, result);
 
-        for (auto i = 0; i < result.size(); ++i)
-            model->unary[i] = (double) result[i] * model->MRFRatio;
+        CHECK_EQ(model->unary.size(), result.size());
+        for (auto i = 0; i < width * height; ++i) {
+            for (auto d = 0; d < dispResolution; ++d) {
+                model->operator()(i,d) = (double)result[i*dispResolution+d];
+            }
+        }
     }
 #endif
 
@@ -231,25 +235,25 @@ namespace dynamic_stereo {
             computeMatchingCostCPU();
 #endif
 
-//            printf("Time usage for stereo matching: %.2fs\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
-//            //caching
-//            ofstream fout(buffer, ios::binary);
-//            if (!fout.is_open()) {
-//                printf("Can not open cache file to write: %s\n", buffer);
-//                return;
-//            }
-//            printf("Writing unary term to cache...\n");
-//            int sz = sizeof(EnergyType);
-//            fout.write((char *) &anchor, sizeof(int));
-//            fout.write((char *) &dispResolution, sizeof(int));
-//            fout.write((char *) &stereo_stride, sizeof(int));
-//            fout.write((char *) &downsample, sizeof(int));
-//            fout.write((char *) &sz, sizeof(int));
-//            fout.write((char *) &model->min_disp, sizeof(double));
-//            fout.write((char *) &model->max_disp, sizeof(double));
-//            fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
-//
-//            fout.close();
+            printf("Time usage for stereo matching: %.2fs\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
+            //caching
+            ofstream fout(buffer, ios::binary);
+            if (!fout.is_open()) {
+                printf("Can not open cache file to write: %s\n", buffer);
+                return;
+            }
+            printf("Writing unary term to cache...\n");
+            int sz = sizeof(EnergyType);
+            fout.write((char *) &anchor, sizeof(int));
+            fout.write((char *) &dispResolution, sizeof(int));
+            fout.write((char *) &stereo_stride, sizeof(int));
+            fout.write((char *) &downsample, sizeof(int));
+            fout.write((char *) &sz, sizeof(int));
+            fout.write((char *) &model->min_disp, sizeof(double));
+            fout.write((char *) &model->max_disp, sizeof(double));
+            fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
+
+            fout.close();
         }
 
     }
