@@ -47,6 +47,7 @@ namespace CudaVision{
             HandleCuError(cudaFree(refImage));
             HandleCuError(cudaFree(rays));
             HandleCuError(cudaFree(output));
+	    cudaDeviceSynchronize();
         }
         void run(const unsigned char* host_images, const unsigned char* host_refImage,
                  const CudaCamera<TCam>* host_cameras, const CudaCamera<TCam>* host_refCam,
@@ -81,7 +82,7 @@ namespace CudaVision{
             CudaVision::HandleCuError(cudaMalloc((void**)& rays, width * height * 3 * sizeof(TCam)));
             LOG(INFO) << "Allocate output";
             CudaVision::HandleCuError(cudaMalloc((void**)& output, width * height * resolution * sizeof(TOut)));
-
+	    cudaDeviceSynchronize();
         }
     };
 
@@ -104,16 +105,20 @@ namespace CudaVision{
         LOG(INFO) << "Uploading Cameras";
         HandleCuError(cudaMemcpyToSymbol(device_cameras, host_cameras, N * sizeof(CudaVision::CudaCamera<TCam>)));
         HandleCuError(cudaMemcpyToSymbol(device_refCam, host_refCam, sizeof(CudaVision::CudaCamera<TCam>)));
+	cudaDeviceSynchronize();
 
         LOG(INFO) << "Uploading images";
         CudaVision::HandleCuError(cudaMemcpy(images, host_images, width * height * N * 3 * sizeof(unsigned char),
                                              cudaMemcpyHostToDevice));
         CudaVision::HandleCuError(cudaMemcpy(refImage, host_refImage, width * height * 3 * sizeof(unsigned char),
                                              cudaMemcpyHostToDevice));
+	cudaDeviceSynchronize();
+
         LOG(INFO) << "Uploading rays";
         CudaVision::HandleCuError(
                 cudaMemcpy(rays, host_rays, width * height * 3 * sizeof(TCam), cudaMemcpyHostToDevice));
-
+	cudaDeviceSynchronize();
+	
         //call kernel
         LOG(INFO) << "Computing...";
         stereoMatchingKernel<TCam, TOut> <<<blockSize, BLOCKDIM>>>(images, refImage, width, height, N, rays, min_disp, max_disp, downsample, resolution, R, output);
@@ -121,10 +126,14 @@ namespace CudaVision{
 
         LOG(INFO) << "Copy back result";
         CudaVision::HandleCuError(cudaMemcpy(result.data(), output, width * height * resolution * sizeof(TOut), cudaMemcpyDeviceToHost));
+	cudaDeviceSynchronize();
 
         TOut saniv = 0;
-        for(int i=0; i<result.size(); ++i)
+        for(int i=0; i<result.size(); ++i){
+	    CHECK_GE(result[i], 0);
+	    CHECK_LE(result[i], 1);
             saniv += result[i];
+	}
         LOG(INFO) << "Sum of result: " << saniv;
         CHECK_GT(saniv, 0) << "Error copying data from GPU to CPU";
     }
@@ -229,6 +238,7 @@ namespace CudaVision{
                         var1 += (refPatch[3*i] - mean1) * (refPatch[3*i] - mean1) +
                                 (refPatch[3*i + 1] - mean1) * (refPatch[3*i + 1] - mean1) +
                                 (refPatch[3*i + 2] - mean1) * (refPatch[3*i + 2] - mean1);
+			
                         var2 += (newPatch[3*i] - mean2) * (newPatch[3*i] - mean2) +
                                 (newPatch[3*i + 1] - mean2) * (newPatch[3*i + 1] - mean2) +
                                 (newPatch[3*i + 2] - mean2) * (newPatch[3*i + 2] - mean2);
@@ -237,8 +247,8 @@ namespace CudaVision{
                 if(var1 < FLT_EPSILON || var2 < FLT_EPSILON)
                     nccArray[v] = 0;
                 else {
-                    var1 = sqrt(var1 / count);
-                    var2 = sqrt(var2 / count);
+                    var1 = sqrt(var1 / (3 * count - 1));
+                    var2 = sqrt(var2 / (3 * count - 1));
                     TOut ncc = 0;
                     for (int i = 0; i < patchSize; ++i) {
                         if (newPatch[3 * i] >= 0 && refPatch[3 * i] >= 0) {
@@ -247,11 +257,10 @@ namespace CudaVision{
                                    (refPatch[3 * i + 2] - mean1) * (newPatch[3 * i + 2] - mean2);
                         }
                     }
-                    nccArray[v] = ncc / (var1 * var2 * (N-1));
+                    nccArray[v] = ncc / (var1 * var2 * (3 * count - 1));
                 }
             }
 
-	    //compose output. Notice that final output should range from 0 to 1
 	    int validCount = 0;
 	    for(int i=0; i<N; ++i){
 		if(nccArray[i] >= 0)
@@ -260,17 +269,16 @@ namespace CudaVision{
 
 	    //median of truncate NCC
 	    //truncate value
-	    const TOut thetancc = 0.6;
+	    const TOut thetancc = 0.3;
 	    //if not visible in over 50% frames, assign large penalty
-	    if(validCount < N / 2)
-		output[outputOffset] = thetancc;
-
-	    TOut med = ((TOut)1 + find_nth<TOut>(nccValid, validCount, validCount/2)) / 2;
-	    if(med > thetancc)
-		output[outputOffset] = thetancc;
-	    else
-		output[outputOffset] = med;
-
+	    if(validCount < N / 2){
+		output[outputOffset] = 1 + FLT_EPSILON - thetancc;		
+	    }else{
+		TOut med = find_nth<TOut>(nccValid, validCount, validCount/2);
+		if(med < thetancc)
+		    med = thetancc;
+		output[outputOffset] = 1 + FLT_EPSILON - med;
+	    }
         }
     }
 }//namespace CudaVision

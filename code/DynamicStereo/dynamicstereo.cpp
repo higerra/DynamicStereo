@@ -42,7 +42,7 @@ namespace dynamic_stereo{
 		height = images.front().rows;
 		dispUnary.initialize(width, height, 0.0);
 
-		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 1000, weight_smooth_));
+		model = shared_ptr<StereoModel<EnergyType> >(new StereoModel<EnergyType>(images[anchor-offset], (double)downsample, dispResolution, 1, weight_smooth_));
 	}
 
 
@@ -66,7 +66,8 @@ namespace dynamic_stereo{
 			}
 		}
 
-		dispUnary.saveImage("unary.png", -1);
+		sprintf(buffer, "%s/temp/unary%05d.png", file_io.getDirectory().c_str(), anchor);
+		dispUnary.saveImage(buffer, -1);
 
 		depthMask = Mat(height, width, CV_8UC1, Scalar(255));
 		if(dbtx >= 0 && dbty >= 0){
@@ -83,9 +84,9 @@ namespace dynamic_stereo{
 //			int tdisp = 142;
 			double td = model->dispToDepth(tdisp);
 			for(auto d=0; d<dispResolution; ++d)
-				cout << (int)model->operator()(dty*width + dtx, d) << ' ';
+			    printf("%.3f ", model->operator()(dty*width + dtx, d));
 			cout<< endl;
-			cout << "Cost at d=" << tdisp << ": " << (int)model->operator()(dty * width + dtx, tdisp) << endl;
+			cout << "Cost at d=" << tdisp << ": " << model->operator()(dty * width + dtx, tdisp) << endl;
 
 			Vector3d spt = cam.GetPosition() + ray * td;
 			for (auto v = 0; v < images.size(); ++v) {

@@ -187,7 +187,7 @@ namespace dynamic_stereo {
 	vector<TOut> result(width * height * dispResolution);
 	callStereoMatching(images_data, refImage_data, width, height, N,
                            model->min_disp, model->max_disp, model->downsample,
-			   intrinsics, extrinsics, refIntrinsic, refExtrinsic, spts, dispResolution, pR, result);
+			   intrinsics, extrinsics, refIntrinsic, refExtrinsic, spts, model->nLabel, pR, result);
 
 	for (auto i = 0; i < result.size(); ++i)
 	    model->unary[i] = (double) result[i] * model->MRFRatio;
@@ -225,7 +225,7 @@ namespace dynamic_stereo {
 	}
 	if(recompute) {
             float start_t = getTickCount();
-#ifdef USE_CUDA
+#if 0
 	    computeMatchingCostGPU();
 #else
 	    computeMatchingCostCPU();
@@ -233,23 +233,23 @@ namespace dynamic_stereo {
 
             printf("Time usage for stereo matching: %.2fs\n", ((float)getTickCount() - start_t) / (float)getTickFrequency());
 	    //caching
-//			ofstream fout(buffer, ios::binary);
-//			if (!fout.is_open()) {
-//				printf("Can not open cache file to write: %s\n", buffer);
-//				return;
-//			}
-//			printf("Writing unary term to cache...\n");
-//			int sz = sizeof(EnergyType);
-//			fout.write((char *) &anchor, sizeof(int));
-//			fout.write((char *) &dispResolution, sizeof(int));
-//			fout.write((char *) &stereo_stride, sizeof(int));
-//			fout.write((char *) &downsample, sizeof(int));
-//			fout.write((char *) &sz, sizeof(int));
-//			fout.write((char *) &model->min_disp, sizeof(double));
-//			fout.write((char *) &model->max_disp, sizeof(double));
-//			fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
-//
-//			fout.close();
+			// ofstream fout(buffer, ios::binary);
+			// if (!fout.is_open()) {
+			// 	printf("Can not open cache file to write: %s\n", buffer);
+			// 	return;
+			// }
+			// printf("Writing unary term to cache...\n");
+			// int sz = sizeof(EnergyType);
+			// fout.write((char *) &anchor, sizeof(int));
+			// fout.write((char *) &dispResolution, sizeof(int));
+			// fout.write((char *) &stereo_stride, sizeof(int));
+			// fout.write((char *) &downsample, sizeof(int));
+			// fout.write((char *) &sz, sizeof(int));
+			// fout.write((char *) &model->min_disp, sizeof(double));
+			// fout.write((char *) &model->max_disp, sizeof(double));
+			// fout.write((char *) model->unary.data(), model->unary.size() * sizeof(EnergyType));
+
+			// fout.close();
 	}
 
     }
