@@ -2,93 +2,111 @@
 // Created by yanhang on 9/5/16.
 //
 
+
 #include "cuStereoUtil.h"
-#include "gtest/gtest.h"
-#include "../base/utility.h"
+#include "cuCamera.h"
+#include <theia/theia.h>
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <random>
 #include <algorithm>
+#include "gtest/gtest.h"
+#include "../base/utility.h"
 
 using namespace Eigen;
 using namespace std;
 using namespace cv;
 
-//TEST(CudaStereo, RadialDistortion){
-//    const Vector2d undistorted_point = Vector2d::Random();
-//    Vector2d distorted_point, distorted_point_theia;
-//    double k1 = 0, k2 = 0;
-//    CudaVision::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
-//                      k1, k2, distorted_point.data(), distorted_point.data() + 1);
-//
-//    theia::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
-//                      k1, k2, distorted_point_theia.data(), distorted_point_theia.data() + 1);
-//    EXPECT_NEAR((distorted_point - distorted_point_theia).norm(), 0.0, std::numeric_limits<double>::min());
-//
-//    k1 = 0.1; k2 = 0;
-//    CudaVision::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
-//                       k1, k2, distorted_point.data(), distorted_point.data() + 1);
-//
-//    theia::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
-//                              k1, k2, distorted_point_theia.data(), distorted_point_theia.data() + 1);
-//
-//    EXPECT_NEAR((distorted_point - distorted_point_theia).norm(), 0.0, std::numeric_limits<double>::min());
-//
-//    k1 = 0.1, k2 = 0.05;
-//    CudaVision::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
-//                       k1, k2, distorted_point.data(), distorted_point.data() + 1);
-//
-//    theia::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
-//                              k1, k2, distorted_point_theia.data(), distorted_point_theia.data() + 1);
-//
-//    EXPECT_NEAR((distorted_point - distorted_point_theia).norm(), 0.0, std::numeric_limits<double>::min());
-//}
-//
-//TEST(CudaStereo, ProjectPointToImage){
-//    Vector4d spt = Vector4d::Random();
-//    spt[3] = 1.0;
-//
-//    const double focal = 600;
-//    const int px = 300, py = 400;
-//    const double r1 = 0.01, r2 = 0.001;
-//    Vector3d position(1,1,1);
-//    Vector3d axis(0.3,0.7,0.4);
-//    //generate a theia camera, and convert to CudaCamera
-//    theia::Camera cam;
-//    cam.SetFocalLength(focal);
-//    cam.SetPrincipalPoint(px, py);
-//    cam.SetImageSize(px*2, py*2);
-//    cam.SetAspectRatio(1.0);
-//    cam.SetRadialDistortion(r1, r2);
-//    cam.SetPosition(position);
-//    cam.SetOrientationFromAngleAxis(axis);
-//
-//    CudaVision::CudaCamera<double> cudacam;
-//    {
-//        using namespace CudaVision;
-//        cudacam.intrinsic[CudaCamera<double>::FOCAL_LENGTH] = focal;
-//        cudacam.intrinsic[CudaCamera<double>::PRINCIPAL_POINT_X] = px;
-//        cudacam.intrinsic[CudaCamera<double>::PRINCIPAL_POINT_Y] = py;
-//        cudacam.intrinsic[CudaCamera<double>::RADIAL_DISTORTION_1] = r1;
-//        cudacam.intrinsic[CudaCamera<double>::RADIAL_DISTORTION_2] = r2;
-//        cudacam.intrinsic[CudaCamera<double>::ASPECT_RATIO] = 1.0;
-//        cudacam.extrinsic[CudaCamera<double>::ORIENTATION] = axis[0];
-//        cudacam.extrinsic[CudaCamera<double>::ORIENTATION+1] = axis[1];
-//        cudacam.extrinsic[CudaCamera<double>::ORIENTATION+2] = axis[2];
-//        cudacam.extrinsic[CudaCamera<double>::POSITION] = position[0];
-//        cudacam.extrinsic[CudaCamera<double>::POSITION + 1] = position[1];
-//        cudacam.extrinsic[CudaCamera<double>::POSITION + 2] = position[2];
-//    }
-//
-//
-//    Vector2d pixel_cuda, pixel_theia;
-//    cam.ProjectPoint(spt, &pixel_theia);
-//    cudacam.projectPoint(spt.data(), pixel_cuda.data());
-//
-//    printf("test pt: (%.3f,%.3f,%.3f)\n", spt[0], spt[1], spt[2]);
-//    printf("Theia: (%.3f,%.3f), Cuda: (%.3f,%.3f)\n", pixel_theia[0], pixel_theia[1], pixel_cuda[0], pixel_cuda[1]);
-//    EXPECT_NEAR((pixel_cuda - pixel_theia).norm(), 0.0, DBL_EPSILON);
-//}
+// TEST(CudaStereo, RadialDistortion){
+//     const Vector2d undistorted_point = Vector2d::Random();
+//     Vector2d distorted_point, distorted_point_theia;
+//     double k1 = 0, k2 = 0;
+//     CudaVision::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
+// 					   k1, k2, distorted_point.data(), distorted_point.data() + 1);
+
+// theia::PinholeCameraModel::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
+// 				      k1, k2, distorted_point_theia.data(), distorted_point_theia.data() + 1);
+//     EXPECT_NEAR((distorted_point - distorted_point_theia).norm(), 0.0, std::numeric_limits<double>::min());
+
+//     k1 = 0.1; k2 = 0;
+//     CudaVision::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
+// 					   k1, k2, distorted_point.data(), distorted_point.data() + 1);
+
+// theia::PinholeCameraModel::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
+// 				      k1, k2, distorted_point_theia.data(), distorted_point_theia.data() + 1);
+
+//     EXPECT_NEAR((distorted_point - distorted_point_theia).norm(), 0.0, std::numeric_limits<double>::min());
+
+//     k1 = 0.1, k2 = 0.05;
+//     CudaVision::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
+// 					   k1, k2, distorted_point.data(), distorted_point.data() + 1);
+
+// theia::PinholeCameraModel::RadialDistortPoint<double>(undistorted_point.x(), undistorted_point.y(),
+// 				      k1, k2, distorted_point_theia.data(), distorted_point_theia.data() + 1);
+
+//     EXPECT_NEAR((distorted_point - distorted_point_theia).norm(), 0.0, std::numeric_limits<double>::min());
+// }
+
+TEST(CudaStereo, ProjectPointToImage){
+    Vector4d spt = Vector4d::Random();
+    spt[3] = 1.0;
+
+    const double focal = 600;
+    const int px = 300, py = 400;
+    const double r1 = 0.01, r2 = 0.001;
+    Vector3d position(1,1,1);
+    Vector3d axis(0.3,0.7,0.4);
+    //generate a theia camera, and convert to CudaCamera
+    theia::CameraIntrinsicsPrior cam_prior;
+    cam_prior.camera_intrinsics_model_type = "PINHOLE";
+    cam_prior.focal_length.value[0] = focal;
+    cam_prior.image_width = px * 2;
+    cam_prior.image_height = py * 2;
+    cam_prior.principal_point.value[0] = px;
+    cam_prior.principal_point.value[1] = py;
+    cam_prior.aspect_ratio.value[0] = 1.0;
+    cam_prior.skew.value[0] = 0.0;
+    cam_prior.radial_distortion.value[0] = r1;
+    cam_prior.radial_distortion.value[1] = r2;
+
+    
+    theia::Camera cam;
+    cam.SetFromCameraIntrinsicsPriors(cam_prior);
+    cam.SetPosition(position);
+    cam.SetOrientationFromAngleAxis(axis);
+
+    using TCam = double;
+    auto copyCamera = [](const theia::Camera &cam, TCam *intrinsic, TCam *extrinsic) {
+	Vector3d pos = cam.GetPosition();
+	Vector3d ax = cam.GetOrientationAsAngleAxis();
+	for (auto i = 0; i < 3; ++i) {
+	    extrinsic[i] = pos[i];
+	    extrinsic[i + 3] = ax[i];
+	}
+
+//            CHECK_EQ(cam.GetCameraIntrinsicsModelType(), theia::CameraIntrinsicsModelType::PINHOLE);
+	const double* intParam = cam.intrinsics();
+	intrinsic[0] = (TCam) intParam[theia::PinholeCameraModel::FOCAL_LENGTH];
+	intrinsic[1] = (TCam) intParam[theia::PinholeCameraModel::ASPECT_RATIO];
+	intrinsic[2] = (TCam) intParam[theia::PinholeCameraModel::SKEW];
+	intrinsic[3] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_X];
+	intrinsic[4] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_Y];
+	intrinsic[5] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_1];
+	intrinsic[6] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_2];
+    };
+
+
+    CudaVision::CudaCamera<double> cudacam;
+    copyCamera(cam, cudacam.intrinsic, cudacam.extrinsic);
+    
+    Vector2d pixel_cuda, pixel_theia;
+    cam.ProjectPoint(spt, &pixel_theia);
+    cudacam.projectPoint(spt.data(), pixel_cuda.data());
+
+    printf("test pt: (%.3f,%.3f,%.3f)\n", spt[0], spt[1], spt[2]);
+    printf("Theia: (%.3f,%.3f), Cuda: (%.3f,%.3f)\n", pixel_theia[0], pixel_theia[1], pixel_cuda[0], pixel_cuda[1]);
+    EXPECT_NEAR((pixel_cuda - pixel_theia).norm(), 0.0, DBL_EPSILON);
+}
 
 TEST(CudaStereo, bilinear) {
     Mat ranMat(10, 10, CV_8UC3);
@@ -126,4 +144,40 @@ TEST(CudaUtil, find_nth){
 
     float kth_res = CudaVision::find_nth<float>(array_ori.data(), array_ori.size(), kth);
     EXPECT_NEAR(array[kth], kth_res, FLT_EPSILON);
+}
+
+
+TEST(CudaUtil, quick_sort){
+    vector<int> array(20);
+
+    std::default_random_engine engine;
+    std::uniform_int_distribution<int> dist(0, 100);
+    for(auto i=0; i<array.size(); ++i)
+	array[i] = dist(engine);
+
+    printf("Before sort:\n");
+    for(auto v: array)
+	cout << v << ' ';
+    cout << endl;
+    
+    vector<int> array_ori = array;
+    std::sort(array.begin(), array.end());
+    CudaVision::quick_sort<int>(array_ori.data(), 0, (int)array.size() - 1);
+
+    printf("After sort:\n");
+    printf("STL:");
+    for(auto v: array)
+	cout << v << ' ';
+    cout << endl;
+
+    printf("CUV:");
+    for(auto v: array_ori)
+	cout << v << ' ';
+    cout << endl;
+
+    int diff = 0;
+    for(auto i=0; i<array.size(); ++i){
+	diff += array[i] - array_ori[i];
+    }
+    EXPECT_EQ(diff, 0);
 }

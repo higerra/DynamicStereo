@@ -126,7 +126,7 @@ namespace CudaVision{
         for(int i=0; i<result.size(); ++i)
             saniv += result[i];
         LOG(INFO) << "Sum of result: " << saniv;
-        CHECK_GT(saniv, 0);
+        CHECK_GT(saniv, 0) << "Error copying data from GPU to CPU";
     }
 
 
@@ -162,9 +162,8 @@ namespace CudaVision{
         __syncthreads();
 
         //allocate memory
-        TOut nccArray[MAXFRAME] = {};
-        for(int i=0; i<MAXFRAME; ++i)
-            nccArray[i] = i;
+        TOut nccArray[MAXFRAME] = {-1};
+	TOut nccValid[MAXFRAME] = {};
 
         TOut newPatch[MAXPATCHSIZE * 3];
 
@@ -173,7 +172,9 @@ namespace CudaVision{
         for(int d=threadIdx.x; d < resolution; d += blockDim.x){
             //position inside output array
             int outputOffset = (y * width + x) * resolution + d;
-
+	    for(auto i=0; i<MAXFRAME; ++i)
+		nccArray[i]  = -1;
+	    
             TCam depth = 1.0/(min_disp + d * (max_disp - min_disp) / (TCam) resolution);
 
             for(int v=0; v<N; ++v) {
@@ -214,6 +215,11 @@ namespace CudaVision{
                         count += 1;
                     }
                 }
+		
+		//if the overlap pixels of two patches are too few, skip this frame
+		if(count < patchSize / 2)
+		    continue;
+		
                 mean1 /= (3 * count);
                 mean2 /= (3 * count);
 
@@ -245,7 +251,26 @@ namespace CudaVision{
                 }
             }
 
-            output[outputOffset] = find_nth<TOut>(nccArray, N, N/2);
+	    //compose output. Notice that final output should range from 0 to 1
+	    int validCount = 0;
+	    for(int i=0; i<N; ++i){
+		if(nccArray[i] >= 0)
+		    nccValid[validCount++] = nccArray[i];
+	    }
+
+	    //median of truncate NCC
+	    //truncate value
+	    const TOut thetancc = 0.6;
+	    //if not visible in over 50% frames, assign large penalty
+	    if(validCount < N / 2)
+		output[outputOffset] = thetancc;
+
+	    TOut med = ((TOut)1 + find_nth<TOut>(nccValid, validCount, validCount/2)) / 2;
+	    if(med > thetancc)
+		output[outputOffset] = thetancc;
+	    else
+		output[outputOffset] = med;
+
         }
     }
 }//namespace CudaVision

@@ -18,6 +18,7 @@ namespace dynamic_stereo {
 
 
 	void FirstOrderOptimize::optimize(Depth &result, const int max_iter) const {
+	    LOG(INFO) << "Solve MRF with first order smoothness";
 		const int nLabel = model->nLabel;
 		DataCost *dataCost = new DataCost(const_cast<EnergyType *>(model->unary.data()));
 		SmoothnessCost *smoothnessCost = new SmoothnessCost(1, 15, model->weight_smooth * model->MRFRatio,

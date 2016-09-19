@@ -116,22 +116,24 @@ namespace CudaVision{
     //Basic algorithm
     //----------------------------------
     template<typename T>
+	__device__ __host__ inline void swap(T& v1, T& v2){
+	T tmp = v1;
+	v1 = v2;
+	v2 = tmp;
+    }
+    
+    template<typename T>
     __device__ __host__ int partition(T* array, const int left, const int right, const int pivInd){
         T piv = array[pivInd];
-        auto myswap = [](T& v1, T& v2){
-            T tmp = v1;
-            v1 = v2;
-            v2 = tmp;
-        };
-        myswap(array[right], array[pivInd]);
+        swap(array[right], array[pivInd]);
         int storeInd = left;
         for(int i=left; i<right; ++i){
             if(array[i] < piv){
-                myswap(array[storeInd], array[i]);
+                swap(array[storeInd], array[i]);
                 storeInd++;
             }
         }
-        myswap(array[storeInd], array[right]);
+        swap(array[storeInd], array[right]);
         return storeInd;
     }
 
@@ -151,6 +153,16 @@ namespace CudaVision{
         }
         return array[nth];
     }
+
+    template<typename T>
+	__device__ __host__ void quick_sort(T* array, const int lo, const int hi){
+	if(lo < hi){
+	    int pivInd = partition(array, lo, hi, (lo + hi) / 2);
+	    quick_sort<T>(array, lo, pivInd-1);
+	    quick_sort<T>(array, pivInd+1, hi);
+	}
+    }
+	
 
 }//namespace CudaVision
 
