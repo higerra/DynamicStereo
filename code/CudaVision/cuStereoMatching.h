@@ -291,7 +291,7 @@ namespace CudaVision{
                     else
                         res += nccValid[i];
                 }
-                output[outputOffset] = 1.0 - res / (TOut)kth;
+                output[outputOffset] = 1.0 + FLT_EPSILON - res / (TOut)(validCount - kth);
             }
         }
     }
