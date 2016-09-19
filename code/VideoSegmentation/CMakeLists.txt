@@ -21,7 +21,7 @@ set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp
         videosegmentation.h videosegmentation.cpp mfgrabcut2.cpp)
 
 add_library(VideoSegmentModule ${VIDEO_SEGMENT_LIB})
-target_link_libraries(VideoSegmentModule ColorGMM segment_gb MRF)
+target_link_libraries(VideoSegmentModule ColorGMM segment_gb MRF MaxFlow3.04)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/VideoSegmentation)
 

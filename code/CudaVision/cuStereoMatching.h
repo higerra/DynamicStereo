@@ -221,16 +221,16 @@ namespace CudaVision{
                     if(newPatch[3*i] >= 0 && refPatch[3*i] >= 0){
                         mean1 += refPatch[3*i] + refPatch[3*i+1] + refPatch[3*i+2];
                         mean2 += newPatch[3*i] + newPatch[3*i+1] + newPatch[3*i+2];
-                        count += 1;
+                        count += 3;
                     }
                 }
 
                 //if the overlap pixels of two patches are too few, skip this frame
-                if(count < patchSize / 2)
+                if(count < patchSize * 3 / 2)
                     continue;
 
-                mean1 /= (3 * count);
-                mean2 /= (3 * count);
+                mean1 /= count;
+                mean2 /= count;
 
                 TOut var1 = 0, var2 = 0;
                 for(int i=0; i<patchSize; ++i){
@@ -247,8 +247,8 @@ namespace CudaVision{
                 if(var1 < FLT_EPSILON || var2 < FLT_EPSILON)
                     nccArray[v] = 0;
                 else {
-                    var1 = sqrt(var1 / (3 * count - 1));
-                    var2 = sqrt(var2 / (3 * count - 1));
+                    var1 = sqrt(var1 / (count - 1));
+                    var2 = sqrt(var2 / (count - 1));
                     TOut ncc = 0;
                     for (int i = 0; i < patchSize; ++i) {
                         if (newPatch[3 * i] >= 0 && refPatch[3 * i] >= 0) {
@@ -257,7 +257,7 @@ namespace CudaVision{
                                    (refPatch[3 * i + 2] - mean1) * (newPatch[3 * i + 2] - mean2);
                         }
                     }
-                    nccArray[v] = ncc / (var1 * var2 * (3 * count - 1));
+                    nccArray[v] = ncc / (var1 * var2 * (count - 1));
                 }
             }
 
@@ -278,10 +278,7 @@ namespace CudaVision{
                 int kth = validCount / 2;
                 TOut res = 0;
                 for(int i=0; i<kth; ++i){
-                    if(nccValid[i] < thetancc)
-                        res += thetancc;
-                    else
-                        res += nccValid[i];
+                    res += nccValid[i];
                 }
                 output[outputOffset] = 1.0 - res / (TOut)kth;
             }
