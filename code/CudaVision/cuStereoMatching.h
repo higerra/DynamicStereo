@@ -47,7 +47,7 @@ namespace CudaVision{
             HandleCuError(cudaFree(refImage));
             HandleCuError(cudaFree(rays));
             HandleCuError(cudaFree(output));
-	    cudaDeviceSynchronize();
+            cudaDeviceSynchronize();
         }
         void run(const unsigned char* host_images, const unsigned char* host_refImage,
                  const CudaCamera<TCam>* host_cameras, const CudaCamera<TCam>* host_refCam,
@@ -82,7 +82,7 @@ namespace CudaVision{
             CudaVision::HandleCuError(cudaMalloc((void**)& rays, width * height * 3 * sizeof(TCam)));
             LOG(INFO) << "Allocate output";
             CudaVision::HandleCuError(cudaMalloc((void**)& output, width * height * resolution * sizeof(TOut)));
-	    cudaDeviceSynchronize();
+            cudaDeviceSynchronize();
         }
     };
 
@@ -105,20 +105,20 @@ namespace CudaVision{
         LOG(INFO) << "Uploading Cameras";
         HandleCuError(cudaMemcpyToSymbol(device_cameras, host_cameras, N * sizeof(CudaVision::CudaCamera<TCam>)));
         HandleCuError(cudaMemcpyToSymbol(device_refCam, host_refCam, sizeof(CudaVision::CudaCamera<TCam>)));
-	cudaDeviceSynchronize();
+        cudaDeviceSynchronize();
 
         LOG(INFO) << "Uploading images";
         CudaVision::HandleCuError(cudaMemcpy(images, host_images, width * height * N * 3 * sizeof(unsigned char),
                                              cudaMemcpyHostToDevice));
         CudaVision::HandleCuError(cudaMemcpy(refImage, host_refImage, width * height * 3 * sizeof(unsigned char),
                                              cudaMemcpyHostToDevice));
-	cudaDeviceSynchronize();
+        cudaDeviceSynchronize();
 
         LOG(INFO) << "Uploading rays";
         CudaVision::HandleCuError(
                 cudaMemcpy(rays, host_rays, width * height * 3 * sizeof(TCam), cudaMemcpyHostToDevice));
-	cudaDeviceSynchronize();
-	
+        cudaDeviceSynchronize();
+
         //call kernel
         LOG(INFO) << "Computing...";
         stereoMatchingKernel<TCam, TOut> <<<blockSize, BLOCKDIM>>>(images, refImage, width, height, N, rays, min_disp, max_disp, downsample, resolution, R, output);
@@ -126,14 +126,14 @@ namespace CudaVision{
 
         LOG(INFO) << "Copy back result";
         CudaVision::HandleCuError(cudaMemcpy(result.data(), output, width * height * resolution * sizeof(TOut), cudaMemcpyDeviceToHost));
-	cudaDeviceSynchronize();
+        cudaDeviceSynchronize();
 
         TOut saniv = 0;
         for(int i=0; i<result.size(); ++i){
-	    CHECK_GE(result[i], 0);
-	    CHECK_LE(result[i], 1);
+            CHECK_GE(result[i], 0);
+            CHECK_LE(result[i], 1);
             saniv += result[i];
-	}
+        }
         LOG(INFO) << "Sum of result: " << saniv;
         CHECK_GT(saniv, 0) << "Error copying data from GPU to CPU";
     }
@@ -172,7 +172,7 @@ namespace CudaVision{
 
         //allocate memory
         TOut nccArray[MAXFRAME] = {-1};
-	TOut nccValid[MAXFRAME] = {};
+        TOut nccValid[MAXFRAME] = {};
 
         TOut newPatch[MAXPATCHSIZE * 3];
 
@@ -181,9 +181,9 @@ namespace CudaVision{
         for(int d=threadIdx.x; d < resolution; d += blockDim.x){
             //position inside output array
             int outputOffset = (y * width + x) * resolution + d;
-	    for(auto i=0; i<MAXFRAME; ++i)
-		nccArray[i]  = -1;
-	    
+            for(auto i=0; i<MAXFRAME; ++i)
+                nccArray[i]  = -1;
+
             TCam depth = 1.0/(min_disp + d * (max_disp - min_disp) / (TCam) resolution);
 
             for(int v=0; v<N; ++v) {
@@ -224,11 +224,11 @@ namespace CudaVision{
                         count += 1;
                     }
                 }
-		
-		//if the overlap pixels of two patches are too few, skip this frame
-		if(count < patchSize / 2)
-		    continue;
-		
+
+                //if the overlap pixels of two patches are too few, skip this frame
+                if(count < patchSize / 2)
+                    continue;
+
                 mean1 /= (3 * count);
                 mean2 /= (3 * count);
 
@@ -238,7 +238,7 @@ namespace CudaVision{
                         var1 += (refPatch[3*i] - mean1) * (refPatch[3*i] - mean1) +
                                 (refPatch[3*i + 1] - mean1) * (refPatch[3*i + 1] - mean1) +
                                 (refPatch[3*i + 2] - mean1) * (refPatch[3*i + 2] - mean1);
-			
+
                         var2 += (newPatch[3*i] - mean2) * (newPatch[3*i] - mean2) +
                                 (newPatch[3*i + 1] - mean2) * (newPatch[3*i + 1] - mean2) +
                                 (newPatch[3*i + 2] - mean2) * (newPatch[3*i + 2] - mean2);
@@ -261,24 +261,30 @@ namespace CudaVision{
                 }
             }
 
-	    int validCount = 0;
-	    for(int i=0; i<N; ++i){
-		if(nccArray[i] >= 0)
-		    nccValid[validCount++] = nccArray[i];
-	    }
+            int validCount = 0;
+            for(int i=0; i<N; ++i){
+                if(nccArray[i] >= 0)
+                    nccValid[validCount++] = nccArray[i];
+            }
 
-	    //median of truncate NCC
-	    //truncate value
-	    const TOut thetancc = 0.3;
-	    //if not visible in over 50% frames, assign large penalty
-	    if(validCount < N / 2){
-		output[outputOffset] = 1 + FLT_EPSILON - thetancc;		
-	    }else{
-		TOut med = find_nth<TOut>(nccValid, validCount, validCount/2);
-		if(med < thetancc)
-		    med = thetancc;
-		output[outputOffset] = 1 + FLT_EPSILON - med;
-	    }
+            //median of truncate NCC
+            //truncate value
+            const TOut thetancc = 0.3;
+            //if not visible in over 50% frames, assign large penalty
+            if(validCount < 2){
+                output[outputOffset] = 1;
+            }else{
+                quick_sort(nccValid, 0, validCount - 1);
+                int kth = validCount / 2;
+                TOut res = 0;
+                for(int i=0; i<kth; ++i){
+                    if(nccValid[i] < thetancc)
+                        res += thetancc;
+                    else
+                        res += nccValid[i];
+                }
+                output[outputOffset] = 1.0 - res / (TOut)kth;
+            }
         }
     }
 }//namespace CudaVision

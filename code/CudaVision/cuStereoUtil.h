@@ -116,12 +116,12 @@ namespace CudaVision{
     //Basic algorithm
     //----------------------------------
     template<typename T>
-	__device__ __host__ inline void swap(T& v1, T& v2){
-	T tmp = v1;
-	v1 = v2;
-	v2 = tmp;
+    __device__ __host__ inline void swap(T& v1, T& v2){
+        T tmp = v1;
+        v1 = v2;
+        v2 = tmp;
     }
-    
+
     template<typename T>
     __device__ __host__ int partition(T* array, const int left, const int right, const int pivInd){
         T piv = array[pivInd];
@@ -155,15 +155,13 @@ namespace CudaVision{
     }
 
     template<typename T>
-	__device__ __host__ void quick_sort(T* array, const int lo, const int hi){
-	if(lo < hi){
-	    int pivInd = partition(array, lo, hi, (lo + hi) / 2);
-	    quick_sort<T>(array, lo, pivInd-1);
-	    quick_sort<T>(array, pivInd+1, hi);
-	}
+    __device__ __host__ void quick_sort(T* array, const int lo, const int hi){
+        if(lo < hi){
+            int pivInd = partition(array, lo, hi, (lo + hi) / 2);
+            quick_sort<T>(array, lo, pivInd-1);
+            quick_sort<T>(array, pivInd+1, hi);
+        }
     }
-	
-
 }//namespace CudaVision
 
 

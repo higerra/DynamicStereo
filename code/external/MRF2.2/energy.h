@@ -111,10 +111,10 @@
 #define __ENERGY_H__
 
 #include <assert.h>
-#include "maxflow-v3.04.src/graph.h"
+#include "graph.h"
 
 
-class Energy : maxflowLib::Graph<double, double, double> {
+class Energy : Graph {
 public:
     typedef node_id Var;
 
@@ -200,10 +200,6 @@ private:
                                             with a corresponding error message
                                             (or exit(1) is called if it's NULL) */
 
-    const int NODE_BLOCK_SIZE = 512;
-    const int ARC_BLOCK_SIZE = 1024;
-    const int NODEPTR_BLOCK_SIZE = 128;
-
 };
 
 
@@ -224,7 +220,7 @@ private:
 /************************  Implementation ******************************/
 /***********************************************************************/
 
-inline Energy::Energy(void (*err_function)(const char *)) : Graph(NODE_BLOCK_SIZE, ARC_BLOCK_SIZE, err_function)
+inline Energy::Energy(void (*err_function)(const char *)) : Graph(err_function)
 {
     Econst = 0;
     error_function = err_function;

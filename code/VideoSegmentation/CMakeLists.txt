@@ -5,7 +5,7 @@ project(VideoSegmentation)
 find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
-include_directories(/usr/local/include/eigen3 ${ROOT_DIRECTORY}/external/MRF2.2/maxflow-v3.04.src)
+include_directories(/usr/local/include/eigen3 ${ROOT_DIRECTORY}/external/maxflow-v3.04.src)
 ######################################################
 #GMM library
 #CPU version

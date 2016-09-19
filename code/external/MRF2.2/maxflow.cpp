@@ -19,7 +19,7 @@
 
 
 #include <stdio.h>
-#include "graph-old.h"
+#include "graph.h"
 #include <limits>
 /*
     special constants for node->parent

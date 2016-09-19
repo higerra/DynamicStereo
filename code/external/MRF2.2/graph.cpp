@@ -19,7 +19,7 @@
 
 
 #include <stdio.h>
-#include "graph-old.h"
+#include "graph.h"
 
 Graph::Graph(void (*err_function)(const char *))
 {
