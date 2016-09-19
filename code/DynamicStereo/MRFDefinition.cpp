@@ -194,7 +194,7 @@ namespace dynamic_stereo {
             for (auto d = 0; d < dispResolution; ++d) {
                 model->operator()(i,d) = (double)result[i*dispResolution+d] * model->MRFRatio;
                 CHECK_GE(model->operator()(i,d), 0) << i << ' ' << d;
-                CHECK_LT(model->operator()(i,d), model->MRFRatio + DBL_EPSILON) << i << ' ' << d;
+                CHECK_LE(model->operator()(i,d), model->MRFRatio + DBL_EPSILON) << i << ' ' << d;
             }
         }
     }
