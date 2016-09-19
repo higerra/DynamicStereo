@@ -192,7 +192,7 @@ namespace dynamic_stereo {
         CHECK_EQ(model->unary.size(), result.size());
         for (auto i = 0; i < width * height; ++i) {
             for (auto d = 0; d < dispResolution; ++d) {
-                model->operator()(i,d) = (double)result[i*dispResolution+d];
+                model->operator()(i,d) = (double)result[i*dispResolution+d] * model->MRFRatio;
             }
         }
     }
