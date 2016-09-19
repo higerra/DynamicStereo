@@ -111,6 +111,7 @@
 #define __ENERGY_H__
 
 #include <assert.h>
+#include <cfloat>
 #include "graph.h"
 #include <glog/logging.h>
 
