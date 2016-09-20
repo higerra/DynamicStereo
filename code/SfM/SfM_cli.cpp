@@ -106,7 +106,7 @@ DEFINE_string(intrinsics_to_optimize,
               "FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION",
               "Set to control which intrinsics parameters are optimized during "
                       "bundle adjustment.");
-DEFINE_double(max_reprojection_error_pixels, 4.5,
+DEFINE_double(max_reprojection_error_pixels, 4.0,
               "Maximum reprojection error for a correspondence to be "
                       "considered an inlier after bundle adjustment.");
 
@@ -175,6 +175,22 @@ DEFINE_double(bundle_adjustment_robust_loss_width, 10.0,
                       "where the robust loss begins with respect to reprojection error "
                       "in pixels.");
 
+// Sift parameters.
+DEFINE_int32(sift_num_octaves, -1, "Number of octaves in the scale space. "
+        "Set to a value less than 0 to use the maximum  ");
+DEFINE_int32(sift_num_levels, 3, "Number of levels per octave.");
+DEFINE_int32(sift_first_octave, -1, "The index of the first octave");
+DEFINE_double(sift_edge_threshold, 10.0f,
+              "The edge threshold value is used to remove spurious features."
+                      " Reduce threshold to reduce the number of keypoints.");
+// The default value is calculated using the following formula:
+// 255.0 * 0.02 / num_levels.
+DEFINE_double(sift_peak_threshold, 1.7f,
+              "The peak threshold value is used to remove features with weak "
+                      "responses. Increase threshold value to reduce the number of "
+                      "keypoints");
+DEFINE_bool(root_sift, true, "Enables the usage of Root SIFT.");
+
 using theia::Reconstruction;
 using theia::ReconstructionBuilder;
 using theia::ReconstructionBuilderOptions;
@@ -188,6 +204,17 @@ ReconstructionBuilderOptions SetReconstructionBuilderOptions(const FileIO& file_
     options.output_matches_file = file_io.getSfMMatchFile();
 
     options.descriptor_type = StringToDescriptorExtractorType(FLAGS_descriptor);
+    // Setting sift parameters.
+    if (options.descriptor_type == DescriptorExtractorType::SIFT) {
+        options.sift_parameters.num_octaves = FLAGS_sift_num_octaves;
+        options.sift_parameters.num_levels = FLAGS_sift_num_levels;
+        CHECK_GT(options.sift_parameters.num_levels, 0)
+            << "The number of levels must be positive";
+        options.sift_parameters.first_octave = FLAGS_sift_first_octave;
+        options.sift_parameters.edge_threshold = FLAGS_sift_edge_threshold;
+        options.sift_parameters.peak_threshold = FLAGS_sift_peak_threshold;
+        options.sift_parameters.root_sift = FLAGS_root_sift;
+    }
 
     options.matching_options.match_out_of_core = FLAGS_match_out_of_core;
     options.matching_options.keypoints_and_descriptors_output_dir =
@@ -288,8 +315,8 @@ void AddImagesToReconstructionBuilder(const FileIO& file_io,
         sprintf(buffer, "%s/images_input/image%05d.jpg", file_io.getDirectory().c_str(), idx);
         if(!stlplus::file_exists(buffer))
             break;
-	    image_files.push_back(std::string(buffer));
-	    std::cout << buffer << std::endl;
+        image_files.push_back(std::string(buffer));
+        std::cout << buffer << std::endl;
         idx += FLAGS_image_intervals;
     }
 

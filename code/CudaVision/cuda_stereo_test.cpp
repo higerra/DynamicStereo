@@ -56,30 +56,16 @@ TEST(CudaStereo, ProjectPointToImage){
     Vector3d position(-31.233,6.488,-20.537);
     Vector3d axis(0.082,0.432,-0.044);
     //generate a theia camera, and convert to CudaCamera
-    theia::CameraIntrinsicsPrior cam_prior;
-    cam_prior.camera_intrinsics_model_type = "PINHOLE";
-    cam_prior.focal_length.value[0] = focal;
-    cam_prior.focal_length.is_set = true;
-    cam_prior.image_width = 540;
-    cam_prior.image_height = 960;
-    cam_prior.principal_point.value[0] = px;
-    cam_prior.principal_point.value[1] = py;
-    cam_prior.principal_point.is_set = true;
-    cam_prior.aspect_ratio.value[0] = 1.0;
-    cam_prior.aspect_ratio.is_set = true;
-    cam_prior.skew.value[0] = 0.0;
-    cam_prior.skew.is_set = true;
-    cam_prior.radial_distortion.value[0] = r1;
-    cam_prior.radial_distortion.value[1] = r2;
-    cam_prior.radial_distortion.is_set = true;
 
     theia::Camera cam;
-    cam.SetFromCameraIntrinsicsPriors(cam_prior);
+    cam.SetFocalLength(focal);
+    cam.SetPrincipalPoint(px, py);
+    cam.SetSkew(0.0);
+    cam.SetAspectRatio(1.0);
+    cam.SetRadialDistortion(r1, r2);
+
     cam.SetPosition(position);
     cam.SetOrientationFromAngleAxis(axis);
-
-    printf("Cam extrinsics:\n");
-    cam.PrintCameraIntrinsics();
 
     using TCam = double;
     auto copyCamera = [](const theia::Camera &cam, TCam *intrinsic, TCam *extrinsic) {
@@ -89,16 +75,13 @@ TEST(CudaStereo, ProjectPointToImage){
             extrinsic[i] = pos[i];
             extrinsic[i + 3] = ax[i];
         }
-
-//            CHECK_EQ(cam.GetCameraIntrinsicsModelType(), theia::CameraIntrinsicsModelType::PINHOLE);
-        const double* intParam = cam.intrinsics();
-        intrinsic[0] = (TCam) intParam[theia::PinholeCameraModel::FOCAL_LENGTH];
-        intrinsic[1] = (TCam) intParam[theia::PinholeCameraModel::ASPECT_RATIO];
-        intrinsic[2] = (TCam) intParam[theia::PinholeCameraModel::SKEW];
-        intrinsic[3] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_X];
-        intrinsic[4] = (TCam) intParam[theia::PinholeCameraModel::PRINCIPAL_POINT_Y];
-        intrinsic[5] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_1];
-        intrinsic[6] = (TCam) intParam[theia::PinholeCameraModel::RADIAL_DISTORTION_2];
+        intrinsic[0] = (TCam) cam.FocalLength();
+        intrinsic[1] = (TCam) cam.AspectRatio();
+        intrinsic[2] = (TCam) cam.Skew();
+        intrinsic[3] = (TCam) cam.PrincipalPointX();
+        intrinsic[4] = (TCam) cam.PrincipalPointY();
+        intrinsic[5] = (TCam) cam.RadialDistortion1();
+        intrinsic[6] = (TCam) cam.RadialDistortion2();
     };
 
 

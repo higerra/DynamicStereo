@@ -91,7 +91,6 @@ namespace dynamic_stereo{
             Vector3d spt = cam.GetPosition() + ray * td;
             printf("CPU camera position:(%.3f,%.3f,%.3f)\n", cam.GetPosition()[0], cam.GetPosition()[1], cam.GetPosition()[2]);
             printf("CPU camera axis:(%.3f,%.3f,%.3f)\n", cam.GetOrientationAsAngleAxis()[0], cam.GetOrientationAsAngleAxis()[1], cam.GetOrientationAsAngleAxis()[2]);
-            cam.PrintCameraIntrinsics();
 
             printf("CPU 3d point: (%.3f,%.3f,%.3f)\n", spt[0], spt[1], spt[2]);
             for (auto v = 0; v < images.size(); ++v) {
@@ -102,7 +101,6 @@ namespace dynamic_stereo{
                         Vector4d(spt[0], spt[1], spt[2], 1.0), &imgpt);
                 if(v == 0){
                     printf("Target camera:\n");
-                    tgtCam.PrintCameraIntrinsics();
                     printf("CPU camera position:(%.3f,%.3f,%.3f)\n", tgtCam.GetPosition()[0], tgtCam.GetPosition()[1], tgtCam.GetPosition()[2]);
                     printf("CPU camera axis:(%.3f,%.3f,%.3f)\n", tgtCam.GetOrientationAsAngleAxis()[0], tgtCam.GetOrientationAsAngleAxis()[1], tgtCam.GetOrientationAsAngleAxis()[2]);
                     printf("CPU projected point: (%.3f,%.3f)\n", imgpt[0], imgpt[1]);

@@ -477,7 +477,7 @@ namespace dynamic_stereo {
             const int height = images[0].rows;
             const int nLabel = (int)gmms.size();
             int vtxCount = width * height;
-            const double ratio = 10000;
+            const double ratio = 1000;
 
             GMSpace space(vtxCount, (size_t)nLabel);
             GMModel model(space);
@@ -660,8 +660,8 @@ namespace dynamic_stereo {
                     assignGMMsComponents(images[v], mask, gmms, compIdxs[v]);
                 learnGMMs(images, mask, compIdxs, gmms);
                 printf("graph cut...\n");
-                //runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
-                runGraphCutOpenGM(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                runGraphCut(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
+                //runGraphCutOpenGM(images, mask, hardconstraint, gmms, lambda, leftWs, upleftWs, upWs, uprightWs);
 
                 Mat stepRes = visualizeSegmentation(mask);
                 cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);
