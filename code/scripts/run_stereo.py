@@ -22,7 +22,7 @@ for sample in samples:
     assert(len(info) == 2)
     dataset = sample.split()[0]
     testFrame = int(sample.split()[1])
-    command = "{} {}/{} --testFrame={}".format(stereo_path, path, dataset, testFrame)
+    command = "{} {}/{} --testFrame={} --logtostderr".format(stereo_path, path, dataset, testFrame)
     print command
     subprocess.call(command, shell=True)
 
