@@ -35,6 +35,8 @@ namespace substab {
 			return blockH;
 		}
 
+		void warpPoint(const Eigen::Vector2d& pt);
+
 		void visualizeGrid(const std::vector<Eigen::Vector2d>& grid, cv::Mat& img) const;
 	private:
 		std::vector<Eigen::Vector2d> gridLoc;

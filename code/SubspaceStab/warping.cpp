@@ -111,6 +111,11 @@ namespace substab{
 		}
 	}
 
+	void GridWarpping::warpPoint(const Eigen::Vector2d& pt){
+		Vector4i ind;
+		Vector4d w;
+
+	}
 
 	void GridWarpping::warpImageCloseForm(const cv::Mat &input, cv::Mat &output, const vector<Vector2d>& pts1, const vector<Vector2d>& pts2, const int id) const {
 		CHECK_EQ(pts1.size(), pts2.size());
