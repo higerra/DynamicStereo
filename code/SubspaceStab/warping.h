@@ -19,7 +19,9 @@ namespace substab {
 
 		void getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind, Eigen::Vector4d &w) const;
 
-		void warpImageCloseForm(const cv::Mat& input, cv::Mat& output, const std::vector<Eigen::Vector2d>& pts1, const std::vector<Eigen::Vector2d>& pts2, const int id = 0) const;
+		void warpImageCloseForm(const cv::Mat& input, cv::Mat& output,
+                                const std::vector<Eigen::Vector2d>& pts1, const std::vector<Eigen::Vector2d>& pts2,
+                                const bool fixBoundary = false, const int id = 0);
 
 		void computeSimilarityWeight(const cv::Mat& input, std::vector<double>& saliency) const;
 
@@ -35,11 +37,18 @@ namespace substab {
 			return blockH;
 		}
 
-		void warpPoint(const Eigen::Vector2d& pt);
+		inline Eigen::Vector2d warpPoint(const Eigen::Vector2d& pt){
+			Eigen::Vector4i ind;
+			Eigen::Vector4d w;
+			getGridIndAndWeight(pt, ind, w);
+			Eigen::Vector2d res = gridLoc[ind[0]] * w[0] + gridLoc[ind[1]] * w[1] + gridLoc[ind[2]] * w[2] + gridLoc[ind[3]] * w[3];
+			return res;
+		}
 
 		void visualizeGrid(const std::vector<Eigen::Vector2d>& grid, cv::Mat& img) const;
 	private:
 		std::vector<Eigen::Vector2d> gridLoc;
+		std::vector<Eigen::Vector2d> warpedLoc;
 
 		int width;
 		int height;

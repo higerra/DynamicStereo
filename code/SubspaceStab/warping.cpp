@@ -28,6 +28,8 @@ namespace substab{
 					gridLoc[y * (gridW + 1) + x][1] -= 1.1;
 			}
 		}
+		warpedLoc = gridLoc;
+
 	}
 
 	void GridWarpping::getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind,
@@ -111,18 +113,13 @@ namespace substab{
 		}
 	}
 
-	void GridWarpping::warpPoint(const Eigen::Vector2d& pt){
-		Vector4i ind;
-		Vector4d w;
-
-	}
-
-	void GridWarpping::warpImageCloseForm(const cv::Mat &input, cv::Mat &output, const vector<Vector2d>& pts1, const vector<Vector2d>& pts2, const int id) const {
+	void GridWarpping::warpImageCloseForm(const cv::Mat &input, cv::Mat &output,
+                                          const vector<Vector2d>& pts1, const vector<Vector2d>& pts2,
+                                          const bool fixBoundary, const int id){
 		CHECK_EQ(pts1.size(), pts2.size());
 
 		char buffer[1024] = {};
 
-		vector<Vector2d> resGrid(gridLoc.size());
 		const int kDataTerm = (int)pts1.size() * 2;
 		const int kSimTerm = (gridW-1)*(gridH-1)*8;
 		const int kVar = (int)gridLoc.size() * 2;
@@ -151,6 +148,12 @@ namespace substab{
 			B[cInd + 1] = wdata * pts1[i][1];
 			cInd += 2;
 		}
+
+        if(fixBoundary){
+            for(auto x=0; x<=gridW; ++x){
+
+            }
+        }
 //		vector<double> saliency;
 //		computeSimilarityWeight(input, saliency);
 
@@ -198,6 +201,7 @@ namespace substab{
 			}
 		}
 
+
 //		const double wregular = 0.1;
 //		for(auto x=0; x<=gridW; ++x){
 //			for(auto y=0; y<=gridH; ++y){
@@ -222,6 +226,8 @@ namespace substab{
 			vars[i][0] = res[2*i];
 			vars[i][1] = res[2*i+1];
 		}
+
+		warpedLoc = vars;
 
 		output = Mat(height, width, CV_8UC3, Scalar::all(0));
 		for(auto y=0; y<height; ++y){
