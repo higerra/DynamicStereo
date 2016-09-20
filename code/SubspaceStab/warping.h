@@ -18,7 +18,7 @@ namespace substab {
     // only return real solution, otherwise return (-1,-1)
     bool solveInverseBilinear(const double a_, const double b_, const double c_, const double d_,
                               const double e_, const double f_, const double g_, const double h_,
-                              Eigen::Vector2d& res);
+                              std::vector<Eigen::Vector2d> & res);
 
     class GridWarpping {
     public:

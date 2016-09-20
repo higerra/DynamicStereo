@@ -17,7 +17,7 @@ namespace substab{
 
     bool solveInverseBilinear(const double a_, const double b_, const double c_, const double d_,
                               const double e_, const double f_, const double g_, const double h_,
-                              Eigen::Vector2d& res) {
+                              std::vector<Eigen::Vector2d>& res) {
         bool swapXY = false;
         double a = a_, b = b_, c = c_, d = d_, e = e_, f = f_, g = g_, h = h_;
         if (a * g - e * c < std::numeric_limits<double>::epsilon()) {
@@ -46,11 +46,28 @@ namespace substab{
             return false;
         }
 
-        res[0] = (-1*B + std::sqrt(J)) / (2*A);
-        res[1] = (-1*B - std::sqrt(J)) / (2*A);
-        if(swapXY)
-            std::swap(res[0], res[1]);
+        if(J <= std::numeric_limits<double>::epsilon()){
+            Vector2d r1;
+            r1[0] = -B / (2 * A);
+            r1[1] = (e*b-a*f) / div * r1[0] + (e*d-a*h) / div;
+            if(swapXY)
+                std::swap(r1[0], r1[1]);
+            res.push_back(r1);
+        }else{
+            Vector2d r1, r2;
+            r1[0] = (-1*B + std::sqrt(J)) / (2*A);
+            r2[0] = (-1*B - std::sqrt(J)) / (2*A);
 
+            r1[1] = (e*b-a*f) / div * r1[0] + (e*d-a*h) / div;
+            r2[1] = (e*b-a*f) / div * r2[0] + (e*d-a*h) / div;
+
+            if(swapXY){
+                std::swap(r1[0], r1[1]);
+                std::swap(r2[0], r2[1]);
+                res.push_back(r1);
+                res.push_back(r2);
+            }
+        }
         return true;
     }
 
@@ -97,10 +114,12 @@ namespace substab{
                 const double d = Vector4d(gxh * gyh, -gxl * gyh, gxl * gyl, -gxh * gyl).dot(wptx) - pt[0];
                 const double h = Vector4d(gxh * gyh, -gxl * gyh, gxl * gyl, -gxh * gyl).dot(wpty) - pt[1];
 
-                Vector2d curSol;
+                vector<Vector2d> curSol;
                 if (solveInverseBilinear(a, b, c, d, e, f, g, h, curSol)){
-                    if(curSol[0] >= gxl && curSol[0] < gxh && curSol[1] >= gyl && curSol[1] < gyh)
-                        solutions.push_back(curSol);
+                    for(const auto& cs: curSol){
+                        if(cs[0] >= gxl && cs[0] < gxh && cs[1] >= gyl && cs[1] < gyh)
+                            solutions.push_back(cs);
+                    }
                 }
             }
         }
