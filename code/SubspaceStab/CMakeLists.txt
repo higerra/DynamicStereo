@@ -27,4 +27,7 @@ target_link_libraries(SubspaceStab ${OpenCV_LIBS} glog gflags spqr cholmod)
 add_executable(SubspaceStab_exe main.cpp)
 target_link_libraries(SubspaceStab_exe SubspaceStab)
 
-
+#add test
+add_executable(SubspaceStab_test ${ROOT_DIRECTORY}/test/test_main.cpp Subspace_test.cpp)
+target_link_libraries(SubspaceStab_test SubspaceStab gtest)
+add_test(NAME SubspaceStab_test COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/SubspaceStab_test)

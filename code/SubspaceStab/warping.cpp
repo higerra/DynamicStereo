@@ -15,6 +15,45 @@ using namespace cv;
 
 namespace substab{
 
+    bool solveInverseBilinear(const double a_, const double b_, const double c_, const double d_,
+                              const double e_, const double f_, const double g_, const double h_,
+                              Eigen::Vector2d& res) {
+        bool swapXY = false;
+        double a = a_, b = b_, c = c_, d = d_, e = e_, f = f_, g = g_, h = h_;
+        if (a * g - e * c < std::numeric_limits<double>::epsilon()) {
+            std::swap(b, c);
+            std::swap(f, g);
+            swapXY = true;
+        }
+        if (std::abs(a * g - e * c) < std::numeric_limits<double>::epsilon()) {
+            LOG(WARNING) << "Ill condition: ag - ec = 0";
+            return false;
+        }
+        const double div = a * g - e * c;
+
+        //quadratic problem
+        const double A = (a * e * b - a * a * f) / div;
+        const double B = (a * e * d - a * a * h) / div + b + (e * c * b - a * c * f) / div;
+        const double C = (e * c * d - a * c * h) / div + d;
+
+        if(std::abs(A) < std::numeric_limits<double>::epsilon()){
+            LOG(WARNING) << "Ill condition: A = 0";
+            return false;
+        }
+        const double J = B * B - 4 * A * C;
+        if(J < 0){
+            LOG(WARNING) << "No real solution";
+            return false;
+        }
+
+        res[0] = (-1*B + std::sqrt(J)) / (2*A);
+        res[1] = (-1*B - std::sqrt(J)) / (2*A);
+        if(swapXY)
+            std::swap(res[0], res[1]);
+
+        return true;
+    }
+
 	GridWarpping::GridWarpping(const int w, const int h, const int gw, const int gh) : width(w), height(h), gridW(gw), gridH(gh) {
 		blockW = (double) width / gridW;
 		blockH = (double) height / gridH;
@@ -31,6 +70,46 @@ namespace substab{
 		warpedLoc = gridLoc;
 
 	}
+
+    bool GridWarpping::inverseWarpPoint(const Eigen::Vector2d& pt, Eigen::Vector2d& res) const {
+        vector<Vector2d> solutions;
+        for (auto gx = 0; gx < gridW; ++gx) {
+            for (auto gy = 0; gy < gridH; ++gy) {
+                const double gxl = gridLoc[gridInd(gx, gy)][0];
+                const double gxh = gridLoc[gridInd(gx + 1, gy + 1)][0];
+                const double gyl = gridLoc[gridInd(gx, gy)][1];
+                const double gyh = gridLoc[gridInd(gx + 1, gy + 1)][1];
+
+                Vector4d wptx(warpedLoc[gridInd(gx, gy)][0], warpedLoc[gridInd(gx + 1, gy)][0],
+                              warpedLoc[gridInd(gx + 1, gy + 1)][0], warpedLoc[gridInd(gx, gy + 1)][0]);
+                Vector4d wpty(warpedLoc[gridInd(gx, gy)][1], warpedLoc[gridInd(gx + 1, gy)][1],
+                              warpedLoc[gridInd(gx + 1, gy + 1)][1], warpedLoc[gridInd(gx, gy + 1)][1]);
+
+                const double a = Vector4d(1, -1, 1, -1).dot(wptx);
+                const double e = Vector4d(1, -1, 1, -1).dot(wpty);
+
+                const double b = Vector4d(-gyh, gyh, -gyl, gyl).dot(wptx);
+                const double c = Vector4d(-gxh, gxl, -gxl, gxh).dot(wptx);
+
+                const double f = Vector4d(-gyh, gyh, -gyl, gyl).dot(wpty);
+                const double g = Vector4d(-gxh, gxl, -gxl, gxh).dot(wpty);
+
+                const double d = Vector4d(gxh * gyh, -gxl * gyh, gxl * gyl, -gxh * gyl).dot(wptx) - pt[0];
+                const double h = Vector4d(gxh * gyh, -gxl * gyh, gxl * gyl, -gxh * gyl).dot(wpty) - pt[1];
+
+                Vector2d curSol;
+                if (solveInverseBilinear(a, b, c, d, e, f, g, h, curSol)){
+                    if(curSol[0] >= gxl && curSol[0] < gxh && curSol[1] >= gyl && curSol[1] < gyh)
+                        solutions.push_back(curSol);
+                }
+            }
+        }
+        if(solutions.size() >= 1) {
+            res = solutions.back();
+            return true;
+        }
+        return false;
+    }
 
 	void GridWarpping::getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind,
 										   Eigen::Vector4d &w) const {
@@ -113,14 +192,11 @@ namespace substab{
 		}
 	}
 
-	void GridWarpping::warpImageCloseForm(const cv::Mat &input, cv::Mat &output,
-                                          const vector<Vector2d>& pts1, const vector<Vector2d>& pts2,
-                                          const bool fixBoundary, const int id){
-		CHECK_EQ(pts1.size(), pts2.size());
+    void GridWarpping::computeWarpingField(const std::vector<Eigen::Vector2d>& src, const std::vector<Eigen::Vector2d>& tgt,
+							 const bool fixBoundary){
+        CHECK_EQ(src.size(), tgt.size());
 
-		char buffer[1024] = {};
-
-		const int kDataTerm = (int)pts1.size() * 2;
+		const int kDataTerm = (int)src.size() * 2;
 		const int kSimTerm = (gridW-1)*(gridH-1)*8;
 		const int kVar = (int)gridLoc.size() * 2;
 
@@ -131,21 +207,21 @@ namespace substab{
 		const double wdata = 1.0;
 		const double wsimilarity = 20;
 		int cInd = 0;
-		for(auto i=0; i<pts2.size(); ++i) {
-			if (pts2[i][0] < 0 || pts2[i][1] < 0 || pts2[i][0] >= width - 1 || pts2[i][1] >= height - 1)
+		for(auto i=0; i<src.size(); ++i) {
+			if (src[i][0] < 0 || src[i][1] < 0 || src[i][0] >= width - 1 || src[i][1] >= height - 1)
 				continue;
 			Vector4i indRef;
 			Vector4d bwRef;
 			CHECK_LT(cInd + 1, B.rows());
 
-			getGridIndAndWeight(pts2[i], indRef, bwRef);
+			getGridIndAndWeight(src[i], indRef, bwRef);
 			for (auto j = 0; j < 4; ++j) {
 				CHECK_LT(indRef[j]*2+1, kVar);
 				triplets.push_back(Triplet<double>(cInd, indRef[j] * 2, wdata * bwRef[j]));
 				triplets.push_back(Triplet<double>(cInd + 1, indRef[j] * 2 + 1, wdata * bwRef[j]));
 			}
-			B[cInd] = wdata * pts1[i][0];
-			B[cInd + 1] = wdata * pts1[i][1];
+			B[cInd] = wdata * tgt[i][0];
+			B[cInd + 1] = wdata * tgt[i][1];
 			cInd += 2;
 		}
 
@@ -202,17 +278,6 @@ namespace substab{
 		}
 
 
-//		const double wregular = 0.1;
-//		for(auto x=0; x<=gridW; ++x){
-//			for(auto y=0; y<=gridH; ++y){
-//				int gid = gridInd(x,y);
-//				triplets.push_back(Triplet<double>(cInd, gid*2, wregular));
-//				triplets.push_back(Triplet<double>(cInd+1, gid*2+1, wregular));
-//				B[cInd] = wregular * gridLoc[gid][0];
-//				B[cInd+1] = wregular * gridLoc[gid][1];
-//				cInd +=2;
-//			}
-//		}
 		CHECK_LE(cInd, kDataTerm+kSimTerm);
 		SparseMatrix<double> A(cInd, kVar);
 		A.setFromTriplets(triplets.begin(), triplets.end());
@@ -227,32 +292,72 @@ namespace substab{
 			vars[i][1] = res[2*i+1];
 		}
 
-		warpedLoc = vars;
+		warpedLoc.swap(vars);
+    }
 
-		output = Mat(height, width, CV_8UC3, Scalar::all(0));
-		for(auto y=0; y<height; ++y){
-			for(auto x=0; x<width; ++x){
-				Vector4i ind;
-				Vector4d w;
-				getGridIndAndWeight(Vector2d(x,y), ind, w);
-				Vector2d pt(0,0);
-				for(auto i=0; i<4; ++i){
-					pt[0] += vars[ind[i]][0] * w[i];
-					pt[1] += vars[ind[i]][1] * w[i];
-				}
-				if(pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1)
-					continue;
-				Vector3d pixO = interpolation_util::bilinear<uchar,3>(input.data, input.cols, input.rows, pt);
-				output.at<Vec3b>(y,x) = Vec3b((uchar) pixO[0], (uchar)pixO[1], (uchar)pixO[2]);
-			}
-		}
+    void GridWarpping::warpImageForward(const cv::Mat &input, cv::Mat &output, const double splattR) const {
+        CHECK_EQ(input.cols, width);
+        CHECK_EQ(input.rows, height);
 
-		// Mat outputOutput = input.clone();
-		// visualizeGrid(vars, outputOutput);
-		// for(const auto& pt: pts2)
-		// 	cv::circle(outputOutput, cv::Point2d(pt[0], pt[1]), 1, Scalar(0,0,255), 2);
-		// sprintf(buffer, "vis_output%05d.jpg", id);
-		// imwrite(buffer, outputOutput);
-	}
+        Mat accPix(input.size(), CV_32FC3, Scalar::all(0));
+        Mat accWeight(input.size(), CV_32FC1, Scalar::all(0));
+        const double sigma = splattR / 2;
+
+        vector<float> gauKernel;
+        for (double dx = -1 * splattR; dx <= splattR; dx += 1.0) {
+            for (double dy = -1 * splattR; dy <= splattR; dy += 1.0) {
+                float w = std::exp(-1 * dx * dx / 2 / sigma - dy * dy / 2 / sigma);
+                gauKernel.push_back(w);
+            }
+        }
+
+
+        const double step = 1.0;
+        for(double y=0; y<height - 1; y += step) {
+            for (double x = 0; x < width - 1; x += step) {
+                Vec3f pix = (Vec3f) input.at<Vec3b>(y, x);
+                Vector2d basePt = warpPoint(Vector2d(x, y));
+                int kIndex = 0;
+                for (double dx = -1 * splattR; dx <= splattR; dx += 1.0) {
+                    for (double dy = -1 * splattR; dy <= splattR; dy += 1.0, ++kIndex) {
+                        Vector2d pt = basePt + Vector2d(dx, dy);
+                        int ix = std::round(pt[0] + 0.5);
+                        int iy = std::round(pt[1] + 0.5);
+                        if (ix >= 0 && iy >= 0 && ix <= width - 1 && iy <= height - 1) {
+                            accPix.at<Vec3f>(iy, ix) += pix * gauKernel[kIndex];
+                            accWeight.at<float>(iy, ix) += gauKernel[kIndex];
+                        }
+                    }
+                }
+            }
+        }
+
+        output.create(input.size(), CV_8UC3);
+        output.setTo(Scalar::all(0));
+
+        for(auto y=0; y<height; ++y){
+            for(auto x=0; x<width; ++x){
+                if(accWeight.at<float>(y,x) > FLT_EPSILON){
+                    Vec3f pix = accPix.at<Vec3f>(y,x) / accWeight.at<float>(y,x);
+                    output.at<Vec3b>(y,x) = (Vec3b)pix;
+                }
+            }
+        }
+    }
+
+    void GridWarpping::warpImageBackward(const cv::Mat &input, cv::Mat &output) const {
+        CHECK_EQ(input.cols, width);
+        CHECK_EQ(input.rows, height);
+        output = Mat(height, width, CV_8UC3, Scalar::all(0));
+        for(auto y=0; y<height; ++y){
+            for(auto x=0; x<width; ++x){
+                Vector2d pt = warpPoint(Vector2d(x,y));
+                if(pt[0] < 0 || pt[1] < 0 || pt[0] > width - 1 || pt[1] > height - 1)
+                    continue;
+                Vector3d pixO = interpolation_util::bilinear<uchar,3>(input.data, input.cols, input.rows, pt);
+                output.at<Vec3b>(y,x) = Vec3b((uchar) pixO[0], (uchar)pixO[1], (uchar)pixO[2]);
+            }
+        }
+    }
 
 }//namespace substablas
