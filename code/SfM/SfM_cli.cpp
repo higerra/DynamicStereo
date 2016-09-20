@@ -106,7 +106,7 @@ DEFINE_string(intrinsics_to_optimize,
               "FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION",
               "Set to control which intrinsics parameters are optimized during "
                       "bundle adjustment.");
-DEFINE_double(max_reprojection_error_pixels, 4.0,
+DEFINE_double(max_reprojection_error_pixels, 4.5,
               "Maximum reprojection error for a correspondence to be "
                       "considered an inlier after bundle adjustment.");
 

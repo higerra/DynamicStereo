@@ -477,7 +477,7 @@ namespace dynamic_stereo {
             const int height = images[0].rows;
             const int nLabel = (int)gmms.size();
             int vtxCount = width * height;
-            const double ratio = 1000;
+            const double ratio = 10000;
 
             GMSpace space(vtxCount, (size_t)nLabel);
             GMModel model(space);
@@ -505,6 +505,7 @@ namespace dynamic_stereo {
                             }
                         }
                         MRF_data[vtxIdx * nLabel + l] = e / ratio;
+                        CHECK_GE(MRF_data[vtxIdx * nLabel + l], 0) << MRF_data[vtxIdx * nLabel + l];
                     }
 
                 }
