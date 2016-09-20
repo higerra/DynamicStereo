@@ -21,7 +21,13 @@ for sample in samples:
     info = sample.split()
     assert(len(info) == 2)
     dataset = sample.split()[0]
+
     testFrame = int(sample.split()[1])
+
+    command = "rm {}/{}/midres/depth{:05d}.depth"
+    print command
+    subprocess.call(command, shell=True)
+
     command = "{} {}/{} --testFrame={} --logtostderr".format(stereo_path, path, dataset, testFrame)
     print command
     subprocess.call(command, shell=True)
