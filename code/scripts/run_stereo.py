@@ -26,30 +26,30 @@ for sample in samples:
     print command
     subprocess.call(command, shell=True)
 
-    command = "ffmpeg -i {}/{}/midres/prewarp/prewarpb{:05d}_%05d.jpg -vcodec h264 -qp 0 -y {}/{}/midres/prewarp/prewarpb{:05d}.mp4".format(
-        path, dataset, testFrame, path, dataset, testFrame
-    )
-    print command
-    subprocess.call(command, shell=True)
-    command = "cp {}/{}/midres/prewarp/prewarpb{:05d}.mp4 /home/yanhang/Documents/research/DynamicStereo/data/working/prewarp/prewarp_{}{:05d}.mp4".format(
-        path, dataset, testFrame, dataset, testFrame
-    )
-    print command
-    subprocess.call(command, shell=True)
+    # command = "ffmpeg -i {}/{}/midres/prewarp/prewarpb{:05d}_%05d.jpg -vcodec h264 -qp 0 -y {}/{}/midres/prewarp/prewarpb{:05d}.mp4".format(
+    #     path, dataset, testFrame, path, dataset, testFrame
+    # )
+    # print command
+    # subprocess.call(command, shell=True)
+    # command = "cp {}/{}/midres/prewarp/prewarpb{:05d}.mp4 /home/yanhang/Documents/research/DynamicStereo/data/working/prewarp/prewarp_{}{:05d}.mp4".format(
+    #     path, dataset, testFrame, dataset, testFrame
+    # )
+    # print command
+    # subprocess.call(command, shell=True)
 
-    command = '{} {}/{} --testFrame={} --classifierPath={} --codebookPath={}'.format(render_path, path, dataset, testFrame,
-                                                                                     classifier_path, metainfo_path)
-    print command
-    subprocess.call(command, shell=True)
-
-    command = 'ffmpeg -i {}/{}/temp/warped{:05d}_%05d.jpg -vcodec h264 -qp 0 -y {}/{}/temp/warped{:05d}.mp4'.format(
-        path, dataset, testFrame, path, dataset, testFrame
-    )
-    print command
-    subprocess.call(command, shell=True)
-
-    command = "cp {}/{}/temp/warped{:05d}.mp4 {}/prewarp/warped{}_{:05d}.mp4".format(path, dataset, testFrame,
-                                                                                   path, dataset, testFrame)
-    print command
-    subprocess.call(command, shell=True)
+    # command = '{} {}/{} --testFrame={} --classifierPath={} --codebookPath={}'.format(render_path, path, dataset, testFrame,
+    #                                                                                  classifier_path, metainfo_path)
+    # print command
+    # subprocess.call(command, shell=True)
+    #
+    # command = 'ffmpeg -i {}/{}/temp/warped{:05d}_%05d.jpg -vcodec h264 -qp 0 -y {}/{}/temp/warped{:05d}.mp4'.format(
+    #     path, dataset, testFrame, path, dataset, testFrame
+    # )
+    # print command
+    # subprocess.call(command, shell=True)
+    #
+    # command = "cp {}/{}/temp/warped{:05d}.mp4 {}/prewarp/warped{}_{:05d}.mp4".format(path, dataset, testFrame,
+    #                                                                                path, dataset, testFrame)
+    # print command
+    # subprocess.call(command, shell=True)
 
