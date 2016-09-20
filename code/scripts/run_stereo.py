@@ -24,7 +24,7 @@ for sample in samples:
 
     testFrame = int(sample.split()[1])
 
-    command = "rm {}/{}/midres/depth{:05d}.depth"
+    command = "rm {}/{}/midres/depth{:05d}.depth".format(path, dataset, testFrame)
     print command
     subprocess.call(command, shell=True)
 
