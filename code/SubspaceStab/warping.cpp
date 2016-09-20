@@ -42,7 +42,7 @@ namespace substab{
         }
         const double J = B * B - 4 * A * C;
         if(J < 0){
-            LOG(WARNING) << "No real solution";
+            LOG(WARNING) << "No real solution " << A << ' ' << B << ' ' << C << ' ' << J;
             return false;
         }
 
