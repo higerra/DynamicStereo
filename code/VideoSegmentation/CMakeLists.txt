@@ -30,5 +30,5 @@ target_link_libraries(VideoSegmentation gflags VideoSegmentModule)
 
 #test
 add_executable(VideoSegmentation_test ${ROOT_DIRECTORY}/test/test_main.cpp videosegmentation_test.cpp)
-target_link_libraries(VideoSegmentation_test VideoSegmentModule gtest)
+target_link_libraries(VideoSegmentation_test VideoSegmentModule gtest gflags)
 add_test(NAME VideoSegmentation_test COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/VideoSegmentation_test)
