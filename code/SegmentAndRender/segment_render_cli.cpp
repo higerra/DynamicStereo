@@ -125,19 +125,19 @@ int main(int argc, char** argv) {
     printf("Step 2: geometric stablization\n");
     float stab_t = (float)cv::getTickCount();
 //    vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
-    //stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::SUBSTAB);
-	stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::TRACK);
-    printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
-    finalResult.swap(regulared);
-    regulared.clear();
+//     stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::SUBSTAB);
+// //	stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::TRACK);
+//     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
+//     finalResult.swap(regulared);
+//     regulared.clear();
 
-    sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
-    CHECK(stabilizedOutput.isOpened()) << buffer;
-    for (auto i = 0; i < finalResult.size(); ++i) {
-        stabilizedOutput << finalResult[i];
-    }
-    stabilizedOutput.release();
+//     sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//     VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+//     CHECK(stabilizedOutput.isOpened()) << buffer;
+//     for (auto i = 0; i < finalResult.size(); ++i) {
+//         stabilizedOutput << finalResult[i];
+//     }
+//     stabilizedOutput.release();
 
 //    printf("Step 3: Color regularization\n");
 //	float reg_t = (float)cv::getTickCount();
