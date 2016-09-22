@@ -28,7 +28,7 @@ for sample in samples:
     print command
     subprocess.call(command, shell=True)
 
-    command = "{} {}/{} --testFrame={} --logtostderr".format(stereo_path, path, dataset, testFrame)
+    command = "{} {}/{} --testFrame={} --weight_smooth=0.08 --logtostderr".format(stereo_path, path, dataset, testFrame)
     print command
     subprocess.call(command, shell=True)
 
