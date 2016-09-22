@@ -77,7 +77,7 @@ namespace dynamic_stereo {
                     segment = segments[index];
                     CHECK_EQ(segment.size(), images[0].size());
                 } else
-                    video_segment::segment_video(images, segment, level, true, false);
+                    video_segment::segment_video(images, segment, level, true);
 
                 if (rawSegments.needed())
                     segment.copyTo(rawSegments.getMat(index++));

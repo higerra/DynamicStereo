@@ -114,6 +114,7 @@ namespace math_util {
 		return variance(a, mean);
 	}
 
+
 	double normalizedCrossCorrelation(const std::vector<double> &a1, const std::vector<double> &a2);
 
 	inline double gaussian(const double m, const double sigma, const double v){

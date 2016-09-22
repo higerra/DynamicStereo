@@ -4,7 +4,8 @@ project(SegmentAndRender)
 
 set(SEGMENT dynamicsegment.h dynamicsegment_display.cpp dynamicsegment_flashy.cpp)
 set(REGULARIZATION dynamicregularizer.h dynamicregularizer.cpp)
-set(STABILIZATION stabilization.h stabilization.cpp stabilization_grid.cpp stabilization_flow.cpp stab_energy.h)
+set(STABILIZATION stabilization.h stabilization.cpp stabilization_grid.cpp
+        stabilization_flow.cpp stab_energy.h stabilization_track.cpp)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/SegmentAndRender)
 add_library(RPCA RPCA.h RPCA.cpp)
@@ -18,5 +19,5 @@ target_link_libraries(SegmentAndRender gflags glog  MRF cholmod spqr ${CERES_LIB
 
 #add test
 add_executable(SegmentAndRender_test ${ROOT_DIRECTORY}/test/test_main.cpp render_test.cpp)
-target_link_libraries(SegmentAndRender_test RPCA gtest glog)
+target_link_libraries(SegmentAndRender_test RPCA gtest glog gflags)
 add_test(NAME SegmentAndRender_test COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/SegmentAndRender_test)

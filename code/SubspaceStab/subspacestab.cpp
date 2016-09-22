@@ -53,7 +53,7 @@ namespace substab{
         MatrixXd reconSmo = coe * smoothedBas;
         CHECK_EQ(reconSmo.rows(), trackMatrix.offset.size()*2);
         CHECK_EQ(reconSmo.cols(), input.size());
-	
+
         LOG(INFO) << "Warping";
         GridWarpping warping(input[0].cols, input[0].rows);
 
@@ -70,12 +70,12 @@ namespace substab{
 
         output.resize(input.size());
 //        const int& num_thread = option.num_thread;
-	const int num_thread = 6;
+        const int num_thread = 6;
 
         vector<thread_guard> threads((size_t) num_thread);
         auto threadFunWarp = [&](int threadId) {
             for (auto v = threadId; v < input.size(); v += num_thread) {
-		LOG(INFO) << "Frame " << v << " at thread " << threadId;
+                LOG(INFO) << "Frame " << v << " at thread " << threadId;
                 vector<Vector2d> pts1, pts2;
                 for (auto tid = 0; tid < trackMatrix.offset.size(); ++tid) {
                     const int offset = (int) trackMatrix.offset[tid];
@@ -86,8 +86,13 @@ namespace substab{
                         pts2.push_back(Vector2d(reconSmo(2 * tid, v), reconSmo(2 * tid + 1, v)));
                     }
                 }
-//		CHECK(!pts1.empty()) << "Frame " << v;
-                warping.warpImageCloseForm(input2[v], output[v], pts1, pts2,v);
+                if(option.direction == SubSpaceStabOption::BACKWARD){
+                    warping.computeWarpingField(pts2, pts1);
+                    warping.warpImageBackward(input2[v], output[v]);
+                }else{
+                    warping.computeWarpingField(pts1, pts2);
+                    warping.warpImageForward(input2[v], output[v]);
+                }
                 if(option.output_drawpoints) {
                     for (auto ftid = 0; ftid < pts2.size(); ++ftid)
                         cv::circle(output[v], cv::Point2d(pts2[ftid][0], pts2[ftid][1]), 1, Scalar(0, 0, 255), 2);
@@ -95,17 +100,17 @@ namespace substab{
             }
         };
 
-	if(num_thread == 1){
-	    threadFunWarp(0);
-	}else{
-	    for(auto tid=0; tid<threads.size(); ++tid){
-		std::thread t(threadFunWarp, tid);
-		threads[tid].bind(t);
-	    }
+        if(num_thread == 1){
+            threadFunWarp(0);
+        }else{
+            for(auto tid=0; tid<threads.size(); ++tid){
+                std::thread t(threadFunWarp, tid);
+                threads[tid].bind(t);
+            }
 
-	    for(auto& t: threads)
-		t.join();
-	}
+            for(auto& t: threads)
+                t.join();
+        }
 
         if(option.output_crop) {
             LOG(INFO) << "Cropping";
