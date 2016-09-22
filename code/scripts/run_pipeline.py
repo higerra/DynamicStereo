@@ -14,11 +14,11 @@ for tf in range(startid, endid, interval):
     print command
     subprocess.call(command, shell=True)
 
-    command = '{} {} --testFrame=tf'.format(stereo_exec, tf)
+    command = '{} {} --testFrame={}'.format(stereo_exec, data_path, tf)
     print command
     subprocess.call(command, shell=True)
 
-    command = '{} {} --testFrame=tf'.format(render_exec, tf)
+    command = '{} {} --testFrame={}'.format(render_exec, data_path, tf)
     print command
     subprocess.call(command, shell=True)
     
