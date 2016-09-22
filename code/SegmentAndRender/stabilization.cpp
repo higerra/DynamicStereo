@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         const int margin = 5;
         int index = 0;
 
-        const int dseg = -1;
+        const int dseg = 1;
         for (const auto &segment: segments) {
             if (dseg >= 0 && index != dseg) {
                 index++;

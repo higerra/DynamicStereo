@@ -20,7 +20,7 @@ DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/da
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
 
-DEFINE_double(weight_stab, 0.01, "Weight for similarity term in grid stabilization");
+DEFINE_double(param_stab, 0.01, "parameter for geometric stabilization");
 DECLARE_string(flagfile);
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);
@@ -124,20 +124,20 @@ int main(int argc, char** argv) {
 
     printf("Step 2: geometric stablization\n");
     float stab_t = (float)cv::getTickCount();
-//    vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
-//     stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::SUBSTAB);
-// //	stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::TRACK);
-//     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
-//     finalResult.swap(regulared);
-//     regulared.clear();
+    vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
+     stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_param_stab, StabAlg::TRACK);
+ //	stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::TRACK);
+     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
+     finalResult.swap(regulared);
+     regulared.clear();
 
-//     sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//     VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
-//     CHECK(stabilizedOutput.isOpened()) << buffer;
-//     for (auto i = 0; i < finalResult.size(); ++i) {
-//         stabilizedOutput << finalResult[i];
-//     }
-//     stabilizedOutput.release();
+     sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+     VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+     CHECK(stabilizedOutput.isOpened()) << buffer;
+     for (auto i = 0; i < finalResult.size(); ++i) {
+         stabilizedOutput << finalResult[i];
+     }
+     stabilizedOutput.release();
 
 //    printf("Step 3: Color regularization\n");
 //	float reg_t = (float)cv::getTickCount();

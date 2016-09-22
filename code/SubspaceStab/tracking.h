@@ -21,7 +21,8 @@ namespace substab {
 		void genTrackMatrix(const std::vector<cv::Mat>& images, FeatureTracks& trackMatrix, const int tWindow, const int stride);
 		void filterDynamicTracks(FeatureTracks& trackMatrix, const int N);
 
-		void visualizeTrack(const std::vector<cv::Mat>& images, const FeatureTracks& trackMatrix, const int startFrame);
+		void visualizeTrack(const std::vector<cv::Mat>& images, const FeatureTracks& trackMatrix,
+							std::vector<cv::Mat>& output, const int startFrame = 0);
 	}
 }
 #endif //SUBSPACESTAB_TRACKING_H

@@ -40,7 +40,7 @@ namespace substab {
             Eigen::Vector4i ind;
             Eigen::Vector4d w;
             getGridIndAndWeight(pt, ind, w);
-            Eigen::Vector2d res = gridLoc[ind[0]] * w[0] + gridLoc[ind[1]] * w[1] + gridLoc[ind[2]] * w[2] + gridLoc[ind[3]] * w[3];
+            Eigen::Vector2d res = warpedLoc[ind[0]] * w[0] + warpedLoc[ind[1]] * w[1] + warpedLoc[ind[2]] * w[2] + warpedLoc[ind[3]] * w[3];
             return res;
         }
         bool inverseWarpPoint(const Eigen::Vector2d& pt, Eigen::Vector2d& res) const;
@@ -56,6 +56,7 @@ namespace substab {
 
         //compute warping field from src to tgt. (warp src to match tgt)
         void computeWarpingField(const std::vector<Eigen::Vector2d>& src, const std::vector<Eigen::Vector2d>& tgt,
+                                 const double wsimilarity = 10,
                                  const bool fixBoundary = false);
 
         //forward warp: for each pixel of input, new location is computed based on warping field and the color is gaussian splatted

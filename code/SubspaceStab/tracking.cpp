@@ -89,7 +89,8 @@ namespace substab{
 
 		}
 
-		void visualizeTrack(const std::vector<cv::Mat>& images, const FeatureTracks& trackMatrix, const int startFrame) {
+		void visualizeTrack(const std::vector<cv::Mat>& images, const FeatureTracks& trackMatrix,
+							std::vector<cv::Mat>& output, const int startFrame) {
 			const int testStartFrame = startFrame;
 			char buffer[1024] = {};
 			//collect trackes to visualize
@@ -106,8 +107,7 @@ namespace substab{
 				}
 				if (kTrack == 0)
 					break;
-				sprintf(buffer, "trackVisOri%05d_t%05d.jpg", testStartFrame, v);
-				imwrite(buffer, img);
+				output.push_back(img);
 			}
 		}
 
