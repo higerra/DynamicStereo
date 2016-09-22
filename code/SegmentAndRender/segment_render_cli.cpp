@@ -125,7 +125,8 @@ int main(int argc, char** argv) {
     printf("Step 2: geometric stablization\n");
     float stab_t = (float)cv::getTickCount();
 //    vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
-    stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::SUBSTAB);
+    //stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::SUBSTAB);
+	stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::TRACK);
     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
     finalResult.swap(regulared);
     regulared.clear();

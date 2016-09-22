@@ -14,7 +14,8 @@ namespace dynamic_stereo {
     enum StabAlg{
         GRID,
         FLOW,
-        SUBSTAB
+        SUBSTAB,
+        TRACK
     };
 
     void stabilizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,

@@ -61,6 +61,8 @@ namespace dynamic_stereo{
                 option.output_crop = false;
                 //option.output_drawpoints = true;
                 substab::subSpaceStabilization(warp_input, warp_output, option);
+            }else if(alg == TRACK){
+                trackStabilization(warp_input, warp_output, lambda, 5);
             }
             for (auto v = 0; v < output.size(); ++v) {
                 warp_output[v].copyTo(output[v](roi));

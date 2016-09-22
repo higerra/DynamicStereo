@@ -38,6 +38,12 @@ namespace dynamic_stereo {
                 double meany = (sumX[v2] - sumY[v1] + ay[0]) / (double)(v2-v1+1);
                 double vx = math_util::variance(vector<double>(ax.begin(), ax.begin()+index), meanx);
                 double vy = math_util::variance(vector<double>(ay.begin(), ay.begin()+index), meany);
+                printf("Array x:\n");
+                for(auto i=0; i<index; ++i)
+                    cout << ax[i] << ' ';
+                cout << endl;
+                printf("mean x: %.3f\n", meanx);
+                printf("var x: %.3f\n", vx);
                 double curVar = std::sqrt(vx*vx + vy*vy);
                 if(curVar < minVar){
                     minVar = curVar;
@@ -47,12 +53,14 @@ namespace dynamic_stereo {
             }
         }
 
+        score = minVar;
         return score;
     }
 
     void trackStabilization(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
                                  const double threshold, const int tWindow) {
         substab::FeatureTracks trackMat;
+        LOG(INFO) << "Generating track matrix";
         substab::Tracking::genTrackMatrix(input, trackMat, tWindow, -1);
 
         const vector<size_t>& offset = trackMat.offset;
