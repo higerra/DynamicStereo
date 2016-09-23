@@ -79,8 +79,8 @@ namespace dynamic_stereo {
         }
 
         //warp frame by frame
-        const int gridW = 8;
-        const int gridH = 8;
+        const int gridW = 32;
+        const int gridH = 32;
 
         auto cvPtToVec = [](const cv::Point2f& pt){
             return Vector2d(pt.x, pt.y);
@@ -110,7 +110,8 @@ namespace dynamic_stereo {
                 residual1 += (tgt[i] - src[i]).norm();
             }
             LOG(INFO) << "Residual before optimization: " << residual1;
-            gridWarping.computeWarpingField(src, tgt, 3.0);
+            gridWarping.computeWarpingField(src, tgt, 0.1);
+            //gridWarping.computeWarpingField(tgt, src, 0.1);
 
             double residual2 = 0;
             for(auto i=0; i<src.size(); ++i){
@@ -120,7 +121,8 @@ namespace dynamic_stereo {
             LOG(INFO) << "Residual after optimization: " << residual2;
             LOG(INFO) << "Residual change: " << residual1 - residual2;
 
-            gridWarping.warpImageForward(input[v], output[v]);
+            gridWarping.warpImageForward(input[v], output[v], 0.0);
+            //gridWarping.warpImageBackward(input[v], output[v]);
             //update the feature location in frame v
             for(auto tid=0; tid < kTrack; ++tid){
                 if(offset[tid] <= v && trackMat.tracks[tid].size() + offset[tid] > v){
@@ -141,42 +143,58 @@ namespace dynamic_stereo {
 
             {
                 //debug visualize result
-//                int index = 0;
-//                bool inputmode = true;
-//                while(true){
-//                    if(index == 0)
-//                        LOG(INFO) << v;
-//                    else
-//                        LOG(INFO) << v - 1;
-//
-//                    Mat inputVis = input[v-index%2].clone();
-//                    Mat outputVis = output[v-index%2].clone();
-//
-//                    for(auto tid=0; tid < src.size(); ++tid){
-//                        if(index == 0)
-//                            cv::circle(inputVis, cv::Point2f(src[tid][0], src[tid][1]), 1, cv::Scalar(0,0,255), 2);
-//                        else
-//                            cv::circle(inputVis, cv::Point2f(tgt[tid][0], tgt[tid][1]), 1, cv::Scalar(0,0,255), 2);
-//                    }
-//
-//                    for(auto tid=0; tid < src.size(); ++tid) {
-//                        if (index == 0) {
-//                            Vector2d newLoc = gridWarping.warpPoint(src[tid]);
-//                            cv::circle(outputVis, cv::Point2f(newLoc[0], newLoc[1]), 1, Scalar(0, 0, 255), 2);
-//                        } else
-//                            cv::circle(outputVis, cv::Point2f(tgt[tid][0], tgt[tid][1]), 1, Scalar(0, 0, 255), 2);
-//                    }
-//
-//
-//                    Mat cont;
-//                    hconcat(inputVis, outputVis, cont);
-//                    imshow("compare", cont);
-//
-//                    index = (index + 1) % 2;
-//                    char key = (char)waitKey(100);
-//                    if(key == 'q')
-//                        break;
-//                }
+                int index = 0;
+                bool inputmode = true;
+                bool reddot = true;
+                while(true){
+                    if(index == 0)
+                        LOG(INFO) << v;
+                    else
+                        LOG(INFO) << v - 1;
+
+                    Mat inputVis = input[v-index%2].clone();
+                    Mat outputVis = output[v-index%2].clone();
+
+
+                    const int scale = 3;
+                    Mat largeInput, largeOutput;
+                    cv::resize(inputVis, largeInput, cv::Size(width * scale, height * scale));
+                    cv::resize(outputVis, largeOutput, cv::Size(width * scale, height * scale));
+
+                    if(reddot) {
+                        for (auto tid = 0; tid < src.size(); ++tid) {
+                            if (index == 0)
+                                cv::circle(largeInput, cv::Point2f(src[tid][0] * scale, src[tid][1] * scale), 1, cv::Scalar(0, 0, 255),
+                                           2);
+                            else
+                                cv::circle(largeInput, cv::Point2f(tgt[tid][0] * scale, tgt[tid][1] * scale), 1, cv::Scalar(0, 0, 255),
+                                           2);
+                        }
+
+                        for (auto tid = 0; tid < src.size(); ++tid) {
+                            if (index == 0) {
+                                Vector2d newLoc = gridWarping.warpPoint(src[tid]);
+                                cv::circle(largeOutput, cv::Point2f(newLoc[0] * scale, newLoc[1] * scale), 1, Scalar(0, 0, 255), 2);
+                            } else
+                                cv::circle(largeOutput, cv::Point2f(tgt[tid][0] * scale, tgt[tid][1] * scale), 1, Scalar(0, 0, 255), 2);
+                        }
+                    }
+
+                    Mat cont;
+                    hconcat(largeInput, largeOutput, cont);
+                    imshow("compare", cont);
+
+                    index = (index + 1) % 2;
+                    char key = (char)waitKey(100);
+                    if(key == 'q') {
+                        break;
+                    }else if(key == 's'){
+                        imwrite("stab_snap.png", largeInput);
+                    }
+                    else if(key == 'r')
+                        reddot = !reddot;
+
+                }
             }
         }
     }

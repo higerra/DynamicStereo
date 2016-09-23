@@ -139,38 +139,38 @@ int main(int argc, char** argv) {
      }
      stabilizedOutput.release();
 
-    printf("Step 3: Color regularization\n");
-	float reg_t = (float)cv::getTickCount();
-    if(FLAGS_regularization == "median"){
-        const int medianR = 5;
-        printf("Running regularization with median filter, r: %d\n", medianR);
-        temporalMedianFilter(finalResult, segmentsDisplay, regulared, medianR);
-    }else if(FLAGS_regularization == "RPCA"){
-        const double regular_lambda = 0.01;
-        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
-        regularizationRPCA(finalResult, segmentsDisplay, regulared, regular_lambda);
-    }else if(FLAGS_regularization == "anisotropic"){
-        const double ws = 0.6;
-        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
-        regularizationAnisotropic(finalResult, segmentsDisplay, regulared, ws);
-    }else if(FLAGS_regularization == "poisson"){
-        const double ws = 0.1, wt = 0.5;
-        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
-        regularizationPoisson(finalResult, segmentsDisplay, regulared, ws, wt);
-    }else{
-        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
-        return 1;
-    }
-    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
-
-    sprintf(buffer, "%s/temp/regulared_%s_%05d.avi", file_io.getDirectory().c_str(), FLAGS_regularization.c_str(), FLAGS_testFrame);
-    VideoWriter regularedWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
-    CHECK(regularedWriter.isOpened()) << buffer;
-    for (auto i = 0; i < regulared.size(); ++i) {
-        cv::putText(regulared[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
-        regularedWriter << regulared[i];
-    }
-    regularedWriter.release();
+//    printf("Step 3: Color regularization\n");
+//	float reg_t = (float)cv::getTickCount();
+//    if(FLAGS_regularization == "median"){
+//        const int medianR = 5;
+//        printf("Running regularization with median filter, r: %d\n", medianR);
+//        temporalMedianFilter(finalResult, segmentsDisplay, regulared, medianR);
+//    }else if(FLAGS_regularization == "RPCA"){
+//        const double regular_lambda = 0.01;
+//        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
+//        regularizationRPCA(finalResult, segmentsDisplay, regulared, regular_lambda);
+//    }else if(FLAGS_regularization == "anisotropic"){
+//        const double ws = 0.6;
+//        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
+//        regularizationAnisotropic(finalResult, segmentsDisplay, regulared, ws);
+//    }else if(FLAGS_regularization == "poisson"){
+//        const double ws = 0.1, wt = 0.5;
+//        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
+//        regularizationPoisson(finalResult, segmentsDisplay, regulared, ws, wt);
+//    }else{
+//        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
+//        return 1;
+//    }
+//    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
+//
+//    sprintf(buffer, "%s/temp/regulared_%s_%05d.avi", file_io.getDirectory().c_str(), FLAGS_regularization.c_str(), FLAGS_testFrame);
+//    VideoWriter regularedWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+//    CHECK(regularedWriter.isOpened()) << buffer;
+//    for (auto i = 0; i < regulared.size(); ++i) {
+//        cv::putText(regulared[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
+//        regularedWriter << regulared[i];
+//    }
+//    regularedWriter.release();
 
     return 0;
 }

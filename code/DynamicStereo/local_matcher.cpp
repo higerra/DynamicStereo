@@ -93,13 +93,14 @@ namespace local_matcher {
         sort(mCost.begin(), mCost.end());
         const size_t kth = mCost.size() / 2;
         double res = 0.0;
-
+        double count = 0.0;
         //Sum the best half
         //Notice: when using NCC, the higher value the better!
-        for(auto i=kth; i<mCost.size(); ++i){
+        for(auto i=kth; i<mCost.size(); ++i) {
             res += phidncc(mCost[i]);
+            count += 1.0;
         }
-        return res / (double)kth;
+        return res / count;
     }
 
     double medianMatchingCost(const vector<vector<double> > &patches, const int refId) {

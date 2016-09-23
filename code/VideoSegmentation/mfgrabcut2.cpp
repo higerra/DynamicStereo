@@ -501,11 +501,10 @@ namespace dynamic_stereo {
                             for (const auto &img: images) {
                                 Vec3d color = (Vec3d) img.at<Vec3b>(y,x);
                                 if(!hasInvalid || (hasInvalid && (cv::norm(color) > numeric_limits<double>::min())))
-                                    e -= log(gmms[l](color));
+                                    e -= std::max(log(gmms[l](color)), 0.0);
                             }
                         }
                         MRF_data[vtxIdx * nLabel + l] = e / ratio;
-                        CHECK_GE(MRF_data[vtxIdx * nLabel + l], 0) << MRF_data[vtxIdx * nLabel + l];
                     }
 
                 }
