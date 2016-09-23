@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         const int margin = 5;
         int index = 0;
 
-        const int dseg = 1;
+        const int dseg = -1;
         for (const auto &segment: segments) {
             if (dseg >= 0 && index != dseg) {
                 index++;
@@ -62,7 +62,7 @@ namespace dynamic_stereo{
                 //option.output_drawpoints = true;
                 substab::subSpaceStabilization(warp_input, warp_output, option);
             }else if(alg == TRACK){
-                trackStabilization(warp_input, warp_output, lambda, 5);
+                trackStabilization(warp_input, warp_output, lambda, 10);
             }
             for (auto v = 0; v < output.size(); ++v) {
                 warp_output[v].copyTo(output[v](roi));

@@ -71,7 +71,7 @@ namespace dynamic_stereo {
         vector<Vector2i> optIntervals(offset.size(), Vector2i(0,0));
         for(auto tid=0; tid<kTrack; ++tid){
             Vector2i interval(0,0);
-            bool is_inliner = findOptimalInterval(trackMat.tracks[tid], interval, threshold);
+            bool is_inliner = findOptimalInterval(trackMat.tracks[tid], interval, threshold, tWindow);
             if(is_inliner){
                 interval += Vector2i(offset[tid], offset[tid]);
                 optIntervals[tid] = interval;
@@ -79,8 +79,8 @@ namespace dynamic_stereo {
         }
 
         //warp frame by frame
-        const int gridW = 32;
-        const int gridH = 32;
+        const int gridW = 8;
+        const int gridH = 8;
 
         auto cvPtToVec = [](const cv::Point2f& pt){
             return Vector2d(pt.x, pt.y);
@@ -110,7 +110,7 @@ namespace dynamic_stereo {
                 residual1 += (tgt[i] - src[i]).norm();
             }
             LOG(INFO) << "Residual before optimization: " << residual1;
-            gridWarping.computeWarpingField(src, tgt, 5.0);
+            gridWarping.computeWarpingField(src, tgt, 3.0);
 
             double residual2 = 0;
             for(auto i=0; i<src.size(); ++i){
@@ -139,7 +139,7 @@ namespace dynamic_stereo {
                 }
             }
 
-//            {
+            {
                 //debug visualize result
 //                int index = 0;
 //                bool inputmode = true;
@@ -150,13 +150,15 @@ namespace dynamic_stereo {
 //                        LOG(INFO) << v - 1;
 //
 //                    Mat inputVis = input[v-index%2].clone();
+//                    Mat outputVis = output[v-index%2].clone();
+//
 //                    for(auto tid=0; tid < src.size(); ++tid){
 //                        if(index == 0)
 //                            cv::circle(inputVis, cv::Point2f(src[tid][0], src[tid][1]), 1, cv::Scalar(0,0,255), 2);
 //                        else
 //                            cv::circle(inputVis, cv::Point2f(tgt[tid][0], tgt[tid][1]), 1, cv::Scalar(0,0,255), 2);
 //                    }
-//                    Mat outputVis = output[v-index%2].clone();
+//
 //                    for(auto tid=0; tid < src.size(); ++tid) {
 //                        if (index == 0) {
 //                            Vector2d newLoc = gridWarping.warpPoint(src[tid]);
@@ -164,20 +166,18 @@ namespace dynamic_stereo {
 //                        } else
 //                            cv::circle(outputVis, cv::Point2f(tgt[tid][0], tgt[tid][1]), 1, Scalar(0, 0, 255), 2);
 //                    }
+//
+//
 //                    Mat cont;
 //                    hconcat(inputVis, outputVis, cont);
 //                    imshow("compare", cont);
 //
 //                    index = (index + 1) % 2;
 //                    char key = (char)waitKey(100);
-//                    if(key == 'i')
-//                        inputmode = true;
-//                    else if(key == 'o')
-//                        inputmode = false;
-//                    else if(key == 'q')
+//                    if(key == 'q')
 //                        break;
 //                }
-//            }
+            }
         }
     }
 }

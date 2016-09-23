@@ -132,10 +132,17 @@ namespace substab{
 
     void GridWarpping::getGridIndAndWeight(const Eigen::Vector2d &pt, Eigen::Vector4i &ind,
                                            Eigen::Vector4d &w) const {
-        CHECK_LE(pt[0], width - 1);
-        CHECK_LE(pt[1], height - 1);
+
         int x = (int) floor(pt[0] / blockW);
         int y = (int) floor(pt[1] / blockH);
+        if(pt[0] <= 0)
+            x = 0;
+        if(pt[0] >= width - 1)
+            x = gridW - 1;
+        if(pt[1] <= 0)
+            y = 0;
+        if(pt[1] >= height - 1)
+            y = gridH - 1;
 
         //////////////
         // 1--2
@@ -316,7 +323,9 @@ namespace substab{
 
         Mat accPix(input.size(), CV_32FC3, Scalar::all(0));
         Mat accWeight(input.size(), CV_32FC1, Scalar::all(0));
-        const double sigma = splattR / 2;
+        double sigma = 1.0;
+        if(splattR >= 0.5)
+            sigma = splattR / 2;
 
         vector<float> gauKernel;
         for (double dx = -1 * splattR; dx <= splattR; dx += 1.0) {
@@ -326,18 +335,17 @@ namespace substab{
             }
         }
 
-
         const double step = 1.0;
         for(double y=0; y<height - 1; y += step) {
             for (double x = 0; x < width - 1; x += step) {
                 Vec3f pix = (Vec3f) input.at<Vec3b>(y, x);
                 Vector2d basePt = warpPoint(Vector2d(x, y));
                 int kIndex = 0;
-                for (double dx = -1 * splattR; dx <= splattR; dx += 1.0) {
-                    for (double dy = -1 * splattR; dy <= splattR; dy += 1.0, ++kIndex) {
+                for (double dx = -1 * splattR; dx <= splattR + numeric_limits<double>::epsilon(); dx += 1.0) {
+                    for (double dy = -1 * splattR; dy <= splattR + numeric_limits<double>::epsilon(); dy += 1.0, ++kIndex) {
                         Vector2d pt = basePt + Vector2d(dx, dy);
-                        int ix = std::round(pt[0] + 0.5);
-                        int iy = std::round(pt[1] + 0.5);
+                        int ix = std::round(pt[0]);
+                        int iy = std::round(pt[1]);
                         if (ix >= 0 && iy >= 0 && ix <= width - 1 && iy <= height - 1) {
                             accPix.at<Vec3f>(iy, ix) += pix * gauKernel[kIndex];
                             accWeight.at<float>(iy, ix) += gauKernel[kIndex];
