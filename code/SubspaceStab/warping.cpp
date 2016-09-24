@@ -219,7 +219,9 @@ namespace substab{
         CHECK_EQ(src.size(), tgt.size());
 
         const int kDataTerm = (int)src.size() * 2;
-        const int kSimTerm = (gridW-1)*(gridH-1)*8;
+
+        //kSimTerm is a conservative estimation
+        const int kSimTerm = (gridW)*(gridH)*8;
         const int kVar = (int)gridLoc.size() * 2;
 
         vector<Eigen::Triplet<double> > triplets;
@@ -256,46 +258,52 @@ namespace substab{
 //		vector<double> saliency;
 //		computeSimilarityWeight(input, saliency);
 
-//        auto getLocalCoord = [](const Vector2d& p1, const Vector2d& p2, const Vector2d& p3){
-//            Vector2d axis1 = p3 - p2;
-//            Vector2d axis2(-1*axis1[1], axis1[0]);
-//            Vector2d v = p1 - p2;
-//            return Vector2d(v.dot(axis1)/axis1.squaredNorm(), v.dot(axis2)/axis2.squaredNorm());
-//        };
-//        for(auto y=1; y< gridH; ++y) {
-//            for (auto x = 1; x < gridW; ++x) {
-//                vector<Vector2i> gids{
-//                        Vector2i(gridInd(x - 1, y), gridInd(x, y - 1)),
-//                        Vector2i(gridInd(x, y - 1), gridInd(x + 1, y)),
-//                        Vector2i(gridInd(x + 1, y), gridInd(x, y + 1)),
-//                        Vector2i(gridInd(x, y + 1), gridInd(x - 1, y))
-//                };
-//                const int cgid = gridInd(x, y);
-//                for (const auto &gid: gids) {
-//                    Vector2d refUV = getLocalCoord(gridLoc[cgid], gridLoc[gid[0]], gridLoc[gid[1]]);
-//                    //x coordinate
-//                    triplets.push_back(Triplet<double>(cInd, cgid * 2, wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd, gid[0]*2, -1 * wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd, gid[0] * 2, refUV[0] * wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd, gid[1] * 2, -1 * refUV[0] * wsimilarity));
-//
-//                    triplets.push_back(Triplet<double>(cInd, gid[0] * 2 + 1, -1 * refUV[1] * wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd, gid[1] * 2 + 1, refUV[1] * wsimilarity));
-//                    B[cInd] = 0;
-//
-//                    //y coordinate
-//                    triplets.push_back(Triplet<double>(cInd + 1, cgid * 2 + 1, wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd + 1, gid[0] * 2 + 1, -1 * wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd + 1, gid[0] * 2 + 1, refUV[0] * wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd + 1, gid[1] * 2 + 1, -1 * refUV[0] * wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd + 1, gid[0] * 2, refUV[1] * wsimilarity));
-//                    triplets.push_back(Triplet<double>(cInd + 1, gid[1] * 2, -1 * refUV[1] * wsimilarity));
-//                    B[cInd + 1] = 0;
-//                    cInd += 2;
-//                }
-//            }
-//        }
+        auto getLocalCoord = [](const Vector2d& p1, const Vector2d& p2, const Vector2d& p3){
+            Vector2d axis1 = p3 - p2;
+            Vector2d axis2(-1*axis1[1], axis1[0]);
+            Vector2d v = p1 - p2;
+            return Vector2d(v.dot(axis1)/axis1.squaredNorm(), v.dot(axis2)/axis2.squaredNorm());
+        };
+        //clockwise
+        for(auto y=0; y<= gridH; ++y) {
+            for (auto x = 0; x <= gridW; ++x) {
+                vector<Vector2i> gids(4, Vector2i(-1,-1));
+                if(x > 0 && y > 0)
+                    gids[0] = Vector2i(gridInd(x - 1, y), gridInd(x, y - 1));
+                if(x < gridW && y > 0)
+                    gids[1] = Vector2i(gridInd(x, y - 1), gridInd(x + 1, y));
+                if(x < gridW && y < gridH)
+                    gids[2] = Vector2i(gridInd(x + 1, y), gridInd(x, y + 1));
+                if(x > 0 && y < gridH)
+                    gids[3] = Vector2i(gridInd(x, y + 1), gridInd(x - 1, y));
 
+                const int cgid = gridInd(x, y);
+                for (const auto &gid: gids) {
+                    if(gid[0] >= 0 && gid[1] >= 0){
+                        Vector2d refUV = getLocalCoord(gridLoc[cgid], gridLoc[gid[0]], gridLoc[gid[1]]);
+                        //x coordinate
+                        triplets.push_back(Triplet<double>(cInd, cgid * 2, wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd, gid[0]*2, -1 * wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd, gid[0] * 2, refUV[0] * wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd, gid[1] * 2, -1 * refUV[0] * wsimilarity));
+
+                        triplets.push_back(Triplet<double>(cInd, gid[0] * 2 + 1, -1 * refUV[1] * wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd, gid[1] * 2 + 1, refUV[1] * wsimilarity));
+                        B[cInd] = 0;
+
+                        //y coordinate
+                        triplets.push_back(Triplet<double>(cInd + 1, cgid * 2 + 1, wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd + 1, gid[0] * 2 + 1, -1 * wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd + 1, gid[0] * 2 + 1, refUV[0] * wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd + 1, gid[1] * 2 + 1, -1 * refUV[0] * wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd + 1, gid[0] * 2, refUV[1] * wsimilarity));
+                        triplets.push_back(Triplet<double>(cInd + 1, gid[1] * 2, -1 * refUV[1] * wsimilarity));
+                        B[cInd + 1] = 0;
+                        cInd += 2;
+                    }
+                }
+            }
+        }
 
         CHECK_LE(cInd, kDataTerm+kSimTerm);
         SparseMatrix<double> A(cInd, kVar);

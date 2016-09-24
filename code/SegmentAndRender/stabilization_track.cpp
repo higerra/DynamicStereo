@@ -79,7 +79,7 @@ namespace dynamic_stereo {
         }
 
         //warp frame by frame
-        const double blockW = 10, blockH = 10;
+        const double blockW = 2, blockH = 2;
         const int gridW = width / blockW;
         const int gridH = height / blockH;
 
