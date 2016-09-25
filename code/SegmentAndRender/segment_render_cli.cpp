@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 
     sprintf(buffer, "%s/temp/warped%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     VideoWriter warpOutput;
-    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 303, frameSize);
+    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
     CHECK(warpOutput.isOpened()) << "Can not open video stream";
 
     for (auto i = 0; i < finalResult.size(); ++i) {

@@ -282,12 +282,12 @@ namespace dynamic_stereo {
                 for (int x = 0; x < dw; ++x) {
                     Vector2d depthPt, imgpt;
                     if(fullSize) {
-                        depthPt = Vector2d(x, y);
+                        depthPt = Vector2d(x, y) / downsample;
                         imgpt = Vector2d(x,y);
                     }
                     else {
                         imgpt = Vector2d(x,y) * downsample;
-                        depthPt = Vector2d(x, y) / downsample;
+                        depthPt = Vector2d(x, y);
                     }
                     depthPt[0] = std::min(depthPt[0], (double)refDepth->getWidth() - 1.0);
                     depthPt[1] = std::min(depthPt[1], (double)refDepth->getHeight() - 1.0);
