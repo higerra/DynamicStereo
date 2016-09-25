@@ -124,6 +124,7 @@ namespace dynamic_stereo {
 
             gridWarping.warpImageForward(input[v], output[v], 0.0);
             //gridWarping.warpImageBackward(input[v], output[v]);
+
             //update the feature location in frame v
             for(auto tid=0; tid < kTrack; ++tid){
                 if(offset[tid] <= v && trackMat.tracks[tid].size() + offset[tid] > v){

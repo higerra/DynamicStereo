@@ -93,14 +93,15 @@ int main(int argc, char** argv) {
 
     vector <Mat> finalResult;
     printf("Full warping...\n");
-    warping->warpToAnchor(images, segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);
+    //warping->warpToAnchor(images, segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);
+    warping->preWarping(finalResult, true);
     printf("Done\n");
 
     cv::Size frameSize(finalResult[0].cols, finalResult[0].rows);
 
     sprintf(buffer, "%s/temp/warped%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     VideoWriter warpOutput;
-    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 303, frameSize);
     CHECK(warpOutput.isOpened()) << "Can not open video stream";
 
     for (auto i = 0; i < finalResult.size(); ++i) {

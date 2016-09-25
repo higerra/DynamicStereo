@@ -339,8 +339,8 @@ namespace substab{
         }
 
         const double step = 1.0;
-        for(double y=0; y<height - 1; y += step) {
-            for (double x = 0; x < width - 1; x += step) {
+        for(double y=0; y<=height - 1; y += step) {
+            for (double x = 0; x <= width - 1; x += step) {
                 Vec3f pix = (Vec3f) input.at<Vec3b>(y, x);
                 Vector2d basePt = warpPoint(Vector2d(x, y));
                 int kIndex = 0;

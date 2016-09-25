@@ -26,7 +26,7 @@ namespace dynamic_stereo {
 						  const std::vector<std::vector<Eigen::Vector2i> >& segmentsDisplay,
 						  const std::vector<std::vector<Eigen::Vector2i> >& segmentsFlashy,
 						  std::vector<cv::Mat>& output, const int kFrame) const;
-		void preWarping(std::vector<cv::Mat>& warped) const;
+		void preWarping(std::vector<cv::Mat>& warped, const bool fullSize = false) const;
 
         inline int getOffset() const{return offset;}
 		const Depth& getDepth() const{return *refDepth;}
