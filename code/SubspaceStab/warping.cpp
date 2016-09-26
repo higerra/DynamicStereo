@@ -324,34 +324,48 @@ namespace substab{
         CHECK_EQ(input.cols, width);
         CHECK_EQ(input.rows, height);
 
+        constexpr double epsilon = std::numeric_limits<double>::epsilon();
+
         Mat accPix(input.size(), CV_32FC3, Scalar::all(0));
         Mat accWeight(input.size(), CV_32FC1, Scalar::all(0));
         double sigma = 1.0;
         if(splattR >= 0.5)
             sigma = splattR / 2;
 
-        vector<float> gauKernel;
-        for (double dx = -1 * splattR; dx <= splattR; dx += 1.0) {
-            for (double dy = -1 * splattR; dy <= splattR; dy += 1.0) {
-                float w = std::exp(-1 * dx * dx / 2 / sigma - dy * dy / 2 / sigma);
-                gauKernel.push_back(w);
-            }
-        }
-
         const double step = 1.0;
         for(double y=0; y<=height - 1; y += step) {
             for (double x = 0; x <= width - 1; x += step) {
                 Vec3f pix = (Vec3f) input.at<Vec3b>(y, x);
                 Vector2d basePt = warpPoint(Vector2d(x, y));
-                int kIndex = 0;
-                for (double dx = -1 * splattR; dx <= splattR + numeric_limits<double>::epsilon(); dx += 1.0) {
-                    for (double dy = -1 * splattR; dy <= splattR + numeric_limits<double>::epsilon(); dy += 1.0, ++kIndex) {
-                        Vector2d pt = basePt + Vector2d(dx, dy);
-                        int ix = std::round(pt[0]);
-                        int iy = std::round(pt[1]);
-                        if (ix >= 0 && iy >= 0 && ix <= width - 1 && iy <= height - 1) {
-                            accPix.at<Vec3f>(iy, ix) += pix * gauKernel[kIndex];
-                            accWeight.at<float>(iy, ix) += gauKernel[kIndex];
+                for (double dx = -1 * splattR; dx <= splattR + epsilon; dx += 1.0) {
+                    for (double dy = -1 * splattR; dy <= splattR + epsilon; dy += 1.0) {
+                        if (std::sqrt(dx * dx + dy * dy) <= splattR + epsilon) {
+                            Vector2d pt = basePt + Vector2d(dx, dy);
+                            if (pt[0] > 0 && pt[1] > 0 && pt[0] < width - 1 && pt[1] < height - 1) {
+                                const double gauW = std::exp(-1 * dx * dx / 2 / sigma - dy * dy / 2 / sigma);
+
+                                //for each fractional position, use bilinear splatting
+                                int xl = (int)floor(pt[0]), xh = (int)ceil(pt[0]);
+                                int yl = (int)floor(pt[1]), yh = (int)ceil(pt[1]);
+                                double lm = pt[0] - (double) xl, rm = (double) xh - pt[0];
+                                double tm = pt[1] - (double) yl, bm = (double) yh - pt[1];
+                                Vector4i ind(xl + yl * width, xh + yl * width, xh + yh * width, xl + yh * width);
+                                Vector4d vw(rm * bm, lm * bm, lm * tm, rm * tm);
+                                double sum = vw.sum();
+                                CHECK_GT(sum, 0);
+
+                                accPix.at<Vec3f>(yl, xl) += pix * gauW * vw[0];
+                                accWeight.at<float>(yl, xl) += gauW * vw[0];
+
+                                accPix.at<Vec3f>(yl, xh) += pix * gauW * vw[1];
+                                accWeight.at<float>(yl, xh) += gauW * vw[1];
+
+                                accPix.at<Vec3f>(yh, xh) += pix * gauW * vw[2];
+                                accWeight.at<float>(yh, xh) += gauW * vw[2];
+
+                                accPix.at<Vec3f>(yh, xl) += pix * gauW * vw[3];
+                                accWeight.at<float>(yh, xl) += gauW * vw[3];
+                            }
                         }
                     }
                 }

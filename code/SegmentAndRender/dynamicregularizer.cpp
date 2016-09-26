@@ -50,6 +50,38 @@ namespace dynamic_stereo{
         }
     }
 
+    void filterShortSegments(std::vector<std::vector<Eigen::Vector2i> >& segments,
+                             std::vector<Eigen::Vector2i>& ranges,
+                             const int minFrame){
+        vector<vector<Vector2i> > segmentsFiltered;
+        vector<Vector2i> rangesFiltered;
+        for(auto sid=0; sid < segments.size(); ++sid){
+            if(ranges[sid][1] - ranges[sid][0] + 1 >= minFrame) {
+                segmentsFiltered.push_back(segments[sid]);
+                rangesFiltered.push_back(ranges[sid]);
+            }
+        }
+        segments.swap(segmentsFiltered);
+        ranges.swap(rangesFiltered);
+    }
+
+    void renderToMask(const std::vector<cv::Mat>& input, const std::vector<std::vector<Eigen::Vector2i> >& segments,
+                      const std::vector<Eigen::Vector2i>& ranges, std::vector<cv::Mat>& output){
+        CHECK(!input.empty());
+        output.resize(input.size());
+        for(auto v=0; v<output.size(); ++v)
+            output[v] = input[input.size() / 2].clone();
+
+        for(auto sid=0; sid < segments.size(); ++sid){
+            const vector<Vector2i>& seg = segments[sid];
+            for(auto v=0; v<output.size(); ++v){
+                int input_fid = ranges[sid][0] + v % (ranges[sid][1] - ranges[sid][0] + 1);
+                for(const auto& pix: seg) {
+                    output[v].at<Vec3b>(pix[1], pix[0]) = input[input_fid].at<Vec3b>(pix[1], pix[0]);
+                }
+            }
+        }
+    }
 
     void regularizationAnisotropic(const std::vector<cv::Mat>& input,
                                const std::vector<std::vector<Eigen::Vector2i> >& segments,

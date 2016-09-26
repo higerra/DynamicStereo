@@ -26,86 +26,89 @@ DECLARE_string(flagfile);
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);
 
 int main(int argc, char** argv) {
-	char buffer[1024] = {};
-	if(argc < 2){
-		cerr << "Usage: ./SegmentAndRender <path-to-data>" << endl;
-		return 1;
-	}
-	FileIO file_io(argv[1]);
-	CHECK_GT(file_io.getTotalNum(), 0) << "Empty dataset";
+    char buffer[1024] = {};
+    if(argc < 2){
+        cerr << "Usage: ./SegmentAndRender <path-to-data>" << endl;
+        return 1;
+    }
+    FileIO file_io(argv[1]);
+    CHECK_GT(file_io.getTotalNum(), 0) << "Empty dataset";
 
-	sprintf(buffer, "%s/config.txt", file_io.getDirectory().c_str());
-	ifstream flagfile(buffer);
-	if(flagfile.is_open()) {
-		printf("Read flag from file\n");
-		FLAGS_flagfile = string(buffer);
-	}
+    sprintf(buffer, "%s/config.txt", file_io.getDirectory().c_str());
+    ifstream flagfile(buffer);
+    if(flagfile.is_open()) {
+        printf("Read flag from file\n");
+        FLAGS_flagfile = string(buffer);
+    }
 
-	google::InitGoogleLogging(argv[1]);
-	google::ParseCommandLineFlags(&argc, &argv, true);
-	printf("testFrame:%d, tWindow:%d\n", FLAGS_testFrame, FLAGS_tWindow);
+    google::InitGoogleLogging(argv[1]);
+    google::ParseCommandLineFlags(&argc, &argv, true);
+    printf("testFrame:%d, tWindow:%d\n", FLAGS_testFrame, FLAGS_tWindow);
 
-	vector<Mat> images;
-	Mat segMask;
-	Depth refDepth;
-	int width, height;
-	printf("Loading...\n");
-	loadData(file_io, images, segMask, refDepth);
-	width = images[0].cols;
-	height = images[0].rows;
-	Mat refImage = imread(file_io.getImage(FLAGS_testFrame));
-	cv::resize(refImage, refImage, cv::Size(width, height), cv::INTER_CUBIC);
+    vector<Mat> images;
+    Mat segMask;
+    Depth refDepth;
+    int width, height;
+    printf("Loading...\n");
+    loadData(file_io, images, segMask, refDepth);
+    width = images[0].cols;
+    height = images[0].rows;
+    Mat refImage = imread(file_io.getImage(FLAGS_testFrame));
+    cv::resize(refImage, refImage, cv::Size(width, height), cv::INTER_CUBIC);
 
-	////////////////////////////////////////////
-	//Segmentation
+    ////////////////////////////////////////////
+    //Segmentation
     printf("Segmenting...\n");
 
     Mat seg_result_display, seg_result_flashy;
-	segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-	//segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
+    segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
+    //segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
 
-	//////////////////////////////////////////////////////////
-	//Rendering
-	//reload full resolution image, set black pixel to (1,1,1)
-	const double depthSmooth = 2.0;
-	std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution, depthSmooth));
 
-	int offset = CHECK_NOTNULL(warping.get())->getOffset();
-	images.resize((size_t)FLAGS_tWindow);
-	for(auto v=0; v<FLAGS_tWindow; ++v){
-		images[v] = imread(file_io.getImage(offset+v));
-		for(auto y=0; y<images[v].rows; ++y){
-			for(auto x=0; x<images[v].cols; ++x){
-				if(images[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
-					images[v].at<Vec3b>(y,x) = Vec3b(1,1,1);
-			}
-		}
-	}
-	cv::resize(seg_result_display, seg_result_display, images[0].size(), 0, 0, INTER_NEAREST);
+
+
+
+
+    //////////////////////////////////////////////////////////
+    //Rendering
+    //reload full resolution image, set black pixel to (1,1,1)
+    const double depthSmooth = 2.0;
+    std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution, depthSmooth));
+
+    int offset = CHECK_NOTNULL(warping.get())->getOffset();
+    images.resize((size_t)FLAGS_tWindow);
+    for(auto v=0; v<FLAGS_tWindow; ++v){
+        images[v] = imread(file_io.getImage(offset+v));
+        for(auto y=0; y<images[v].rows; ++y){
+            for(auto x=0; x<images[v].cols; ++x){
+                if(images[v].at<Vec3b>(y,x) == Vec3b(0,0,0))
+                    images[v].at<Vec3b>(y,x) = Vec3b(1,1,1);
+            }
+        }
+    }
+    cv::resize(seg_result_display, seg_result_display, images[0].size(), 0, 0, INTER_NEAREST);
     //cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
 
-	vector<vector<Vector2i> > segmentsDisplay;
-	vector<vector<Vector2i> > segmentsFlashy;
-	groupPixel(seg_result_display, segmentsDisplay);
-	//groupPixel(seg_result_flashy, segmentsFlashy);
+    vector<vector<Vector2i> > segmentsDisplay;
+    vector<vector<Vector2i> > segmentsFlashy;
+    groupPixel(seg_result_display, segmentsDisplay);
+    //groupPixel(seg_result_flashy, segmentsFlashy);
 
-	//segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
-
-    vector <Mat> finalResult, visMaps;
+    vector <Mat> mid_input, mid_output, visMaps;
     printf("Full warping...\n");
     //warping->warpToAnchor(images, segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);
-    warping->preWarping(finalResult, true, &visMaps);
+    warping->preWarping(mid_input, true, &visMaps);
     printf("Done\n");
 
-    cv::Size frameSize(finalResult[0].cols, finalResult[0].rows);
+    cv::Size frameSize(mid_input[0].cols, mid_input[0].rows);
 
     sprintf(buffer, "%s/temp/warped%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     VideoWriter warpOutput;
     warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
     CHECK(warpOutput.isOpened()) << "Can not open video stream";
 
-    for (auto i = 0; i < finalResult.size(); ++i) {
-        warpOutput << finalResult[i];
+    for (auto i = 0; i < mid_input.size(); ++i) {
+        warpOutput << mid_input[i];
     }
     warpOutput.release();
 
@@ -113,88 +116,102 @@ int main(int argc, char** argv) {
     getSegmentRange(visMaps, segmentsDisplay, rangesDisplay);
     getSegmentRange(visMaps, segmentsFlashy, rangesFlashy);
 
+    //discard segments with too small ranges
+    const int minFrame = static_cast<int>(mid_input.size() * 0.2);
+    filterShortSegments(segmentsDisplay, rangesDisplay, minFrame);
+    filterShortSegments(segmentsFlashy, rangesFlashy, minFrame);
+
+
     //three step regularization:
     //1. Apply a small poisson smoothing, fill in holes
     //2. Geometric stablization by grid warping
     //3. Apply RPCA to smooth transition and remove high frequency noise
 
-    vector <Mat> regulared;
 
 //    printf("Step 1: Fill holes by poisson smoothing\n");
 //    const double small_poisson = 0.01;
-//    regularizationPoisson(finalResult, segmentsDisplay, regulared, small_poisson, small_poisson);
-//    finalResult.swap(regulared);
-//    regulared.clear();
+//    regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
+//    mid_input.swap(mid_output);
+//    mid_output.clear();
 
     printf("Step 2: geometric stablization\n");
     float stab_t = (float)cv::getTickCount();
-    vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
-     stabilizeSegments(finalResult, regulared, segmentsDisplay, rangesDisplay, FLAGS_param_stab, StabAlg::TRACK);
- //	stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::TRACK);
-     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
-     finalResult.swap(regulared);
-     regulared.clear();
+    //vector<Mat> debug_input(mid_input.begin(), mid_input.begin() + 20);
+    stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, FLAGS_param_stab, StabAlg::TRACK);
+    printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
+    mid_input.swap(mid_output);
+    mid_output.clear();
 
-     sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-     VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
-     CHECK(stabilizedOutput.isOpened()) << buffer;
-     for (auto i = 0; i < finalResult.size(); ++i) {
-         stabilizedOutput << finalResult[i];
-     }
-     stabilizedOutput.release();
+    //Now apply mask
+    segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
+    rangesDisplay.insert(rangesDisplay.end(), rangesFlashy.begin(), rangesFlashy.end());
+    renderToMask(mid_input, segmentsDisplay, rangesDisplay, mid_output);
+    mid_input.swap(mid_output);
+    mid_output.clear();
+
+    sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+    CHECK(stabilizedOutput.isOpened()) << buffer;
+    for (auto i = 0; i < mid_input.size(); ++i) {
+        stabilizedOutput << mid_input[i];
+    }
+    stabilizedOutput.release();
 
 //    printf("Step 3: Color regularization\n");
 //	float reg_t = (float)cv::getTickCount();
 //    if(FLAGS_regularization == "median"){
 //        const int medianR = 5;
 //        printf("Running regularization with median filter, r: %d\n", medianR);
-//        temporalMedianFilter(finalResult, segmentsDisplay, regulared, medianR);
+//        temporalMedianFilter(mid_input, segmentsDisplay, mid_output, medianR);
 //    }else if(FLAGS_regularization == "RPCA"){
 //        const double regular_lambda = 0.01;
 //        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
-//        regularizationRPCA(finalResult, segmentsDisplay, regulared, regular_lambda);
+//        regularizationRPCA(mid_input, segmentsDisplay, mid_output, regular_lambda);
 //    }else if(FLAGS_regularization == "anisotropic"){
 //        const double ws = 0.6;
 //        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
-//        regularizationAnisotropic(finalResult, segmentsDisplay, regulared, ws);
+//        regularizationAnisotropic(mid_input, segmentsDisplay, mid_output, ws);
 //    }else if(FLAGS_regularization == "poisson"){
 //        const double ws = 0.1, wt = 0.5;
 //        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
-//        regularizationPoisson(finalResult, segmentsDisplay, regulared, ws, wt);
+//        regularizationPoisson(mid_input, segmentsDisplay, mid_output, ws, wt);
 //    }else{
 //        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
 //        return 1;
 //    }
 //    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
-//
-//    sprintf(buffer, "%s/temp/regulared_%s_%05d.avi", file_io.getDirectory().c_str(), FLAGS_regularization.c_str(), FLAGS_testFrame);
-//    VideoWriter regularedWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
-//    CHECK(regularedWriter.isOpened()) << buffer;
-//    for (auto i = 0; i < regulared.size(); ++i) {
-//        cv::putText(regulared[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
-//        regularedWriter << regulared[i];
+//    mid_input.swap(mid_output);
+//    mid_output.clear();
+
+//    vector<Mat> finalResult;
+//    sprintf(buffer, "%s/temp/finalReault_%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//    VideoWriter resultWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+//    CHECK(resultWriter.isOpened()) << buffer;
+//    for (auto i = 0; i < mid_output.size(); ++i) {
+////        cv::putText(finalResult[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
+//        resultWriter << finalResult[i];
 //    }
-//    regularedWriter.release();
+//    resultWriter.release();
 
     return 0;
 }
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth){
-	//images
-	char buffer[1024] = {};
-	images.resize((size_t)FLAGS_tWindow);
-	int width, height;
-	const int offset = FLAGS_testFrame - FLAGS_tWindow / 2;
-	CHECK_GE(offset, 0);
-	for(auto i=0; i<FLAGS_tWindow; ++i){
-		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);
-		images[i] = imread(buffer);
-		CHECK(images[i].data) << buffer;
-	}
-	CHECK(!images.empty());
+    //images
+    char buffer[1024] = {};
+    images.resize((size_t)FLAGS_tWindow);
+    int width, height;
+    const int offset = FLAGS_testFrame - FLAGS_tWindow / 2;
+    CHECK_GE(offset, 0);
+    for(auto i=0; i<FLAGS_tWindow; ++i){
+        sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);
+        images[i] = imread(buffer);
+        CHECK(images[i].data) << buffer;
+    }
+    CHECK(!images.empty());
 //	width = images[0].cols;
 //	height = images[0].rows;
-	//segnet mask
+    //segnet mask
 //	sprintf(buffer, "%s/segnet/seg%05d.png", file_io.getDirectory().c_str(), FLAGS_testFrame);
 //	Mat segMaskImg = imread(buffer);
 //	CHECK(segMaskImg.data) << buffer;
@@ -212,8 +229,8 @@ void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& r
 //				segMask.at<uchar>(y,x) = 255;
 //		}
 //	}
-	//depth
-	sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	CHECK(refDepth.readDepthFromFile(string(buffer))) << "Can not read depth file";
+    //depth
+    sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
+    CHECK(refDepth.readDepthFromFile(string(buffer))) << "Can not read depth file";
 
 }

@@ -19,6 +19,13 @@ namespace dynamic_stereo {
                          const std::vector<std::vector<Eigen::Vector2i> >& segments,
                          std::vector<Eigen::Vector2i>& ranges);
 
+    void filterShortSegments(std::vector<std::vector<Eigen::Vector2i> >& segments,
+                             std::vector<Eigen::Vector2i>& ranges,
+                             const int minFrame);
+
+    void renderToMask(const std::vector<cv::Mat>& input, const std::vector<std::vector<Eigen::Vector2i> >& segments,
+                      const std::vector<Eigen::Vector2i>& ranges, std::vector<cv::Mat>& output);
+
     void regularizationAnisotropic(const std::vector<cv::Mat> &input,
                                const std::vector<std::vector<Eigen::Vector2i> > &segments,
                                std::vector<cv::Mat> &output, const double weight_smooth);
