@@ -19,8 +19,9 @@ namespace dynamic_stereo {
     };
 
     void stabilizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
-                           const std::vector<std::vector<Eigen::Vector2i> >& segments, const double lambda,
-                           const StabAlg alg = FLOW);
+                           const std::vector<std::vector<Eigen::Vector2i> >& segments,
+                           const std::vector<Eigen::Vector2i>& ranges,
+                           const double lambda, const StabAlg alg = FLOW);
 
     void flowStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
                            const cv::InputArray inputMask = cv::noArray());

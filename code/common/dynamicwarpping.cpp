@@ -242,7 +242,9 @@ namespace dynamic_stereo {
             t.join();
     }
 
-    void DynamicWarpping::preWarping(std::vector<cv::Mat> &warped, const bool fullSize) const {
+    void DynamicWarpping::preWarping(std::vector<cv::Mat> &warped,
+                                     const bool fullSize,
+                                     std::vector<cv::Mat>* visMaps) const {
 
         vector<Mat> dimages((size_t)tWindow);
         const int nLevel = fullSize ? 1 : (int)std::log2(downsample) + 1;
@@ -260,11 +262,18 @@ namespace dynamic_stereo {
             }
         }
 
-
         const int dw = dimages[0].cols;
         const int dh = dimages[0].rows;
 
         warped.resize(dimages.size());
+
+        if(visMaps != nullptr){
+            visMaps->resize(dimages.size());
+            for(auto& m: *visMaps){
+                m.create(dh, dw, CV_8UC1);
+                m.setTo(cv::Scalar(Visibility::VISIBLE));
+            }
+        }
 
         const theia::Camera& cam1 = sfmModel->getCamera(anchor);
         const int disparity_margin = 10;
@@ -293,7 +302,6 @@ namespace dynamic_stereo {
                     depthPt[1] = std::min(depthPt[1], (double)refDepth->getHeight() - 1.0);
 
                     Vector3d ray = cam1.PixelToUnitDepthRay(imgpt);
-
                     Vector3d spt = cam1.GetPosition() + ray * refDepth->getDepthAt(depthPt);
 
                     double curd = cam2.ProjectPoint(spt.homogeneous(), &imgpt);
@@ -311,13 +319,20 @@ namespace dynamic_stereo {
                             double zdisp = depthToDisp(zDepth, min_depths[i], max_depths[i]);
                             if (zdisp - curdisp >= disparity_margin) {
                                 warped[i].at<Vec3b>(y, x) = Vec3b(0, 0, 0);
+                                if(visMaps != nullptr)
+                                    (*visMaps)[i].at<uchar>(y,x) = (uchar)Visibility::OCCLUDED;
                             } else {
                                 Vector3d pix2 = interpolation_util::bilinear<uchar, 3>(dimages[i].data, dw, dh, imgpt);
                                 warped[i].at<Vec3b>(y, x) = Vec3b((uchar) pix2[0], (uchar) pix2[1], (uchar) pix2[2]);
                             }
                         } else {
                             warped[i].at<Vec3b>(y, x) = Vec3b(0, 0, 0);
+                            if(visMaps != nullptr)
+                                (*visMaps)[i].at<uchar>(y,x) = (uchar)Visibility::OUTSIDE;
                         }
+                    }else{
+                        if(visMaps != nullptr)
+                            (*visMaps)[i].at<uchar>(y,x) = (uchar)Visibility::OUTSIDE;
                     }
                 }
             }

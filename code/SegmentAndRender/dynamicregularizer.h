@@ -15,6 +15,10 @@ namespace dynamic_stereo {
 
     class Depth;
 
+    void getSegmentRange(const std::vector<cv::Mat>& visMaps,
+                         const std::vector<std::vector<Eigen::Vector2i> >& segments,
+                         std::vector<Eigen::Vector2i>& ranges);
+
     void regularizationAnisotropic(const std::vector<cv::Mat> &input,
                                const std::vector<std::vector<Eigen::Vector2i> > &segments,
                                std::vector<cv::Mat> &output, const double weight_smooth);

@@ -9,12 +9,47 @@
 #include "RPCA.h"
 #include <Eigen/Sparse>
 #include <Eigen/SPQRSupport>
+#include "../common/dynamicwarpping.h"
 
 using namespace std;
 using namespace cv;
 using namespace Eigen;
 
 namespace dynamic_stereo{
+
+    void getSegmentRange(const vector<Mat>& visMaps,
+                         const std::vector<std::vector<Eigen::Vector2i> >& segments,
+                         std::vector<Eigen::Vector2i>& ranges){
+        ranges.resize(segments.size(), Vector2i(0, visMaps.size() - 1));
+
+#pragma omp parallel for
+        for(auto sid=0; sid<segments.size(); ++sid){
+            const vector<Vector2i>& seg = segments[sid];
+            vector<int> invalidCount(visMaps.size(), 0);
+            const int invalidMargin = seg.size() / 50;
+
+            for(auto v=0; v < visMaps.size(); ++v){
+                for(const auto& pix: seg){
+                    if(visMaps[v].at<uchar>(pix[1], pix[0]) != Visibility::VISIBLE)
+                        invalidCount[v]++;
+                }
+            }
+
+            for(int v=visMaps.size() / 2-1; v>=0; --v){
+                if(invalidCount[v] > invalidMargin) {
+                    ranges[sid][0] = std::max(ranges[sid][0], v);
+                    break;
+                }
+            }
+            for(int v=visMaps.size() / 2; v < visMaps.size(); ++v){
+                if(invalidCount[v] > invalidMargin) {
+                    ranges[sid][1] = std::min(ranges[sid][1], v);
+                    break;
+                }
+            }
+        }
+    }
+
 
     void regularizationAnisotropic(const std::vector<cv::Mat>& input,
                                const std::vector<std::vector<Eigen::Vector2i> >& segments,

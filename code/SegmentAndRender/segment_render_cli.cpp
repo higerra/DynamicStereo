@@ -91,10 +91,10 @@ int main(int argc, char** argv) {
 
 	//segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
 
-    vector <Mat> finalResult;
+    vector <Mat> finalResult, visMaps;
     printf("Full warping...\n");
     //warping->warpToAnchor(images, segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);
-    warping->preWarping(finalResult, true);
+    warping->preWarping(finalResult, true, &visMaps);
     printf("Done\n");
 
     cv::Size frameSize(finalResult[0].cols, finalResult[0].rows);
@@ -107,8 +107,11 @@ int main(int argc, char** argv) {
     for (auto i = 0; i < finalResult.size(); ++i) {
         warpOutput << finalResult[i];
     }
-
     warpOutput.release();
+
+    vector<Vector2i> rangesDisplay, rangesFlashy;
+    getSegmentRange(visMaps, segmentsDisplay, rangesDisplay);
+    getSegmentRange(visMaps, segmentsFlashy, rangesFlashy);
 
     //three step regularization:
     //1. Apply a small poisson smoothing, fill in holes
@@ -126,7 +129,7 @@ int main(int argc, char** argv) {
     printf("Step 2: geometric stablization\n");
     float stab_t = (float)cv::getTickCount();
     vector<Mat> debugInput(finalResult.begin(), finalResult.begin() + 20);
-     stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_param_stab, StabAlg::TRACK);
+     stabilizeSegments(finalResult, regulared, segmentsDisplay, rangesDisplay, FLAGS_param_stab, StabAlg::TRACK);
  //	stabilizeSegments(finalResult, regulared, segmentsDisplay, FLAGS_weight_stab, StabAlg::TRACK);
      printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
      finalResult.swap(regulared);

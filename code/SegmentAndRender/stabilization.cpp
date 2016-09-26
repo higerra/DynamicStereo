@@ -12,8 +12,9 @@ using namespace Eigen;
 namespace dynamic_stereo{
 
     void stabilizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
-                           const std::vector<std::vector<Eigen::Vector2i> >& segments, const double lambda,
-                           const StabAlg alg) {
+                           const std::vector<std::vector<Eigen::Vector2i> >& segments,
+                           const std::vector<Eigen::Vector2i>& ranges,
+                           const double lambda, const StabAlg alg) {
 
         CHECK(!input.empty());
         output.resize(input.size());
@@ -48,24 +49,24 @@ namespace dynamic_stereo{
             cv::Point2i cpt = (tl + br) / 2;
             printf("center: (%d,%d), size:%d\n", cpt.x, cpt.y, (int) segment.size());
             cv::Rect roi(tl, br);
-            vector<Mat> warp_input(input.size()), warp_output;
-            for (auto v = 0; v < input.size(); ++v)
-                warp_input[v] = input[v](roi).clone();
+            vector<Mat> warp_input((size_t) (ranges[index][1] - ranges[index][0] + 1)), warp_output;
+            for (auto v = ranges[index][0]; v <= ranges[index][1]; ++v)
+                warp_input[v - ranges[index][0]] = input[v](roi).clone();
 
-            if(alg == GRID)
+            if (alg == GRID)
                 gridStabilization(warp_input, warp_output, lambda);
-            else if(alg == FLOW)
+            else if (alg == FLOW)
                 flowStabilization(warp_input, warp_output, lambda);
-            else if(alg == SUBSTAB){
+            else if (alg == SUBSTAB) {
                 substab::SubSpaceStabOption option;
                 option.output_crop = false;
                 //option.output_drawpoints = true;
                 substab::subSpaceStabilization(warp_input, warp_output, option);
-            }else if(alg == TRACK){
+            } else if (alg == TRACK) {
                 trackStabilization(warp_input, warp_output, lambda, 10);
             }
-            for (auto v = 0; v < output.size(); ++v) {
-                warp_output[v].copyTo(output[v](roi));
+            for (auto v = ranges[index][0]; v <= ranges[index][1]; ++v) {
+                warp_output[v - ranges[index][0]].copyTo(output[v](roi));
             }
             index++;
         }

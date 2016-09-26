@@ -17,6 +17,12 @@ namespace dynamic_stereo {
 	class Depth;
 	class FileIO;
 
+	enum Visibility{
+		VISIBLE = 0,
+		OCCLUDED = 1,
+		OUTSIDE = 2
+	};
+
     class DynamicWarpping {
     public:
         DynamicWarpping(const FileIO& file_io_, const int anchor_, const int tWindow_, const int nLabel_,
@@ -26,7 +32,9 @@ namespace dynamic_stereo {
 						  const std::vector<std::vector<Eigen::Vector2i> >& segmentsDisplay,
 						  const std::vector<std::vector<Eigen::Vector2i> >& segmentsFlashy,
 						  std::vector<cv::Mat>& output, const int kFrame) const;
-		void preWarping(std::vector<cv::Mat>& warped, const bool fullSize = false) const;
+		void preWarping(std::vector<cv::Mat>& warped,
+						const bool fullSize = false,
+						std::vector<cv::Mat>* visMaps = nullptr) const;
 
         inline int getOffset() const{return offset;}
 		const Depth& getDepth() const{return *refDepth;}

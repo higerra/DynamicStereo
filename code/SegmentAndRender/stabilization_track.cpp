@@ -122,7 +122,7 @@ namespace dynamic_stereo {
             LOG(INFO) << "Residual after optimization: " << residual2;
             LOG(INFO) << "Residual change: " << residual1 - residual2;
 
-            gridWarping.warpImageForward(input[v], output[v], 0.0);
+            gridWarping.warpImageForward(input[v], output[v], 1.0);
             //gridWarping.warpImageBackward(input[v], output[v]);
 
             //update the feature location in frame v
