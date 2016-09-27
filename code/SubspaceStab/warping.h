@@ -57,6 +57,7 @@ namespace substab {
         //compute warping field from src to tgt. (warp src to match tgt)
         void computeWarpingField(const std::vector<Eigen::Vector2d>& src, const std::vector<Eigen::Vector2d>& tgt,
                                  const double wsimilarity = 10,
+                                 const std::vector<double>* pW = nullptr,
                                  const bool fixBoundary = false);
 
         //forward warp: for each pixel of input, new location is computed based on warping field and the color is gaussian splatted

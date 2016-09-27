@@ -215,14 +215,21 @@ namespace substab{
 
     void GridWarpping::computeWarpingField(const std::vector<Eigen::Vector2d>& src, const std::vector<Eigen::Vector2d>& tgt,
                                            const double wsimilarity,
+                                           const std::vector<double>* pW,
                                            const bool fixBoundary){
         CHECK_EQ(src.size(), tgt.size());
 
-        const int kDataTerm = (int)src.size() * 2;
-
-        //kSimTerm is a conservative estimation
+        //numbers of constraints are just conservative estimation
+        const int kDataTerm = (int)src.size() * 2 + (gridW + gridH + 2) * 4;
         const int kSimTerm = (gridW)*(gridH)*8;
         const int kVar = (int)gridLoc.size() * 2;
+
+        vector<double> pointW(src.size(), 1.0);
+        if(pW != nullptr){
+            CHECK_EQ(pW->size(), src.size());
+            for(auto i=0; i<pW->size(); ++i)
+                pointW[i] = (*pW)[i];
+        }
 
         vector<Eigen::Triplet<double> > triplets;
         VectorXd B(kDataTerm+kSimTerm);
@@ -242,16 +249,42 @@ namespace substab{
             getGridIndAndWeight(src[i], indRef, bwRef);
             for (auto j = 0; j < 4; ++j) {
                 CHECK_LT(indRef[j]*2+1, kVar);
-                triplets.push_back(Triplet<double>(cInd, indRef[j] * 2, wdata * bwRef[j]));
-                triplets.push_back(Triplet<double>(cInd + 1, indRef[j] * 2 + 1, wdata * bwRef[j]));
+                triplets.push_back(Triplet<double>(cInd, indRef[j] * 2, wdata * bwRef[j] * pointW[i]));
+                triplets.push_back(Triplet<double>(cInd + 1, indRef[j] * 2 + 1, wdata * bwRef[j] * pointW[i]));
             }
-            B[cInd] = wdata * tgt[i][0];
-            B[cInd + 1] = wdata * tgt[i][1];
+            B[cInd] =  tgt[i][0] * wdata * pointW[i];
+            B[cInd + 1] = tgt[i][1] * wdata * pointW[i];
             cInd += 2;
         }
 
-        if(fixBoundary){
-            for(auto x=0; x<=gridW; ++x){
+        if(fixBoundary) {
+            constexpr double wboundary = 100;
+            for (auto x = 0; x <= gridW; ++x) {
+                int gid1 = gridInd(x, 0);
+                int gid2 = gridInd(x, gridH);
+                triplets.push_back(Triplet<double>(cInd, gid1 * 2, wboundary));
+                triplets.push_back(Triplet<double>(cInd + 1, gid1 * 2 + 1, wboundary));
+                triplets.push_back(Triplet<double>(cInd + 2, gid2 * 2, wboundary));
+                triplets.push_back(Triplet<double>(cInd + 3, gid2 * 2 + 1, wboundary));
+                B[cInd] = gridLoc[gid1][0] * wboundary;
+                B[cInd + 1] = gridLoc[gid1][1] * wboundary;
+                B[cInd + 2] = gridLoc[gid2][0] * wboundary;
+                B[cInd + 3] = gridLoc[gid2][1] * wboundary;
+                cInd += 4;
+            }
+
+            for (auto y = 0; y <= gridH; ++y) {
+                int gid1 = gridInd(0, y);
+                int gid2 = gridInd(gridW, y);
+                triplets.push_back(Triplet<double>(cInd, gid1 * 2, wboundary));
+                triplets.push_back(Triplet<double>(cInd + 1, gid1 * 2 + 1, wboundary));
+                triplets.push_back(Triplet<double>(cInd + 2, gid2 * 2, wboundary));
+                triplets.push_back(Triplet<double>(cInd + 3, gid2 * 2 + 1, wboundary));
+                B[cInd] = gridLoc[gid1][0] * wboundary;
+                B[cInd + 1] = gridLoc[gid1][1] * wboundary;
+                B[cInd + 2] = gridLoc[gid2][0] * wboundary;
+                B[cInd + 3] = gridLoc[gid2][1] * wboundary;
+                cInd += 4;
 
             }
         }
