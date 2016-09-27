@@ -13,7 +13,7 @@ namespace dynamic_stereo{
 
     void stabilizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
                            const std::vector<std::vector<Eigen::Vector2i> >& segments,
-                           const std::vector<Eigen::Vector2i>& ranges,
+                           const std::vector<Eigen::Vector2i>& ranges, const int anchor,
                            const double lambda, const StabAlg alg) {
 
         CHECK(!input.empty());
@@ -27,7 +27,7 @@ namespace dynamic_stereo{
         const int margin = 5;
         int index = 0;
 
-        const int dseg = 5;
+        const int dseg = 4;
         for (const auto &segment: segments) {
             if (dseg >= 0 && index != dseg) {
                 index++;
@@ -53,16 +53,19 @@ namespace dynamic_stereo{
             for (auto v = ranges[index][0]; v <= ranges[index][1]; ++v)
                 warp_input[v - ranges[index][0]] = input[v](roi).clone();
 
-            if (alg == GRID)
+            if (alg == GRID) {
                 gridStabilization(warp_input, warp_output, lambda);
-            else if (alg == FLOW)
+            }
+            else if (alg == FLOW) {
                 flowStabilization(warp_input, warp_output, lambda);
+            }
             else if (alg == SUBSTAB) {
                 substab::SubSpaceStabOption option;
                 option.output_crop = false;
                 substab::subSpaceStabilization(warp_input, warp_output, option);
             } else if (alg == TRACK) {
                 trackStabilization(warp_input, warp_output, lambda, 10);
+//                trackStabilizationGlobal()
             }
             for (auto v = ranges[index][0]; v <= ranges[index][1]; ++v) {
                 warp_output[v - ranges[index][0]].copyTo(output[v](roi));

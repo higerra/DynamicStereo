@@ -244,6 +244,7 @@ inline void Energy::add_term2(Var x, Var y,
                               Value C, Value D)
 {
     /*  Added "truncation" code below to ensure regularity / submodularity */
+    constexpr double epsilon = 1e-10;
     if ( A+D > C+B) {
         Value delta = A+D-C-B;
         Value subtrA = delta/3;
@@ -271,7 +272,7 @@ inline void Energy::add_term2(Var x, Var y,
        0 B
        C 0
     */
-    CHECK_GE(B+C+DBL_EPSILON, 0) << B << ' ' <<C;
+    CHECK_GE(B+C+epsilon, 0) << B << ' ' <<C;
 
     if (B < 0)
     {
@@ -281,7 +282,7 @@ inline void Energy::add_term2(Var x, Var y,
         */
         add_tweights(x, 0, B); /* first term */
         add_tweights(y, 0, -B); /* second term */
-        add_edge(x, y, 0, B+C+DBL_EPSILON); /* third term */
+        add_edge(x, y, 0, B+C+epsilon); /* third term */
     }
     else if (C < 0)
     {
@@ -291,7 +292,7 @@ inline void Energy::add_term2(Var x, Var y,
         */
         add_tweights(x, 0, -C); /* first term */
         add_tweights(y, 0, C); /* second term */
-        add_edge(x, y, B+C+DBL_EPSILON, 0); /* third term */
+        add_edge(x, y, B+C+epsilon, 0); /* third term */
     }
     else /* B >= 0, C >= 0 */
     {

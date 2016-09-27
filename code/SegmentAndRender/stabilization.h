@@ -20,7 +20,7 @@ namespace dynamic_stereo {
 
     void stabilizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
                            const std::vector<std::vector<Eigen::Vector2i> >& segments,
-                           const std::vector<Eigen::Vector2i>& ranges,
+                           const std::vector<Eigen::Vector2i>& ranges, const int anchor,
                            const double lambda, const StabAlg alg = FLOW);
 
     void flowStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
@@ -30,6 +30,10 @@ namespace dynamic_stereo {
                            const int step = 1);
 
     void trackStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double threshold, const int tWindow);
+
+    int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
+                                 const double threshold, const int tWindow);
+
 
 }//namespace dynamic_stereo
 

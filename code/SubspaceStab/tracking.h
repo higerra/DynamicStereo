@@ -12,6 +12,17 @@
 #include <glog/logging.h>
 
 namespace substab {
+
+	struct TrackingOption{
+		int n_level = 3;
+		cv::Size win_size = cv::Size(21,21);
+		double quality_level = 0.01;
+		double min_distance = 3;
+
+		double max_diff_distance = 1;
+		int max_num_corners = 600;
+	};
+
 	struct FeatureTracks{
 		std::vector<std::vector<cv::Point2f> > tracks;
 		std::vector<size_t> offset;

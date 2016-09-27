@@ -248,5 +248,197 @@ namespace dynamic_stereo {
             }
         }
     }
+
+    static void TrackFeatureDoubleDirection(const std::vector<cv::Mat>& grays,
+                                            const std::vector<std::vector<cv::Mat> >& pyramid, const int anchor,
+                                            const std::vector<Eigen::Vector2d>& existing_tracks,
+                                            const substab::TrackingOption& tracking_option,
+                                            std::vector<std::vector<Eigen::Vector2d> >& new_tracks){
+        CHECK_LT(anchor, pyramid.size());
+        vector<cv::Point2f> corners;
+        cv::goodFeaturesToTrack(grays[anchor], corners, tracking_option.max_num_corners, tracking_option.quality_level,
+                                tracking_option.min_distance);
+        vector<cv::Point2f> new_corners;
+        for(const auto& c: corners){
+            bool is_new = true;
+            for(const auto& ec: existing_tracks){
+                cv::Point2f ecv(ec[0], ec[1]);
+                double dis = cv::norm(ecv - c);
+                if(dis <= tracking_option.max_diff_distance){
+                    is_new = false;
+                    break;
+                }
+            }
+            if(is_new)
+                new_corners.push_back(c);
+        }
+
+        new_tracks.resize(new_corners.size());
+        for(auto& t: new_tracks){
+            t.resize(grays.size(), Vector2d(-1,-1));
+        }
+
+        //track forward
+        vector<cv::Point2f> previous_corners = new_corners;
+        vector<bool> is_valid(new_corners.size(), true);
+        for(auto v=anchor+1; v < grays.size(); ++v){
+            vector<cv::Point2f> next_corners;
+            vector<uchar> track_status;
+            Mat track_error;
+            cv::calcOpticalFlowPyrLK(pyramid[v-1], pyramid[v], previous_corners, next_corners, track_status, track_error, tracking_option.win_size);
+            for(auto tid=0; tid<track_status.size(); ++tid){
+                if(is_valid[tid]) {
+                    if (track_status[tid] == (uchar) 1) {
+                        new_tracks[tid][v] = Vector2d(next_corners[tid].x, next_corners[tid].y);
+                    }else{
+                        is_valid[tid] = 0.0;
+                    }
+                }
+            }
+            previous_corners.swap(next_corners);
+        }
+
+        //track backward
+        previous_corners = new_corners;
+        for(auto tid=0; tid < new_corners.size(); ++tid){
+            is_valid[tid] = true;
+        }
+
+        for(auto v=anchor-1; v >= 0; --v){
+            vector<cv::Point2f> next_corners;
+            vector<uchar> track_status;
+            Mat track_error;
+            cv::calcOpticalFlowPyrLK(pyramid[v+1], pyramid[v], previous_corners, next_corners, track_status, track_error, tracking_option.win_size);
+            for(auto tid=0; tid<track_status.size(); ++tid){
+                if(is_valid[tid]) {
+                    if (track_status[tid] == (uchar) 1) {
+                        new_tracks[tid][v] = Vector2d(next_corners[tid].x, next_corners[tid].y);
+                    }else{
+                        is_valid[tid] = 0.0;
+                    }
+                }
+            }
+            previous_corners.swap(next_corners);
+        }
+
+        //keep tracks which appear in the first frame
+        vector<vector<Eigen::Vector2d> > filtered_tracks;
+        for(auto tid=0; tid < new_tracks.size(); ++tid){
+            if(new_tracks[tid].front()[0] >= 0 && new_tracks[tid].front()[1] >= 0){
+                filtered_tracks.push_back(new_tracks[tid]);
+            }
+        }
+
+        new_tracks.swap(filtered_tracks);
+    }
+
+    static bool IsTrackValid(const std::vector<Vector2d>& track, const double max_variance,
+                             const int min_length = 10){
+        if(track.size() < min_length)
+            return false;
+        Vector2d mean_pos = std::accumulate(track.begin(), track.end(), Vector2d(0,0)) / static_cast<double>(track.size());
+        Vector2d variance_pos(0.0);
+        for(const auto& pos: track){
+            variance_pos[0] += (pos[0] - mean_pos[0]) * (pos[0] - mean_pos[0]);
+            variance_pos[1] += (pos[1] - mean_pos[1]) * (pos[1] - mean_pos[1]);
+        }
+        variance_pos /= static_cast<double>(track.size() - 1);
+        if(variance_pos.norm() > max_variance)
+            return false;
+        return true;
+    }
+
+    int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
+                                 const double threshold, const int tWindow){
+        CHECK(!input.empty());
+        output.resize(input.size());
+
+        const int width = input[0].cols;
+        const int height = input[0].rows;
+
+        constexpr int kMinTrack = 20;
+
+        //to obtain more tracks from the first frame, also compute features in the first ${kTrackFrame} frames, take
+        //all features that can be tracked back to the first frame
+        constexpr int kTrackFrame = 5;
+
+        //track from the first frame
+        const int interval = 5;
+
+        substab::TrackingOption tracking_option;
+
+        vector<Mat> grays(input.size());
+        vector<vector<Mat> > pyramid(input.size());
+
+        for(auto v=0; v<input.size(); ++v){
+            cvtColor(input[v], grays[v], CV_BGR2GRAY);
+            cv::buildOpticalFlowPyramid(grays[v], pyramid[v], tracking_option.win_size, tracking_option.n_level);
+        }
+
+        vector<vector<Eigen::Vector2d> > all_tracks;
+        for(auto v=0; v<kTrackFrame; ++v){
+            if(v == input.size()) {
+                break;
+            }
+            vector<vector<Eigen::Vector2d> > new_tracks;
+            vector<Eigen::Vector2d> existing_tracks;
+
+            if(!all_tracks.empty()){
+                for(const auto& track: all_tracks){
+                    if(track[v][0] >= 0 && track[v][1] >= 0){
+                        existing_tracks.push_back(track[v]);
+                    }
+                }
+            }
+            TrackFeatureDoubleDirection(grays, pyramid, v, existing_tracks, tracking_option, new_tracks);
+            for(const auto& nt: new_tracks){
+                if(IsTrackValid(nt, threshold, tWindow)){
+                    all_tracks.push_back(nt);
+                }
+            }
+        }
+
+        {
+            //debug: visulize tracks
+            for(auto v=0; v<input.size(); ++v){
+                Mat track_vis = input[v].clone();
+                for(auto tid=0; tid<all_tracks.size(); ++tid){
+                    if(all_tracks[tid][v][0] >= 0 && all_tracks[tid][v][1] >= 0){
+                        cv::circle(track_vis, cv::Point2f(all_tracks[tid][v][0], all_tracks[tid][v][1]), 1,
+                                   cv::Scalar(0,0,255), 1);
+                    }
+                }
+                LOG(INFO) << "Visualization track: frame " << v;
+                imshow("tracks", track_vis);
+                waitKey(0);
+            }
+
+        }
+        constexpr int blockW = 10,  blockH = 10;
+        const int gridW = width / blockW, gridH  = height / blockH;
+        constexpr double weight_similarity = 0.1;
+        substab::GridWarpping grid_warping(input[0].cols, input[0].rows, gridW, gridH);
+
+        //register all frames to the first frame
+        int terminate_frame = 1;
+        for(auto v=1; v<input.size(); ++v, ++terminate_frame){
+            //source: frame v, target: frame 0
+            vector<Vector2d> src_point, tgt_point;
+            for(auto tid=0; tid < all_tracks.size(); ++tid){
+                if(all_tracks[tid][v][0] >= 0 && all_tracks[tid][v][1] >= 0){
+                    src_point.push_back(all_tracks[tid][0]);
+                    tgt_point.push_back(all_tracks[tid][v]);
+                }
+                if(src_point.size() < kMinTrack){
+                    break;
+                }
+            }
+
+            //compute grid warping from frame 0 to frame v and apply backward warping
+            grid_warping.computeWarpingField(tgt_point, src_point, weight_similarity);
+            grid_warping.warpImageBackward(input[v], output[v]);
+        }
+        return terminate_frame;
+    }
 }
 
