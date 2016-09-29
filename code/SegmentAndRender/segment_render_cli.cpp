@@ -182,14 +182,14 @@ int main(int argc, char** argv) {
 //    mid_input.swap(mid_output);
 //    mid_output.clear();
 //
-//    sprintf(buffer, "%s/temp/finalReault_%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//    VideoWriter resultWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
-//    CHECK(resultWriter.isOpened()) << buffer;
-//    for (auto i = 0; i < mid_input.size(); ++i) {
-////        cv::putText(finalResult[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
-//        resultWriter << mid_input[i];
-//    }
-//    resultWriter.release();
+    sprintf(buffer, "%s/temp/finalReault_%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+    VideoWriter resultWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+    CHECK(resultWriter.isOpened()) << buffer;
+    for (auto i = 0; i < mid_input.size(); ++i) {
+//        cv::putText(finalResult[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
+        resultWriter << mid_input[i];
+    }
+    resultWriter.release();
 
     return 0;
 }
