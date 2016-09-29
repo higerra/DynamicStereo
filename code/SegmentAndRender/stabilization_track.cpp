@@ -274,8 +274,9 @@ namespace dynamic_stereo {
         }
 
         new_tracks.resize(new_corners.size());
-        for(auto& t: new_tracks){
-            t.resize(grays.size(), Vector2d(-1,-1));
+        for(auto tid=0; tid<new_tracks.size(); ++tid){
+            new_tracks[tid].resize(grays.size());
+            new_tracks[tid][anchor] = Vector2d(new_corners[tid].x, new_corners[tid].y);
         }
 
         //track forward
@@ -332,26 +333,54 @@ namespace dynamic_stereo {
         new_tracks.swap(filtered_tracks);
     }
 
-    static bool IsTrackValid(const std::vector<Vector2d>& track, const double max_variance,
+    static bool IsTrackValid(std::vector<Vector2d>& track, const double max_variance,
                              const int min_length = 10){
         if(track.size() < min_length)
             return false;
-        Vector2d mean_pos = std::accumulate(track.begin(), track.end(), Vector2d(0,0)) / static_cast<double>(track.size());
-        Vector2d variance_pos(0.0);
-        for(const auto& pos: track){
-            variance_pos[0] += (pos[0] - mean_pos[0]) * (pos[0] - mean_pos[0]);
-            variance_pos[1] += (pos[1] - mean_pos[1]) * (pos[1] - mean_pos[1]);
+
+        constexpr double max_motion = 1.5;
+
+        vector<Vector2d> sum_pos(track.size(), Vector2d(0,0));
+        sum_pos[0] = track[0];
+        for(auto i=1; i<track.size(); ++i){
+            sum_pos[i] = sum_pos[i-1] + track[i];
         }
-        variance_pos /= static_cast<double>(track.size() - 1);
-        if(variance_pos.norm() > max_variance)
+
+        int best_end_frame = -1;
+
+        for(int end_frame = min_length; end_frame <  track.size(); ++end_frame){
+            Vector2d mean_pos = sum_pos[end_frame] / (end_frame + 1);
+            Vector2d variance_pos(0.0, 0.0);
+            for(int v = 0; v <= end_frame; ++v){
+                variance_pos[0] += (track[v][0] - mean_pos[0]) * (track[v][0] - mean_pos[0]);
+                variance_pos[1] += (track[v][1] - mean_pos[1]) * (track[v][1] - mean_pos[1]);
+            }
+            variance_pos /= static_cast<double>(end_frame);
+
+            if(variance_pos.norm() > max_variance){
+                break;
+            }
+
+            best_end_frame = end_frame;
+        }
+        if(best_end_frame < 0) {
+            for (auto v = 0; v < track.size(); ++v) {
+                track[v] = Vector2d(-1, -1);
+            }
             return false;
-        return true;
+        }else {
+            for (auto v = best_end_frame + 1; v < track.size(); ++v) {
+                track[v] = Vector2d(-1, -1);
+            }
+            return true;
+        }
     }
 
     int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
                                  const double threshold, const int tWindow){
         CHECK(!input.empty());
         output.resize(input.size());
+        output[0] = input[0].clone();
 
         const int width = input[0].cols;
         const int height = input[0].rows;
@@ -363,8 +392,7 @@ namespace dynamic_stereo {
         constexpr int kTrackFrame = 5;
 
         //track from the first frame
-        const int interval = 5;
-
+        LOG(INFO) << "Building tracks...";
         substab::TrackingOption tracking_option;
 
         vector<Mat> grays(input.size());
@@ -377,6 +405,7 @@ namespace dynamic_stereo {
 
         vector<vector<Eigen::Vector2d> > all_tracks;
         for(auto v=0; v<kTrackFrame; ++v){
+            printf("Tracking from frame %d\n", v);
             if(v == input.size()) {
                 break;
             }
@@ -391,29 +420,31 @@ namespace dynamic_stereo {
                 }
             }
             TrackFeatureDoubleDirection(grays, pyramid, v, existing_tracks, tracking_option, new_tracks);
-            for(const auto& nt: new_tracks){
-                if(IsTrackValid(nt, threshold, tWindow)){
+            for(auto& nt: new_tracks){
+                if(IsTrackValid(nt, threshold, 10)){
                     all_tracks.push_back(nt);
                 }
             }
         }
 
-        {
-            //debug: visulize tracks
-            for(auto v=0; v<input.size(); ++v){
-                Mat track_vis = input[v].clone();
-                for(auto tid=0; tid<all_tracks.size(); ++tid){
-                    if(all_tracks[tid][v][0] >= 0 && all_tracks[tid][v][1] >= 0){
-                        cv::circle(track_vis, cv::Point2f(all_tracks[tid][v][0], all_tracks[tid][v][1]), 1,
-                                   cv::Scalar(0,0,255), 1);
-                    }
-                }
-                LOG(INFO) << "Visualization track: frame " << v;
-                imshow("tracks", track_vis);
-                waitKey(0);
-            }
+//        {
+//            //debug: visulize tracks
+//            for(auto v=0; v<input.size(); ++v){
+//                Mat track_vis = input[v].clone();
+//                for(auto tid=0; tid<all_tracks.size(); ++tid){
+//                    if(all_tracks[tid][v][0] >= 0 && all_tracks[tid][v][1] >= 0){
+//                        cv::circle(track_vis, cv::Point2f(all_tracks[tid][v][0], all_tracks[tid][v][1]), 1,
+//                                   cv::Scalar(0,0,255), 1);
+//                    }
+//                }
+//                LOG(INFO) << "Visualization track: frame " << v;
+//                imshow("tracks", track_vis);
+//                waitKey(0);
+//            }
+//
+//        }
 
-        }
+        LOG(INFO) << "Warping...";
         constexpr int blockW = 10,  blockH = 10;
         const int gridW = width / blockW, gridH  = height / blockH;
         constexpr double weight_similarity = 0.1;
@@ -426,18 +457,91 @@ namespace dynamic_stereo {
             vector<Vector2d> src_point, tgt_point;
             for(auto tid=0; tid < all_tracks.size(); ++tid){
                 if(all_tracks[tid][v][0] >= 0 && all_tracks[tid][v][1] >= 0){
-                    src_point.push_back(all_tracks[tid][0]);
-                    tgt_point.push_back(all_tracks[tid][v]);
+                    src_point.push_back(all_tracks[tid][v]);
+                    tgt_point.push_back(all_tracks[tid][0]);
                 }
-                if(src_point.size() < kMinTrack){
-                    break;
-                }
+            }
+            LOG(INFO) << "Number of pairs: " << src_point.size();
+            if(src_point.size() < kMinTrack){
+                break;
             }
 
             //compute grid warping from frame 0 to frame v and apply backward warping
             grid_warping.computeWarpingField(tgt_point, src_point, weight_similarity);
             grid_warping.warpImageBackward(input[v], output[v]);
+
+
+            {
+                //debug: visualize stabilization
+                int index = 0;
+                bool reddot = true;
+                bool gridline = false;
+                while(true){
+                    if(index == 0)
+                        LOG(INFO) << 0;
+                    else
+                        LOG(INFO) << v;
+
+                    Mat inputVis, outputVis;
+                    if(index == 0){
+                        inputVis = input[0].clone();
+                        outputVis = input[0].clone();
+                    }else{
+                        inputVis = input[v].clone();
+                        outputVis = output[v].clone();
+                    }
+
+                    if(gridline){
+                        grid_warping.visualizeGrid(grid_warping.getBaseGrid(), inputVis);
+                        if(index == 0){
+                            grid_warping.visualizeGrid(grid_warping.getBaseGrid(), outputVis);
+                        }else{
+                            grid_warping.visualizeGrid(grid_warping.getWarpedGrid(), outputVis);
+                        }
+                    }
+
+                    const int scale = 3;
+                    Mat largeInput, largeOutput;
+                    cv::resize(inputVis, largeInput, cv::Size(width * scale, height * scale));
+                    cv::resize(outputVis, largeOutput, cv::Size(width * scale, height * scale));
+
+                    if(reddot) {
+                        for (auto tid = 0; tid < src_point.size(); ++tid) {
+                            if (index == 0) {
+                                cv::circle(largeInput, cv::Point2f(tgt_point[tid][0] * scale, tgt_point[tid][1] * scale), 1,
+                                           Scalar(0, 0, 255), 2);
+                            } else {
+                                cv::circle(largeInput, cv::Point2f(src_point[tid][0] * scale, src_point[tid][1] * scale), 1,
+                                           Scalar(0, 0, 255), 2);
+                            }
+                        }
+                    }
+
+                    Mat cont;
+                    hconcat(largeInput, largeOutput, cont);
+                    imshow("compare", cont);
+
+                    index = (index + 1) % 2;
+                    char key = (char)waitKey(500);
+                    if(key == 'q') {
+                        break;
+                    }else if(key == 's'){
+                        LOG(INFO) << "stab_input.png written";
+                        imwrite("stab_input.png", largeInput);
+                        LOG(INFO) << "stab_output.png written";
+                        imwrite("stab_output.png", largeOutput);
+                    }
+                    else if(key == 'r')
+                        reddot = !reddot;
+                    else if(key == 'g')
+                        gridline = !gridline;
+
+                }
+            }
         }
+
+
+        LOG(INFO) << "Terminate at frame " << terminate_frame << "/" << input.size();
         return terminate_frame;
     }
 }

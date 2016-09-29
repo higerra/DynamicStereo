@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     //Segmentation
     printf("Segmenting...\n");
 
-    Mat seg_result_display, seg_result_flashy;
+    Mat seg_result_display(height, width, CV_32SC1, Scalar::all(0)), seg_result_flashy(height, width, CV_32SC1, Scalar::all(0));
     LOG(INFO) << "Segmenting display...";
     segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
 //    LOG(INFO) << "Segmenting flashy...";
@@ -87,12 +87,12 @@ int main(int argc, char** argv) {
         }
     }
     cv::resize(seg_result_display, seg_result_display, images[0].size(), 0, 0, INTER_NEAREST);
-    //cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
+    cv::resize(seg_result_flashy, seg_result_flashy, images[0].size(), 0, 0, INTER_NEAREST);
 
     vector<vector<Vector2i> > segmentsDisplay;
     vector<vector<Vector2i> > segmentsFlashy;
     groupPixel(seg_result_display, segmentsDisplay);
-    //groupPixel(seg_result_flashy, segmentsFlashy);
+    groupPixel(seg_result_flashy, segmentsFlashy);
 
     vector <Mat> mid_input, mid_output, visMaps;
     LOG(INFO) << "Full warping..";
@@ -113,12 +113,12 @@ int main(int argc, char** argv) {
 
     vector<Vector2i> rangesDisplay, rangesFlashy;
     getSegmentRange(visMaps, segmentsDisplay, rangesDisplay);
-    //getSegmentRange(visMaps, segmentsFlashy, rangesFlashy);
+    getSegmentRange(visMaps, segmentsFlashy, rangesFlashy);
 
     //discard segments with too small ranges
     const int minFrame = static_cast<int>(mid_input.size() * 0.2);
     filterShortSegments(segmentsDisplay, rangesDisplay, minFrame);
-    //filterShortSegments(segmentsFlashy, rangesFlashy, minFrame);
+    filterShortSegments(segmentsFlashy, rangesFlashy, minFrame);
 
 
     //three step regularization:
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
 //   regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
 //   mid_input.swap(mid_output);
 //   mid_output.clear();
-//
+
      printf("Step 2: geometric stablization\n");
      float stab_t = (float)cv::getTickCount();
      //vector<Mat> debug_input(mid_input.begin(), mid_input.begin() + 20);

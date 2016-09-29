@@ -27,8 +27,11 @@ namespace dynamic_stereo{
         const int margin = 5;
         int index = 0;
 
+        constexpr int min_area = 10;
         const int dseg = 4;
         for (const auto &segment: segments) {
+            CHECK_GE(anchor, ranges[index][0]);
+            CHECK_LE(anchor, ranges[index][1]);
             if (dseg >= 0 && index != dseg) {
                 index++;
                 continue;
@@ -49,27 +52,52 @@ namespace dynamic_stereo{
             cv::Point2i cpt = (tl + br) / 2;
             printf("center: (%d,%d), size:%d\n", cpt.x, cpt.y, (int) segment.size());
             cv::Rect roi(tl, br);
-            vector<Mat> warp_input((size_t) (ranges[index][1] - ranges[index][0] + 1)), warp_output;
-            for (auto v = ranges[index][0]; v <= ranges[index][1]; ++v)
-                warp_input[v - ranges[index][0]] = input[v](roi).clone();
+            if(roi.area() < min_area){
+                continue;
+            }
+
+            vector<Mat> warp_input_forward(ranges[index][1]-anchor+1), warp_input_backward(anchor-ranges[index][0]+1);
+            vector<Mat> warp_output_forward, warp_output_backward;
+
+            int frame_index = 0;
+            for(auto v=anchor; v<=ranges[index][1]; ++v, ++frame_index){
+                warp_input_forward[frame_index] = input[v](roi).clone();
+            }
+            frame_index = 0;
+            for(auto v=anchor; v>=ranges[index][0]; --v, ++frame_index){
+                warp_input_backward[frame_index] = input[v](roi).clone();
+            }
 
             if (alg == GRID) {
-                gridStabilization(warp_input, warp_output, lambda);
+                gridStabilization(warp_input_forward, warp_output_forward, lambda);
+                gridStabilization(warp_input_backward, warp_output_backward, lambda);
             }
             else if (alg == FLOW) {
-                flowStabilization(warp_input, warp_output, lambda);
+                flowStabilization(warp_input_forward, warp_output_forward, lambda);
+                flowStabilization(warp_input_backward, warp_output_backward, lambda);
             }
             else if (alg == SUBSTAB) {
                 substab::SubSpaceStabOption option;
                 option.output_crop = false;
-                substab::subSpaceStabilization(warp_input, warp_output, option);
+                substab::subSpaceStabilization(warp_input_forward, warp_output_forward, option);
+                substab::subSpaceStabilization(warp_input_backward, warp_output_backward, option);
             } else if (alg == TRACK) {
-                trackStabilization(warp_input, warp_output, lambda, 10);
-//                trackStabilizationGlobal()
+//                trackStabilization(warp_input, warp_output, lambda, 10);
+                constexpr int tWindow = 10;
+                trackStabilizationGlobal(warp_input_forward, warp_output_forward, lambda, tWindow);
+                trackStabilizationGlobal(warp_input_backward, warp_output_backward, lambda, tWindow);
             }
-            for (auto v = ranges[index][0]; v <= ranges[index][1]; ++v) {
-                warp_output[v - ranges[index][0]].copyTo(output[v](roi));
+
+
+            frame_index = 0;
+            for(auto v=anchor; v<=ranges[index][1]; ++v, ++frame_index){
+                warp_output_forward[frame_index].copyTo(output[v](roi));
             }
+            frame_index = 0;
+            for(auto v=anchor-1; v>=ranges[index][0]; --v, ++frame_index){
+                warp_output_backward[frame_index].copyTo(output[anchor-v](roi));
+            }
+
             index++;
         }
     }
