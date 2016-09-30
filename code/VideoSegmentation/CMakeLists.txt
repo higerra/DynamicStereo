@@ -12,7 +12,7 @@ include_directories(/usr/local/include/eigen3 ${ROOT_DIRECTORY}/external/maxflow
 set(GMM_LIB colorGMM.h colorGMM.cpp)
 message("-- Compiling CPU version")
 add_library(ColorGMM ${GMM_LIB})
-target_link_libraries(ColorGMM glog ${OpenCV_LIB})
+target_link_libraries(ColorGMM glog opencv_core)
 
 
 ######################################################3

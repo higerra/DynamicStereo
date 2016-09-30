@@ -4,8 +4,7 @@ project(SegmentAndRender)
 
 set(SEGMENT dynamicsegment.h dynamicsegment_display.cpp dynamicsegment_flashy.cpp)
 set(REGULARIZATION dynamicregularizer.h dynamicregularizer.cpp)
-set(STABILIZATION stabilization.h stabilization.cpp stabilization_grid.cpp
-        stabilization_flow.cpp stab_energy.h stabilization_track.cpp)
+set(STABILIZATION stabilization.h stabilization.cpp stabilization_track.cpp)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/SegmentAndRender)
 add_library(RPCA RPCA.h RPCA.cpp)
@@ -14,7 +13,7 @@ include_directories(/usr/local/include/eigen3 /usr/include/suitesparse ${CMAKE_C
 #link_directories(/usr/local/lib /usr/lib/x86_64-linux-gnu)
 add_executable(SegmentAndRender ${SEGMENT} ${REGULARIZATION} ${STABILIZATION} segment_render_cli.cpp)
 
-target_link_libraries(SegmentAndRender base common RPCA VideoSegmentModule VisualWordModule SubspaceStab)
+target_link_libraries(SegmentAndRender opencv_videoio base common RPCA VideoSegmentModule VisualWordModule SubspaceStab)
 target_link_libraries(SegmentAndRender gflags glog  MRF cholmod spqr ${CERES_LIBRARIES})
 
 #add test

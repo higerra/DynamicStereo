@@ -22,7 +22,8 @@ add_library(SubspaceStab tracking.h tracking.cpp
         factorization.cpp factorization.h
         warping.h warping.cpp
         subspacestab.h subspacestab.cpp)
-target_link_libraries(SubspaceStab ${OpenCV_LIBS} glog gflags spqr cholmod)
+target_link_libraries(SubspaceStab opencv_core opencv_imgcodecs opencv_highgui opencv_imgproc opencv_features2d opencv_optflow
+        glog gflags spqr cholmod)
 
 add_executable(SubspaceStab_exe main.cpp)
 target_link_libraries(SubspaceStab_exe SubspaceStab)

@@ -23,13 +23,13 @@ namespace dynamic_stereo {
                            const std::vector<Eigen::Vector2i>& ranges, const int anchor,
                            const double lambda, const StabAlg alg = FLOW);
 
-    void flowStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
-                           const cv::InputArray inputMask = cv::noArray());
-
-    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
-                           const int step = 1);
-
-    void trackStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double threshold, const int tWindow);
+//    void flowStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
+//                           const cv::InputArray inputMask = cv::noArray());
+//
+//    void gridStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double lambda,
+//                           const int step = 1);
+//
+//    void trackStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double threshold, const int tWindow);
 
     int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
                                  const double threshold, const int tWindow);

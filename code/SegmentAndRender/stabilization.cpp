@@ -69,18 +69,18 @@ namespace dynamic_stereo{
             }
 
             if (alg == GRID) {
-                gridStabilization(warp_input_forward, warp_output_forward, lambda);
-                gridStabilization(warp_input_backward, warp_output_backward, lambda);
+//                gridStabilization(warp_input_forward, warp_output_forward, lambda);
+//                gridStabilization(warp_input_backward, warp_output_backward, lambda);
             }
             else if (alg == FLOW) {
-                flowStabilization(warp_input_forward, warp_output_forward, lambda);
-                flowStabilization(warp_input_backward, warp_output_backward, lambda);
+//                flowStabilization(warp_input_forward, warp_output_forward, lambda);
+//                flowStabilization(warp_input_backward, warp_output_backward, lambda);
             }
             else if (alg == SUBSTAB) {
-                substab::SubSpaceStabOption option;
-                option.output_crop = false;
-                substab::subSpaceStabilization(warp_input_forward, warp_output_forward, option);
-                substab::subSpaceStabilization(warp_input_backward, warp_output_backward, option);
+//                substab::SubSpaceStabOption option;
+//                option.output_crop = false;
+//                substab::subSpaceStabilization(warp_input_forward, warp_output_forward, option);
+//                substab::subSpaceStabilization(warp_input_backward, warp_output_backward, option);
             } else if (alg == TRACK) {
 //                trackStabilization(warp_input, warp_output, lambda, 10);
                 constexpr int tWindow = 10;

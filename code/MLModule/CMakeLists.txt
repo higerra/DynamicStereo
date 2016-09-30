@@ -13,4 +13,4 @@ add_library(MLModule regiondescriptor.h regiondescriptor.cpp
         mlutility.h mlutility.cpp
         type_def.h)
 
-target_link_libraries(MLModule ${OpenCV_LIBS} glog)
+target_link_libraries(MLModule opencv_core opencv_ml opencv_features2d opencv_xfeatures2d glog)

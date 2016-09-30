@@ -10,7 +10,22 @@
 namespace dynamic_stereo{
 
 	bool checkDevice(){
-		return true;
+        int nDevices;
+        cudaGetDevice(&nDevices);
+        LOG(INFO) << nDevices << " Cuda compatiable GPUs found";
+
+        bool device_found = false;
+        for(int i=0; i<nDevices; ++i){
+            cudaDeviceProp prop;
+            cudaGetDeviceProperties(&prop, i);
+            if(prop.major >= 5){
+                LOG(INFO) << "Device " << prop.name << " meets requiredment.";
+                cudaSetDevice(i);
+                device_found = true;
+                break;
+            }
+        }
+		return device_found;
 	}
 
 	void callStereoMatching(const std::vector<unsigned char>& images, const std::vector<unsigned char>& refImage,

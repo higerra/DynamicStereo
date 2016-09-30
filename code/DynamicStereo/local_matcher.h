@@ -2,8 +2,8 @@
 // Created by yanhang on 3/4/16.
 //
 
-#ifndef PARALLELFUSION_LOCAL_MATCHER_H
-#define PARALLELFUSION_LOCAL_MATCHER_H
+#ifndef LOCAL_MATCHER_H
+#define LOCAL_MATCHER_H
 
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -26,4 +26,4 @@ namespace local_matcher {
     double sumMatchingCost(const std::vector<std::vector<double> > &patches, const int refId);
 }
 
-#endif //PARALLELFUSION_LOCAL_MATCHER_H
+#endif //LOCAL_MATCHER_H
