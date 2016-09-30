@@ -4,7 +4,7 @@
 
 #include "dynamicsegment.h"
 #include "../base/utility.h"
-#include "../common/dynamic_utility.h"
+#include "../GeometryModule/dynamic_utility.h"
 #include "external/MRF2.2/GCoptimization.h"
 #include "../VideoSegmentation/videosegmentation.h"
 

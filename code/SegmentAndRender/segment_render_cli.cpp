@@ -1,10 +1,12 @@
 //
 // Created by yanhang on 6/1/16.
 //
-#include "dynamicsegment.h"
+
 #include <gflags/gflags.h>
+
+#include "dynamicsegment.h"
 #include "dynamicregularizer.h"
-#include "../common/dynamicwarpping.h"
+#include "../GeometryModule/dynamicwarpping.h"
 #include "stabilization.h"
 
 using namespace std;
@@ -20,7 +22,7 @@ DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/da
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
 
-DEFINE_double(param_stab, 0.01, "parameter for geometric stabilization");
+DEFINE_double(param_stab, 1.0, "parameter for geometric stabilization");
 DECLARE_string(flagfile);
 
 void loadData(const FileIO& file_io, vector<Mat>& images, Mat& segMask, Depth& refDepth);

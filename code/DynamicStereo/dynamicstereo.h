@@ -13,12 +13,13 @@
 #include <glog/logging.h>
 #include <theia/theia.h>
 #include <time.h>
-#include <common/stereomodel.h>
+
 #include "../base/utility.h"
 #include "../base/depth.h"
 #include "../base/file_io.h"
 
-#include "../common/dynamic_utility.h"
+#include "../GeometryModule/dynamic_utility.h"
+#include "../GeometryModule/stereomodel.h"
 
 namespace dynamic_stereo {
 

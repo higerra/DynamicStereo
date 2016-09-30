@@ -10,7 +10,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/DynamicStereo)
 include_directories(/usr/local/include/eigen3 ${THEIA_INCLUDE_DIRS})
 add_executable(DynamicStereo ${HEADER_FILES} ${SOURCE_FILES})
 
-target_link_libraries(DynamicStereo base opencv_imgproc gflags glog ${THEIA_LIBRARIES} MRF common)
+target_link_libraries(DynamicStereo base opencv_imgproc gflags glog ${THEIA_LIBRARIES} MRF GeometryModule)
 
 if(CUDA_FOUND)
 	set(NVCC_CXX_FLAGS "${NVCC_CXX_FLAGS} -std=c++11 -O3 -gencode arch=compute_50,code=sm_50")

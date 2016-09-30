@@ -9,7 +9,7 @@
 #include "RPCA.h"
 #include <Eigen/Sparse>
 #include <Eigen/SPQRSupport>
-#include "../common/dynamicwarpping.h"
+#include "../GeometryModule/dynamicwarpping.h"
 
 using namespace std;
 using namespace cv;

@@ -15,7 +15,7 @@
 
 #include "../base/depth.h"
 #include "../base/file_io.h"
-#include "common/stereomodel.h"
+#include "../GeometryModule/stereomodel.h"
 
 namespace dynamic_stereo {
 
