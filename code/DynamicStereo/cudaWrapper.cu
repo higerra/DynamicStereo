@@ -10,8 +10,8 @@
 namespace dynamic_stereo{
 
 	bool checkDevice(){
-        int nDevices;
-        cudaGetDevice(&nDevices);
+        int nDevices = 0;
+        cudaGetDeviceCount(&nDevices);
         LOG(INFO) << nDevices << " Cuda compatiable GPUs found";
 
         bool device_found = false;
