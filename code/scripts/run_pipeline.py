@@ -8,6 +8,9 @@ parser.add_argument('list', default='/home/yanhang/Documents/research/DynamicSte
 parser.add_argument('--clean_stereo', action='store_true', help='re-run stereo')
 parser.add_argument('--clean_segmentation', action='store_true', help='re-run segmentation from begining')
 parser.add_argument('--clean_classification', action='store_true', help='re-run classification')
+parser.add_argument('--skip_stereo', action='store_true')
+parser.add_argument('--skip_render', action='store_true')
+
 args = parser.parse_args()
 
 listfile = open(args.list)
@@ -24,11 +27,11 @@ for data in datasets:
     data_path = data_root + name + '/'
 
     # if dataset specific configuration doesn't exist, use default configuration
-    if os.path.isfile('data_path' + '/conf.json'):
+    if os.path.isfile(data_path + '/conf.json'):
         with open(data_path + '/conf.json') as f:
             conf = json.load(f)
     else:
-        with open(data_root + 'default.json') as f:
+        with open(data_root + '/default.json') as f:
             conf = json.load(f)
 
     global_stereo = ''
@@ -57,15 +60,16 @@ for data in datasets:
             print command
             subprocess.call(command, shell=True)
 
-        command = '{} {} --testFrame={}'.format(stereo_exec, data_path, tf)
-        if 'weight_smooth' in frame:
-            command += ' weight_smooth={}'.format(frame['weight_smooth'])
-        command += ' ' + global_stereo
+        if not args.skip_stereo:
+            command = '{} {} --testFrame={}'.format(stereo_exec, data_path, tf)
+            if 'weight_smooth' in frame:
+                command += ' weight_smooth={}'.format(frame['weight_smooth'])
+            command += ' ' + global_stereo
+            print command
+            subprocess.call(command, shell=True)
 
-        print command
-        subprocess.call(command, shell=True)
-
-        command = '{} {} --testFrame={}'.format(render_exec, data_path, tf)
-        command += ' ' + global_render
-        print command
-        subprocess.call(command, shell=True)
+        if not args.skip_render:
+            command = '{} {} --testFrame={}'.format(render_exec, data_path, tf)
+            command += ' ' + global_render
+            print command
+            subprocess.call(command, shell=True)
