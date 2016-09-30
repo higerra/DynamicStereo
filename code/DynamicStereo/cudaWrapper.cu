@@ -16,10 +16,8 @@ namespace dynamic_stereo{
 
         bool device_found = false;
         for(int i=0; i<nDevices; ++i){
-
             cudaDeviceProp prop;
             cudaGetDeviceProperties(&prop, i);
-            printf("Device %d, major version: %d, totalGlobalMem: %zu", i, prop.major, prop.totalGlobalMem);
             if(prop.major >= 5){
                 LOG(INFO) << "Device " << prop.name << " meets requiredment.";
                 cudaSetDevice(i);

@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-    google::InitGoogleLogging(argv[0]);
-    google::ParseCommandLineFlags(&argc, &argv, true);
+	google::InitGoogleLogging(argv[0]);
+	google::ParseCommandLineFlags(&argc, &argv, true);
 
 	FileIO file_io(argv[1]);
 	CHECK_GT(file_io.getTotalNum(), 0);
@@ -46,36 +46,24 @@ int main(int argc, char **argv) {
 	if (!stlplus::folder_exists(file_io.getDirectory() + "/midres/prewarp"))
 		stlplus::folder_create(file_io.getDirectory() + "/midres/prewarp");
 
-	vector<Depth> depths;
-	vector<int> depthInd;
-	vector<Mat> depthMask;
-
 	Mat refImage = imread(file_io.getImage(FLAGS_testFrame));
 	CHECK(refImage.data) << file_io.getImage(FLAGS_testFrame);
 	const int width = refImage.cols;
 	const int height = refImage.rows;
 
-
-//	Mat segMask = Mat(height, width, CV_8UC1, Scalar(255));
-
-	int refId;
-	//run stereo
-	for (auto tf = FLAGS_testFrame - FLAGS_tWindow/2;
-		 tf <= FLAGS_testFrame + FLAGS_tWindow/2; tf += FLAGS_stereo_interval) {
-		if(tf == FLAGS_testFrame) {
-			DynamicStereo stereo(file_io, tf, FLAGS_tWindow, FLAGS_stereo_stride, FLAGS_downsample,
-								 FLAGS_weight_smooth,
-								 FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
+	DynamicStereo stereo(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_stereo_stride, FLAGS_downsample,
+						 FLAGS_weight_smooth,
+						 FLAGS_resolution, FLAGS_min_disp, FLAGS_max_disp);
 
 
-			{
+	{
 //			    //test SfM
-				const int tf1 = FLAGS_testFrame;
-				Mat imgRef = imread(file_io.getImage(tf1));
+		const int tf1 = FLAGS_testFrame;
+		Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
-				Vector2d pt(-1, -1);
-				stereo.dbtx = pt[0];
-				stereo.dbty = pt[1];
+		Vector2d pt(-1, -1);
+		stereo.dbtx = pt[0];
+		stereo.dbty = pt[1];
 //			//Vector2d pt(794, 294);
 //			//Vector2d pt(1077, 257);
 //				sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
@@ -86,39 +74,26 @@ int main(int argc, char **argv) {
 //					utility::verifyEpipolarGeometry(file_io, stereo.getSfMModel(), tf1, tf2, pt, imgL, imgR);
 //					sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
 //					imwrite(buffer, imgR);
-//				}
-			}
-
-			Depth curdepth;
-			Mat curDepthMask;
-			sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
-			if((!curdepth.readDepthFromFile(string(buffer)))) {
-				printf("Running stereo for frame %d\n", tf);
-				stereo.runStereo(curdepth, curDepthMask);
-				curdepth.saveDepthFile(string(buffer));
-			}else{
-				Depth tempdepth;
-				Mat tempMask;
-				stereo.runStereo(tempdepth, tempMask, true);
-			}
-			depths.push_back(curdepth);
-			depthInd.push_back(tf);
-			depthMask.push_back(curDepthMask);
-			refId = (int)depths.size() - 1;
-		} else{
-			depths.push_back(Depth());
-			depthInd.push_back(tf);
-			depthMask.push_back(Mat());
-		}
 	}
+
+	Depth depth;
+	Mat depthMask;
+	sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	if((!depth.readDepthFromFile(string(buffer)))) {
+		printf("Running stereo for frame %d\n", FLAGS_testFrame);
+		stereo.runStereo(depth, depthMask);
+		depth.saveDepthFile(string(buffer));
+	}else{
+		Depth tempdepth;
+		Mat tempMask;
+		stereo.runStereo(tempdepth, tempMask, true);
+	}
+
 	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution));
 	const int warpping_offset = warpping->getOffset();
 
 	vector<Mat> prewarp;
 	warpping->preWarping(prewarp);
-
-	sprintf(buffer, "rm %s/midres/prewarp/prewarpb%05d_*.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	int ret = system(buffer);
 
 	for(auto i=0; i<prewarp.size(); ++i){
 		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);

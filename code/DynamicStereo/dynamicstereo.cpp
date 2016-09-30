@@ -18,16 +18,16 @@ namespace dynamic_stereo{
             file_io(file_io_), anchor(anchor_), tWindow(tWindow_), stereo_stride(stereo_stride_), downsample(downsample_), dispResolution(dispResolution_),
             pR(2), dbtx(-1), dbty(-1){
         CHECK_GE(stereo_stride, 1);
-        cout << "Reading..." << endl;
+        LOG(INFO) << "Reading...";
         offset = anchor >= tWindow / 2 ? anchor - tWindow / 2 : 0;
         CHECK_GE(file_io.getTotalNum(), offset + tWindow);
-        cout << "Reading reconstruction" << endl;
+        LOG(INFO) << "Reading reconstruction" << endl;
         sfmModel.init(file_io.getReconstruction());
 
         CHECK(downsample == 1 || downsample == 2 || downsample == 4 || downsample == 8) << "Invalid downsample ratio!";
         images.resize((size_t)tWindow);
 
-        cout << "Reading images" << endl;
+        LOG(INFO) << "Reading images";
         const int nLevel = (int)std::log2((double)downsample) + 1;
         for(auto i=0; i<tWindow; ++i){
             vector<Mat> pyramid(nLevel);
@@ -122,32 +122,14 @@ namespace dynamic_stereo{
         }
 
 
-//		if(dbtx >= 0 && dbty >= 0){
-//			//debug for frequency confidence
-//			for(int tdisp = 0; tdisp < dispResolution; ++tdisp) {
-//				const double ratio = getFrequencyConfidence(anchor - offset, (int) dbtx / downsample, (int) dbty / downsample, tdisp);
-//				double alpha = 3, beta=2;
-//				double conf = 1 / (1 + std::exp(-1*alpha*(ratio - beta)));
-//				printf("frequency confidence for (%d,%d) at disp %d: %.3f\n", (int) dbtx, (int) dbty, tdisp, conf);
-//			}
-//		}
-
         if(dryrun)
             return;
 
-        cout << "Solving with first order smoothness..." << endl;
+        LOG(INFO) << "Solving with first order smoothness...";
         FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
         Depth result_firstOrder;
         optimizer_firstorder.optimize(result_firstOrder, 100);
 
-//		for(auto y=0; y<height; ++y) {
-//			for (auto x = 0; x < width; ++x) {
-//				if (stereoMask.at<uchar>(y, x) < 200) {
-//					result_firstOrder(x, y) = 0;
-//					continue;
-//				}
-//			}
-//		}
 
 //		Depth depth_firstOrder;
         printf("Saving depth to point cloud...\n");
@@ -180,15 +162,6 @@ namespace dynamic_stereo{
 
         sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
         utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
-
-//		Depth disp_firstOrder_filtered, depth_firstOrder_filtered;
-//		Depth disp_firstOrder_filtered;
-//		printf("Applying bilateral filter to depth:\n");
-//		bilateralFilter(result_firstOrder, images[anchor-offset], disp_firstOrder_filtered, 11, 5, 10, 3);
-//		disparityToDepth(disp_firstOrder_filtered, depth_firstOrder_filtered);
-//		depth_firstOrder_filtered.updateStatics();
-//		sprintf(buffer, "%s/temp/mesh_firstorder_b%05d_filtered.ply", file_io.getDirectory().c_str(), anchor);
-//		utility::saveDepthAsPly(string(buffer), depth_firstOrder_filtered, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
 
         if(dbtx >=0 && dbty >= 0){
             printf("Result disparity for (%d,%d): %d\n", (int)dbtx, (int)dbty, (int)result_firstOrder((int)dbtx/downsample, (int)dbty/downsample));

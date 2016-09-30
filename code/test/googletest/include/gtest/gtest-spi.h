@@ -131,7 +131,7 @@ class GTEST_API_ SingleFailureChecker {
 //   - You cannot stream a failure message to this macro.
 //
 // Note that even though the implementations of the following two
-// macros are much alike, we cannot refactor them to use a common
+// macros are much alike, we cannot refactor them to use a GeometryModule
 // helper macro, due to some peculiarity in how the preprocessor
 // works.  The AcceptsMacroThatExpandsToUnprotectedComma test in
 // gtest_unittest.cc will fail to compile if we do that.
@@ -188,7 +188,7 @@ class GTEST_API_ SingleFailureChecker {
 //   - You cannot stream a failure message to this macro.
 //
 // Note that even though the implementations of the following two
-// macros are much alike, we cannot refactor them to use a common
+// macros are much alike, we cannot refactor them to use a GeometryModule
 // helper macro, due to some peculiarity in how the preprocessor
 // works.  If we do that, the code won't compile when the user gives
 // EXPECT_NONFATAL_FAILURE() a statement that contains a macro that

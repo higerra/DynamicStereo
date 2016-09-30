@@ -18,7 +18,6 @@ namespace dynamic_stereo {
 
 
 	void FirstOrderOptimize::optimize(Depth &result, const int max_iter) const {
-	    LOG(INFO) << "Solve MRF with first order smoothness";
 		const int nLabel = model->nLabel;
 		DataCost *dataCost = new DataCost(const_cast<EnergyType *>(model->unary.data()));
 		SmoothnessCost *smoothnessCost = new SmoothnessCost(1, 15, model->weight_smooth * model->MRFRatio,
@@ -41,9 +40,11 @@ namespace dynamic_stereo {
 		float finalDataEnergy = (float) mrf->dataEnergy() / model->MRFRatio;
 		float finalSmoothEnergy = (float) mrf->smoothnessEnergy() / model->MRFRatio;
 
-		printf("Graph cut finished.\nInitial energy: (%.3f, %.3f, %.3f)\nFinal energy: (%.3f,%.3f,%.3f)\nTime usage: %.2fs\n",
+		char buffer[256] = {};
+		sprintf(buffer, "Graph cut finished.\nInitial energy: (%.3f, %.3f, %.3f)\nFinal energy: (%.3f,%.3f,%.3f)\nTime usage: %.2fs\n",
 		       initDataEnergy, initSmoothEnergy, initDataEnergy + initSmoothEnergy,
 		       finalDataEnergy, finalSmoothEnergy, finalDataEnergy + finalSmoothEnergy, t);
+		LOG(INFO) << buffer;
 
 		result.initialize(width, height, -1);
 		for (auto i = 0; i < width * height; ++i)
@@ -55,6 +56,7 @@ namespace dynamic_stereo {
 	}
 
 	double FirstOrderOptimize::evaluateEnergy(const Depth &disp) const {
+		LOG(WARNING) << "Not implemented";
 		return 0.0;
 	}
 

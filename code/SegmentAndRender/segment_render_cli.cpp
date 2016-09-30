@@ -96,7 +96,6 @@ int main(int argc, char** argv) {
 
     vector <Mat> mid_input, mid_output, visMaps;
     LOG(INFO) << "Full warping..";
-    //warping->warpToAnchor(images, segmentsDisplay, segmentsFlashy, finalResult, FLAGS_tWindow);
     warping->preWarping(mid_input, true, &visMaps);
 
     cv::Size frameSize(mid_input[0].cols, mid_input[0].rows);

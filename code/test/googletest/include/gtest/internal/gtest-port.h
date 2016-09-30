@@ -2288,7 +2288,7 @@ inline std::string StripTrailingSpaces(std::string str) {
   return str;
 }
 
-// The testing::internal::posix namespace holds wrappers for common
+// The testing::internal::posix namespace holds wrappers for GeometryModule
 // POSIX functions.  These wrappers hide the differences between
 // Windows/MSVC and POSIX systems.  Since some compilers define these
 // standard functions as macros, the wrapper cannot have the same name

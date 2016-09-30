@@ -45,7 +45,7 @@ add_subdirectory(${ROOT_DIRECTORY}/SubspaceStab)
 add_subdirectory(${ROOT_DIRECTORY}/CudaVision)
 
 #main code
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/common)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/GeometryModule)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataConvert)
 add_subdirectory(${ROOT_DIRECTORY}/SfM)
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Line)
