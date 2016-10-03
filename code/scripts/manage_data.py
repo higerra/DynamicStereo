@@ -5,7 +5,7 @@ import os.path
 parser = argparse.ArgumentParser()
 parser.add_argument('list')
 parser.add_argument('command')
-parser.add_argument('--data_root', default='/home/yanhang/Documents/research/data/working/')
+parser.add_argument('--data_root', default='/home/yanhang/Documents/research/DynamicStereo/data/working/')
 args = parser.parse_args()
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
