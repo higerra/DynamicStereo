@@ -394,6 +394,8 @@ namespace dynamic_stereo {
 
         constexpr int kMinTrack = 300;
 
+        constexpr bool debug_mode = false;
+
         //to obtain more tracks from the first frame, also compute features in the first ${kTrackFrame} frames, take
         //all features that can be tracked back to the first frame
         constexpr int kTrackFrame = 5;
@@ -469,73 +471,73 @@ namespace dynamic_stereo {
                 grid_warping.warpImageBackward(input[v], output[v]);
 
 
-//            {
-//                //debug: visualize stabilization
-//                int index = 0;
-//                bool reddot = true;
-//                bool gridline = false;
-//                while(true){
-//                    if(index == 0)
-//                        LOG(INFO) << 0;
-//                    else
-//                        LOG(INFO) << v;
-//
-//                    Mat inputVis, outputVis;
-//                    if(index == 0){
-//                        inputVis = input[0].clone();
-//                        outputVis = input[0].clone();
-//                    }else{
-//                        inputVis = input[v].clone();
-//                        outputVis = output[v].clone();
-//                    }
-//
-//                    if(gridline){
-//                        grid_warping.visualizeGrid(grid_warping.getBaseGrid(), inputVis);
-//                        if(index == 0){
-//                            grid_warping.visualizeGrid(grid_warping.getBaseGrid(), outputVis);
-//                        }else{
-//                            grid_warping.visualizeGrid(grid_warping.getWarpedGrid(), outputVis);
-//                        }
-//                    }
-//
-//                    const int scale = 3;
-//                    Mat largeInput, largeOutput;
-//                    cv::resize(inputVis, largeInput, cv::Size(width * scale, height * scale));
-//                    cv::resize(outputVis, largeOutput, cv::Size(width * scale, height * scale));
-//
-//                    if(reddot) {
-//                        for (auto tid = 0; tid < src_point.size(); ++tid) {
-//                            if (index == 0) {
-//                                cv::circle(largeInput, cv::Point2f(tgt_point[tid][0] * scale, tgt_point[tid][1] * scale), 1,
-//                                           Scalar(0, 0, 255), 2);
-//                            } else {
-//                                cv::circle(largeInput, cv::Point2f(src_point[tid][0] * scale, src_point[tid][1] * scale), 1,
-//                                           Scalar(0, 0, 255), 2);
-//                            }
-//                        }
-//                    }
-//
-//                    Mat cont;
-//                    hconcat(largeInput, largeOutput, cont);
-//                    imshow("compare", cont);
-//
-//                    index = (index + 1) % 2;
-//                    char key = (char)waitKey(500);
-//                    if(key == 'q') {
-//                        break;
-//                    }else if(key == 's'){
-//                        LOG(INFO) << "stab_input.png written";
-//                        imwrite("stab_input.png", largeInput);
-//                        LOG(INFO) << "stab_output.png written";
-//                        imwrite("stab_output.png", largeOutput);
-//                    }
-//                    else if(key == 'r')
-//                        reddot = !reddot;
-//                    else if(key == 'g')
-//                        gridline = !gridline;
-//
-//                }
-//            }
+                if(debug_mode){
+                    //debug: visualize stabilization
+                    int index = 0;
+                    bool reddot = true;
+                    bool gridline = false;
+                    while(true){
+                        if(index == 0)
+                            LOG(INFO) << 0;
+                        else
+                            LOG(INFO) << v;
+
+                        Mat inputVis, outputVis;
+                        if(index == 0){
+                            inputVis = input[0].clone();
+                            outputVis = input[0].clone();
+                        }else{
+                            inputVis = input[v].clone();
+                            outputVis = output[v].clone();
+                        }
+
+                        if(gridline){
+                            grid_warping.visualizeGrid(grid_warping.getBaseGrid(), inputVis);
+                            if(index == 0){
+                                grid_warping.visualizeGrid(grid_warping.getBaseGrid(), outputVis);
+                            }else{
+                                grid_warping.visualizeGrid(grid_warping.getWarpedGrid(), outputVis);
+                            }
+                        }
+
+                        const int scale = 3;
+                        Mat largeInput, largeOutput;
+                        cv::resize(inputVis, largeInput, cv::Size(width * scale, height * scale));
+                        cv::resize(outputVis, largeOutput, cv::Size(width * scale, height * scale));
+
+                        if(reddot) {
+                            for (auto tid = 0; tid < src_point.size(); ++tid) {
+                                if (index == 0) {
+                                    cv::circle(largeInput, cv::Point2f(tgt_point[tid][0] * scale, tgt_point[tid][1] * scale), 1,
+                                               Scalar(0, 0, 255), 2);
+                                } else {
+                                    cv::circle(largeInput, cv::Point2f(src_point[tid][0] * scale, src_point[tid][1] * scale), 1,
+                                               Scalar(0, 0, 255), 2);
+                                }
+                            }
+                        }
+
+                        Mat cont;
+                        hconcat(largeInput, largeOutput, cont);
+                        imshow("compare", cont);
+
+                        index = (index + 1) % 2;
+                        char key = (char)waitKey(500);
+                        if(key == 'q') {
+                            break;
+                        }else if(key == 's'){
+                            LOG(INFO) << "stab_input.png written";
+                            imwrite("stab_input.png", largeInput);
+                            LOG(INFO) << "stab_output.png written";
+                            imwrite("stab_output.png", largeOutput);
+                        }
+                        else if(key == 'r')
+                            reddot = !reddot;
+                        else if(key == 'g')
+                            gridline = !gridline;
+
+                    }
+                }
             }
 
             //warp following frames according to current warping field

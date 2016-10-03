@@ -664,8 +664,6 @@ namespace dynamic_stereo {
 
                 Mat stepRes = visualizeSegmentation(mask);
                 cv::addWeighted(stepRes, 0.8, images[0], 0.2, 0.0, stepRes);
-                sprintf(buffer, "iter%03d.png", i);
-                imwrite(buffer, stepRes);
             }
         }
     }//namespace video_segment

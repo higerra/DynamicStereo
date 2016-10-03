@@ -44,10 +44,10 @@ namespace dynamic_stereo {
 
         if(wSmooth > 0){
             refDepth->fillholeAndSmooth(wSmooth);
-            Mat depthTex;
-            cv::resize(refImage, depthTex, cv::Size(refDepth->getWidth(), refDepth->getHeight()));
-            sprintf(buffer, "%s/temp/smoothedDepth%05d.ply", file_io.getDirectory().c_str(), anchor);
-            utility::saveDepthAsPly(string(buffer), *(refDepth.get()), depthTex, sfmModel->getCamera(anchor), 2);
+//            Mat depthTex;
+//            cv::resize(refImage, depthTex, cv::Size(refDepth->getWidth(), refDepth->getHeight()));
+//            sprintf(buffer, "%s/temp/smoothedDepth%05d.ply", file_io.getDirectory().c_str(), anchor);
+//            utility::saveDepthAsPly(string(buffer), *(refDepth.get()), depthTex, sfmModel->getCamera(anchor), 2);
         }
 
         initZBuffer();

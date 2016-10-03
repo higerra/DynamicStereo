@@ -50,7 +50,6 @@ namespace dynamic_stereo{
                 classifier = ml::SVM::load(classifierPath);
             CHECK(classifier.get()) << "Can not open classifier: " << classifierPath;
 
-
             //load or compute segmentation
             vector<Mat> segments;
             sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
