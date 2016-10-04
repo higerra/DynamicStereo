@@ -15,8 +15,8 @@ add_library(ColorGMM ${GMM_LIB})
 target_link_libraries(ColorGMM glog opencv_core)
 
 
-######################################################3
-#VideoSegmentation libraryx
+######################################################
+#VideoSegmentation library
 set(VIDEO_SEGMENT_LIB pixel_feature.h distance_metric.h pixel_feature.cpp
         videosegmentation.h videosegmentation.cpp mfgrabcut2.cpp)
 
@@ -28,6 +28,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIRECTORY}/VideoSegmentation)
 add_executable(VideoSegmentation videosegmentation_cli.cpp)
 target_link_libraries(VideoSegmentation gflags VideoSegmentModule)
 
+######################################################
 #test
 add_executable(VideoSegmentation_test ${ROOT_DIRECTORY}/test/test_main.cpp videosegmentation_test.cpp)
 target_link_libraries(VideoSegmentation_test VideoSegmentModule gtest gflags)

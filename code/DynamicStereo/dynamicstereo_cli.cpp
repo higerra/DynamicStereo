@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     sprintf(buffer, "%s/midres/prewarp/prewarpb%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     cv::VideoWriter vwriter(buffer, CV_FOURCC('x','2','6','4'), 30, cv::Size(prewarp[0].cols, prewarp[0].rows));
 	for(auto i=0; i<prewarp.size(); ++i){
-        vwriter << prewarp[0];
+        vwriter << prewarp[i];
 	}
     vwriter.release();
 	return 0;

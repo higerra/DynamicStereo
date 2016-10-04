@@ -185,6 +185,14 @@ namespace dynamic_stereo {
                                                  cv::OutputArray feats) const;
         };
 
+        class TransitionAndAppearance: public TransitionFeature{
+        public:
+            TransitionAndAppearance(const PixelFeatureExtractorBase* pf_,
+                                    const int s1_, const int s2_, const float theta_)
+                    : TransitionFeature(pf_, s1_, s2_, theta_){
+                comparator.reset(new DistanceHammingAverage());
+            }
+        };
 
     }//namespace video_segment
 }
