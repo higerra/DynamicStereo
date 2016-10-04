@@ -4,12 +4,12 @@ import json
 import os.path
 
 parser = argparse.ArgumentParser()
-parser.add_argument('list', default='/home/yanhang/Documents/research/DynamicStereo/data/working/list_all.txt');
-parser.add_argument('--clean_stereo', action='store_true', help='re-run stereo')
-parser.add_argument('--clean_segmentation', action='store_true', help='re-run segmentation from begining')
+parser.add_argument('list', default='/home/yanhang/Documents/research/DynamicStereo/data/working/list_all.txt')
+parser.add_argument('--clean_stereo', action='store_true', help='re-run stereo', default=False)
+parser.add_argument('--clean_segmentation', action='store_true', help='re-run segmentation from begining', default=False)
 parser.add_argument('--clean_classification', action='store_true', help='re-run classification')
-parser.add_argument('--skip_stereo', action='store_true')
-parser.add_argument('--skip_render', action='store_true')
+parser.add_argument('--skip_stereo', action='store_true', default=False)
+parser.add_argument('--skip_render', action='store_true', default=False)
 
 args = parser.parse_args()
 
