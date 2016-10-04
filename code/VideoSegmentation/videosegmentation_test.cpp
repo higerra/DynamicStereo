@@ -43,20 +43,17 @@ TEST(Distance, CombinedWeighting) {
     for(auto i=0; i<splits[0]; ++i){
         distance_parts[0] += std::fabs(a1.at<double>(i, 0) - a2.at<double>(i,0));
     }
-    double dis_part1_eval = comparators[0]->evaluate(a1.rowRange(0, splits[0]-1), a2.rowRange(0, splits[0]-1));
-    double dis_part1_cv = cv::norm(a1.rowRange(0, splits[0]-1), a2.rowRange(0, splits[0]-1), NORM_L1);
+    double dis_part1_eval = comparators[0]->evaluate(a1.rowRange(0, splits[0]), a2.rowRange(0, splits[0]));
     EXPECT_NEAR(dis_part1_eval, distance_parts[0], numeric_limits<double>::epsilon());
-    EXPECT_NEAR(dis_part1_cv, distance_parts[0], numeric_limits<double>::epsilon());
 
-//    for(auto i=splits[0]; i<N; ++i){
-//        distance_parts[1] += (a1.at<double>(i,0) - a2.at<double>(i,0)) * (a1.at<double>(i,0) - a2.at<double>(i,0));
-//    }
-//    distance_parts[1] = std::sqrt(distance_parts[1]);
-//    double dis_part2_eval = comparators[1]->evaluate(a1.rowRange(splits[0], N-1), a2.rowRange(splits[0], N-1));
-//    EXPECT_NEAR(dis_part2_eval, distance_parts[1], numeric_limits<double>::epsilon());
-//
-//    printf("part1: %.3f, part2: %.3f\n", weights[0] * distance_parts[0], weights[1] * distance_parts[1]);
-//    distance_gt = distance_parts[0] * weights[0] + distance_parts[1] * weights[1];
-//
-//    EXPECT_NEAR(distance_eval, distance_gt, std::numeric_limits<double>::epsilon());
+    for(auto i=splits[0]; i<N; ++i){
+        distance_parts[1] += (a1.at<double>(i,0) - a2.at<double>(i,0)) * (a1.at<double>(i,0) - a2.at<double>(i,0));
+    }
+    distance_parts[1] = std::sqrt(distance_parts[1]);
+    double dis_part2_eval = comparators[1]->evaluate(a1.rowRange(splits[0], N), a2.rowRange(splits[0], N));
+    EXPECT_NEAR(dis_part2_eval, distance_parts[1], numeric_limits<double>::epsilon());
+
+    distance_gt = distance_parts[0] * weights[0] + distance_parts[1] * weights[1];
+
+    EXPECT_NEAR(distance_eval, distance_gt, std::numeric_limits<double>::epsilon());
 }
