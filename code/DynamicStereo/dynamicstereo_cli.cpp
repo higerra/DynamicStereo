@@ -18,7 +18,7 @@ DEFINE_int32(stereo_stride, 2, "tWindowStereo");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_int32(resolution, 128, "disparity resolution");
 DEFINE_int32(stereo_interval, 5, "interval for stereo");
-DEFINE_double(weight_smooth, 0.25, "smoothness weight for stereo");
+DEFINE_double(weight_smooth, 0.15, "smoothness weight for stereo");
 DEFINE_string(classifierPath, "", "not used");
 DEFINE_double(min_disp, -1, "min disp");
 DEFINE_double(max_disp, -1, "max_disp");
@@ -99,8 +99,6 @@ int main(int argc, char **argv) {
     cv::VideoWriter vwriter(buffer, CV_FOURCC('x','2','6','4'), 30, cv::Size(prewarp[0].cols, prewarp[0].rows));
 	for(auto i=0; i<prewarp.size(); ++i){
         vwriter << prewarp[0];
-		sprintf(buffer, "%s/midres/prewarp/prewarpb%05d_%05d.jpg", file_io.getDirectory().c_str(), FLAGS_testFrame, i);
-		imwrite(buffer, prewarp[i]);
 	}
     vwriter.release();
 	return 0;

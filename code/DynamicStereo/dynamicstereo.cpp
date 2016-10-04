@@ -111,14 +111,8 @@ namespace dynamic_stereo{
                         v + offset);
 
                 imgpt = imgpt / (double)downsample;
-//				if(imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < images[0].cols-1 && imgpt[1] < images[0].rows-1){
-//					Vector3d pix = interpolation_util::bilinear<uchar,3>(images[v].data, images[v].cols, images[v].rows,  imgpt);
-//					//double gv = 0.114 * pix[0] + 0.587 * pix[1] + 0.299 * pix[2];
-//					printf("%.2f %.2f %.2f\n", pix[0], pix[1], pix[2]);
-//				}
                 imwrite(buffer, curimg);
             }
-//			cout << "===============================" << endl;
         }
 
 
@@ -158,17 +152,18 @@ namespace dynamic_stereo{
 //			}
 //		}
 
-
-
-        sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-        utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor-offset], sfmModel.getCamera(anchor), downsample);
+        try {
+            sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+            utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor - offset],
+                                    sfmModel.getCamera(anchor), downsample);
+        }catch(const std::runtime_error& e){
+            cerr << e.what() << endl;
+        }
 
         if(dbtx >=0 && dbty >= 0){
             printf("Result disparity for (%d,%d): %d\n", (int)dbtx, (int)dbty, (int)result_firstOrder((int)dbtx/downsample, (int)dbty/downsample));
         }
     }
-
-
 
     void DynamicStereo::disparityToDepth(const Depth& disp, Depth& depth){
         depth.initialize(disp.getWidth(), disp.getHeight(), -1);
