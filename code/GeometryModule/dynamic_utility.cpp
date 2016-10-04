@@ -69,7 +69,11 @@ namespace dynamic_stereo {
 
 			OpenMesh::IO::Options wopt;
 			wopt += OpenMesh::IO::Options::VertexColor;
-			CHECK(OpenMesh::IO::write_mesh(mesh, path, wopt)) << "Can not write ply file " << path;
+			try {
+				OpenMesh::IO::write_mesh(mesh, path, wopt);
+			}catch(const std::runtime_error& e){
+				cout << e.what();
+			}
 		}
 
 		void temporalMedianFilter(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const int r){

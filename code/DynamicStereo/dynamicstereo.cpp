@@ -152,13 +152,9 @@ namespace dynamic_stereo{
 //			}
 //		}
 
-        try {
-            sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
-            utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor - offset],
-                                    sfmModel.getCamera(anchor), downsample);
-        }catch(const std::runtime_error& e){
-            cerr << e.what() << endl;
-        }
+        sprintf(buffer, "%s/temp/mesh_firstorder_b%05d.ply", file_io.getDirectory().c_str(), anchor);
+        utility::saveDepthAsPly(string(buffer), depth_firstOrder, images[anchor - offset],
+                                sfmModel.getCamera(anchor), downsample);
 
         if(dbtx >=0 && dbty >= 0){
             printf("Result disparity for (%d,%d): %d\n", (int)dbtx, (int)dbty, (int)result_firstOrder((int)dbtx/downsample, (int)dbty/downsample));

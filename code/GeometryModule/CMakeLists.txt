@@ -7,4 +7,4 @@ add_library(GeometryModule dynamic_utility.h dynamic_utility.cpp
         dynamicwarpping.h dynamicwarpping.cpp
         stereomodel.h)
 
-target_link_libraries(GeometryModule base glog ${THEIA_LIBRARIES} libOpenMeshCore.a libOpenMeshTools.a)
+target_link_libraries(GeometryModule base glog ${THEIA_LIBRARIES} OpenMeshCore OpenMeshTools)
