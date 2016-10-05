@@ -7,17 +7,18 @@
 
 #include <string>
 #include <memory>
+#include <vector>
+#include <opencv2/opencv.hpp>
 
-#include "pixel_feature.h"
+#include "types.h"
 
 namespace dynamic_stereo {
-
     namespace video_segment {
-        void edgeAggregation(const VideoMat &input, cv::Mat &output);
+        void edgeAggregation(const std::vector<cv::Mat> &input, cv::Mat &output);
 
         int compressSegment(cv::Mat& segment);
 
-        int segment_video(const VideoMat &input, cv::Mat &output,
+        int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output,
                           const float c,  const bool hasInvalid = false, const bool refine = true,
                           const int smoothSize = 9, const float theta = 100, const int min_size = 200,
                           const int stride1 = 8, const int stride2 = 4,

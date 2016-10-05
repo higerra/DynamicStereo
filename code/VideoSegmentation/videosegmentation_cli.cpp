@@ -2,8 +2,10 @@
 // Created by yanhang on 7/27/16.
 //
 #include <fstream>
-#include "videosegmentation.h"
 #include <gflags/gflags.h>
+#include <glog/logging.h>
+
+#include "videosegmentation.h"
 
 using namespace std;
 using namespace cv;

@@ -3,7 +3,6 @@
 //
 
 #include "pixel_feature.h"
-#include <opencv2/xfeatures2d.hpp>
 
 using namespace std;
 using namespace cv;
@@ -53,8 +52,8 @@ namespace dynamic_stereo{
 
         BRIEFWrapper::BRIEFWrapper() {
             cvBrief = cv::xfeatures2d::BriefDescriptorExtractor::create();
-            comparator.reset(new DistanceHammingAverage());
-            FeatureBase::dim = cvBrief->descriptorSize();
+            comparator_.reset(new DistanceHammingAverage());
+            FeatureBase::dim_ = cvBrief->descriptorSize();
         }
 
         void BRIEFWrapper::extractAll(const cv::InputArray input, cv::OutputArray output) const {
@@ -107,7 +106,7 @@ namespace dynamic_stereo{
                 }
             }
             CHECK_GT(kChannel, 0) << "Either stride 1 or stride 2 must be > 0";
-            kChannel = std::ceil((float) kChannel / (float) binPerCell);
+            kChannel = std::ceil((float) kChannel / (float) binPerCell_);
             return kChannel;
         }
 
@@ -130,26 +129,26 @@ namespace dynamic_stereo{
             int featIndex = 0;
             if(stride1() > 0) {
                 for (auto v = 0; v < N - stride1(); v += stride1()) {
-                    const int blockId = featIndex / binPerCell;
-                    const int cellId = featIndex % binPerCell;
+                    const int blockId = featIndex / binPerCell_;
+                    const int cellId = featIndex % binPerCell_;
                     pixel_feature->extractPixel(inputArray[v], x, y, pix1);
                     pixel_feature->extractPixel(inputArray[v + stride1()], x, y, pix2);
                     float d = pixel_distance->evaluate(pix1, pix2);
                     if (d >= theta())
-                        featMat.at<uchar>(blockId, 0) |= or_table[cellId];
+                        featMat.at<uchar>(blockId, 0) |= or_table_[cellId];
                     featIndex++;
                 }
             }
 
             if(stride2() > 0) {
                 for (auto v = 0; v < N / 2; v += stride2()) {
-                    const int blockId = featIndex / binPerCell;
-                    const int cellId = featIndex % binPerCell;
+                    const int blockId = featIndex / binPerCell_;
+                    const int cellId = featIndex % binPerCell_;
                     pixel_feature->extractPixel(inputArray[v], x, y, pix1);
                     pixel_feature->extractPixel(inputArray[v + N / 2], x, y, pix2);
                     float d = pixel_distance->evaluate(pix1, pix2);
                     if (d >= theta())
-                        featMat.at<uchar>(blockId, 0) |= or_table[cellId];
+                        featMat.at<uchar>(blockId, 0) |= or_table_[cellId];
                     featIndex++;
                 }
             }
@@ -175,13 +174,13 @@ namespace dynamic_stereo{
 
             if(stride1() > 0) {
                 for (auto v = 0; v < N - stride1(); v += stride1()) {
-                    const int blockId = featIndex / binPerCell;
-                    const int cellId = featIndex % binPerCell;
+                    const int blockId = featIndex / binPerCell_;
+                    const int cellId = featIndex % binPerCell_;
                     for (auto i = 0; i < kPix; ++i) {
                         double d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
                                                             pixelFeatureArray[v + stride1()].row(i));
                         if (d >= theta())
-                            featMat.at<uchar>(i, blockId) |= or_table[cellId];
+                            featMat.at<uchar>(i, blockId) |= or_table_[cellId];
                     }
                     featIndex++;
                 }
@@ -189,13 +188,13 @@ namespace dynamic_stereo{
 
             if(stride2() > 0) {
                 for (auto v = 0; v < N / 2; v += stride2()) {
-                    const int blockId = featIndex / binPerCell;
-                    const int cellId = featIndex % binPerCell;
+                    const int blockId = featIndex / binPerCell_;
+                    const int cellId = featIndex % binPerCell_;
                     for (auto i = 0; i < kPix; ++i) {
                         float d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
                                                            pixelFeatureArray[v + N / 2].row(i));
                         if (d >= theta())
-                            featMat.at<uchar>(i, blockId) |= or_table[cellId];
+                            featMat.at<uchar>(i, blockId) |= or_table_[cellId];
                     }
                     featIndex++;
                 }
@@ -244,6 +243,30 @@ namespace dynamic_stereo{
                                                          cv::OutputArray feats) const {
 
         }
+
+
+        TransitionAndAppearance::TransitionAndAppearance(const PixelFeatureExtractorBase* pf_,
+                                                         const int s1_, const int s2_, const float theta_,
+                                                         const double weight_transition, const double weight_appearance)
+                : transition_feature_extractor_(new TransitionPattern(pf_, s1_, s2_, theta_)), kBinAppearance_(3){
+            sub_weights_.resize(2);
+            sub_weights_[0] = weight_appearance;
+            sub_weights_[1] = weight_transition;
+
+            sub_comparators_.resize(2);
+            sub_comparators_[0].reset(new DistanceL2());
+            sub_comparators_[1].reset(CHECK_NOTNULL(transition_feature_extractor_->getDefaultComparator()));
+            comparator_.reset(new DistanceCombinedWeighting(vector<size_t>{GetkBinAppearance()}, sub_weights_, sub_comparators_));
+        }
+
+        void TransitionAndAppearance::computeFromPixelFeature(const cv::_InputArray &pixelFeatures,
+                                                              const cv::_OutputArray &feats) const {
+            CHECK(!pixelFeatures.empty());
+            Mat transition_features;
+            transition_feature_extractor_->computeFromPixelFeature(pixelFeatures, transition_features);
+            
+        }
+
 
     }//video_segment
 }//namespace dynamic_stereo

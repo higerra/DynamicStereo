@@ -2,10 +2,14 @@
 // Created by yanhang on 7/31/16.
 //
 
+#include <memory>
+
+#include <opencv2/opencv.hpp>
 #include <opencv2/xfeatures2d.hpp>
+#include <Eigen/Eigen>
+
 #include "gtest/gtest.h"
-#include "videosegmentation.h"
-#include "colorGMM.h"
+#include "distance_metric.h"
 
 using namespace std;
 using namespace cv;

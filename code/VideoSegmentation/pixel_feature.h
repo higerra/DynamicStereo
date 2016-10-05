@@ -7,40 +7,27 @@
 
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include <opencv2/xfeatures2d.hpp>
 #include <glog/logging.h>
 #include <memory>
-#include "distance_metric.h"
 
-namespace cv{
-    namespace xfeatures2d {
-        class BriefDescriptorExtractor;
-    }
-}
+#include "distance_metric.h"
+#include "types.h"
 
 namespace dynamic_stereo {
     namespace video_segment {
         using VideoMat = std::vector<cv::Mat>;
 
-        enum PixelFeature{
-            PIXEL,
-            BRIEF
-        };
-
-        enum TemporalFeature{
-            TRANSITION_PATTERN,
-            TRANSITION_COUNTING
-        };
-
         class FeatureBase {
         public:
             inline const DistanceMetricBase *getDefaultComparator() const {
-                return comparator.get();
+                return comparator_.get();
             }
 
             inline void setComparator(std::shared_ptr<DistanceMetricBase> new_comparator) {
                 CHECK(new_comparator.get());
-                comparator.reset();
-                comparator = new_comparator;
+                comparator_.reset();
+                comparator_ = new_comparator;
             }
 
             virtual void
@@ -48,15 +35,15 @@ namespace dynamic_stereo {
 
             virtual void extractAll(const cv::InputArray input, cv::OutputArray &output) const = 0;
 
-            inline int getDim() const { return dim; }
+            inline int getDim() const { return dim_; }
 
             virtual void printFeature(const cv::InputArray input) const {
                 printf("Not implemented yet\n");
             }
 
         protected:
-            std::shared_ptr<DistanceMetricBase> comparator;
-            int dim;
+            std::shared_ptr<DistanceMetricBase> comparator_;
+            int dim_;
         };
 
         /////////////////////////////////////////////////////////////
@@ -72,8 +59,8 @@ namespace dynamic_stereo {
         class PixelValue : public PixelFeatureExtractorBase {
         public:
             PixelValue() {
-                comparator.reset(new DistanceL2());
-                FeatureBase::dim = 3;
+                comparator_.reset(new DistanceL2());
+                FeatureBase::dim_ = 3;
             }
 
             virtual void
@@ -149,13 +136,13 @@ namespace dynamic_stereo {
         public:
             TransitionPattern(const PixelFeatureExtractorBase *pf_,
                               const int s1_, const int s2_, const float theta_) :
-                    TransitionFeature(pf_, s1_, s2_, theta_), binPerCell(8) {
-                comparator.reset(new DistanceHammingAverage());
-                or_table.resize(4);
-                or_table[0] = 0;
-                or_table[1] = 2;
-                or_table[2] = 4;
-                or_table[3] = 8;
+                    TransitionFeature(pf_, s1_, s2_, theta_), binPerCell_(8) {
+                comparator_.reset(new DistanceHammingAverage());
+                or_table_.resize(4);
+                or_table_[0] = 0;
+                or_table_[1] = 2;
+                or_table_[2] = 4;
+                or_table_[3] = 8;
             }
 
             virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const;
@@ -167,8 +154,8 @@ namespace dynamic_stereo {
         private:
             int getKChannel(const int kFrames) const;
 
-            std::vector<uchar> or_table;
-            const int binPerCell;
+            std::vector<uchar> or_table_;
+            const int binPerCell_;
         };
 
         class TransitionCounting : public TransitionFeature {
@@ -176,7 +163,7 @@ namespace dynamic_stereo {
             TransitionCounting(const PixelFeatureExtractorBase *pf_,
                                const int s1_, const int s2_, const float theta_)
                     : TransitionFeature(pf_, s1_, s2_, theta_) {
-                comparator.reset(new DistanceL2());
+                comparator_.reset(new DistanceL2());
             }
 
             virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const;
@@ -185,13 +172,34 @@ namespace dynamic_stereo {
                                                  cv::OutputArray feats) const;
         };
 
-        class TransitionAndAppearance: public TransitionFeature{
+
+        //////////////////////////////////////////////////////////////////////////////
+        //combined feature for transition pattern and appearance. Appearance first
+        class TransitionAndAppearance: public TemporalFeatureExtractorBase{
         public:
             TransitionAndAppearance(const PixelFeatureExtractorBase* pf_,
-                                    const int s1_, const int s2_, const float theta_)
-                    : TransitionFeature(pf_, s1_, s2_, theta_){
-                comparator.reset(new DistanceHammingAverage());
+                                    const int s1_, const int s2_, const float theta_,
+                                    const double weight_transition, const double weight_appearance);
+            inline const std::vector<std::shared_ptr<DistanceMetricBase> >& GetSubComparators() const{
+                return sub_comparators_;
             }
+            inline const TransitionFeature* GetTransitionFeatureExtractor() const{
+                return transition_feature_extractor_.get();
+            }
+            inline const std::vector<double> & GetSubWeights() const{
+                return sub_weights_;
+            }
+            constexpr size_t GetkBinAppearance() const{
+                return kBinAppearance_;
+            }
+
+            virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures,
+                                                 cv::OutputArray feats) const;
+        private:
+            constexpr size_t kBinAppearance_;
+            std::shared_ptr<TransitionFeature> transition_feature_extractor_;
+            std::vector<std::shared_ptr<DistanceMetricBase> > sub_comparators_;
+            std::vector<double> sub_weights_;
         };
 
     }//namespace video_segment

@@ -2,8 +2,10 @@
 // Created by yanhang on 7/27/16.
 //
 
-#include "videosegmentation.h"
 #include "../external/segment_gb/segment-image.h"
+
+#include "videosegmentation.h"
+#include "pixel_feature.h"
 
 using namespace std;
 using namespace cv;
