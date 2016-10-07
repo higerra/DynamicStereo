@@ -76,8 +76,12 @@ namespace dynamic_stereo {
                 if (!segments.empty()) {
                     segment = segments[index];
                     CHECK_EQ(segment.size(), images[0].size());
-                } else
-                    video_segment::segment_video(images, segment, level, true);
+                } else {
+                    video_segment::VideoSegmentOption option(level);
+                    option.refine = false;
+                    option.temporal_feature_type = video_segment::TRANSITION_AND_APPEARANCE;
+                    video_segment::segment_video(images, segment, option);
+                }
 
                 if (rawSegments.needed())
                     segment.copyTo(rawSegments.getMat(index++));

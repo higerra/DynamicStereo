@@ -62,28 +62,35 @@ int main(int argc, char** argv){
                 break;
             images.push_back(frame);
         }
+
+
         //test for video segmentation based on binary descriptor
-        Mat segment, segment_refine;
+        Mat segment;//, segment_refine;
         printf("Video segmentation...\n");
-        video_segment::segment_video(images, segment, (float)FLAGS_c, true, false);
-        video_segment::segment_video(images, segment_refine, (float)FLAGS_c, true);
+        video_segment::VideoSegmentOption option(FLAGS_c);
+        option.refine = false;
+        option.temporal_feature_type = video_segment::TRANSITION_AND_APPEARANCE;
+        //option.temporal_feature_type = video_segment::TRANSITION_PATTERN;
+        int num_segments = video_segment::segment_video(images, segment, option);
+//        video_segment::segment_video(images, segment_refine, (float)FLAGS_c, true);
+        printf("Done, number of segments: %d\n", num_segments);
 
         Mat segment_vis = video_segment::visualizeSegmentation(segment);
-        Mat segment_vis2 = video_segment::visualizeSegmentation(segment_refine);
+  //      Mat segment_vis2 = video_segment::visualizeSegmentation(segment_refine);
 
         Mat result, result_refined;
         const double blend_weight = 0.2;
         cv::addWeighted(images[0], blend_weight, segment_vis, 1.0 - blend_weight, 0.0, result);
-        cv::addWeighted(images[0], blend_weight, segment_vis2, 1.0 - blend_weight, 0.0, result_refined);
+//        cv::addWeighted(images[0], blend_weight, segment_vis2, 1.0 - blend_weight, 0.0, result_refined);
 
 
         sprintf(buffer, "%s/%s_result_c%.1f.png", out_path.c_str(), filename.substr(0, filename.find_last_of(".")).c_str(), FLAGS_c);
         printf("Writing %s\n", buffer);
         imwrite(buffer, result);
 
-        sprintf(buffer, "%s/%s_result_refined_c%.1f.png", out_path.c_str(), filename.substr(0, filename.find_last_of(".")).c_str(), FLAGS_c);
-        printf("Writing %s\n", buffer);
-        imwrite(buffer, result_refined);
+//        sprintf(buffer, "%s/%s_result_refined_c%.1f.png", out_path.c_str(), filename.substr(0, filename.find_last_of(".")).c_str(), FLAGS_c);
+//        printf("Writing %s\n", buffer);
+//        imwrite(buffer, result_refined);
     }
     return 0;
 }

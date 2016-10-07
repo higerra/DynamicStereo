@@ -41,18 +41,14 @@ namespace dynamic_stereo {
                 output /= maxedge;
         }
 
-        int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output,
-                          const float c, const bool hasInvalid, const bool refine, const int smoothSize, const float theta, const int min_size,
-                          const int stride1, const int stride2,
-                          const PixelFeature pfType,
-                          const TemporalFeature tfType) {
+        int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output, const VideoSegmentOption& option) {
             CHECK(!input.empty());
             const int width = input[0].cols;
             const int height = input[0].rows;
 
             std::vector<cv::Mat> smoothed(input.size());
             for (auto v = 0; v < input.size(); ++v) {
-                cv::blur(input[v], smoothed[v], cv::Size(smoothSize, smoothSize));
+                cv::blur(input[v], smoothed[v], cv::Size(option.smooth_size, option.smooth_size));
             }
 
             cv::Mat edgeMap;
@@ -61,23 +57,27 @@ namespace dynamic_stereo {
             //std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new PixelValue());
             std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor;
 
-            if (pfType == PixelFeature::PIXEL)
+            if (option.pixel_feture_type == PixelFeature::PIXEL)
                 pixel_extractor.reset(new PixelValue());
-            else if (pfType == PixelFeature::BRIEF)
+            else if (option.pixel_feture_type == PixelFeature::BRIEF)
                 pixel_extractor.reset(new BRIEFWrapper());
             else
                 CHECK(true) << "Unsupported pixel feature type";
 
             std::shared_ptr<TemporalFeatureExtractorBase> temporal_extractor;
 
-            if (tfType == TemporalFeature::TRANSITION_PATTERN)
-                temporal_extractor.reset(new TransitionPattern(pixel_extractor.get(), stride1, stride2, theta));
-            else if (tfType == TemporalFeature::TRANSITION_COUNTING)
-                temporal_extractor.reset(new TransitionCounting(pixel_extractor.get(), stride1, stride2, theta));
-            else
+            if (option.temporal_feature_type == TemporalFeature::TRANSITION_PATTERN) {
+                temporal_extractor.reset(new TransitionPattern(pixel_extractor.get(), option.stride1, option.stride2, option.theta));
+            }else if (option.temporal_feature_type == TemporalFeature::TRANSITION_COUNTING) {
+                temporal_extractor.reset(new TransitionCounting(pixel_extractor.get(), option.stride1, option.stride2, option.theta));
+            }else if(option.temporal_feature_type == TemporalFeature::TRANSITION_AND_APPEARANCE) {
+                temporal_extractor.reset(new TransitionAndAppearance(pixel_extractor.get(), pixel_extractor.get(),
+                                                                     option.stride1, option.stride2, option.theta, 0.99, 0.01));
+            }else{
                 CHECK(true) << "Unsupported temporal feature type";
+            }
 
-            const DistanceMetricBase *feature_comparator = temporal_extractor->getDefaultComparator();
+            const DistanceMetricBase *feature_comparator = CHECK_NOTNULL(temporal_extractor->getDefaultComparator());
 
             vector<cv::Mat> pixelFeatures(smoothed.size());
 #pragma omp parallel for
@@ -86,18 +86,24 @@ namespace dynamic_stereo {
             }
 
             Mat featuresMat;
-            //a working around: receive Mat type from the function and fit it to vector<vector< > >
-            temporal_extractor->computeFromPixelFeature(pixelFeatures, featuresMat);
+            if(option.temporal_feature_type == TemporalFeature::TRANSITION_AND_APPEARANCE){
+                dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)
+                        ->computeFromPixelAndAppearanceFeature(pixelFeatures, pixelFeatures, featuresMat);
+            }else {
+                temporal_extractor->computeFromPixelFeature(pixelFeatures, featuresMat);
+            }
 
+            CHECK_EQ(featuresMat.rows, width * height);
+#if false
             {
                 //debug, inspect some of the feature
-                const int tx = -1, ty = -1;
+                const int tx = 249, ty = 210;
                 if (tx >= 0 && ty >= 0) {
-                    dynamic_pointer_cast<TransitionPattern>(temporal_extractor)->printFeature(
+                    dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)->printFeature(
                             featuresMat.row(ty * width + tx));
                 }
             }
-
+#endif
             // build graph
             std::vector<edge> edges;
             edges.reserve((size_t) width * height);
@@ -143,17 +149,16 @@ namespace dynamic_stereo {
                 }
             }
 
-            std::unique_ptr<universe> u(segment_graph(width * height, edges, c));
+            std::unique_ptr<universe> u(segment_graph(width * height, edges, option.threshold));
             // post process small components
             for (const auto &e: edges) {
                 int a = u->find(e.a);
                 int b = u->find(e.b);
-                if ((a != b) && ((u->size(a) < min_size) || (u->size(b) < min_size))) {
+                if ((a != b) && ((u->size(a) < option.min_size) || (u->size(b) < option.min_size))) {
                     u->join(a, b);
                 }
             }
-
-            output = cv::Mat(height, width, CV_32S, cv::Scalar::all(0));
+            output = cv::Mat(height, width, CV_32SC1, cv::Scalar::all(0));
             int *pOutput = (int *) output.data;
             //remap labels
             vector<int> labelMap((size_t) width * height, -1);
@@ -163,14 +168,13 @@ namespace dynamic_stereo {
                 if (labelMap[comp] < 0)
                     labelMap[comp] = nLabel++;
             }
-
             for (auto i = 0; i < width * height; ++i) {
                 int comp = u->find(i);
                 pOutput[i] = labelMap[comp];
             }
 
-            if(refine) {
-                printf("Running refinement...\n");
+            if(option.refine) {
+                LOG(INFO) << "Running refinement...";
                 mfGrabCut(input, output, 1, 1);
             }
             nLabel = compressSegment(output);

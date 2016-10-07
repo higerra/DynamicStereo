@@ -101,7 +101,7 @@ namespace segment_gb{
 
 	cv::Mat visualizeSegmentation(const cv::Mat& input){
 		CHECK(input.data);
-		CHECK_EQ(input.type(), CV_32S);
+		CHECK_EQ(input.type(), CV_32SC1);
 		const int width = input.cols;
 		const int height = input.rows;
 		double minLabel, maxLabel;
@@ -117,9 +117,10 @@ namespace segment_gb{
 		std::default_random_engine generator;
 		std::uniform_int_distribution<int> distribution(0, 255);
 
-		for (int i = 0; i < nLabel; i++) {
-			for(int j=0; j<3; ++j)
-				colorTable[i][j] = (uchar)distribution(generator);
+		for (int i = 0; i < nLabel; ++i) {
+			for(int j=0; j<3; ++j) {
+				colorTable[i][j] = (uchar) distribution(generator);
+			}
 		}
 
 		cv::Mat output(height, width, CV_8UC3, cv::Scalar::all(0));

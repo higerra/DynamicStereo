@@ -245,28 +245,65 @@ namespace dynamic_stereo{
         }
 
 
-        TransitionAndAppearance::TransitionAndAppearance(const PixelFeatureExtractorBase* pf_,
+        TransitionAndAppearance::TransitionAndAppearance(const PixelFeatureExtractorBase* pf_transition,
+                                                         const PixelFeatureExtractorBase* pf_appearance,
                                                          const int s1_, const int s2_, const float theta_,
                                                          const double weight_transition, const double weight_appearance)
-                : transition_feature_extractor_(new TransitionPattern(pf_, s1_, s2_, theta_)), kBinAppearance_(3){
+                : transition_feature_extractor_(new TransitionPattern(pf_transition, s1_, s2_, theta_)),
+                  kBinAppearance_(CHECK_NOTNULL(pf_appearance)->getDim()){
             sub_weights_.resize(2);
             sub_weights_[0] = weight_appearance;
             sub_weights_[1] = weight_transition;
 
+            CHECK(transition_feature_extractor_->getDefaultComparator() != nullptr);
             sub_comparators_.resize(2);
             sub_comparators_[0].reset(new DistanceL2());
-            sub_comparators_[1].reset(CHECK_NOTNULL(transition_feature_extractor_->getDefaultComparator()));
+            sub_comparators_[1] = transition_feature_extractor_->getDefaultComparatorPointer();
             comparator_.reset(new DistanceCombinedWeighting(vector<size_t>{GetkBinAppearance()}, sub_weights_, sub_comparators_));
         }
 
-        void TransitionAndAppearance::computeFromPixelFeature(const cv::_InputArray &pixelFeatures,
-                                                              const cv::_OutputArray &feats) const {
-            CHECK(!pixelFeatures.empty());
+        void TransitionAndAppearance::computeFromPixelAndAppearanceFeature(const cv::InputArray pixel_features_for_transition,
+                                                              const cv::InputArray pixel_features_for_appearance,
+                                                              cv::OutputArray feats) const{
+            CHECK(!pixel_features_for_transition.empty());
+            CHECK(!pixel_features_for_appearance.empty());
             Mat transition_features;
-            transition_feature_extractor_->computeFromPixelFeature(pixelFeatures, transition_features);
-            
+            transition_feature_extractor_->computeFromPixelFeature(pixel_features_for_transition, transition_features);
+
+            vector<Mat> appearance_pixels;
+            pixel_features_for_appearance.getMatVector(appearance_pixels);
+            const int kPix = appearance_pixels[0].rows;
+
+            CHECK_EQ(GetkBinAppearance(), appearance_pixels[0].cols);
+
+            Mat appearance_features(kPix, GetkBinAppearance(), transition_features.type());
+            Mat appearance_accu(kPix, GetkBinAppearance(), CV_32FC1, Scalar::all(0));
+
+            for(const auto& m: appearance_pixels){
+                appearance_accu += m;
+            }
+
+            appearance_accu /= (float)appearance_pixels.size();
+            appearance_accu.convertTo(appearance_features, appearance_features.type());
+
+            feats.create(kPix, transition_features.cols + appearance_features.cols, transition_features.type());
+            Mat feats_combine = feats.getMat();
+            appearance_features.copyTo(feats_combine.colRange(0, GetkBinAppearance()));
+            transition_features.copyTo(feats_combine.colRange(GetkBinAppearance(), feats_combine.cols));
         }
 
+        void TransitionAndAppearance::printFeature(const cv::InputArray input){
+            const Mat feat = input.getMat();
+            const uchar *pData = feat.data;
+            for(auto i=0; i<GetkBinAppearance(); ++i){
+                std::cout << (int)pData[i]<< ' ';
+            }
+            for (auto i = GetkBinAppearance(); i < feat.rows * feat.cols; ++i) {
+                std::bitset<8> bitset1(static_cast<char>(pData[i]));
+                std::cout << bitset1;
+            }
+            std::cout << std::endl;
+        }
 
     }//video_segment
 }//namespace dynamic_stereo

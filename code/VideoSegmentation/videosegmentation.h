@@ -14,16 +14,29 @@
 
 namespace dynamic_stereo {
     namespace video_segment {
+
+        struct VideoSegmentOption{
+            explicit VideoSegmentOption(float threshold_):
+                    threshold(threshold_), hasInvalid(false), refine(true),
+                    smooth_size(9), theta(100), min_size(200), stride1(8), stride2(4),
+                    pixel_feture_type(PixelFeature::PIXEL), temporal_feature_type(TemporalFeature::TRANSITION_PATTERN){}
+            float threshold;
+            float hasInvalid;
+            bool refine;
+            int smooth_size;
+            float theta;
+            int min_size;
+            int stride1;
+            int stride2;
+            PixelFeature pixel_feture_type;
+            TemporalFeature temporal_feature_type;
+        };
+
         void edgeAggregation(const std::vector<cv::Mat> &input, cv::Mat &output);
 
         int compressSegment(cv::Mat& segment);
 
-        int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output,
-                          const float c,  const bool hasInvalid = false, const bool refine = true,
-                          const int smoothSize = 9, const float theta = 100, const int min_size = 200,
-                          const int stride1 = 8, const int stride2 = 4,
-                          const PixelFeature pfType = PixelFeature::PIXEL,
-                          const TemporalFeature tftype = TemporalFeature::TRANSITION_PATTERN);
+        int segment_video(const std::vector<cv::Mat> &input, cv::Mat &output, const VideoSegmentOption& option);
 
         //Multi-frame multi-label grabcut algorithm
         //mask: for both input and output, with type CV_32SC1, the number indicates label id

@@ -36,7 +36,7 @@ namespace dynamic_stereo{
                 index++;
                 continue;
             }
-            printf("Segment %d/%d\n", index, (int) segments.size());
+            LOG(INFO) << "Segment " <<  index << '/' << (int) segments.size();
             cv::Point2i tl(width + 1, height + 1);
             cv::Point2i br(-1, -1);
             for (const auto &pt: segment) {
@@ -50,7 +50,7 @@ namespace dynamic_stereo{
             br.x = std::min(br.x + margin, width - 1);
             br.y = std::min(br.y + margin, height - 1);
             cv::Point2i cpt = (tl + br) / 2;
-            printf("center: (%d,%d), size:%d\n", cpt.x, cpt.y, (int) segment.size());
+            LOG(INFO) << "center: (" << cpt.x << ',' << cpt.y << "), size: " << (int)segment.size();
             cv::Rect roi(tl, br);
             if(roi.area() < min_area){
                 continue;

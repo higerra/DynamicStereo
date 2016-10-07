@@ -354,6 +354,7 @@ namespace dynamic_stereo {
         int best_end_frame = -1;
 
         for (int end_frame = min_length; end_frame < track.size(); ++end_frame) {
+            //variance constraint
             Vector2d mean_pos = sum_pos[end_frame] / (end_frame + 1);
             Vector2d variance_pos(0.0, 0.0);
             for (int v = 0; v <= end_frame; ++v) {
@@ -361,8 +362,17 @@ namespace dynamic_stereo {
                 variance_pos[1] += (track[v][1] - mean_pos[1]) * (track[v][1] - mean_pos[1]);
             }
             variance_pos /= static_cast<double>(end_frame);
-
             if (variance_pos.norm() > max_variance) {
+                break;
+            }
+
+            //motion constraint
+            double cur_max_motion = -1;
+            for(int v=1; v <= end_frame; ++v){
+                Vector2d cur_motion = track[v] - track[v-1];
+                cur_max_motion = std::max(cur_motion.norm(), cur_max_motion);
+            }
+            if(cur_max_motion > max_motion){
                 break;
             }
 
@@ -374,7 +384,7 @@ namespace dynamic_stereo {
             }
             return false;
         } else {
-            for (auto v = best_end_frame + 1; v < track.size(); ++v) {
+            for (auto v = best_end_frame; v < track.size(); ++v) {
                 track[v] = Vector2d(-1, -1);
             }
             return true;
@@ -382,11 +392,15 @@ namespace dynamic_stereo {
     }
 
     int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
-                                 const double threshold, const int tWindow) {
+                                 const double threshold, int tWindow) {
         CHECK(!input.empty());
         output.resize(input.size());
         for (auto v = 0; v < input.size(); ++v) {
             output[v] = input[v].clone();
+        }
+
+        if(input.size() < tWindow){
+            return 1;
         }
 
         const int width = input[0].cols;
@@ -394,7 +408,7 @@ namespace dynamic_stereo {
 
         constexpr int kMinTrack = 300;
 
-        constexpr bool debug_mode = false;
+        constexpr bool debug_mode = true;
 
         //to obtain more tracks from the first frame, also compute features in the first ${kTrackFrame} frames, take
         //all features that can be tracked back to the first frame
@@ -413,11 +427,9 @@ namespace dynamic_stereo {
         }
 
         int start_frame = 0;
-
-        while (start_frame < input.size() - tWindow) {
+        while (start_frame < (int)input.size() - tWindow) {
             output[start_frame] = input[start_frame].clone();
-            LOG(INFO) << "Stabilization restart at frame: " << start_frame << "/" << input.size() - tWindow;
-
+            LOG(INFO) << "Stabilization restart at frame: " << start_frame << "/" << (int)input.size() - tWindow;
             vector<vector<Eigen::Vector2d> > all_tracks;
             LOG(INFO) << "Generating tracks";
             for (auto v = 0; v < kTrackFrame; ++v) {

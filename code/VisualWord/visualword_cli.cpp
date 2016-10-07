@@ -44,7 +44,7 @@ void run_multiExtract(const std::vector<int>& kClusters, int argc, char** argv, 
 
 VisualWordOption setOption();
 
-static const vector<float> levelList{10.0, 20.0, 30.0};
+static const vector<float> levelList{10.0, 15.0, 20.0};
 static const int smoothSize = 9;
 static const int minSize = 200;
 static const float theta = 100;
@@ -168,7 +168,10 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
             if(segmentIn.isOpened()){
                 segmentIn["segment"] >> segments;
             }else {
-                video_segment::segment_video(images, segments, level);
+                video_segment::VideoSegmentOption option(level);
+                option.refine = false;
+                option.temporal_feature_type = video_segment::TRANSITION_AND_APPEARANCE;
+                video_segment::segment_video(images, segments, option);
                 if(!FLAGS_segmentationPath.empty()){
                     cv::FileStorage segmentOut(buffer, cv::FileStorage::WRITE);
                     if(segmentOut.isOpened())

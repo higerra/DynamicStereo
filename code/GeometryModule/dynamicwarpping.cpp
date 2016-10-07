@@ -85,7 +85,6 @@ namespace dynamic_stereo {
         CHECK(!refDepth->getRawData().empty());
         //for each frame, find nearest depth
         char buffer[1024] = {};
-        printf("Computing zBuffer...\n");
         zBuffers.resize((size_t)tWindow);
         for(auto v=0; v<zBuffers.size(); ++v)
             zBuffers[v].reset(new Depth());
@@ -127,7 +126,6 @@ namespace dynamic_stereo {
                                        const std::vector<std::vector<Eigen::Vector2i> >& segmentsFlashy,
                                        std::vector<cv::Mat> &output,
                                        const int kFrame) const {
-        printf("Warpping...\n");
         CHECK_EQ(images.size(), tWindow);
         output.resize((size_t)images.size());
         char buffer[1024] = {};
@@ -172,7 +170,6 @@ namespace dynamic_stereo {
         const double borderMargin = 0;
         auto threadFuncDisplay = [&](const int tid, const int num_thread){
             for(auto sid=tid; sid<segmentsDisplay.size(); sid+=num_thread){
-                printf("Segment %d(%d) on thread %d\n", sid, (int)segmentsDisplay.size(), tid);
                 const vector<Vector2i>& curSeg = segmentsDisplay[sid];
                 const int invalidMargin = (int)curSeg.size() / 50;
                 //end frame and start frame
@@ -276,7 +273,7 @@ namespace dynamic_stereo {
         }
 
         const theia::Camera& cam1 = sfmModel->getCamera(anchor);
-        const int disparity_margin = 10;
+        const int disparity_margin = 2;
 
 #pragma omp parallel for
         for(int i=0; i<dimages.size(); ++i) {

@@ -32,7 +32,7 @@ namespace dynamic_stereo {
 //    void trackStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double threshold, const int tWindow);
 
     int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
-                                 const double threshold, const int tWindow);
+                                 const double threshold, int tWindow);
 
 
 }//namespace dynamic_stereo
