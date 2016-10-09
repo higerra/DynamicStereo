@@ -367,14 +367,14 @@ namespace dynamic_stereo {
             }
 
             //motion constraint
-            double cur_max_motion = -1;
-            for(int v=1; v <= end_frame; ++v){
-                Vector2d cur_motion = track[v] - track[v-1];
-                cur_max_motion = std::max(cur_motion.norm(), cur_max_motion);
-            }
-            if(cur_max_motion > max_motion){
-                break;
-            }
+//            double cur_max_motion = -1;
+//            for(int v=1; v <= end_frame; ++v){
+//                Vector2d cur_motion = track[v] - track[v-1];
+//                cur_max_motion = std::max(cur_motion.norm(), cur_max_motion);
+//            }
+//            if(cur_max_motion > max_motion){
+//                break;
+//            }
 
             best_end_frame = end_frame;
         }
@@ -408,7 +408,7 @@ namespace dynamic_stereo {
 
         constexpr int kMinTrack = 300;
 
-        constexpr bool debug_mode = true;
+        constexpr bool debug_mode = false;
 
         //to obtain more tracks from the first frame, also compute features in the first ${kTrackFrame} frames, take
         //all features that can be tracked back to the first frame

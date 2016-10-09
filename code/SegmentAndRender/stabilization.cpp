@@ -28,7 +28,7 @@ namespace dynamic_stereo{
         int index = 0;
 
         constexpr int min_area = 10;
-        const int dseg = 0;
+        const int dseg = -1;
         for (const auto &segment: segments) {
             CHECK_GE(anchor, ranges[index][0]);
             CHECK_LE(anchor, ranges[index][1]);

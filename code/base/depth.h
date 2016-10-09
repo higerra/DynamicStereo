@@ -30,11 +30,29 @@ namespace dynamic_stereo{
             array.insert(array.end(), data.begin(), data.end());
         }
 
-        void setDepthAt(const Eigen::Vector2d& pix, double v);
+        /*!
+         * Set depth with bilinear splatting
+         * @param pix Pixel location. Can be fractinal
+         * @param v New depth value
+         * @param over_write If set to true, original value will be discarded.
+         */
+        void setDepthAt(const Eigen::Vector2d& pix, double v, const bool over_write = false);
+
+        /*!
+         * Set depth with integer coordinate
+         * @param x,y Integer pixel coordinate
+         * @param v
+         */
         inline void setDepthAtInt(const int x, const int y, const double v){
             if(!(x>=0 && x<getWidth() && y>=0 && y<getHeight()))
                 return;
             data[x+y*getWidth()] = v;
+        }
+
+        inline void setDepthAtInd(const int ind, const double v){
+            CHECK_GE(ind, 0);
+            CHECK_LT(ind, data.size());
+            data[ind] = v;
         }
 
         inline double operator[] (int idx) const{
@@ -66,11 +84,7 @@ namespace dynamic_stereo{
             return data[idx];
         }
 
-        inline void setDepthAtInd(const int ind, const double v){
-            CHECK_GE(ind, 0);
-            CHECK_LT(ind, data.size());
-            data[ind] = v;
-        }
+
         double getDepthAt(const Eigen::Vector2d& loc)const;
 
         inline double getDepthAtInt(int x, int y) const{

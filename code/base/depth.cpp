@@ -26,17 +26,20 @@ namespace dynamic_stereo {
 
 	}
 
-	void Depth::setDepthAt(const Vector2d &pix, double v) {
-		const double max_diff = 1.5;
+	void Depth::setDepthAt(const Vector2d &pix, double v, const bool over_write) {
 		int xl = floor(pix[0]), xh = round(pix[0] + 0.5);
 		int yl = floor(pix[1]), yh = round(pix[1] + 0.5);
 		double lm = pix[0] - (double) xl, rm = (double) xh - pix[0];
 		double tm = pix[1] - (double) yl, bm = (double) yh - pix[1];
 		Vector4d w(rm * bm, lm * bm, lm * tm, rm * tm);
 		Vector4d w_ori(getWeightAt(xl, yl), getWeightAt(xh, yl), getWeightAt(xh, yh), getWeightAt(xl, yh));
+		if(over_write){
+			w_ori = Vector4d(0,0,0,0);
+		}
+
 		Vector4d ind(xl + yl * getWidth(), xh + yl * getWidth(), xh + yh * getWidth(), xl + yh * getWidth());
 		for (int i = 0; i < 4; i++) {
-			if ((data[ind[i]] < 0 || abs(data[ind[i]] - v) < max_diff) && w_ori[i] + w[i] != 0) {
+			if (w_ori[i] + w[i] != 0) {
 				data[ind[i]] = (data[ind[i]] * w_ori[i] + v * w[i]) / (w_ori[i] + w[i]);
 				setWeightAt(ind[i], w_ori[i] + w[i]);
 			}

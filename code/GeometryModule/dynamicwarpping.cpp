@@ -54,13 +54,14 @@ namespace dynamic_stereo {
     }
 
     void DynamicWarpping::updateZBuffer(const Depth* depth, Depth* zb, const theia::Camera &cam1,
-                                        const theia::Camera &cam2) const {
+                                        const theia::Camera &cam2, const Vector2i* debug_pt) const {
         CHECK_NOTNULL(zb);
         CHECK_NOTNULL(depth);
         const int w = depth->getWidth();
         const int h = depth->getHeight();
         CHECK_EQ(depth->getWidth(), zb->getWidth());
         CHECK_EQ(depth->getHeight(), zb->getHeight());
+
         for (auto y = 0; y < h; ++y) {
             for (auto x = 0; x < w; ++x) {
                 Vector2d refPt((double)x, (double)y);
@@ -72,8 +73,15 @@ namespace dynamic_stereo {
                 int intx = round(imgpt[0]+0.5);
                 int inty = round(imgpt[1]+0.5);
                 if (curd > 0 && imgpt[0] >= 0 && imgpt[1] >= 0 && imgpt[0] < w-1 && imgpt[1] < h-1) {
-                    if ((*zb)(intx, inty) < 0 || (zb->getDepthAt(imgpt) >= 0 && curd <= zb->getDepthAt(imgpt))) {
-                        zb->setDepthAt(imgpt, curd);
+                    double ori_depth = zb->getDepthAt(imgpt);
+                    if(debug_pt != nullptr){
+                        if((*debug_pt)[0] == x && (*debug_pt)[1] == y){
+                            printf("point projection: (%d,%d)->(%d,%d), reference depth: %.3f, original depth: %.3f, projected depth: %.3f\n",
+                                  x, y, intx, inty, depth->getDepthAt(refPt), ori_depth, curd);
+                        }
+                    }
+                    if ((*zb)(intx, inty) < 0 || (ori_depth >= 0 && curd <= ori_depth)) {
+                        zb->setDepthAt(imgpt, curd, true);
                         //zb(intx, inty) = curd;
                     }
                 }
@@ -95,10 +103,18 @@ namespace dynamic_stereo {
         const int width = refDepth->getWidth();
         const int height = refDepth->getHeight();
 
+        int debug_view = -1;
+        Vector2i debug_pt(1449 / downsample, 257 / downsample);
+
         auto createZBuffer = [&](int tid, int nThread){
             for(auto i=tid; i<zBuffers.size(); i = i+nThread){
                 zBuffers[i]->initialize(width, height, -1);
-                updateZBuffer(refDepth.get(), zBuffers[i].get(), sfmModel->getCamera(anchor), sfmModel->getCamera(i+offset));
+                if(i == debug_view){
+                    updateZBuffer(refDepth.get(), zBuffers[i].get(), sfmModel->getCamera(anchor), sfmModel->getCamera(i+offset), &debug_pt);
+                }else{
+                    updateZBuffer(refDepth.get(), zBuffers[i].get(), sfmModel->getCamera(anchor), sfmModel->getCamera(i+offset));
+                }
+
                 utility::computeMinMaxDepth(*(sfmModel.get()), i+offset, min_depths[i], max_depths[i]);
             }
         };
@@ -112,12 +128,12 @@ namespace dynamic_stereo {
         for(auto& t: threads)
             t.join();
 
-//	    for(auto i=0; i<zBuffers.size(); ++i){
+//	    for(int i=zBuffers.size() - 1; i<zBuffers.size(); ++i){
 //		    sprintf(buffer, "%s/temp/zBufferb%05d_%05d.ply", file_io.getDirectory().c_str(), anchor, i+offset);
-//		    Mat tex;
-//		    cv::resize(images[i],tex,cv::Size(zBuffers[i].getWidth(), zBuffers[i].getHeight()));
+//		    Mat image = imread(file_io.getImage(i+offset)), tex;
+//		    cv::resize(image,tex,cv::Size(zBuffers[i]->getWidth(), zBuffers[i]->getHeight()));
 //		    printf("Saving point cloud %d\n", i+offset);
-//		    utility::saveDepthAsPly(string(buffer), zBuffers[i], tex, sfmModel.getCamera(i+offset), downsample);
+//		    utility::saveDepthAsPly(string(buffer), *(zBuffers[i].get()), tex, sfmModel->getCamera(i+offset), downsample);
 //	    }
     }
 
@@ -273,7 +289,7 @@ namespace dynamic_stereo {
         }
 
         const theia::Camera& cam1 = sfmModel->getCamera(anchor);
-        const int disparity_margin = 2;
+        const int disparity_margin = 1;
 
 #pragma omp parallel for
         for(int i=0; i<dimages.size(); ++i) {

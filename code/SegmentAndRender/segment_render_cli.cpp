@@ -22,7 +22,7 @@ DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/da
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
 
-DEFINE_double(param_stab, 1.0, "parameter for geometric stabilization");
+DEFINE_double(param_stab, 3.0, "parameter for geometric stabilization");
 DECLARE_string(flagfile);
 
 int main(int argc, char** argv) {
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     google::ParseCommandLineFlags(&argc, &argv, true);
     printf("testFrame:%d, tWindow:%d\n", FLAGS_testFrame, FLAGS_tWindow);
 
-    const double depthSmooth = 2.0;
+    const double depthSmooth = -1;
     std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution, depthSmooth));
 
     LOG(INFO) << "Pre-warping...";
@@ -121,11 +121,11 @@ int main(int argc, char** argv) {
      mid_output.clear();
 
     //Now apply mask
-//    segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
-//    rangesDisplay.insert(rangesDisplay.end(), rangesFlashy.begin(), rangesFlashy.end());
-//    renderToMask(mid_input, segmentsDisplay, rangesDisplay, mid_output);
-//    mid_input.swap(mid_output);
-//    mid_output.clear();
+    segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
+    rangesDisplay.insert(rangesDisplay.end(), rangesFlashy.begin(), rangesFlashy.end());
+    renderToMask(mid_input, segmentsDisplay, rangesDisplay, mid_output);
+    mid_input.swap(mid_output);
+    mid_output.clear();
 
     sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);

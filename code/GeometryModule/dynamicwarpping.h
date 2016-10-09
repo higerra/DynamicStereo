@@ -49,7 +49,9 @@ namespace dynamic_stereo {
 	    }
     private:
         void initZBuffer();
-        void updateZBuffer(const Depth* depth, Depth* zb, const theia::Camera& cam1, const theia::Camera& cam2) const;
+        void updateZBuffer(const Depth* depth, Depth* zb,
+						   const theia::Camera& cam1, const theia::Camera& cam2,
+						   const Eigen::Vector2i* debug_pt = nullptr) const;
         const FileIO& file_io;
         std::shared_ptr<SfMModel> sfmModel;
         std::shared_ptr<Depth> refDepth;
