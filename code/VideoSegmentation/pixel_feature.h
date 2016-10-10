@@ -116,6 +116,15 @@ namespace dynamic_stereo {
             cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> cvBrief;
         };
 
+        class PixelHistogram: public PixelFeatureExtractorBase{
+        public:
+            PixelHistogram(const std::vector<int>& kBin){
+
+            }
+        private:
+            std::vector<int> kBin_;
+        };
+
         /*!
          * Descriptor for temporal features.
          * Temporla features are extracted from a set of pixels (x,y,0),(x,y,1)...(x,y,N), where N is the number of frames

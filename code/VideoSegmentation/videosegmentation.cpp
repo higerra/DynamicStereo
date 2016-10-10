@@ -71,8 +71,11 @@ namespace dynamic_stereo {
             }else if (option.temporal_feature_type == TemporalFeature::TRANSITION_COUNTING) {
                 temporal_extractor.reset(new TransitionCounting(pixel_extractor.get(), option.stride1, option.stride2, option.theta));
             }else if(option.temporal_feature_type == TemporalFeature::TRANSITION_AND_APPEARANCE) {
+                constexpr double w_appearance = 0.01;
+                constexpr double w_transition = 1 - w_appearance;
                 temporal_extractor.reset(new TransitionAndAppearance(pixel_extractor.get(), pixel_extractor.get(),
-                                                                     option.stride1, option.stride2, option.theta, 0.99, 0.01));
+                                                                     option.stride1, option.stride2, option.theta,
+                                                                     w_transition, w_appearance));
             }else{
                 CHECK(true) << "Unsupported temporal feature type";
             }

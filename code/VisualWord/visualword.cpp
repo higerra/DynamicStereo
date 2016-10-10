@@ -69,22 +69,29 @@ namespace dynamic_stereo {
                 CHECK_EQ(segments.size(), levelList.size());
             }
 
-            Mat segmentVote(images[0].size(), CV_32FC1, Scalar::all(0.0f));
-            int index = 0;
-            for (auto level: levelList) {
+
+            vector<Mat> classification_level(levelList.size());
+
+            /*!
+             * Note: There are some memory inefficient operations inside region descriptor, so there won't be enough
+             * memory for parallel execution.
+             */
+//#pragma omp parallel for
+            for (int lid=0; lid<levelList.size(); ++lid) {
                 Mat segment;
                 if (!segments.empty()) {
-                    segment = segments[index];
+                    segment = segments[lid];
                     CHECK_EQ(segment.size(), images[0].size());
                 } else {
-                    video_segment::VideoSegmentOption option(level);
+                    video_segment::VideoSegmentOption option(levelList[lid]);
                     option.refine = false;
                     option.temporal_feature_type = video_segment::TRANSITION_AND_APPEARANCE;
+                    LOG(INFO) << "Segmenting at " << levelList[lid];
                     video_segment::segment_video(images, segment, option);
                 }
 
                 if (rawSegments.needed())
-                    segment.copyTo(rawSegments.getMat(index++));
+                    segment.copyTo(rawSegments.getMat(lid));
 
                 vector<ML::PixelGroup> pixelGroup;
                 const int kSeg = ML::regroupSegments(segment, pixelGroup);
@@ -93,9 +100,11 @@ namespace dynamic_stereo {
                     int sid = segment.at<int>(kpt.pt);
                     segmentKeypoints[sid].push_back(kpt);
                 }
+
                 Mat bowFeature(kSeg, codebook.rows, CV_32FC1, Scalar::all(0));
                 vector<vector<float> > regionFeature;
                 ML::extractSegmentFeature(images, pixelGroup, regionFeature);
+
                 for (auto sid = 0; sid < kSeg; ++sid) {
                     if (!segmentKeypoints[sid].empty()) {
                         Mat bow;
@@ -110,17 +119,25 @@ namespace dynamic_stereo {
                     for (auto j = 0; j < regionFeature[sid].size(); ++j)
                         featureMat.at<float>(sid, j + codebook.rows) = regionFeature[sid][j];
                 }
+
                 Mat response;
                 classifier->predict(featureMat, response);
                 CHECK_EQ(response.rows, kSeg);
 
-                for (auto y = 0; y < segmentVote.rows; ++y) {
-                    for (auto x = 0; x < segmentVote.cols; ++x) {
+                classification_level[lid].create(images[0].size(), CV_32FC1);
+                classification_level[lid].setTo(Scalar::all(0));
+                for (auto y = 0; y < classification_level[lid].rows; ++y) {
+                    for (auto x = 0; x < classification_level[lid].cols; ++x) {
                         int sid = segment.at<int>(y, x);
                         if (response.at<float>(sid, 0) > 0.5)
-                            segmentVote.at<float>(y, x) += 1.0f;
+                            classification_level[lid].at<float>(y, x) += 1.0f;
                     }
                 }
+            }
+
+            Mat segmentVote(images[0].size(), CV_32FC1, Scalar::all(0.0f));
+            for(const auto& m: classification_level){
+                segmentVote += m;
             }
 
             output.create(segmentVote.size(), CV_8UC1);

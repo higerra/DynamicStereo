@@ -30,7 +30,7 @@ namespace dynamic_stereo{
 
             for(auto v=0; v < visMaps.size(); ++v){
                 for(const auto& pix: seg){
-                    if(visMaps[v].at<uchar>(pix[1], pix[0]) != Visibility::VISIBLE)
+                    if(visMaps[v].at<uchar>(pix[1], pix[0]) == Visibility::OUTSIDE)
                         invalidCount[v]++;
                 }
             }

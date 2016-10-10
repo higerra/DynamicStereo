@@ -22,7 +22,7 @@ DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/da
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
 
-DEFINE_double(param_stab, 3.0, "parameter for geometric stabilization");
+DEFINE_double(param_stab, 2.0, "parameter for geometric stabilization");
 DECLARE_string(flagfile);
 
 int main(int argc, char** argv) {
@@ -36,45 +36,33 @@ int main(int argc, char** argv) {
 
     google::InitGoogleLogging(argv[1]);
     google::ParseCommandLineFlags(&argc, &argv, true);
-    printf("testFrame:%d, tWindow:%d\n", FLAGS_testFrame, FLAGS_tWindow);
+    LOG(INFO) << "testFrame:" << FLAGS_testFrame <<  " tWindow:" << FLAGS_tWindow;
 
     const double depthSmooth = -1;
     std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution, depthSmooth));
+    const int anchor_frame = FLAGS_testFrame - warping->getOffset();
 
-    LOG(INFO) << "Pre-warping...";
-    vector<Mat> images;
-    warping->preWarping(images);
-    Mat segMask;
-    Depth refDepth;
-
-    sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    CHECK(refDepth.readDepthFromFile(string(buffer))) << "Can not read depth file";
-
-    Mat refImage = imread(file_io.getImage(FLAGS_testFrame));
-    cv::resize(refImage, refImage, images[0].size(), cv::INTER_CUBIC);
-
-    ////////////////////////////////////////////
-    //Segmentation
-    LOG(INFO) <<"Segmenting...";
-    Mat seg_result_display(images[0].size(), CV_32SC1, Scalar::all(0)), seg_result_flashy(images[0].size(), CV_32SC1, Scalar::all(0));
-    LOG(INFO) << "Segmenting display...";
-    segmentDisplay(file_io, FLAGS_testFrame, images, segMask, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-//    LOG(INFO) << "Segmenting flashy...";
-//    segmentFlashy(file_io, FLAGS_testFrame, images, seg_result_flashy);
-
-    //////////////////////////////////////////////////////////
-    //Rendering
-    LOG(INFO) << "Full warping..";
+    LOG(INFO) << "Warping..";
     vector <Mat> mid_input, mid_output, visMaps;
     warping->preWarping(mid_input, true, &visMaps);
 
-    const int anchor_frame = FLAGS_testFrame - warping->getOffset();
+    const cv::Size kFrameSize(mid_input[0].cols, mid_input[0].rows);
+    ////////////////////////////////////////////
+    //Segmentation
+    LOG(INFO) <<"Segmenting...";
+    Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
+    LOG(INFO) << "Segmenting display...";
+    segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
+//    LOG(INFO) << "Segmenting flashy...";
+//    segmentFlashy(file_io, FLAGS_testFrame, mid_input, seg_result_flashy);
 
-    cv::Size frameSize(mid_input[0].cols, mid_input[0].rows);
+    CHECK_EQ(seg_result_display.cols, kFrameSize.width);
+    CHECK_EQ(seg_result_display.rows, kFrameSize.height);
+    CHECK_EQ(seg_result_flashy.cols, kFrameSize.width);
+    CHECK_EQ(seg_result_flashy.rows, kFrameSize.height);
 
-    cv::resize(seg_result_display, seg_result_display, frameSize, 0, 0, INTER_NEAREST);
-    cv::resize(seg_result_flashy, seg_result_flashy, frameSize, 0, 0, INTER_NEAREST);
-
+    //////////////////////////////////////////////////////////
+    //Rendering
     vector<vector<Vector2i> > segmentsDisplay;
     vector<vector<Vector2i> > segmentsFlashy;
     groupPixel(seg_result_display, segmentsDisplay);
@@ -82,7 +70,7 @@ int main(int argc, char** argv) {
 
     sprintf(buffer, "%s/temp/warped%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     VideoWriter warpOutput;
-    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
     CHECK(warpOutput.isOpened()) << "Can not open video stream";
 
     for (auto i = 0; i < mid_input.size(); ++i) {
@@ -128,7 +116,7 @@ int main(int argc, char** argv) {
     mid_output.clear();
 
     sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
     CHECK(stabilizedOutput.isOpened()) << buffer;
     for (auto i = 0; i < mid_input.size(); ++i) {
         stabilizedOutput << mid_input[i];
@@ -162,7 +150,7 @@ int main(int argc, char** argv) {
 //    mid_output.clear();
 //
     sprintf(buffer, "%s/temp/finalReault_%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    VideoWriter resultWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, frameSize);
+    VideoWriter resultWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
     CHECK(resultWriter.isOpened()) << buffer;
     for (auto i = 0; i < mid_input.size(); ++i) {
 //        cv::putText(finalResult[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);

@@ -14,7 +14,7 @@ using namespace Eigen;
 namespace dynamic_stereo{
 
 	void segmentDisplay(const FileIO& file_io, const int anchor,
-	                    const std::vector<cv::Mat> &input, const cv::Mat& inputMask,
+	                    const std::vector<cv::Mat> &input,
 	                    const string& classifierPath, const string& codebookPath, cv::Mat& result){
 		CHECK(!input.empty());
 		char buffer[1024] = {};
@@ -52,39 +52,39 @@ namespace dynamic_stereo{
 
             //load or compute segmentation
             vector<Mat> segments;
-            sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
-            cv::FileStorage segmentIn(buffer, FileStorage::READ);
             bool run_segmentation = true;
-            if(segmentIn.isOpened()){
-                Mat levelMat;
-                segmentIn["levelList"] >> levelMat;
-                if(levelMat.rows!= levelList.size()){
-                    run_segmentation = true;
-                }else{
-                    for(auto i=0; i<levelList.size(); ++i){
-                        if(levelMat.at<float>(i,0) != levelList[i]){
-                            run_segmentation = true;
-                            break;
-                        }
-                    }
-                }
-                segments.resize(levelList.size());
-                for(int i=0; i<levelList.size(); ++i){
-                    segmentIn["level"+std::to_string(i)] >> segments[i];
-                }
-                run_segmentation = false;
-            }
+//            sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
+//            cv::FileStorage segmentIn(buffer, FileStorage::READ);
+//            if(segmentIn.isOpened()){
+//                Mat levelMat;
+//                segmentIn["levelList"] >> levelMat;
+//                if(levelMat.rows!= levelList.size()){
+//                    run_segmentation = true;
+//                }else{
+//                    for(auto i=0; i<levelList.size(); ++i){
+//                        if(levelMat.at<float>(i,0) != levelList[i]){
+//                            run_segmentation = true;
+//                            break;
+//                        }
+//                    }
+//                }
+//                segments.resize(levelList.size());
+//                for(int i=0; i<levelList.size(); ++i){
+//                    segmentIn["level"+std::to_string(i)] >> segments[i];
+//                }
+//                run_segmentation = false;
+//            }
             if(run_segmentation) {
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, cv::noArray(), segments);
                 CHECK_EQ(segments.size(), levelList.size());
-                cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
-                CHECK(segmentOut.isOpened());
+//                cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
+//                CHECK(segmentOut.isOpened());
                 Mat levelMat(levelList.size(),1,CV_32FC1);
                 for(auto i=0; i<levelList.size(); ++i)
                     levelMat.at<float>(i,0) = levelList[i];
-                segmentOut << "levelList" << levelMat;
-                for(int i=0; i<levelList.size(); ++i)
-                    segmentOut << "level"+std::to_string(i) << segments[i];
+//                segmentOut << "levelList" << levelMat;
+//                for(int i=0; i<levelList.size(); ++i)
+//                    segmentOut << "level"+std::to_string(i) << segments[i];
             }else{
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
             }
@@ -96,8 +96,8 @@ namespace dynamic_stereo{
                 imwrite(buffer, segVis);
             }
 
-            sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
-            imwrite(buffer, preSeg);
+//            sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
+//            imwrite(buffer, preSeg);
 		}
 
         sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());

@@ -263,8 +263,8 @@ namespace dynamic_stereo{
         }
 
         void TransitionAndAppearance::computeFromPixelAndAppearanceFeature(const cv::InputArray pixel_features_for_transition,
-                                                              const cv::InputArray pixel_features_for_appearance,
-                                                              cv::OutputArray feats) const{
+                                                                           const cv::InputArray pixel_features_for_appearance,
+                                                                           cv::OutputArray feats) const{
             CHECK(!pixel_features_for_transition.empty());
             CHECK(!pixel_features_for_appearance.empty());
             Mat transition_features;

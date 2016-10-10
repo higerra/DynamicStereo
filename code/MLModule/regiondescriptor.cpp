@@ -14,7 +14,9 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 	namespace ML{
-        void extractSegmentFeature(const std::vector<cv::Mat> &images, const std::vector<ML::PixelGroup> &pixelGroups,
+
+		//TODO: Optimize memory usage.
+        void extractSegmentFeature(const std::vector<cv::Mat>& images, const std::vector<ML::PixelGroup> &pixelGroups,
                                    std::vector<std::vector<float> > &feats) {
             CHECK(!images.empty());
             vector<Mat> colorImage(images.size());
