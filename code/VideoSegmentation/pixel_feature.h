@@ -144,7 +144,7 @@ namespace dynamic_stereo {
          */
         class TemporalAverage: public TemporalFeatureExtractorBase{
         public:
-            TemporalAverage(){}
+            TemporalAverage(): dim_(3){}
             virtual void
             extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const{}
 

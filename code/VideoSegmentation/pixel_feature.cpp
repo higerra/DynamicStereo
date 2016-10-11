@@ -393,6 +393,8 @@ namespace dynamic_stereo{
                                                                const cv::OutputArray feats) const {
             CHECK_EQ(pixel_features.size(), temporal_extractors_.size());
             int kPix = pixel_features[0].rows;
+            feats.create(kPix, getDim(), CV_8UC1);
+            
         }
 
         void CombinedTemporalFeature::printFeature(const cv::InputArray input){
