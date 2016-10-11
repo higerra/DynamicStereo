@@ -19,7 +19,7 @@ namespace dynamic_stereo {
             explicit VideoSegmentOption(float threshold_):
                     threshold(threshold_), hasInvalid(false), refine(true),
                     smooth_size(9), theta(100), min_size(200), stride1(8), stride2(4),
-                    pixel_feture_type(PixelFeature::PIXEL), temporal_feature_type(TemporalFeature::TRANSITION_PATTERN){}
+                    pixel_feture_type(PixelFeature::PIXEL_VALUE), temporal_feature_type(TemporalFeature::TRANSITION_PATTERN){}
             float threshold;
             float hasInvalid;
             bool refine;

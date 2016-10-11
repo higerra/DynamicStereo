@@ -27,7 +27,7 @@ namespace dynamic_stereo {
                 return comparator_.get();
             }
 
-            inline std::shared_ptr<DistanceMetricBase> getDefaultComparatorPointer() {
+            inline std::shared_ptr<DistanceMetricBase> getDefaultComparatorSmartPointer() {
                 return comparator_;
             }
             /*!
@@ -116,15 +116,8 @@ namespace dynamic_stereo {
             cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> cvBrief;
         };
 
-        class PixelHistogram: public PixelFeatureExtractorBase{
-        public:
-            PixelHistogram(const std::vector<int>& kBin){
 
-            }
-        private:
-            std::vector<int> kBin_;
-        };
-
+        //////////////////////////////////////////////////////////////////////////
         /*!
          * Descriptor for temporal features.
          * Temporla features are extracted from a set of pixels (x,y,0),(x,y,1)...(x,y,N), where N is the number of frames
@@ -146,6 +139,45 @@ namespace dynamic_stereo {
             virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const = 0;
         };
 
+        /*!
+         * Simple average temporal descriptor
+         */
+        class TemporalAverage: public TemporalFeatureExtractorBase{
+        public:
+            TemporalAverage(){}
+            virtual void
+            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const{}
+
+            virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const;
+        };
+
+
+        ///
+        ///Build a HSV histogram from local color
+        ///
+        class ColorHistogram: public TemporalFeatureExtractorBase{
+        public:
+            enum ColorSpace{
+                BGR,
+                HSV,
+                LAB
+            };
+            ColorHistogram(const ColorSpace cspace, const std::vector<int>& kBin,
+                           const int width, const int height, const int R);
+
+            virtual void
+            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const {};
+
+            virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const;
+        private:
+            std::vector<int> kBin_;
+            std::vector<float> bin_unit;
+            std::vector<float> chn_offset;
+
+            const int width_;
+            const int height_;
+            const int R_;
+        };
 
         /*!
          * Descriptor based on temporal transition. Pixel transitions are evaluate with two stride: (x,y,i) with (x,y,i+stride1)
@@ -247,7 +279,7 @@ namespace dynamic_stereo {
          * Combined descriptor for both temporal transition and appearance
          * Use DistanceCombinedWeighting for distance metric
          */
-        class TransitionAndAppearance: public TemporalFeatureExtractorBase{
+        class CombinedTemporalFeature: public TemporalFeatureExtractorBase{
         public:
             /*!
              * Constructor
@@ -260,21 +292,13 @@ namespace dynamic_stereo {
              * @param weight_appearance The weight of appearcne difference
              * @return
              */
-            TransitionAndAppearance(const PixelFeatureExtractorBase* pf_transition_,
-                                    const PixelFeatureExtractorBase* pf_appearance_,
-                                    const int s1_, const int s2_, const float theta_,
-                                    const double weight_transition, const double weight_appearance);
-            inline const std::vector<std::shared_ptr<DistanceMetricBase> >& GetSubComparators() const{
-                return sub_comparators_;
-            }
-            inline const TransitionFeature* GetTransitionFeatureExtractor() const{
-                return transition_feature_extractor_.get();
-            }
+            CombinedTemporalFeature(const std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > extractors,
+                                    const std::vector<double>& weights,
+                                    const std::vector<std::shared_ptr<DistanceMetricBase> >* sub_comparators = nullptr);
+
+
             inline const std::vector<double> & GetSubWeights() const{
-                return sub_weights_;
-            }
-            const size_t GetkBinAppearance() const{
-                return kBinAppearance_;
+                return weights_;
             }
 
             virtual void
@@ -282,22 +306,16 @@ namespace dynamic_stereo {
                 CHECK(true) << "Not implemented yet";
             }
 
-            virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const {}
-            /*!
-             * @param pixel_features_for_transition Precomputed pixel features for transition
-             * @param pixel_features_for_appearance Precomputed pixel features for appearance
-             * @param feats Output descriptor
-             */
-            void computeFromPixelAndAppearanceFeature(const cv::InputArray pixel_features_for_transition,
-                                                      const cv::InputArray pixel_features_for_appearance,
-                                                      cv::OutputArray feats) const;
+            virtual void computeFromPixelFeature(const cv::InputArray pixel_features, cv::OutputArray feats) const{}
+
+            virtual void computeFromPixelFeatures(const std::vector<cv::Mat>& pixel_features, cv::OutputArray feats) const;
 
             virtual void printFeature(const cv::InputArray input);
         private:
-            const size_t kBinAppearance_;
-            std::shared_ptr<TransitionFeature> transition_feature_extractor_;
+            std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > temporal_extractors_;
             std::vector<std::shared_ptr<DistanceMetricBase> > sub_comparators_;
-            std::vector<double> sub_weights_;
+            std::vector<int> offset_;
+            std::vector<double> weights_;
         };
 
     }//namespace video_segment

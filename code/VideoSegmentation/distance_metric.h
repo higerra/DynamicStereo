@@ -60,6 +60,13 @@ namespace dynamic_stereo{
         }
 	};
 
+    class DistanceChi2: public DistanceMetricBase {
+    public:
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const {
+            return cv::compareHist(a1, a2, CV_COMP_CHISQR);
+        }
+    };
+
     class DistanceCombinedWeighting: public DistanceMetricBase{
     public:
         DistanceCombinedWeighting(const std::vector<size_t> splits,

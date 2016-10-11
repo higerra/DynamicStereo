@@ -8,7 +8,8 @@
 namespace dynamic_stereo{
     namespace video_segment{
         enum PixelFeature{
-            PIXEL,
+            PIXEL_VALUE,
+            PIXEL_HISTOGRAM,
             BRIEF
         };
 
