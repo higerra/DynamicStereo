@@ -12,42 +12,19 @@ namespace dynamic_stereo{
     namespace video_segment {
         /////////////////////////////////////////////////////////////
         //implementation of image features
-        void
-        PixelValue::extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const {
-            output.create(getDim(), 1, CV_32FC1);
-            Mat inputMat = input.getMat();
-            Mat outputMat = output.getMat();
-            Vec3f pix;
-            if (input.type() == CV_8UC3) {
-                pix = (Vec3f) inputMat.at<Vec3b>(y, x);
-            } else if (input.type() == CV_32FC3)
-                pix = inputMat.at<Vec3f>(y, x);
-            else
-                CHECK(true) << "Image must be either CV_8UC3 or CV_32FC3";
-            outputMat.at<float>(0, 0) = pix[0];
-            outputMat.at<float>(1, 0) = pix[1];
-            outputMat.at<float>(2, 0) = pix[2];
-        }
-
-
         void PixelValue::extractAll(const cv::InputArray input, cv::OutputArray output) const {
+            CHECK(!input.empty());
             Mat inputMat = input.getMat();
-            output.create(inputMat.cols * inputMat.rows, 3, CV_32FC1);
-            Mat outputMat = output.getMat();
-
-            for (auto y = 0; y < inputMat.rows; ++y) {
-                for (auto x = 0; x < inputMat.cols; ++x) {
-                    Vec3f pix;
-                    if (input.type() == CV_8UC3) {
-                        pix = (Vec3f) inputMat.at<Vec3b>(y, x);
-                    } else if (input.type() == CV_32FC3)
-                        pix = inputMat.at<Vec3f>(y, x);
-                    else
-                        CHECK(true) << "Image must be either CV_8UC3 or CV_32FC3";
-                    for (auto j = 0; j < 3; ++j)
-                        outputMat.at<float>(y * inputMat.cols + x, j) = pix[j];
-                }
+            if(inputMat.depth() == CV_8U) {
+                output.create(inputMat.cols * inputMat.rows, inputMat.channels(), CV_8UC1);
+            }else if(inputMat.depth() == CV_32F){
+                output.create(inputMat.cols * inputMat.rows, inputMat.channels(), CV_32FC1);
+            }else{
+                CHECK(true) << "Only support CV_8UC and CV_32FC";
             }
+            Mat outputMat = output.getMat();
+            inputMat.reshape(1, inputMat.cols * inputMat.rows).copyTo(outputMat);
+            CHECK_EQ(outputMat.cols, inputMat.channels());
         }
 
         BRIEFWrapper::BRIEFWrapper() {
@@ -81,13 +58,6 @@ namespace dynamic_stereo{
                 int idx = keypoints[i].octave;
                 initRes.row(i).copyTo(outputMat.row(idx));
             }
-        }
-
-        void
-        BRIEFWrapper::extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const {
-            vector<cv::KeyPoint> kpt(1);
-            kpt[0].pt = cv::Point2f(x, y);
-            CHECK_NOTNULL(cvBrief.get())->compute(input, kpt, feat);
         }
 
         ////////////////////////////////////////////////////////////
@@ -136,7 +106,8 @@ namespace dynamic_stereo{
                 chn_offset[2] = -127;
             }
 
-            dim_ = std::accumulate(kBin.begin(), kBin.end(), 0);
+            FeatureBase::dim_ = std::accumulate(kBin.begin(), kBin.end(), 0);
+            comparator_.reset(new DistanceChi2());
         }
 
         void ColorHistogram::computeFromPixelFeature(const cv::_InputArray &pixelFeatures,
@@ -168,11 +139,12 @@ namespace dynamic_stereo{
             }
 
             for(auto v=0; v<N; ++v) {
-                Mat float_mat;
+                Mat hsv_mat, float_mat;
                 pixel_feature_reshaped[v].convertTo(float_mat, CV_32F);
                 float_mat /= 255.0;
-                Mat hsv_mat;
                 cvtColor(float_mat, hsv_mat, CV_BGR2HSV);
+
+#pragma omp parallel for
                 for (auto y = 0; y < height_; ++y) {
                     for (auto x = 0; x < width_; ++x) {
                         for (auto dx = -R_; dx <= R_; ++dx) {
@@ -226,50 +198,6 @@ namespace dynamic_stereo{
             return kChannel;
         }
 
-        void TransitionPattern::extractPixel(const cv::InputArray input, const int x, const int y,
-                                             cv::OutputArray feat) const {
-            CHECK(!input.empty());
-
-            vector<Mat> inputArray;
-            input.getMatVector(inputArray);
-
-            //first compute the dimension of the feature vector
-            const int kChannel = getKChannel((int) inputArray.size());
-            const int N = (int)inputArray.size();
-
-            feat.create(kChannel, 1, CV_8UC1);
-            feat.setTo(cv::Scalar::all(0));
-            Mat featMat = feat.getMat();
-
-            Mat pix1, pix2;
-            int featIndex = 0;
-            if(stride1() > 0) {
-                for (auto v = 0; v < N - stride1(); v += stride1()) {
-                    const int blockId = featIndex / binPerCell_;
-                    const int cellId = featIndex % binPerCell_;
-                    pixel_feature->extractPixel(inputArray[v], x, y, pix1);
-                    pixel_feature->extractPixel(inputArray[v + stride1()], x, y, pix2);
-                    float d = pixel_distance->evaluate(pix1, pix2);
-                    if (d >= theta())
-                        featMat.at<uchar>(blockId, 0) |= or_table_[cellId];
-                    featIndex++;
-                }
-            }
-
-            if(stride2() > 0) {
-                for (auto v = 0; v < N / 2; v += stride2()) {
-                    const int blockId = featIndex / binPerCell_;
-                    const int cellId = featIndex % binPerCell_;
-                    pixel_feature->extractPixel(inputArray[v], x, y, pix1);
-                    pixel_feature->extractPixel(inputArray[v + N / 2], x, y, pix2);
-                    float d = pixel_distance->evaluate(pix1, pix2);
-                    if (d >= theta())
-                        featMat.at<uchar>(blockId, 0) |= or_table_[cellId];
-                    featIndex++;
-                }
-            }
-        }
-
         void TransitionPattern::computeFromPixelFeature(const cv::InputArray pixelFeatures,
                                                         cv::OutputArray feats) const {
             CHECK(!pixelFeatures.empty());
@@ -281,7 +209,8 @@ namespace dynamic_stereo{
             const int K = pixelFeatureArray[0].cols;
             const int N = (int)pixelFeatureArray.size();
 
-            const int kChannel = getKChannel((int) pixelFeatureArray.size());
+            CHECK_EQ(pixelFeatureArray.size(), TransitionFeature::kFrames_);
+            const int kChannel = getDim();
             feats.create(kPix, kChannel, CV_8UC1);
             Mat featMat = feats.getMat();
             featMat.setTo(Scalar::all(0));
@@ -293,7 +222,7 @@ namespace dynamic_stereo{
                     const int blockId = featIndex / binPerCell_;
                     const int cellId = featIndex % binPerCell_;
                     for (auto i = 0; i < kPix; ++i) {
-                        double d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
+                        double d = pixel_distance_->evaluate(pixelFeatureArray[v].row(i),
                                                             pixelFeatureArray[v + stride1()].row(i));
                         if (d >= theta())
                             featMat.at<uchar>(i, blockId) |= or_table_[cellId];
@@ -307,7 +236,7 @@ namespace dynamic_stereo{
                     const int blockId = featIndex / binPerCell_;
                     const int cellId = featIndex % binPerCell_;
                     for (auto i = 0; i < kPix; ++i) {
-                        float d = pixel_distance->evaluate(pixelFeatureArray[v].row(i),
+                        float d = pixel_distance_->evaluate(pixelFeatureArray[v].row(i),
                                                            pixelFeatureArray[v + N / 2].row(i));
                         if (d >= theta())
                             featMat.at<uchar>(i, blockId) |= or_table_[cellId];
@@ -317,7 +246,7 @@ namespace dynamic_stereo{
             }
         }
 
-        void TransitionPattern::printFeature(const cv::InputArray input) {
+        void TransitionPattern::printFeature(const cv::InputArray input) const{
             const Mat feat = input.getMat();
             const uchar *pData = feat.data;
             for (auto i = 0; i < feat.rows * feat.cols; ++i) {
@@ -327,39 +256,6 @@ namespace dynamic_stereo{
             std::cout << std::endl;
         }
 
-        void TransitionCounting::extractPixel(const cv::InputArray input, const int x, const int y,
-                                              cv::OutputArray feat) const {
-//        CHECK_GE(input.size(), 2);
-//        feat.resize(2, 0.0f);
-//
-//	    vector<PixelType> pix1(3), pix2(3);
-//        float counter1 = 0.0f, counter2 = 0.0f;
-//        for(auto v=0; v<input.size() - stride1(); v+=stride1()){
-//            pixel_feature->extractPixel(input[v], x, y, pix1);
-//            pixel_feature->extractPixel(input[v+stride1()], x, y, pix2);
-//            float d = pixel_distance->evaluate(pix1, pix2);
-//            if(d >= theta())
-//                feat[0] += 1.0f;
-//            counter1 += 1.0;
-//        }
-//
-//        for(auto v=0; v<input.size() - stride2(); v+=stride1()/2) {
-//            pixel_feature->extractPixel(input[v], x, y, pix1);
-//            pixel_feature->extractPixel(input[v+stride2()], x, y, pix2);
-//            float d = pixel_distance->evaluate(pix1, pix2);
-//            if(d >= theta())
-//                feat[1] += 1.0f;
-//            counter2 += 1.0;
-//        }
-//        feat[0] /= counter1;
-//        feat[1] /= counter2;
-        }
-
-        void TransitionCounting::computeFromPixelFeature(const cv::InputArray pixelFeatures,
-                                                         cv::OutputArray feats) const {
-
-        }
-
 
         CombinedTemporalFeature::CombinedTemporalFeature(const std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > extractors,
                                                          const std::vector<double>& weights,
@@ -367,9 +263,9 @@ namespace dynamic_stereo{
                 :temporal_extractors_(extractors),  weights_(weights) {
             CHECK_EQ(temporal_extractors_.size(), weights_.size());
 
-            dim_ = 0;
+            FeatureBase::dim_ = 0;
             for(auto i=0; i<temporal_extractors_.size(); ++i){
-                dim_ += CHECK_NOTNULL(temporal_extractors_[i].get())->getDim();
+                FeatureBase::dim_ += CHECK_NOTNULL(temporal_extractors_[i].get())->getDim();
             }
             sub_comparators_.resize(temporal_extractors_.size());
             if(sub_comparators != nullptr){
@@ -378,8 +274,9 @@ namespace dynamic_stereo{
                     sub_comparators_[i] = (*sub_comparators)[i];
                 }
             }else{
-                for(auto i=0; i<sub_comparators->size(); ++i){
+                for(auto i=0; i<sub_comparators_.size(); ++i){
                     sub_comparators_[i] = temporal_extractors_[i]->getDefaultComparatorSmartPointer();
+                    CHECK(sub_comparators_[i].get() != nullptr) << "Extractor " << i << " does not have a valid comparator";
                 }
             }
 
@@ -387,27 +284,40 @@ namespace dynamic_stereo{
             for(auto i=1; i<temporal_extractors_.size(); ++i){
                 offset_[i] = temporal_extractors_[i-1]->getDim() + offset_[i-1];
             }
+
+            vector<size_t> splits(weights_.size() - 1);
+            for(auto i=0; i<splits.size(); ++i){
+                splits[i] = static_cast<size_t>(offset_[i+1]);
+            }
+            comparator_.reset(new DistanceCombinedWeighting(splits, weights_, sub_comparators_));
         }
 
-        void CombinedTemporalFeature::computeFromPixelFeatures(const std::vector<Mat>& pixel_features,
+        void CombinedTemporalFeature::computeFromPixelFeatures(const std::vector<std::vector<cv::Mat> >& pixel_features,
                                                                const cv::OutputArray feats) const {
+            CHECK(!pixel_features.empty());
             CHECK_EQ(pixel_features.size(), temporal_extractors_.size());
-            int kPix = pixel_features[0].rows;
+
+            int kPix = pixel_features[0][0].rows;
             feats.create(kPix, getDim(), CV_8UC1);
-            
+            Mat feats_mat = feats.getMat();
+
+            for(auto comid = 0; comid < temporal_extractors_.size(); ++comid){
+                Mat feature_component;
+                temporal_extractors_[comid]->computeFromPixelFeature(pixel_features[comid], feature_component);
+                CHECK_EQ(feature_component.type(), feats_mat.type());
+                feature_component.copyTo(feats_mat.colRange(offset_[comid], offset_[comid] + temporal_extractors_[comid]->getDim()));
+            }
         }
 
-        void CombinedTemporalFeature::printFeature(const cv::InputArray input){
+        void CombinedTemporalFeature::printFeature(const cv::InputArray input) const{
             const Mat feat = input.getMat();
-            const uchar *pData = feat.data;
-            for(auto i=0; i<GetkBinAppearance(); ++i){
-                std::cout << (int)pData[i]<< ' ';
+            CHECK_EQ(feat.cols, getDim());
+            for(auto rid=0; rid < feat.rows; ++rid){
+                for(auto comid=0; comid < temporal_extractors_.size(); ++comid){
+                    temporal_extractors_[comid]->printFeature(
+                            feat.row(rid).colRange(offset_[comid], offset_[comid]+temporal_extractors_[comid]->getDim()));
+                }
             }
-            for (auto i = GetkBinAppearance(); i < feat.rows * feat.cols; ++i) {
-                std::bitset<8> bitset1(static_cast<char>(pData[i]));
-                std::cout << bitset1;
-            }
-            std::cout << std::endl;
         }
 
     }//video_segment

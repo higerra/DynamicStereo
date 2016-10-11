@@ -63,7 +63,10 @@ namespace dynamic_stereo{
     class DistanceChi2: public DistanceMetricBase {
     public:
         virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const {
-            return cv::compareHist(a1, a2, CV_COMP_CHISQR);
+            cv::Mat a1_f, a2_f;
+            a1.getMat().convertTo(a1_f, CV_32F);
+            a2.getMat().convertTo(a2_f, CV_32F);
+            return cv::compareHist(a1_f, a2_f, CV_COMP_CHISQR);
         }
     };
 

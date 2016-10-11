@@ -15,9 +15,9 @@ namespace dynamic_stereo{
 
         enum TemporalFeature{
             TRANSITION_PATTERN,
-            TRANSITION_COUNTING,
-            TRANSITION_AND_APPEARANCE
+            COMBINED
         };
+
     }//namespace video_segmentation
 }//namespace dynamic_stereo
 

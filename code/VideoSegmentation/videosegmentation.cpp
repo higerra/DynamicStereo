@@ -66,22 +66,31 @@ namespace dynamic_stereo {
 
             std::shared_ptr<TemporalFeatureExtractorBase> temporal_extractor;
 
+            LOG(INFO) << "Creating extractor";
             if (option.temporal_feature_type == TemporalFeature::TRANSITION_PATTERN) {
-                temporal_extractor.reset(new TransitionPattern(pixel_extractor.get(), option.stride1, option.stride2, option.theta));
-            }else if (option.temporal_feature_type == TemporalFeature::TRANSITION_COUNTING) {
-                temporal_extractor.reset(new TransitionCounting(pixel_extractor.get(), option.stride1, option.stride2, option.theta));
-            }else if(option.temporal_feature_type == TemporalFeature::TRANSITION_AND_APPEARANCE) {
-                constexpr double w_appearance = 0.02;
+                temporal_extractor.reset(new TransitionPattern(input.size(), option.stride1, option.stride2, option.theta,
+                                                               pixel_extractor->getDefaultComparator()));
+            }else if(option.temporal_feature_type == TemporalFeature::COMBINED) {
+                constexpr double w_appearance = 0.5 / 255.0;
                 constexpr double w_transition = 1 - w_appearance;
-                temporal_extractor.reset(new TransitionAndAppearance(pixel_extractor.get(), pixel_extractor.get(),
-                                                                     option.stride1, option.stride2, option.theta,
-                                                                     w_transition, w_appearance));
+                const vector<int> kBins{8,8,8};
+                constexpr int R = 1;
+                std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > component_extractors(2);
+                component_extractors[0].reset(new ColorHistogram(ColorHistogram::HSV, kBins, width, height, R));
+                component_extractors[1].reset(new TransitionPattern(input.size(), option.stride1, option.stride2, option.theta,
+                                                                    pixel_extractor->getDefaultComparator()));
+
+                temporal_extractor.reset(new CombinedTemporalFeature(component_extractors, {w_appearance, w_transition}));
+
             }else{
                 CHECK(true) << "Unsupported temporal feature type";
             }
 
+            LOG(INFO) << "Feature dimension: " << temporal_extractor->getDim();
+
             const DistanceMetricBase *feature_comparator = CHECK_NOTNULL(temporal_extractor->getDefaultComparator());
 
+            LOG(INFO) << "Extracting pixel features";
             vector<cv::Mat> pixelFeatures(smoothed.size());
 #pragma omp parallel for
             for (auto v = 0; v < smoothed.size(); ++v) {
@@ -90,30 +99,23 @@ namespace dynamic_stereo {
 
             {
                 //Debug: temporal color histogram
-                const int tp1 = 267 * width + 1198;
-                const int tp2 = 267 * width + 1206;
-
-                Mat histogram;
-                ColorHistogram hist_extractor(ColorHistogram::HSV, {4,4,4}, width, height, 1);
-                hist_extractor.computeFromPixelFeature(pixelFeatures, histogram);
-                printf("Histogram:\n");
-                cout << histogram.row(tp1) << endl;
-                cout << histogram.row(tp2) << endl;
-
-                //Debug: Average
-                Mat average;
-                TemporalAverage average_extractor;
-                average_extractor.computeFromPixelFeature(pixelFeatures, average);
-                printf("Average:\n");
-                cout << average.row(tp1) << endl;
-                cout << average.row(tp2) << endl;
-
+//                const int tp1 = 267 * width + 1198;
+//                const int tp2 = 267 * width + 1206;
+//
+//                Mat histogram;
+//                ColorHistogram hist_extractor(ColorHistogram::HSV, {8,8,8}, width, height, 1);
+//                hist_extractor.computeFromPixelFeature(pixelFeatures, histogram);
+//                printf("Histogram, dim %d:\n", hist_extractor.getDim());
+//                cout << histogram.row(tp1) << endl;
+//                cout << histogram.row(tp2) << endl;
             }
 
+            LOG(INFO) << "Extracting temporal features";
             Mat featuresMat;
-            if(option.temporal_feature_type == TemporalFeature::TRANSITION_AND_APPEARANCE){
-                dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)
-                        ->computeFromPixelAndAppearanceFeature(pixelFeatures, pixelFeatures, featuresMat);
+            if(option.temporal_feature_type == TemporalFeature::COMBINED){
+                vector<vector<Mat> > component_pixel_features{pixelFeatures, pixelFeatures};
+                dynamic_pointer_cast<CombinedTemporalFeature>(temporal_extractor)->
+                        computeFromPixelFeatures(component_pixel_features, featuresMat);
             }else {
                 temporal_extractor->computeFromPixelFeature(pixelFeatures, featuresMat);
             }
@@ -133,14 +135,15 @@ namespace dynamic_stereo {
             std::vector<edge> edges;
             edges.reserve((size_t) width * height);
 
-            constexpr int dx = -1;
-            constexpr int dy = -1;
+            constexpr int dx = 1198;
+            constexpr int dy = 267;
 
 //            printf("Pixel feature for (%d,%d)\n", dx+1, dy);
 //            for(auto v=0; v<pixelFeatures.size(); ++v){
 //                cout << pixelFeatures[v].row(dy*width+dx+1) << endl;
 //            }
 
+            LOG(INFO) << "Segmenting";
             //8 neighbor
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
@@ -150,7 +153,7 @@ namespace dynamic_stereo {
                         printf("====================\n");
                         printf("Debug info for (%d,%d)\n", x,y);
                         printf("descriptor of (%d,%d)\t0.000\t", x, y);
-                        dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)->printFeature(featuresMat.row(y*width+x));
+                        temporal_extractor->printFeature(featuresMat.row(y*width+x));
                    }
                     if (x < width - 1) {
                         edge curEdge;
@@ -162,7 +165,7 @@ namespace dynamic_stereo {
 
                         if(verbose) {
                             printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)->printFeature(featuresMat.row(curEdge.b));
+                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
                         }
                     }
 
@@ -176,7 +179,7 @@ namespace dynamic_stereo {
 
                         if(verbose) {
                             printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)->printFeature(featuresMat.row(curEdge.b));
+                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
                         }
                     }
 
@@ -190,7 +193,7 @@ namespace dynamic_stereo {
 
                         if(verbose) {
                             printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)->printFeature(featuresMat.row(curEdge.b));
+                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
                         }
 
                     }
@@ -205,7 +208,7 @@ namespace dynamic_stereo {
 
                         if(verbose) {
                             printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)->printFeature(featuresMat.row(curEdge.b));
+                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
                         }
 
                     }

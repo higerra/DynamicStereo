@@ -17,7 +17,8 @@ target_link_libraries(ColorGMM glog opencv_core)
 
 ######################################################
 #VideoSegmentation library
-set(VIDEO_SEGMENT_LIB types.h pixel_feature.h distance_metric.h pixel_feature.cpp
+set(VIDEO_SEGMENT_LIB types.h distance_metric.h pixel_feature.h pixel_feature.cpp
+        region_feature.h region_feature.cpp
         videosegmentation.h videosegmentation.cpp mfgrabcut2.cpp)
 
 add_library(VideoSegmentModule ${VIDEO_SEGMENT_LIB})

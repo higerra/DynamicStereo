@@ -40,16 +40,21 @@ namespace dynamic_stereo {
                 comparator_ = new_comparator;
             }
 
-            /*!
-             * Extract descriptor for a pixel
-             * @param input Input image
-             * @param x x coordinate
-             * @param y y corrdinate
-             * @param output Output Mat for descriptor
-             */
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const = 0;
+            /// Get the dimension of the descriptor
+            /// \return the dimension of the descriptor
+            inline int getDim() const { return dim_; }
 
+            /// Print the content of descriptor for debugging purpose. The default implementation does noting
+            /// \param input
+            virtual void printFeature(const cv::InputArray input) const = 0;
+
+        protected:
+            std::shared_ptr<DistanceMetricBase> comparator_;
+            int dim_;
+        };
+
+        class PixelFeatureExtractorBase: public FeatureBase{
+        public:
             /*!
              * Extract descriptors for all pixels of a image.
              * Some algorithm will achieve great speed up when computing descriptor for all pixels (like BRIEF)
@@ -57,33 +62,7 @@ namespace dynamic_stereo {
              * @param output Output feature descriptor
              */
             virtual void extractAll(const cv::InputArray input, cv::OutputArray &output) const = 0;
-
-            /// Get the dimension of the descriptor
-            /// \return the dimension of the descriptor
-            inline int getDim() const { return dim_; }
-
-            /// Print the content of descriptor for debugging purpose. The default implementation does noting
-            /// \param input
-            virtual void printFeature(const cv::InputArray input) const {
-                printf("Not implemented yet\n");
-            }
-
-        protected:
-            std::shared_ptr<DistanceMetricBase> comparator_;
-            int dim_;
         };
-
-        ///
-        ///Base class for pixel features
-        ///
-        class PixelFeatureExtractorBase : public FeatureBase {
-        public:
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const = 0;
-
-            virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const {}
-        };
-
         ///
         ///Use pixel value as feature
         ///
@@ -94,10 +73,11 @@ namespace dynamic_stereo {
                 FeatureBase::dim_ = 3;
             }
 
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const;
-
             virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const;
+
+            virtual void printFeature(const cv::InputArray input) const{
+                std::cout << input.getMat() << std::endl;
+            }
         };
 
         ///
@@ -107,11 +87,11 @@ namespace dynamic_stereo {
         public:
             BRIEFWrapper();
 
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const;
-
             virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const;
 
+            virtual void printFeature(const cv::InputArray input) const{
+                std::cerr << "Not implemented" << std::endl;
+            }
         private:
             cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> cvBrief;
         };
@@ -124,9 +104,6 @@ namespace dynamic_stereo {
          */
         class TemporalFeatureExtractorBase : public FeatureBase {
         public:
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const = 0;
-
             virtual void extractAll(const cv::InputArray input, cv::OutputArray output) const {}
 
             /*!
@@ -144,11 +121,15 @@ namespace dynamic_stereo {
          */
         class TemporalAverage: public TemporalFeatureExtractorBase{
         public:
-            TemporalAverage(): dim_(3){}
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const{}
+            TemporalAverage() {
+                    FeatureBase::dim_ = 3;
+            }
 
             virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const;
+
+            virtual void printFeature(const cv::InputArray input) const{
+                std::cout << input.getMat() << std::endl;
+            }
         };
 
 
@@ -165,10 +146,11 @@ namespace dynamic_stereo {
             ColorHistogram(const ColorSpace cspace, const std::vector<int>& kBin,
                            const int width, const int height, const int R);
 
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray output) const {};
-
             virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const;
+
+            virtual void printFeature(const cv::InputArray input) const{
+                std::cout << input.getMat() << std::endl;
+            }
         private:
             std::vector<int> kBin_;
             std::vector<float> bin_unit;
@@ -193,37 +175,27 @@ namespace dynamic_stereo {
              * @param theta_ Threshold
              * @return
              */
-            TransitionFeature(const PixelFeatureExtractorBase *pf_, const int s1_, const int s2_, const float theta_) :
-                    pixel_feature(pf_), pixel_distance(CHECK_NOTNULL(pf_->getDefaultComparator())), s1(s1_), s2(s2_),
-                    t(theta_) {
-                CHECK(pixel_distance);
-            }
+            TransitionFeature(const int kFrames, const int s1, const int s2, const float theta,
+                              const DistanceMetricBase* comparator) :
+                    pixel_distance_(CHECK_NOTNULL(comparator)), kFrames_(kFrames), s1_(s1), s2_(s2), t_(theta) {}
+            inline int stride1() const { return s1_; }
 
-            inline int stride1() const { return s1; }
+            inline int stride2() const { return s2_; }
 
-            inline int stride2() const { return s2; }
-
-            inline float theta() const { return t; }
-
-            inline const PixelFeatureExtractorBase *getPixelFeatureExtractor() const {
-                return pixel_feature;
-            }
+            inline float theta() const { return t_; }
 
             inline const DistanceMetricBase *getPixelFeatureComparator() const {
-                return pixel_distance;
+                return pixel_distance_;
             }
-
-            virtual void
-            extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const = 0;
 
             virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const = 0;
 
         protected:
-            const PixelFeatureExtractorBase *pixel_feature;
-            const DistanceMetricBase *pixel_distance;
-            const int s1;
-            const int s2;
-            const float t;
+            const DistanceMetricBase *pixel_distance_;
+            const int kFrames_;
+            const int s1_;
+            const int s2_;
+            const float t_;
         };
 
         /*!
@@ -237,42 +209,27 @@ namespace dynamic_stereo {
              * Constructor
              * \sa TransitionFeature
              */
-            TransitionPattern(const PixelFeatureExtractorBase *pf_,
-                              const int s1_, const int s2_, const float theta_) :
-                    TransitionFeature(pf_, s1_, s2_, theta_), binPerCell_(8) {
+            TransitionPattern(const int kFrames, const int s1, const int s2, const float theta,
+                              const DistanceMetricBase* comparator) :
+                    TransitionFeature(kFrames, s1, s2, theta, comparator), binPerCell_(8) {
                 comparator_.reset(new DistanceHammingAverage());
                 or_table_.resize(4);
                 or_table_[0] = 0;
                 or_table_[1] = 2;
                 or_table_[2] = 4;
                 or_table_[3] = 8;
-            }
 
-            virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const;
+                FeatureBase::dim_ = getKChannel(TransitionFeature::kFrames_);
+            }
 
             virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const;
 
-            virtual void printFeature(const cv::InputArray input);
+            virtual void printFeature(const cv::InputArray input) const;
 
         private:
             int getKChannel(const int kFrames) const;
-
             std::vector<uchar> or_table_;
             const int binPerCell_;
-        };
-
-        class TransitionCounting : public TransitionFeature {
-        public:
-            TransitionCounting(const PixelFeatureExtractorBase *pf_,
-                               const int s1_, const int s2_, const float theta_)
-                    : TransitionFeature(pf_, s1_, s2_, theta_) {
-                comparator_.reset(new DistanceL2());
-            }
-
-            virtual void extractPixel(const cv::InputArray input, const int x, const int y, cv::OutputArray feat) const;
-
-            virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures,
-                                                 cv::OutputArray feats) const;
         };
 
         /*!
@@ -283,13 +240,6 @@ namespace dynamic_stereo {
         public:
             /*!
              * Constructor
-             * @param pf_transition_ pixel descriptor used for computing transition
-             * @param pf_appearance_ pixel descriptor used for computing appearance
-             * @param s1_
-             * @param s2_
-             * @param theta_
-             * @param weight_transition The weight of transition difference
-             * @param weight_appearance The weight of appearcne difference
              * @return
              */
             CombinedTemporalFeature(const std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > extractors,
@@ -306,11 +256,13 @@ namespace dynamic_stereo {
                 CHECK(true) << "Not implemented yet";
             }
 
-            virtual void computeFromPixelFeature(const cv::InputArray pixel_features, cv::OutputArray feats) const{}
+            virtual void computeFromPixelFeature(const cv::InputArray pixel_features, cv::OutputArray feats) const{
+                CHECK(true) << "This method shouldn't be called";
+            }
 
-            virtual void computeFromPixelFeatures(const std::vector<cv::Mat>& pixel_features, cv::OutputArray feats) const;
+            void computeFromPixelFeatures(const std::vector<std::vector<cv::Mat> >& pixelFeatures, cv::OutputArray feats) const;
 
-            virtual void printFeature(const cv::InputArray input);
+            virtual void printFeature(const cv::InputArray input) const;
         private:
             std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > temporal_extractors_;
             std::vector<std::shared_ptr<DistanceMetricBase> > sub_comparators_;

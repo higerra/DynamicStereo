@@ -170,7 +170,7 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
             }else {
                 video_segment::VideoSegmentOption option(level);
                 option.refine = false;
-                option.temporal_feature_type = video_segment::TRANSITION_AND_APPEARANCE;
+                option.temporal_feature_type = video_segment::COMBINED;
                 video_segment::segment_video(images, segments, option);
                 if(!FLAGS_segmentationPath.empty()){
                     cv::FileStorage segmentOut(buffer, cv::FileStorage::WRITE);

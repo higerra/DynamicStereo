@@ -85,7 +85,7 @@ namespace dynamic_stereo {
                 } else {
                     video_segment::VideoSegmentOption option(levelList[lid]);
                     option.refine = false;
-                    option.temporal_feature_type = video_segment::TRANSITION_AND_APPEARANCE;
+                    option.temporal_feature_type = video_segment::COMBINED;
                     LOG(INFO) << "Segmenting at " << levelList[lid];
                     video_segment::segment_video(images, segment, option);
                 }

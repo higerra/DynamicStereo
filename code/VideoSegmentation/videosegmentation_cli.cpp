@@ -69,7 +69,7 @@ int main(int argc, char** argv){
         printf("Video segmentation...\n");
         video_segment::VideoSegmentOption option(FLAGS_c);
         option.refine = false;
-        option.temporal_feature_type = video_segment::TRANSITION_AND_APPEARANCE;
+        option.temporal_feature_type = video_segment::COMBINED;
         //option.temporal_feature_type = video_segment::TRANSITION_PATTERN;
         int num_segments = video_segment::segment_video(images, segment, option);
 //        video_segment::segment_video(images, segment_refine, (float)FLAGS_c, true);
