@@ -10,20 +10,47 @@ using namespace cv;
 namespace dynamic_stereo{
 
     namespace video_segment{
-
         RegionTransitionPattern::RegionTransitionPattern(const int kFrames, const int s1, const int s2, const float theta,
-                                                         const DistanceMetricBase* pixel_distance)
-                :transition_pattern_(new TransitionPattern(kFrames, s1, s2, theta, pixel_distance)){
-
+                                                         const DistanceMetricBase* pixel_distance,
+                                                         const TemporalFeatureExtractorBase* spatial_extractor):
+                transition_pattern_(new TransitionPattern(kFrames, s1, s2, theta, pixel_distance)),
+                spatial_extractor_(CHECK_NOTNULL(spatial_extractor)){
+            CHECK(transition_pattern_.get());
+            FeatureBase::dim_ = transition_pattern_->getDim();
+            FeatureBase::comparator_.reset(new DistanceHammingAverage());
         }
 
         void RegionTransitionPattern::ExtractFromPixelFeatures(const cv::_InputArray &pixel_features,
-                                                               const std::vector<Region *> &region) const {
+                                                               const std::vector<Region *> &region,
+                                                               const cv::OutputArray output) const {
             CHECK(!pixel_features.empty());
+            CHECK(!region.empty());
             vector<Mat> pixel_feature_array;
             pixel_features.getMatVector(pixel_feature_array);
+            CHECK_EQ(pixel_feature_array.size(), transition_pattern_->GetKFrames());
+            const int kPixelFeatureDim = pixel_feature_array[0].cols;
+            const int kFrames = pixel_feature_array.size();
 
+            vector<Mat> region_features(kFrames);
+            for(auto& m: region_features){
+                m.create((int)region.size(), spatial_extractor_->getDim(), pixel_feature_array[0].type());
+            }
 
+#pragma omp parallel for
+            for (int rid = 0; rid < region.size(); ++rid) {
+                const int kPix = CHECK_NOTNULL(region[rid])->pix_id.size();
+                for (int v = 0; v < kFrames; ++v) {
+                    vector<Mat> region_spatial_features(kPix);
+                    int index = 0;
+                    for (auto pid: region[rid]->pix_id) {
+                        region_spatial_features[index++] = pixel_feature_array[v].row(pid).clone();
+                    }
+                    Mat tmp;
+                    spatial_extractor_->computeFromPixelFeature(region_spatial_features, tmp);
+                    tmp.copyTo(region_features[v].row(rid));
+                }
+            }
+            transition_pattern_->computeFromPixelFeature(region_features, output);
         }
 
     }//namespace video_segment

@@ -27,31 +27,52 @@ namespace dynamic_stereo{
         class RegionFeatureExtractorBase: public FeatureBase{
         public:
             virtual void ExtractFromPixelFeatures(const cv::InputArray pixel_features,
-                                                  const std::vector<Region*>& region) const = 0;
+                                                  const std::vector<Region*>& region,
+                                                  const cv::OutputArray output) const = 0;
 
             virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
                                          const cv::OutputArray merged) const = 0;
         };
 
+
         class RegionTransitionPattern: public RegionFeatureExtractorBase{
         public:
-            RegionTransitionPattern(const int kFrames, const int s1, const int s2, const float theta_,
-                                    const DistanceMetricBase* pixel_distance);
+            RegionTransitionPattern(const int kFrames, const int s1, const int s2, const float theta,
+                                    const DistanceMetricBase* pixel_distance,
+                                    const TemporalFeatureExtractorBase* spatial_extractor_);
 
             virtual void ExtractFromPixelFeatures(const cv::InputArray pixel_features,
-                                                  const std::vector<Region*>& region) const ;
+                                                  const std::vector<Region*>& region,
+                                                  const cv::OutputArray output) const;
+
+            virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
+                                         const cv::OutputArray merged) const{}
+
+            virtual void printFeature(const cv::InputArray input) const{
+                CHECK_NOTNULL(transition_pattern_.get())->printFeature(input);
+            }
 
         private:
             std::shared_ptr<TransitionPattern> transition_pattern_;
+            const TemporalFeatureExtractorBase* spatial_extractor_;
+        };
+
+        class RegionColorHist: public RegionFeatureExtractorBase{
+
         };
 
         class CombinedRegionExtractor: public RegionFeatureExtractorBase{
         public:
             CombinedRegionExtractor();
             virtual void ExtractFromPixelFeatures(const cv::InputArray pixel_features,
-                                                  const std::vector<Region*>& region) const = 0;
+                                                  const std::vector<Region*>& region,
+                                                  cv::OutputArray output) const;
+
+            virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
+                                         const cv::OutputArray merged) const;
+
+            virtual void printFeature(const cv::InputArray input) const;
         private:
-            std::shared_ptr<TemporalFeatureExtractorBase> region_aggregator;
         };
 
     }

@@ -70,7 +70,7 @@ namespace dynamic_stereo{
             vector<Mat> feature_arrays;
             pixelFeatures.getMatVector(feature_arrays);
 
-            Mat raw_average(feature_arrays[0].size(), CV_32FC1);
+            Mat raw_average(feature_arrays[0].size(), CV_32FC1, cv::Scalar::all(0));
             for(const auto& m: feature_arrays){
                 Mat m_float;
                 m.convertTo(m_float, CV_32F);
@@ -107,7 +107,7 @@ namespace dynamic_stereo{
             }
 
             FeatureBase::dim_ = std::accumulate(kBin.begin(), kBin.end(), 0);
-            comparator_.reset(new DistanceChi2());
+            FeatureBase::comparator_.reset(new DistanceChi2());
         }
 
         void ColorHistogram::computeFromPixelFeature(const cv::_InputArray &pixelFeatures,

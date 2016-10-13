@@ -122,7 +122,8 @@ namespace dynamic_stereo {
         class TemporalAverage: public TemporalFeatureExtractorBase{
         public:
             TemporalAverage() {
-                    FeatureBase::dim_ = 3;
+                FeatureBase::comparator_.reset(new DistanceL2());
+                FeatureBase::dim_ = 3;
             }
 
             virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const;
@@ -176,8 +177,8 @@ namespace dynamic_stereo {
              * @return
              */
             TransitionFeature(const int kFrames, const int s1, const int s2, const float theta,
-                              const DistanceMetricBase* comparator) :
-                    pixel_distance_(CHECK_NOTNULL(comparator)), kFrames_(kFrames), s1_(s1), s2_(s2), t_(theta) {}
+                              const DistanceMetricBase* pixel_distance) :
+                    pixel_distance_(CHECK_NOTNULL(pixel_distance)), kFrames_(kFrames), s1_(s1), s2_(s2), t_(theta) {}
             inline int stride1() const { return s1_; }
 
             inline int stride2() const { return s2_; }
@@ -188,6 +189,7 @@ namespace dynamic_stereo {
                 return pixel_distance_;
             }
 
+            inline int GetKFrames() const{return kFrames_;}
             virtual void computeFromPixelFeature(const cv::InputArray pixelFeatures, cv::OutputArray feats) const = 0;
 
         protected:
@@ -210,8 +212,8 @@ namespace dynamic_stereo {
              * \sa TransitionFeature
              */
             TransitionPattern(const int kFrames, const int s1, const int s2, const float theta,
-                              const DistanceMetricBase* comparator) :
-                    TransitionFeature(kFrames, s1, s2, theta, comparator), binPerCell_(8) {
+                              const DistanceMetricBase* pixel_distance) :
+                    TransitionFeature(kFrames, s1, s2, theta, pixel_distance), binPerCell_(8) {
                 comparator_.reset(new DistanceHammingAverage());
                 or_table_.resize(4);
                 or_table_[0] = 0;

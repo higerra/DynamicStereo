@@ -10,6 +10,7 @@
 
 #include "gtest/gtest.h"
 #include "distance_metric.h"
+#include "region_feature.h"
 
 using namespace std;
 using namespace cv;
@@ -22,6 +23,31 @@ using namespace dynamic_stereo;
 //    cout << m << endl;
 //    cout << me << endl;
 //}
+
+class VideoTest: public ::testing::Test{
+public:
+    VideoTest(): s1(8), s2(4), theta(100){}
+protected:
+    virtual void SetUp(){
+        LOG(INFO) << "Setting up test";
+        string path = "warped00100.avi";
+        cv::VideoCapture cap(path);
+        CHECK(cap.isOpened()) << "Can not open video " << path;
+        while(true){
+            Mat frame;
+            if(!cap.read(frame))
+                break;
+            Mat small;
+            cv::pyrDown(frame, small);
+            images.push_back(small);
+        }
+    }
+    vector<Mat> images;
+
+    const int s1;
+    const int s2;
+    const float theta;
+};
 
 TEST(Distance, CombinedWeighting) {
     const int N = 10;
@@ -60,4 +86,42 @@ TEST(Distance, CombinedWeighting) {
     distance_gt = distance_parts[0] * weights[0] + distance_parts[1] * weights[1];
 
     EXPECT_NEAR(distance_eval, distance_gt, std::numeric_limits<double>::epsilon());
+}
+
+TEST_F(VideoTest, RegionTransition){
+    video_segment::PixelValue pixel_extractor;
+    vector<Mat> pixel_features(images.size());
+    LOG(INFO) << "Extracting pixel features";
+    for(auto v=0; v<images.size(); ++v){
+        pixel_extractor.extractAll(images[v], pixel_features[v]);
+    }
+
+    LOG(INFO) << "Computing pixel transition";
+    Mat output_pixel_transition;
+    video_segment::TransitionPattern transition_pattern(images.size(), s1, s2, theta, pixel_extractor.getDefaultComparator());
+    transition_pattern.computeFromPixelFeature(pixel_features, output_pixel_transition);
+
+    //construct fake regions
+    LOG(INFO) << "Constructing fake regions";
+    vector<video_segment::Region> regions(pixel_features[0].rows);
+    for(auto rid=0; rid < regions.size(); ++rid){
+        regions[rid].pix_id.push_back(rid);
+    }
+
+    vector<video_segment::Region*> regions_ptr(regions.size());
+    for(auto rid=0; rid < regions.size(); ++rid){
+        regions_ptr[rid] = &regions[rid];
+    }
+
+    video_segment::TemporalAverage average;
+    video_segment::RegionTransitionPattern region_transition_pattern(
+            images.size(), s1, s2, theta, average.getDefaultComparator(), &average);
+    LOG(INFO) << "Computing region transition";
+    Mat output_region_transition;
+    region_transition_pattern.ExtractFromPixelFeatures(pixel_features, regions_ptr, output_region_transition);
+
+    for(auto i=0; i<output_pixel_transition.rows; ++i){
+        EXPECT_NEAR(transition_pattern.getDefaultComparator()->
+                evaluate(output_pixel_transition.row(i), output_region_transition.row(i)), 0, 1);
+    }
 }
