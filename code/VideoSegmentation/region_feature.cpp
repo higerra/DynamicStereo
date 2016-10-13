@@ -12,11 +12,10 @@ namespace dynamic_stereo{
     namespace video_segment{
         RegionTransitionPattern::RegionTransitionPattern(const int kFrames, const int s1, const int s2, const float theta,
                                                          const DistanceMetricBase* pixel_distance,
-                                                         const TemporalFeatureExtractorBase* spatial_extractor):
-                transition_pattern_(new TransitionPattern(kFrames, s1, s2, theta, pixel_distance)),
-                spatial_extractor_(CHECK_NOTNULL(spatial_extractor)){
-            CHECK(transition_pattern_.get());
-            FeatureBase::dim_ = transition_pattern_->getDim();
+                                                         const TemporalFeatureExtractorBase* spatial_extractor)
+                :spatial_extractor_(CHECK_NOTNULL(spatial_extractor)){
+            transition_pattern_.reset(new TransitionPattern(kFrames, s1, s2, theta, pixel_distance));
+            FeatureBase::dim_ = CHECK_NOTNULL(transition_pattern_.get())->getDim();
             FeatureBase::comparator_.reset(new DistanceHammingAverage());
         }
 
@@ -43,13 +42,14 @@ namespace dynamic_stereo{
                     vector<Mat> region_spatial_features(kPix);
                     int index = 0;
                     for (auto pid: region[rid]->pix_id) {
-                        region_spatial_features[index++] = pixel_feature_array[v].row(pid).clone();
+                        region_spatial_features[index++] = pixel_feature_array[v].row(pid);
                     }
                     Mat tmp;
                     spatial_extractor_->computeFromPixelFeature(region_spatial_features, tmp);
                     tmp.copyTo(region_features[v].row(rid));
                 }
             }
+
             transition_pattern_->computeFromPixelFeature(region_features, output);
         }
 

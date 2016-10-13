@@ -203,7 +203,7 @@ namespace dynamic_stereo {
         /*!
          * Temporal transition pattern consists of two parts: firstly we compare pixel (x,y,i) with (x,y,i+stride1) and get
          * a binary bin based on whether the pixel features changes a lot; secondly we compare (x,y,i) with (x,y,N/2+i) and
-         * get the same binary bin.
+         * get the same binary bin. The binary descriptor is compressed into uchar using bit operation
          */
         class TransitionPattern : public TransitionFeature {
         public:
@@ -213,14 +213,13 @@ namespace dynamic_stereo {
              */
             TransitionPattern(const int kFrames, const int s1, const int s2, const float theta,
                               const DistanceMetricBase* pixel_distance) :
-                    TransitionFeature(kFrames, s1, s2, theta, pixel_distance), binPerCell_(8) {
+                    TransitionFeature(kFrames, s1, s2, theta, pixel_distance), binPerBlock_(8) {
                 comparator_.reset(new DistanceHammingAverage());
-                or_table_.resize(4);
-                or_table_[0] = 0;
-                or_table_[1] = 2;
-                or_table_[2] = 4;
-                or_table_[3] = 8;
-
+                or_table_.resize((size_t)binPerBlock_, (uchar)0);
+                or_table_[0] = (uchar)1;
+                for(auto i=1; i<binPerBlock_; ++i){
+                    or_table_[i] = or_table_[i-1] << 1;
+                }
                 FeatureBase::dim_ = getKChannel(TransitionFeature::kFrames_);
             }
 
@@ -231,7 +230,7 @@ namespace dynamic_stereo {
         private:
             int getKChannel(const int kFrames) const;
             std::vector<uchar> or_table_;
-            const int binPerCell_;
+            const int binPerBlock_;
         };
 
         /*!

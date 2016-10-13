@@ -44,8 +44,7 @@ void run_multiExtract(const std::vector<int>& kClusters, int argc, char** argv, 
 
 VisualWordOption setOption();
 
-static const vector<float> levelList{10.0, 15.0, 20.0};
-static const int smoothSize = 9;
+static const vector<float> levelList{5.0, 8.0, 10.0, 15.0};
 static const int minSize = 200;
 static const float theta = 100;
 

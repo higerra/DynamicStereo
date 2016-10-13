@@ -194,7 +194,7 @@ namespace dynamic_stereo{
                 }
             }
             CHECK_GT(kChannel, 0) << "Either stride 1 or stride 2 must be > 0";
-            kChannel = std::ceil((float) kChannel / (float) binPerCell_);
+            kChannel = std::ceil((float) kChannel / (float) binPerBlock_);
             return kChannel;
         }
 
@@ -209,8 +209,10 @@ namespace dynamic_stereo{
             const int K = pixelFeatureArray[0].cols;
             const int N = (int)pixelFeatureArray.size();
 
-            CHECK_EQ(pixelFeatureArray.size(), TransitionFeature::kFrames_);
+            CHECK_EQ(N, TransitionFeature::kFrames_);
+
             const int kChannel = getDim();
+
             feats.create(kPix, kChannel, CV_8UC1);
             Mat featMat = feats.getMat();
             featMat.setTo(Scalar::all(0));
@@ -219,8 +221,8 @@ namespace dynamic_stereo{
 
             if(stride1() > 0) {
                 for (auto v = 0; v < N - stride1(); v += stride1()) {
-                    const int blockId = featIndex / binPerCell_;
-                    const int cellId = featIndex % binPerCell_;
+                    const int blockId = featIndex / binPerBlock_;
+                    const int cellId = featIndex % binPerBlock_;
                     for (auto i = 0; i < kPix; ++i) {
                         double d = pixel_distance_->evaluate(pixelFeatureArray[v].row(i),
                                                             pixelFeatureArray[v + stride1()].row(i));
@@ -233,8 +235,8 @@ namespace dynamic_stereo{
 
             if(stride2() > 0) {
                 for (auto v = 0; v < N / 2; v += stride2()) {
-                    const int blockId = featIndex / binPerCell_;
-                    const int cellId = featIndex % binPerCell_;
+                    const int blockId = featIndex / binPerBlock_;
+                    const int cellId = featIndex % binPerBlock_;
                     for (auto i = 0; i < kPix; ++i) {
                         float d = pixel_distance_->evaluate(pixelFeatureArray[v].row(i),
                                                            pixelFeatureArray[v + N / 2].row(i));

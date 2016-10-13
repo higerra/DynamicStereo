@@ -20,6 +20,7 @@ namespace dynamic_stereo{
     namespace video_segment{
 
         struct Region{
+            Region(): pix_id({}), desc(cv::Mat()){}
             std::vector<int> pix_id;
             cv::Mat desc;
         };
@@ -47,6 +48,10 @@ namespace dynamic_stereo{
 
             virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
                                          const cv::OutputArray merged) const{}
+
+            inline std::shared_ptr<TransitionPattern> GetInternalTransitionExtractor(){
+                return transition_pattern_;
+            }
 
             virtual void printFeature(const cv::InputArray input) const{
                 CHECK_NOTNULL(transition_pattern_.get())->printFeature(input);

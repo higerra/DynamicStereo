@@ -13,20 +13,20 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 
-	void segmentDisplay(const FileIO& file_io, const int anchor,
-	                    const std::vector<cv::Mat> &input,
-	                    const string& classifierPath, const string& codebookPath, cv::Mat& result){
-		CHECK(!input.empty());
-		char buffer[1024] = {};
-		const int width = input[0].cols;
-		const int height = input[0].rows;
+    void segmentDisplay(const FileIO& file_io, const int anchor,
+                        const std::vector<cv::Mat> &input,
+                        const string& classifierPath, const string& codebookPath, cv::Mat& result){
+        CHECK(!input.empty());
+        char buffer[1024] = {};
+        const int width = input[0].cols;
+        const int height = input[0].rows;
 
-		//display region
-		sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
-		Mat preSeg = imread(buffer, false);
+        //display region
+        sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
+        Mat preSeg = imread(buffer, false);
 
-		if(!preSeg.data) {
-            const vector<float> levelList{10.0, 15.0, 20.0};
+        if(!preSeg.data) {
+            const vector<float> levelList{5.0, 8.0, 10.0, 15.0};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -53,38 +53,38 @@ namespace dynamic_stereo{
             //load or compute segmentation
             vector<Mat> segments;
             bool run_segmentation = true;
-//            sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
-//            cv::FileStorage segmentIn(buffer, FileStorage::READ);
-//            if(segmentIn.isOpened()){
-//                Mat levelMat;
-//                segmentIn["levelList"] >> levelMat;
-//                if(levelMat.rows!= levelList.size()){
-//                    run_segmentation = true;
-//                }else{
-//                    for(auto i=0; i<levelList.size(); ++i){
-//                        if(levelMat.at<float>(i,0) != levelList[i]){
-//                            run_segmentation = true;
-//                            break;
-//                        }
-//                    }
-//                }
-//                segments.resize(levelList.size());
-//                for(int i=0; i<levelList.size(); ++i){
-//                    segmentIn["level"+std::to_string(i)] >> segments[i];
-//                }
-//                run_segmentation = false;
-//            }
+            sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
+            cv::FileStorage segmentIn(buffer, FileStorage::READ);
+            if(segmentIn.isOpened()){
+                Mat levelMat;
+                segmentIn["levelList"] >> levelMat;
+                if(levelMat.rows!= levelList.size()){
+                    run_segmentation = true;
+                }else{
+                    for(auto i=0; i<levelList.size(); ++i){
+                        if(levelMat.at<float>(i,0) != levelList[i]){
+                            run_segmentation = true;
+                            break;
+                        }
+                    }
+                }
+                segments.resize(levelList.size());
+                for(int i=0; i<levelList.size(); ++i){
+                    segmentIn["level"+std::to_string(i)] >> segments[i];
+                }
+                run_segmentation = false;
+            }
             if(run_segmentation) {
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, cv::noArray(), segments);
                 CHECK_EQ(segments.size(), levelList.size());
-//                cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
-//                CHECK(segmentOut.isOpened());
+                cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
+                CHECK(segmentOut.isOpened());
                 Mat levelMat(levelList.size(),1,CV_32FC1);
                 for(auto i=0; i<levelList.size(); ++i)
                     levelMat.at<float>(i,0) = levelList[i];
-//                segmentOut << "levelList" << levelMat;
-//                for(int i=0; i<levelList.size(); ++i)
-//                    segmentOut << "level"+std::to_string(i) << segments[i];
+                segmentOut << "levelList" << levelMat;
+                for(int i=0; i<levelList.size(); ++i)
+                    segmentOut << "level"+std::to_string(i) << segments[i];
             }else{
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
             }
@@ -96,32 +96,32 @@ namespace dynamic_stereo{
                 imwrite(buffer, segVis);
             }
 
-//            sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
-//            imwrite(buffer, preSeg);
-		}
+            sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
+            imwrite(buffer, preSeg);
+        }
 
         sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());
         imwrite(buffer, preSeg);
         result = video_segment::localRefinement(input, preSeg);
-	}
+    }
 
-	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments){
-		CHECK_NOTNULL(labels.data);
-		CHECK_EQ(labels.type(), CV_32S);
-		double minl, maxl;
-		cv::minMaxLoc(labels, &minl, &maxl);
-		CHECK_LT(minl, std::numeric_limits<double>::epsilon());
-		const int nLabel = (int)maxl;
-		segments.clear();
-		segments.resize((size_t)nLabel);
-		for(auto y=0; y<labels.rows; ++y){
-			for(auto x=0; x<labels.cols; ++x){
-				int l = labels.at<int>(y,x);
-				if(l > 0)
-					segments[l-1].push_back(Vector2i(x,y));
-			}
-		}
-	}
+    void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments){
+        CHECK_NOTNULL(labels.data);
+        CHECK_EQ(labels.type(), CV_32S);
+        double minl, maxl;
+        cv::minMaxLoc(labels, &minl, &maxl);
+        CHECK_LT(minl, std::numeric_limits<double>::epsilon());
+        const int nLabel = (int)maxl;
+        segments.clear();
+        segments.resize((size_t)nLabel);
+        for(auto y=0; y<labels.rows; ++y){
+            for(auto x=0; x<labels.cols; ++x){
+                int l = labels.at<int>(y,x);
+                if(l > 0)
+                    segments[l-1].push_back(Vector2i(x,y));
+            }
+        }
+    }
 
 
 

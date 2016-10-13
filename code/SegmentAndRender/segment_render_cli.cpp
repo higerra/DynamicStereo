@@ -45,8 +45,18 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Warping..";
     vector <Mat> mid_input, mid_output, visMaps;
     warping->preWarping(mid_input, true, &visMaps);
-
     const cv::Size kFrameSize(mid_input[0].cols, mid_input[0].rows);
+
+    sprintf(buffer, "%s/temp/warped%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+    VideoWriter warpOutput;
+    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
+    CHECK(warpOutput.isOpened()) << "Can not open video stream";
+
+    for (auto i = 0; i < mid_input.size(); ++i) {
+        warpOutput << mid_input[i];
+    }
+    warpOutput.release();
+
     ////////////////////////////////////////////
     //Segmentation
     LOG(INFO) <<"Segmenting...";
@@ -68,15 +78,7 @@ int main(int argc, char** argv) {
     groupPixel(seg_result_display, segmentsDisplay);
     groupPixel(seg_result_flashy, segmentsFlashy);
 
-    sprintf(buffer, "%s/temp/warped%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    VideoWriter warpOutput;
-    warpOutput.open(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
-    CHECK(warpOutput.isOpened()) << "Can not open video stream";
 
-    for (auto i = 0; i < mid_input.size(); ++i) {
-        warpOutput << mid_input[i];
-    }
-    warpOutput.release();
 
     vector<Vector2i> rangesDisplay, rangesFlashy;
     getSegmentRange(visMaps, segmentsDisplay, rangesDisplay);
@@ -87,26 +89,25 @@ int main(int argc, char** argv) {
     filterShortSegments(segmentsDisplay, rangesDisplay, minFrame);
     filterShortSegments(segmentsFlashy, rangesFlashy, minFrame);
 
-
     //three step regularization:
     //1. Apply a small poisson smoothing, fill in holes
     //2. Geometric stablization by grid warping
     //3. Apply RPCA to smooth transition and remove high frequency noise
 
 
-//   printf("Step 1: Fill holes by poisson smoothing\n");
-//   const double small_poisson = 0.01;
-//   regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
-//   mid_input.swap(mid_output);
-//   mid_output.clear();
+    LOG(INFO) << "Step 1: Fill holes by poisson smoothing";
+    const double small_poisson = 0.01;
+    regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
+    mid_input.swap(mid_output);
+    mid_output.clear();
 
-     printf("Step 2: geometric stablization\n");
-     float stab_t = (float)cv::getTickCount();
-     //vector<Mat> debug_input(mid_input.begin(), mid_input.begin() + 20);
-     stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, anchor_frame, FLAGS_param_stab, StabAlg::TRACK);
-     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
-     mid_input.swap(mid_output);
-     mid_output.clear();
+    printf("Step 2: geometric stablization\n");
+    float stab_t = (float)cv::getTickCount();
+    //vector<Mat> debug_input(mid_input.begin(), mid_input.begin() + 20);
+    stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, anchor_frame, FLAGS_param_stab, StabAlg::TRACK);
+    printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
+    mid_input.swap(mid_output);
+    mid_output.clear();
 
     //Now apply mask
     segmentsDisplay.insert(segmentsDisplay.end(), segmentsFlashy.begin(), segmentsFlashy.end());
@@ -123,37 +124,36 @@ int main(int argc, char** argv) {
     }
     stabilizedOutput.release();
 
-//    printf("Step 3: Color regularization\n");
-//    float reg_t = (float)cv::getTickCount();
-//    if(FLAGS_regularization == "median"){
-//        const int medianR = 5;
-//        printf("Running regularization with median filter, r: %d\n", medianR);
-//        temporalMedianFilter(mid_input, segmentsDisplay, mid_output, medianR);
-//    }else if(FLAGS_regularization == "RPCA"){
-//        const double regular_lambda = 0.015;
-//        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
-//        regularizationRPCA(mid_input, segmentsDisplay, mid_output, regular_lambda);
-//    }else if(FLAGS_regularization == "anisotropic"){
-//        const double ws = 0.6;
-//        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
-//        regularizationAnisotropic(mid_input, segmentsDisplay, mid_output, ws);
-//    }else if(FLAGS_regularization == "poisson"){
-//        const double ws = 0.1, wt = 0.5;
-//        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
-//        regularizationPoisson(mid_input, segmentsDisplay, mid_output, ws, wt);
-//    }else{
-//        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
-//        return 1;
-//    }
-//    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
-//    mid_input.swap(mid_output);
-//    mid_output.clear();
-//
+    LOG(INFO) << "Step 3: Color regularization";
+    float reg_t = (float)cv::getTickCount();
+    if(FLAGS_regularization == "median"){
+        const int medianR = 5;
+        printf("Running regularization with median filter, r: %d\n", medianR);
+        temporalMedianFilter(mid_input, segmentsDisplay, mid_output, medianR);
+    }else if(FLAGS_regularization == "RPCA"){
+        const double regular_lambda = 0.015;
+        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
+        regularizationRPCA(mid_input, segmentsDisplay, mid_output, regular_lambda);
+    }else if(FLAGS_regularization == "anisotropic"){
+        const double ws = 0.6;
+        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
+        regularizationAnisotropic(mid_input, segmentsDisplay, mid_output, ws);
+    }else if(FLAGS_regularization == "poisson"){
+        const double ws = 0.1, wt = 0.5;
+        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
+        regularizationPoisson(mid_input, segmentsDisplay, mid_output, ws, wt);
+    }else{
+        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
+        return 1;
+    }
+    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
+    mid_input.swap(mid_output);
+    mid_output.clear();
+
     sprintf(buffer, "%s/temp/finalReault_%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
     VideoWriter resultWriter(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
     CHECK(resultWriter.isOpened()) << buffer;
     for (auto i = 0; i < mid_input.size(); ++i) {
-//        cv::putText(finalResult[i], FLAGS_regularization, cv::Point(20,50), FONT_HERSHEY_COMPLEX, 2, cv::Scalar(0,0,255), 3);
         resultWriter << mid_input[i];
     }
     resultWriter.release();

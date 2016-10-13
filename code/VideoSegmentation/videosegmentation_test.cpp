@@ -92,6 +92,7 @@ TEST_F(VideoTest, RegionTransition){
     video_segment::PixelValue pixel_extractor;
     vector<Mat> pixel_features(images.size());
     LOG(INFO) << "Extracting pixel features";
+
     for(auto v=0; v<images.size(); ++v){
         pixel_extractor.extractAll(images[v], pixel_features[v]);
     }
@@ -100,28 +101,25 @@ TEST_F(VideoTest, RegionTransition){
     Mat output_pixel_transition;
     video_segment::TransitionPattern transition_pattern(images.size(), s1, s2, theta, pixel_extractor.getDefaultComparator());
     transition_pattern.computeFromPixelFeature(pixel_features, output_pixel_transition);
+    LOG(INFO) << "Norm of pixel_transition: " << cv::norm(output_pixel_transition, cv::NORM_L1);
 
-    //construct fake regions
-    LOG(INFO) << "Constructing fake regions";
-    vector<video_segment::Region> regions(pixel_features[0].rows);
-    for(auto rid=0; rid < regions.size(); ++rid){
-        regions[rid].pix_id.push_back(rid);
+    vector<video_segment::Region> fake_regions(pixel_features[0].rows, video_segment::Region());
+    for(auto rid=0; rid < fake_regions.size(); ++rid){
+        fake_regions[rid].pix_id.push_back(rid);
     }
 
-    vector<video_segment::Region*> regions_ptr(regions.size());
-    for(auto rid=0; rid < regions.size(); ++rid){
-        regions_ptr[rid] = &regions[rid];
+    vector<video_segment::Region*> regions_ptr(fake_regions.size(), nullptr);
+    for(auto rid=0; rid < fake_regions.size(); ++rid){
+        regions_ptr[rid] = &(fake_regions[rid]);
     }
 
     video_segment::TemporalAverage average;
     video_segment::RegionTransitionPattern region_transition_pattern(
             images.size(), s1, s2, theta, average.getDefaultComparator(), &average);
+
     LOG(INFO) << "Computing region transition";
     Mat output_region_transition;
     region_transition_pattern.ExtractFromPixelFeatures(pixel_features, regions_ptr, output_region_transition);
 
-    for(auto i=0; i<output_pixel_transition.rows; ++i){
-        EXPECT_NEAR(transition_pattern.getDefaultComparator()->
-                evaluate(output_pixel_transition.row(i), output_region_transition.row(i)), 0, 1);
-    }
+    EXPECT_NEAR(cv::norm(output_pixel_transition, output_region_transition, cv::NORM_L1), 0.0, numeric_limits<double>::epsilon());
 }

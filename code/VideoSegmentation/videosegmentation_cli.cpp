@@ -84,7 +84,7 @@ int main(int argc, char** argv){
 //        cv::addWeighted(images[0], blend_weight, segment_vis2, 1.0 - blend_weight, 0.0, result_refined);
 
 
-        sprintf(buffer, "%s/%s_result_c%.1f.png", out_path.c_str(), filename.substr(0, filename.find_last_of(".")).c_str(), FLAGS_c);
+        sprintf(buffer, "%s/%s_result_c%05.1f.png", out_path.c_str(), filename.substr(0, filename.find_last_of(".")).c_str(), FLAGS_c);
         printf("Writing %s\n", buffer);
         imwrite(buffer, result);
 
