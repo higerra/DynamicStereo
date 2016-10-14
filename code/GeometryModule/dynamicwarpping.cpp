@@ -289,7 +289,7 @@ namespace dynamic_stereo {
         }
 
         const theia::Camera& cam1 = sfmModel->getCamera(anchor);
-        const int disparity_margin = 1;
+        const int disparity_margin = 5;
 
 #pragma omp parallel for
         for(int i=0; i<dimages.size(); ++i) {

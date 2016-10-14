@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     google::ParseCommandLineFlags(&argc, &argv, true);
     LOG(INFO) << "testFrame:" << FLAGS_testFrame <<  " tWindow:" << FLAGS_tWindow;
 
-    const double depthSmooth = -1;
+    const double depthSmooth = 0.1;
     std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution, depthSmooth));
     const int anchor_frame = FLAGS_testFrame - warping->getOffset();
 
@@ -63,8 +63,8 @@ int main(int argc, char** argv) {
     Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
     LOG(INFO) << "Segmenting display...";
     segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-//    LOG(INFO) << "Segmenting flashy...";
-//    segmentFlashy(file_io, FLAGS_testFrame, mid_input, seg_result_flashy);
+    LOG(INFO) << "Segmenting flashy...";
+    segmentFlashy(file_io, FLAGS_testFrame, mid_input, seg_result_flashy);
 
     CHECK_EQ(seg_result_display.cols, kFrameSize.width);
     CHECK_EQ(seg_result_display.rows, kFrameSize.height);
@@ -77,8 +77,6 @@ int main(int argc, char** argv) {
     vector<vector<Vector2i> > segmentsFlashy;
     groupPixel(seg_result_display, segmentsDisplay);
     groupPixel(seg_result_flashy, segmentsFlashy);
-
-
 
     vector<Vector2i> rangesDisplay, rangesFlashy;
     getSegmentRange(visMaps, segmentsDisplay, rangesDisplay);
@@ -103,7 +101,6 @@ int main(int argc, char** argv) {
 
     printf("Step 2: geometric stablization\n");
     float stab_t = (float)cv::getTickCount();
-    //vector<Mat> debug_input(mid_input.begin(), mid_input.begin() + 20);
     stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, anchor_frame, FLAGS_param_stab, StabAlg::TRACK);
     printf("Done. Time usage: %.3fs\n", ((float)getTickCount() - stab_t) / (float)getTickFrequency());
     mid_input.swap(mid_output);
@@ -124,6 +121,10 @@ int main(int argc, char** argv) {
     }
     stabilizedOutput.release();
 
+    regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
+    mid_input.swap(mid_output);
+    mid_output.clear();
+
     LOG(INFO) << "Step 3: Color regularization";
     float reg_t = (float)cv::getTickCount();
     if(FLAGS_regularization == "median"){
@@ -131,7 +132,7 @@ int main(int argc, char** argv) {
         printf("Running regularization with median filter, r: %d\n", medianR);
         temporalMedianFilter(mid_input, segmentsDisplay, mid_output, medianR);
     }else if(FLAGS_regularization == "RPCA"){
-        const double regular_lambda = 0.015;
+        const double regular_lambda = 0.02;
         printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
         regularizationRPCA(mid_input, segmentsDisplay, mid_output, regular_lambda);
     }else if(FLAGS_regularization == "anisotropic"){
