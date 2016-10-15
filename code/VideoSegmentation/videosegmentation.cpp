@@ -50,12 +50,10 @@ namespace dynamic_stereo {
             std::vector<cv::Mat> smoothed(input.size());
             for (auto v = 0; v < input.size(); ++v) {
                 cv::blur(input[v], smoothed[v], cv::Size(option.smooth_size, option.smooth_size));
-//                sprintf(buffer, "blured%05d.png", v);
-//                imwrite(buffer, smoothed[v]);
             }
 
-            cv::Mat edgeMap;
-            edgeAggregation(smoothed, edgeMap);
+//            cv::Mat edgeMap;
+//            edgeAggregation(smoothed, edgeMap);
 
             //std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new PixelValue());
             std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor;
@@ -74,12 +72,12 @@ namespace dynamic_stereo {
                 temporal_extractor.reset(new TransitionPattern(input.size(), option.stride1, option.stride2, option.theta,
                                                                pixel_extractor->getDefaultComparator()));
             }else if(option.temporal_feature_type == TemporalFeature::COMBINED) {
-                constexpr double w_appearance = 1.0 / 255.0;
+                constexpr double w_appearance = 0.0001;
                 constexpr double w_transition = 1 - w_appearance;
                 const vector<int> kBins{8,8,8};
                 constexpr int R = 1;
                 std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > component_extractors(2);
-                component_extractors[0].reset(new ColorHistogram(ColorHistogram::HSV, kBins, width, height, R));
+                component_extractors[0].reset(new ColorHistogram(ColorHistogram::LAB, kBins, width, height, R));
                 //component_extractors[0].reset(new TemporalAverage());
                 component_extractors[1].reset(new TransitionPattern(input.size(), option.stride1, option.stride2, option.theta,
                                                                     pixel_extractor->getDefaultComparator()));
@@ -115,32 +113,25 @@ namespace dynamic_stereo {
 #if false
             {
                 //debug, inspect some of the feature
-                const int tx = 249, ty = 210;
-                if (tx >= 0 && ty >= 0) {
-                    dynamic_pointer_cast<TransitionAndAppearance>(temporal_extractor)->printFeature(
-                            featuresMat.row(ty * width + tx));
-                }
+                const int dx1 = 106, dy1 = 24, dx2 = 104, dy2 = 24;
+                printf("(%d,%d):\n", dx1, dy1);
+                temporal_extractor->printFeature(featuresMat.row(dy1*width+dx1));
+                printf("(%d,%d):\n", dx2, dy2);
+                temporal_extractor->printFeature(featuresMat.row(dy2*width+dx2));
+                printf("Distance: %.3f\n",
+                       feature_comparator->evaluate(featuresMat.row(dy1*width+dx1), featuresMat.row(dy2*width+dx2)));
             }
 #endif
             // build graph
             std::vector<edge> edges;
             edges.reserve((size_t) width * height);
 
-            constexpr int dx = 1753;
-            constexpr int dy = 445;
-
             LOG(INFO) << "Segmenting";
             //8 neighbor
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    float edgeness = edgeMap.at<float>(y, x);
-                    bool verbose = (x == dx) && (y == dy);
-                    if(verbose){
-                        printf("====================\n");
-                        printf("Debug info for (%d,%d)\n", x,y);
-                        printf("descriptor of (%d,%d)\t0.000\t", x, y);
-                        temporal_extractor->printFeature(featuresMat.row(y*width+x));
-                   }
+                    //float edgeness = edgeMap.at<float>(y, x);
+                    float edgeness = 1.0;
                     if (x < width - 1) {
                         edge curEdge;
                         curEdge.a = y * width + x;
@@ -148,11 +139,6 @@ namespace dynamic_stereo {
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
                                                                  featuresMat.row(curEdge.b)) * edgeness;
                         edges.push_back(curEdge);
-
-                        if(verbose) {
-                            printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
-                        }
                     }
 
                     if (y < height - 1) {
@@ -162,11 +148,6 @@ namespace dynamic_stereo {
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
                                                                  featuresMat.row(curEdge.b)) * edgeness;
                         edges.push_back(curEdge);
-
-                        if(verbose) {
-                            printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
-                        }
                     }
 
                     if ((x < width - 1) && (y < height - 1)) {
@@ -176,12 +157,6 @@ namespace dynamic_stereo {
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
                                                                  featuresMat.row(curEdge.b)) * edgeness;
                         edges.push_back(curEdge);
-
-                        if(verbose) {
-                            printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
-                        }
-
                     }
 
                     if ((x < width - 1) && (y > 0)) {
@@ -191,12 +166,6 @@ namespace dynamic_stereo {
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
                                                                  featuresMat.row(curEdge.b)) * edgeness;
                         edges.push_back(curEdge);
-
-                        if(verbose) {
-                            printf("descriptor of (%d,%d)\t%.3f\t", curEdge.b%width, curEdge.b/width, curEdge.w);
-                            temporal_extractor->printFeature(featuresMat.row(curEdge.b));
-                        }
-
                     }
                 }
             }

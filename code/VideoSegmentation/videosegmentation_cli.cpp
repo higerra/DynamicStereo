@@ -77,7 +77,7 @@ int main(int argc, char** argv){
         Mat segment_vis = video_segment::visualizeSegmentation(segment);
 
         Mat result, result_refined;
-        const double blend_weight = 0.2;
+        const double blend_weight = 0.1;
         cv::addWeighted(images[0], blend_weight, segment_vis, 1.0 - blend_weight, 0.0, result);
 
 

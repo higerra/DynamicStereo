@@ -86,24 +86,24 @@ namespace dynamic_stereo{
 
         ColorHistogram::ColorHistogram(const ColorSpace cspace, const vector<int>& kBin,
                                        const int width, const int height, const int R)
-                : kBin_(kBin), width_(width), height_(height), R_(R){
+                : cspace_(cspace), kBin_(kBin), width_(width), height_(height), R_(R){
             CHECK_EQ(kBin.size(), 3);
-            bin_unit.resize(kBin.size());
-            chn_offset.resize(kBin.size(), 0.0);
+            bin_unit_.resize(kBin.size());
+            chn_offset_.resize(kBin.size(), 0.0);
             if(cspace == ColorSpace::BGR){
-                bin_unit[0] = 256.0 / (float)kBin[0];
-                bin_unit[1] = 256.0 / (float)kBin[1];
-                bin_unit[2] = 256.0 / (float)kBin[2];
+                bin_unit_[0] = 256.0 / (float)kBin[0];
+                bin_unit_[1] = 256.0 / (float)kBin[1];
+                bin_unit_[2] = 256.0 / (float)kBin[2];
             }else if(cspace == ColorSpace::HSV){
-                bin_unit[0] = 361.0 / (float)kBin[0];
-                bin_unit[1] = 1.01 / (float)kBin[1];
-                bin_unit[2] = 1.01 / (float)kBin[2];
+                bin_unit_[0] = 361.0 / (float)kBin[0];
+                bin_unit_[1] = 1.01 / (float)kBin[1];
+                bin_unit_[2] = 1.01 / (float)kBin[2];
             }else if(cspace == ColorSpace::LAB){
-                bin_unit[0] = 101.0 / (float)kBin[0];
-                bin_unit[1] = 255.0 / (float)kBin[1];
-                bin_unit[2] = 255.0 / (float)kBin[2];
-                chn_offset[1] = -127;
-                chn_offset[2] = -127;
+                bin_unit_[0] = 101.0 / (float)kBin[0];
+                bin_unit_[1] = 255.0 / (float)kBin[1];
+                bin_unit_[2] = 255.0 / (float)kBin[2];
+                chn_offset_[1] = -127;
+                chn_offset_[2] = -127;
             }
 
             FeatureBase::dim_ = std::accumulate(kBin.begin(), kBin.end(), 0);
@@ -119,7 +119,7 @@ namespace dynamic_stereo{
             const int kPix = pixel_feature_array[0].rows;
             CHECK_EQ(width_ * height_, kPix);
             const int K = pixel_feature_array[0].cols;
-            CHECK_EQ(K, bin_unit.size());
+            CHECK_EQ(K, bin_unit_.size());
             const int N = pixel_feature_array.size();
 
             vector<Mat> pixel_feature_reshaped(pixel_feature_array.size());
@@ -133,16 +133,22 @@ namespace dynamic_stereo{
                 h.resize((size_t)getDim());
             }
 
-            vector<int> dim_offset(bin_unit.size(), 0);
+            vector<int> dim_offset(bin_unit_.size(), 0);
             for(auto i=1; i<kBin_.size(); ++i){
                 dim_offset[i] = dim_offset[i-1] + kBin_[i-1];
             }
 
             for(auto v=0; v<N; ++v) {
-                Mat hsv_mat, float_mat;
+                Mat color_mat, float_mat;
                 pixel_feature_reshaped[v].convertTo(float_mat, CV_32F);
                 float_mat /= 255.0;
-                cvtColor(float_mat, hsv_mat, CV_BGR2HSV);
+                if(cspace_ == BGR){
+                    color_mat = float_mat * 255.0;
+                }else if(cspace_ == HSV) {
+                    cvtColor(float_mat, color_mat, CV_BGR2HSV);
+                }else if(cspace_ == LAB){
+                    cvtColor(float_mat, color_mat, CV_BGR2Lab);
+                }
 
 #pragma omp parallel for
                 for (auto y = 0; y < height_; ++y) {
@@ -152,8 +158,9 @@ namespace dynamic_stereo{
                                 int cur_x = x + dx, cur_y = y + dy;
                                 if (cur_x >= 0 && cur_x < width_ && cur_y >= 0 && cur_y < height_) {
                                     for (auto c = 0; c < K; ++c) {
-                                        int bid = hsv_mat.at<Vec3f>(cur_y, cur_x)[c] / bin_unit[c] +
+                                        int bid = (color_mat.at<Vec3f>(cur_y, cur_x)[c] - chn_offset_[c])/ bin_unit_[c] +
                                                   dim_offset[c];
+                                        CHECK_GE(bid, 0);
                                         CHECK_LT(bid, getDim());
                                         raw_hist[y * width_ + x][bid] += 1.0;
                                     }

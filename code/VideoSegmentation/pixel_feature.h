@@ -154,8 +154,10 @@ namespace dynamic_stereo {
             }
         private:
             std::vector<int> kBin_;
-            std::vector<float> bin_unit;
-            std::vector<float> chn_offset;
+            std::vector<float> bin_unit_;
+            std::vector<float> chn_offset_;
+
+            const ColorSpace cspace_;
 
             const int width_;
             const int height_;
