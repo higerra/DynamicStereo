@@ -17,9 +17,6 @@
 
 namespace dynamic_stereo {
 
-	namespace Feature{
-		class FeatureConstructor;
-	}
 	void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result);
 
 	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
@@ -28,6 +25,8 @@ namespace dynamic_stereo {
 						const std::string& classifierPath, const std::string& codebookPath, cv::Mat& result);
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments);
+
+
 }//namespace dynamic_stereo
 
 

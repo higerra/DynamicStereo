@@ -52,8 +52,8 @@ namespace dynamic_stereo {
                 cv::blur(input[v], smoothed[v], cv::Size(option.smooth_size, option.smooth_size));
             }
 
-//            cv::Mat edgeMap;
-//            edgeAggregation(smoothed, edgeMap);
+            cv::Mat edgeMap;
+            edgeAggregation(smoothed, edgeMap);
 
             //std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor(new PixelValue());
             std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor;
@@ -72,12 +72,12 @@ namespace dynamic_stereo {
                 temporal_extractor.reset(new TransitionPattern(input.size(), option.stride1, option.stride2, option.theta,
                                                                pixel_extractor->getDefaultComparator()));
             }else if(option.temporal_feature_type == TemporalFeature::COMBINED) {
-                constexpr double w_appearance = 0.0001;
+                constexpr double w_appearance = 0.001;
                 constexpr double w_transition = 1 - w_appearance;
                 const vector<int> kBins{8,8,8};
                 constexpr int R = 1;
                 std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > component_extractors(2);
-                component_extractors[0].reset(new ColorHistogram(ColorHistogram::LAB, kBins, width, height, R));
+                component_extractors[0].reset(new ColorHistogram(ColorHistogram::HSV, kBins, width, height, R));
                 //component_extractors[0].reset(new TemporalAverage());
                 component_extractors[1].reset(new TransitionPattern(input.size(), option.stride1, option.stride2, option.theta,
                                                                     pixel_extractor->getDefaultComparator()));
@@ -130,8 +130,8 @@ namespace dynamic_stereo {
             //8 neighbor
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    //float edgeness = edgeMap.at<float>(y, x);
-                    float edgeness = 1.0;
+                    float edgeness = edgeMap.at<float>(y, x);
+                    //float edgeness = 1.0;
                     if (x < width - 1) {
                         edge curEdge;
                         curEdge.a = y * width + x;

@@ -343,7 +343,7 @@ namespace dynamic_stereo {
         if (track.size() < min_length)
             return false;
 
-        constexpr double max_motion = 1.5;
+        constexpr double max_motion = 2;
 
         vector<Vector2d> sum_pos(track.size(), Vector2d(0, 0));
         sum_pos[0] = track[0];
@@ -367,14 +367,14 @@ namespace dynamic_stereo {
             }
 
             //motion constraint
-//            double cur_max_motion = -1;
-//            for(int v=1; v <= end_frame; ++v){
-//                Vector2d cur_motion = track[v] - track[v-1];
-//                cur_max_motion = std::max(cur_motion.norm(), cur_max_motion);
-//            }
-//            if(cur_max_motion > max_motion){
-//                break;
-//            }
+            double cur_max_motion = -1;
+            for(int v=1; v <= end_frame; ++v){
+                Vector2d cur_motion = track[v] - track[v-1];
+                cur_max_motion = std::max(cur_motion.norm(), cur_max_motion);
+            }
+            if(cur_max_motion > max_motion){
+                break;
+            }
 
             best_end_frame = end_frame;
         }
@@ -429,9 +429,9 @@ namespace dynamic_stereo {
         int start_frame = 0;
         while (start_frame < (int)input.size() - tWindow) {
             output[start_frame] = input[start_frame].clone();
-            LOG(INFO) << "Stabilization restart at frame: " << start_frame << "/" << (int)input.size() - tWindow;
+            //LOG(INFO) << "Stabilization restart at frame: " << start_frame << "/" << (int)input.size() - tWindow;
             vector<vector<Eigen::Vector2d> > all_tracks;
-            LOG(INFO) << "Generating tracks";
+            //LOG(INFO) << "Generating tracks";
             for (auto v = 0; v < kTrackFrame; ++v) {
                 if (v + start_frame == input.size()) {
                     break;
@@ -456,8 +456,7 @@ namespace dynamic_stereo {
                 }
             }
 
-            LOG(INFO) << "Warping...";
-            constexpr int blockW = 10, blockH = 10;
+            constexpr int blockW = 20, blockH = 20;
             const int gridW = width / blockW, gridH = height / blockH;
             constexpr double weight_similarity = 0.1;
             substab::GridWarpping grid_warping(input[0].cols, input[0].rows, gridW, gridH);
@@ -473,7 +472,7 @@ namespace dynamic_stereo {
                         tgt_point.push_back(all_tracks[tid][0]);
                     }
                 }
-                LOG(INFO) << "Number of pairs: " << src_point.size();
+                //LOG(INFO) << "Number of pairs: " << src_point.size();
                 if (src_point.size() < kMinTrack) {
                     break;
                 }
@@ -482,9 +481,9 @@ namespace dynamic_stereo {
                 grid_warping.computeWarpingField(tgt_point, src_point, weight_similarity);
                 grid_warping.warpImageBackward(input[v], output[v]);
 
-
                 if(debug_mode){
                     //debug: visualize stabilization
+                    LOG(INFO) << "Debug mode";
                     int index = 0;
                     bool reddot = true;
                     bool gridline = false;
@@ -547,7 +546,6 @@ namespace dynamic_stereo {
                             reddot = !reddot;
                         else if(key == 'g')
                             gridline = !gridline;
-
                     }
                 }
             }

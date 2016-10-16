@@ -91,11 +91,21 @@ namespace dynamic_stereo{
 
             frame_index = 0;
             for(auto v=anchor; v<=ranges[index][1]; ++v, ++frame_index){
-                warp_output_forward[frame_index].copyTo(output[v](roi));
+                for(const auto& pt: segment){
+                    Vec3b pix = warp_output_forward[frame_index].at<Vec3b>(pt[1]-roi.y, pt[0]-roi.x);
+                    if(cv::norm(pix, cv::NORM_L1) > numeric_limits<double>::epsilon()) {
+                        output[v].at<Vec3b>(pt[1], pt[0]) = pix;
+                    }
+                }
             }
             frame_index = 0;
             for(auto v=anchor-1; v>=ranges[index][0]; --v, ++frame_index){
-                warp_output_backward[frame_index].copyTo(output[anchor-v](roi));
+                for(const auto& pt: segment){
+                    Vec3b pix = warp_output_forward[frame_index].at<Vec3b>(pt[1]-roi.y, pt[0]-roi.x);
+                    if(cv::norm(pix, cv::NORM_L1) > numeric_limits<double>::epsilon()) {
+                        output[anchor - v].at<Vec3b>(pt[1], pt[0]) = pix;
+                    }
+                }
             }
 
             index++;
