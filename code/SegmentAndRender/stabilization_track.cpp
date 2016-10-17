@@ -391,7 +391,7 @@ namespace dynamic_stereo {
         }
     }
 
-    int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
+    void trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
                                  const double threshold, int tWindow) {
         CHECK(!input.empty());
         output.resize(input.size());
@@ -400,7 +400,7 @@ namespace dynamic_stereo {
         }
 
         if(input.size() < tWindow){
-            return 1;
+            return;
         }
 
         const int width = input[0].cols;
@@ -553,8 +553,6 @@ namespace dynamic_stereo {
             //warp following frames according to current warping field
             start_frame = terminate_frame + 1;
         }
-
-        return 1;
     }
 }
 

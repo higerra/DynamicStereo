@@ -15,7 +15,8 @@ namespace dynamic_stereo {
         GRID,
         FLOW,
         SUBSTAB,
-        TRACK
+        TRACK,
+        HOMOGRAPHY
     };
 
     void stabilizeSegments(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output,
@@ -31,7 +32,9 @@ namespace dynamic_stereo {
 //
 //    void trackStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const double threshold, const int tWindow);
 
-    int trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
+    void HomographyStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output);
+
+    void trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
                                  const double threshold, int tWindow);
 
 

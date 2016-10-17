@@ -36,7 +36,7 @@ namespace dynamic_stereo{
                 index++;
                 continue;
             }
-            LOG(INFO) << "Segment " <<  index << '/' << (int) segments.size();
+            LOG(INFO) << "Segment " << index << '/' << (int) segments.size();
             cv::Point2i tl(width + 1, height + 1);
             cv::Point2i br(-1, -1);
             for (const auto &pt: segment) {
@@ -50,33 +50,32 @@ namespace dynamic_stereo{
             br.x = std::min(br.x + margin, width - 1);
             br.y = std::min(br.y + margin, height - 1);
             cv::Point2i cpt = (tl + br) / 2;
-            LOG(INFO) << "center: (" << cpt.x << ',' << cpt.y << "), size: " << (int)segment.size();
+            LOG(INFO) << "center: (" << cpt.x << ',' << cpt.y << "), size: " << (int) segment.size();
             cv::Rect roi(tl, br);
-            if(roi.area() < min_area){
+            if (roi.area() < min_area) {
                 continue;
             }
 
-            vector<Mat> warp_input_forward(ranges[index][1]-anchor+1), warp_input_backward(anchor-ranges[index][0]+1);
+            vector<Mat> warp_input_forward(ranges[index][1] - anchor + 1), warp_input_backward(
+                    anchor - ranges[index][0] + 1);
             vector<Mat> warp_output_forward, warp_output_backward;
 
             int frame_index = 0;
-            for(auto v=anchor; v<=ranges[index][1]; ++v, ++frame_index){
+            for (auto v = anchor; v <= ranges[index][1]; ++v, ++frame_index) {
                 warp_input_forward[frame_index] = input[v](roi).clone();
             }
             frame_index = 0;
-            for(auto v=anchor; v>=ranges[index][0]; --v, ++frame_index){
+            for (auto v = anchor; v >= ranges[index][0]; --v, ++frame_index) {
                 warp_input_backward[frame_index] = input[v](roi).clone();
             }
 
             if (alg == GRID) {
 //                gridStabilization(warp_input_forward, warp_output_forward, lambda);
 //                gridStabilization(warp_input_backward, warp_output_backward, lambda);
-            }
-            else if (alg == FLOW) {
+            } else if (alg == FLOW) {
 //                flowStabilization(warp_input_forward, warp_output_forward, lambda);
 //                flowStabilization(warp_input_backward, warp_output_backward, lambda);
-            }
-            else if (alg == SUBSTAB) {
+            } else if (alg == SUBSTAB) {
 //                substab::SubSpaceStabOption option;
 //                option.output_crop = false;
 //                substab::subSpaceStabilization(warp_input_forward, warp_output_forward, option);
@@ -86,24 +85,26 @@ namespace dynamic_stereo{
                 constexpr int tWindow = 10;
                 trackStabilizationGlobal(warp_input_forward, warp_output_forward, lambda, tWindow);
                 trackStabilizationGlobal(warp_input_backward, warp_output_backward, lambda, tWindow);
+            } else if (alg == HOMOGRAPHY) {
+
             }
 
 
             frame_index = 0;
-            for(auto v=anchor; v<=ranges[index][1]; ++v, ++frame_index){
-                for(const auto& pt: segment){
-                    Vec3b pix = warp_output_forward[frame_index].at<Vec3b>(pt[1]-roi.y, pt[0]-roi.x);
-                    if(cv::norm(pix, cv::NORM_L1) > numeric_limits<double>::epsilon()) {
+            for (auto v = anchor; v <= ranges[index][1]; ++v, ++frame_index) {
+                for (const auto &pt: segment) {
+                    Vec3b pix = warp_output_forward[frame_index].at<Vec3b>(pt[1] - roi.y, pt[0] - roi.x);
+                    if (cv::norm(pix, cv::NORM_L1) > numeric_limits<double>::epsilon()) {
                         output[v].at<Vec3b>(pt[1], pt[0]) = pix;
                     }
                 }
             }
             frame_index = 0;
-            for(auto v=anchor-1; v>=ranges[index][0]; --v, ++frame_index){
-                for(const auto& pt: segment){
-                    Vec3b pix = warp_output_forward[frame_index].at<Vec3b>(pt[1]-roi.y, pt[0]-roi.x);
-                    if(cv::norm(pix, cv::NORM_L1) > numeric_limits<double>::epsilon()) {
-                        output[anchor - v].at<Vec3b>(pt[1], pt[0]) = pix;
+            for (auto v = anchor; v >= ranges[index][0]; --v, ++frame_index) {
+                for (const auto &pt: segment) {
+                    Vec3b pix = warp_output_backward[frame_index].at<Vec3b>(pt[1] - roi.y, pt[0] - roi.x);
+                    if (cv::norm(pix, cv::NORM_L1) > numeric_limits<double>::epsilon()) {
+                        output[v].at<Vec3b>(pt[1], pt[0]) = pix;
                     }
                 }
             }
