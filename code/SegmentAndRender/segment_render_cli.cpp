@@ -106,20 +106,20 @@ int main(int argc, char** argv) {
         CreatePixelMat(mid_input, segmentsFlashy[i], rangesFlashy[i], pixel_mat_flashy[i]);
     }
 
-//    LOG(INFO) << "Step 2: geometric stablization";
-//    float stab_t = (float)cv::getTickCount();
-//    stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, anchor_frame, FLAGS_param_stab, StabAlg::TRACK);
-//    LOG(INFO) << "Done. Time usage: " << ((float)getTickCount() - stab_t) / (float)getTickFrequency() << "s";
-//    mid_input.swap(mid_output);
-//    mid_output.clear();
+    LOG(INFO) << "Step 2: geometric stablization";
+    float stab_t = (float)cv::getTickCount();
+    stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, anchor_frame, FLAGS_param_stab, StabAlg::HOMOGRAPHY);
+    LOG(INFO) << "Done. Time usage: " << ((float)getTickCount() - stab_t) / (float)getTickFrequency() << "s";
+    mid_input.swap(mid_output);
+    mid_output.clear();
 
-//    sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
-//    CHECK(stabilizedOutput.isOpened()) << buffer;
-//    for (auto i = 0; i < mid_input.size(); ++i) {
-//        stabilizedOutput << mid_input[i];
-//    }
-//    stabilizedOutput.release();
+    sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
+    CHECK(stabilizedOutput.isOpened()) << buffer;
+    for (auto i = 0; i < mid_input.size(); ++i) {
+        stabilizedOutput << mid_input[i];
+    }
+    stabilizedOutput.release();
 
     LOG(INFO) << "Step 3: Color regularization";
     float reg_t = (float)cv::getTickCount();

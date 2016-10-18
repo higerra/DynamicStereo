@@ -392,7 +392,7 @@ namespace dynamic_stereo {
     }
 
     void trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
-                                 const double threshold, int tWindow) {
+                                 const double threshold, int tWindow, const bool use_homography) {
         CHECK(!input.empty());
         output.resize(input.size());
         for (auto v = 0; v < input.size(); ++v) {
@@ -436,6 +436,7 @@ namespace dynamic_stereo {
                 if (v + start_frame == input.size()) {
                     break;
                 }
+
                 vector<vector<Eigen::Vector2d> > new_tracks;
                 vector<Eigen::Vector2d> existing_tracks;
 
@@ -477,9 +478,25 @@ namespace dynamic_stereo {
                     break;
                 }
 
-                //compute grid warping from frame 0 to frame v and apply backward warping
-                grid_warping.computeWarpingField(tgt_point, src_point, weight_similarity);
-                grid_warping.warpImageBackward(input[v], output[v]);
+
+                if(use_homography){
+                    //compute homography warping
+                    vector<cv::Point2f> cv_src_pt(src_point.size()), cv_tgt_pt(src_point.size());
+                    for(auto i=0; i<src_point.size(); ++i){
+                        cv_src_pt[i].x = src_point[i][0];
+                        cv_src_pt[i].y = src_point[i][1];
+                        cv_tgt_pt[i].x = tgt_point[i][0];
+                        cv_tgt_pt[i].y = tgt_point[i][1];
+                    }
+                    Mat homography = cv::findHomography(cv_src_pt, cv_tgt_pt);
+                    cv::warpPerspective(input[v], output[v], homography, input[v].size(), cv::INTER_CUBIC);
+
+                }else{
+                    //compute grid warping from frame 0 to frame v and apply backward warping
+                    grid_warping.computeWarpingField(tgt_point, src_point, weight_similarity);
+                    grid_warping.warpImageBackward(input[v], output[v]);
+                }
+
 
                 if(debug_mode){
                     //debug: visualize stabilization

@@ -83,10 +83,12 @@ namespace dynamic_stereo{
             } else if (alg == TRACK) {
 //                trackStabilization(warp_input, warp_output, lambda, 10);
                 constexpr int tWindow = 10;
-                trackStabilizationGlobal(warp_input_forward, warp_output_forward, lambda, tWindow);
-                trackStabilizationGlobal(warp_input_backward, warp_output_backward, lambda, tWindow);
+                trackStabilizationGlobal(warp_input_forward, warp_output_forward, lambda, tWindow, false);
+                trackStabilizationGlobal(warp_input_backward, warp_output_backward, lambda, tWindow, false);
             } else if (alg == HOMOGRAPHY) {
-
+                constexpr int tWindow = 10;
+                trackStabilizationGlobal(warp_input_forward, warp_output_forward, lambda, tWindow, true);
+                trackStabilizationGlobal(warp_input_backward, warp_output_backward, lambda, tWindow, true);
             }
 
 

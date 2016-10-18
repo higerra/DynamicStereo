@@ -35,7 +35,7 @@ namespace dynamic_stereo {
     void HomographyStabilization(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output);
 
     void trackStabilizationGlobal(const std::vector<cv::Mat> &input, std::vector<cv::Mat> &output,
-                                 const double threshold, int tWindow);
+                                 const double threshold, int tWindow, const bool use_homography = false);
 
 
 }//namespace dynamic_stereo
