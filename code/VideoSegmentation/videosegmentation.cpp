@@ -2,14 +2,12 @@
 // Created by yanhang on 7/27/16.
 //
 
-#include "../external/segment_gb/segment-image.h"
-
 #include "videosegmentation.h"
 #include "pixel_feature.h"
+#include "region_feature.h"
 
 using namespace std;
 using namespace cv;
-using namespace segment_gb;
 
 namespace dynamic_stereo {
 
@@ -125,7 +123,7 @@ namespace dynamic_stereo {
             }
 #endif
             // build graph
-            std::vector<edge> edges;
+            std::vector<segment_gb::edge> edges;
             edges.reserve((size_t) width * height);
 
             LOG(INFO) << "Segmenting";
@@ -135,7 +133,7 @@ namespace dynamic_stereo {
                     //float edgeness = edgeMap.at<float>(y, x);
                     float edgeness = 1.0;
                     if (x < width - 1) {
-                        edge curEdge;
+                        segment_gb::edge curEdge;
                         curEdge.a = y * width + x;
                         curEdge.b = y * width + (x + 1);
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
@@ -144,7 +142,7 @@ namespace dynamic_stereo {
                     }
 
                     if (y < height - 1) {
-                        edge curEdge;
+                        segment_gb::edge curEdge;
                         curEdge.a = y * width + x;
                         curEdge.b = (y + 1) * width + x;
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
@@ -153,7 +151,7 @@ namespace dynamic_stereo {
                     }
 
                     if ((x < width - 1) && (y < height - 1)) {
-                        edge curEdge;
+                        segment_gb::edge curEdge;
                         curEdge.a = y * width + x;
                         curEdge.b = (y + 1) * width + x + 1;
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
@@ -162,7 +160,7 @@ namespace dynamic_stereo {
                     }
 
                     if ((x < width - 1) && (y > 0)) {
-                        edge curEdge;
+                        segment_gb::edge curEdge;
                         curEdge.a = y * width + x;
                         curEdge.b = (y - 1) * width + x + 1;
                         curEdge.w = feature_comparator->evaluate(featuresMat.row(curEdge.a),
@@ -172,7 +170,7 @@ namespace dynamic_stereo {
                 }
             }
 
-            std::unique_ptr<universe> u(segment_graph(width * height, edges, option.threshold));
+            std::unique_ptr<segment_gb::universe> u(segment_gb::segment_graph(width * height, edges, option.threshold));
             // post process small components
             for (const auto &e: edges) {
                 int a = u->find(e.a);
@@ -207,6 +205,217 @@ namespace dynamic_stereo {
         cv::Mat visualizeSegmentation(const cv::Mat &input) {
             return segment_gb::visualizeSegmentation(input);
         }
+
+        void BuildEdgeMap(const std::vector<Region*>& regions, std::vector<segment_gb::edge> & edge_map,
+                                 const int width, const int height) {
+            Mat pixel_region(height, width, CV_32SC1, Scalar::all(0));
+            for (auto rid = 0; rid < regions.size(); ++rid) {
+                CHECK(regions[rid] != nullptr);
+                for (auto pid: regions[rid]->pix_id) {
+                    pixel_region.at<int>(pid / width, pid % width) = rid;
+                }
+            }
+            vector<vector<int> > intersect_count(regions.size());
+            for (auto &ic: intersect_count) {
+                ic.resize(regions.size(), 0);
+            }
+
+            for (auto y = 0; y < height; ++y) {
+                for (auto x = 0; x < width; ++x) {
+                    int rid1 = pixel_region.at<int>(y, x);
+                    int rid2;
+
+                    if (x < width - 1) {
+                        rid2 = pixel_region.at<int>(y, x + 1);
+                        if (rid1 != rid2) {
+                            intersect_count[rid1][rid2] += 1;
+                        }
+                    }
+
+                    if (x < width - 1 && y < height - 1) {
+                        rid2 = pixel_region.at<int>(y + 1, x + 1);
+                        if (rid1 != rid2) {
+                            intersect_count[rid1][rid2] += 1;
+                        }
+                    }
+                    if (y < height - 1) {
+                        rid2 = pixel_region.at<int>(y + 1, x);
+                        if (rid1 != rid2) {
+                            intersect_count[rid1][rid2] += 1;
+                        }
+                    }
+                    if (x < width - 1 && y > 0) {
+                        rid2 = pixel_region.at<int>(y - 1, x + 1);
+                        if (rid1 != rid2) {
+                            intersect_count[rid1][rid2] += 1;
+                        }
+                    }
+                }
+            }
+
+            for (auto rid1 = 0; rid1 < regions.size() - 1; ++rid1) {
+                for (auto rid2 = rid1 + 1; rid2 < regions.size(); ++rid2) {
+                    if (intersect_count[rid1][rid2] > 0) {
+                        segment_gb::edge new_edge;
+                        new_edge.a = rid1;
+                        new_edge.b = rid2;
+                        new_edge.w = (float) intersect_count[rid1][rid2];
+                        edge_map.push_back(new_edge);
+                    }
+                }
+            }
+        }
+
+        int HierarchicalSegmentation(const std::vector<cv::Mat>& input, const std::vector<float>& level_list,
+                                     std::vector<cv::Mat>& output, const VideoSegmentOption& option){
+            CHECK(!input.empty());
+            //first perform dense segment
+            const int width = input[0].cols;
+            const int height = input[0].rows;
+
+            //Initialization
+            LOG(INFO) << "Initializing region segmentation";
+            std::shared_ptr<PixelFeatureExtractorBase> pixel_extractor;
+            std::shared_ptr<RegionFeatureExtractorBase> region_temporal_extractor;
+
+            pixel_extractor.reset(new PixelValue());
+            TemporalAverage region_average;
+
+            if(option.region_temporal_feature_type == TemporalFeature::TRANSITION_PATTERN){
+                CHECK(true) << "Not implemented";
+            }else if(option.region_temporal_feature_type == TemporalFeature::COMBINED) {
+                const vector<int> kBins{8, 8, 8};
+                const ColorHistogram::ColorSpace cspace = ColorHistogram::LAB;
+                vector<shared_ptr<RegionFeatureExtractorBase> > region_extractors(2);
+                region_extractors[0].reset(new RegionColorHist(cspace, kBins, width, height));
+                region_extractors[1].reset(
+                        new RegionTransitionPattern((int) input.size(), option.stride1, option.stride2,
+                                                    option.theta, pixel_extractor->getDefaultComparator(),
+                                                    &region_average));
+                region_temporal_extractor.reset(
+                        new RegionCombinedFeature(region_extractors, {option.w_appearance, option.w_transition}));
+            }
+
+            const DistanceMetricBase* temporal_comparator = region_temporal_extractor->getDefaultComparator();
+
+            VideoSegmentOption dense_option = option;
+            dense_option.threshold = 0.02;
+
+            LOG(INFO) << "Computing dense segment";
+            Mat iter_segment;
+            int num_segments = segment_video(input, iter_segment, dense_option);
+            LOG(INFO) << "Number of dense segments: " << num_segments;
+            CHECK_EQ(iter_segment.cols, width);
+            CHECK_EQ(iter_segment.rows, height);
+            CHECK_EQ(iter_segment.type(), CV_32SC1);
+            int* iter_segment_ptr = (int*) iter_segment.data;
+
+            imwrite("dense.jpg", segment_gb::visualizeSegmentation(iter_segment));
+
+            //save_iter: the set of iterations in which the result should be recorded
+            vector<int> save_iters(level_list.size());
+            for(auto i=0; i<level_list.size(); ++i){
+                CHECK_GE(level_list[i], 0.0f);
+                CHECK_LE(level_list[i], 1.0f);
+                save_iters[i] = num_segments * level_list[i];
+            }
+
+            LOG(INFO) << "Extracting pixel features";
+            vector<Mat> pixel_features(input.size());
+
+#pragma omp parallel for
+            for(auto v=0; v<input.size(); ++v){
+                pixel_extractor->extractAll(input[v], pixel_features[v]);
+            }
+
+            float hier_min_size = (float)option.min_size;
+            float hier_threshold = option.threshold;
+
+            char buffer[128] = {};
+            for(auto iter = 0; iter < option.hier_iter || option.hier_iter < 0; ++iter){
+                LOG(INFO) << "------------------------------------";
+                LOG(INFO) << "Hierarhical segmentation, iter " << iter;
+                //construct regions
+                vector<Region> regions((size_t) num_segments);
+                for(auto i=0; i<width * height; ++i){
+                    regions[iter_segment_ptr[i]].pix_id.push_back(i);
+                }
+
+                if(regions.size() < 2){
+                    LOG(WARNING) << "Only one segment remains, break";
+                    break;
+                }
+                vector<Region*> region_ptr(regions.size());
+                for(auto rid=0; rid < regions.size(); ++rid){
+                    region_ptr[rid] = &regions[rid];
+                }
+
+                LOG(INFO) << "Extracting region features";
+                Mat region_features;
+                if(option.region_temporal_feature_type == TemporalFeature::COMBINED){
+                    dynamic_pointer_cast<RegionCombinedFeature>(region_temporal_extractor)
+                            ->ExtractFromPixelFeatureArray({pixel_features, pixel_features}, region_ptr, region_features);
+                }else{
+                    CHECK(true)  << "Not implemented";
+                }
+                CHECK_EQ(region_features.rows, region_ptr.size());
+
+                LOG(INFO) << "Building edge maps";
+                vector<segment_gb::edge> edge_map;
+                BuildEdgeMap(region_ptr, edge_map, width, height);
+                CHECK(!edge_map.empty());
+                for(auto i=0; i<edge_map.size(); ++i){
+                    edge_map[i].w = temporal_comparator->
+                            evaluate(region_features.row(edge_map[i].a), region_features.row(edge_map[i].b));
+                }
+
+                //update min_size and threshold
+                hier_min_size = hier_min_size * 1.1;
+                hier_threshold *= 1.1;
+
+                LOG(INFO) << "Running grph segmentation";
+                std::unique_ptr<segment_gb::universe> graph(segment_gb::segment_graph((int)region_ptr.size(), edge_map, hier_threshold));
+
+                //Notice: the size of segments can not be quried by graph->size(). We need to compute the actual size of
+                //segment in pixels
+                vector<int> segment_sizes(region_ptr.size(), 0);
+                for(auto rid=0; rid < region_ptr.size(); ++rid){
+                    int sid = graph->find(rid);
+                    segment_sizes[sid] += region_ptr[rid]->pix_id.size();
+                }
+                for(const auto& e: edge_map){
+                    int sid_a = graph->find(e.a);
+                    int sid_b = graph->find(e.b);
+                    if ((sid_a != sid_b) && ((segment_sizes[sid_a] < (int)hier_min_size) || (segment_sizes[sid_b] < (float)hier_min_size))) {
+                        segment_sizes[sid_a] += segment_sizes[sid_b];
+                        segment_sizes[sid_b] = segment_sizes[sid_a];
+                        graph->join(sid_a, sid_b);
+                    }
+                }
+
+                iter_segment.setTo(cv::Scalar::all(-1));
+                for(auto rid=0; rid < region_ptr.size(); ++rid){
+                    for(auto pid: region_ptr[rid]->pix_id){
+                        iter_segment_ptr[pid] = graph->find(rid);
+                    }
+                }
+
+                //sanity check
+                for(auto i=0; i<width * height; ++i){
+                    CHECK_GE(iter_segment_ptr[i], 0);
+                }
+                num_segments = compressSegment(iter_segment);
+                if(std::find(save_iters.begin(), save_iters.end(), iter) != save_iters.end()){
+                    output.push_back(iter_segment.clone());
+                }
+                LOG(INFO) << "Iteration " << iter << " done, number of segments: " << num_segments;
+
+                sprintf(buffer, "region_iter%05d.jpg", iter);
+                imwrite(buffer, segment_gb::visualizeSegmentation(iter_segment));
+            }
+            return num_segments;
+        }
+
 
         int compressSegment(cv::Mat& segment){
             CHECK(segment.data);

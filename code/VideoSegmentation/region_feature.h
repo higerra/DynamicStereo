@@ -73,6 +73,10 @@ namespace dynamic_stereo{
             virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
                                          const cv::OutputArray merged) const{}
 
+            virtual void printFeature(const cv::InputArray input) const{
+                std::cout << input.getMat() << std::endl;
+            }
+
         private:
             std::vector<int> kBin_;
             std::vector<float> bin_unit_;
@@ -83,19 +87,35 @@ namespace dynamic_stereo{
             ColorHistogram::ColorSpace cspace_;
         };
 
-        class CombinedRegionExtractor: public RegionFeatureExtractorBase{
+        class RegionCombinedFeature: public RegionFeatureExtractorBase{
         public:
-            CombinedRegionExtractor();
+            RegionCombinedFeature(const std::vector<std::shared_ptr<RegionFeatureExtractorBase> > extractors,
+                                  const std::vector<double>& weights,
+                                  const std::vector<std::shared_ptr<DistanceMetricBase> >* sub_comparators = nullptr);
+
+
+            inline const std::vector<double> & GetSubWeights() const{
+                return weights_;
+            }
             virtual void ExtractFromPixelFeatures(const cv::InputArray pixel_features,
                                                   const std::vector<Region*>& region,
-                                                  cv::OutputArray output) const;
+                                                  cv::OutputArray output) const{
+                CHECK(true) << "This function shouldn't be called";
+            }
+
+            virtual void ExtractFromPixelFeatureArray(const std::vector<std::vector<cv::Mat> >& pixel_features,
+                                                      const std::vector<Region*>& region,
+                                                      cv::OutputArray output) const;
 
             virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
-                                         const cv::OutputArray merged) const;
+                                         const cv::OutputArray merged) const {}
             virtual void printFeature(const cv::InputArray input) const;
         private:
+            std::vector<std::shared_ptr<RegionFeatureExtractorBase> > temporal_extractors_;
+            std::vector<std::shared_ptr<DistanceMetricBase> > sub_comparators_;
+            std::vector<int> offset_;
+            std::vector<double> weights_;
         };
-
     }
 
 }//namespace dynamic_stereo

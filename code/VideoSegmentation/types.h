@@ -15,6 +15,7 @@ namespace dynamic_stereo{
 
         enum TemporalFeature{
             TRANSITION_PATTERN,
+            HISTOGRAM,
             COMBINED
         };
 

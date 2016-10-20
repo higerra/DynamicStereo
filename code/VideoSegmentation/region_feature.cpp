@@ -13,7 +13,7 @@ namespace dynamic_stereo{
 
         RegionColorHist::RegionColorHist(const ColorHistogram::ColorSpace cspace, const std::vector<int>& kBin,
                                          const int width, const int height)
-                :cspace_(cspace) , width_(width), height_(height){
+                :cspace_(cspace), kBin_(kBin),  width_(width), height_(height){
             CHECK_EQ(kBin.size(), 3);
             bin_unit_.resize(kBin.size());
             chn_offset_.resize(kBin.size(), 0.0);
@@ -71,12 +71,13 @@ namespace dynamic_stereo{
                     cvtColor(float_mat, color_mat, CV_BGR2Lab);
                 }
 
-                for(auto rid=0; rid < region.size(); ++rid){
+                for(auto rid=0; rid < region.size(); ++rid) {
                     CHECK(region[rid]);
-                    for(auto pid: region[rid]->pix_id){
+                    for (auto pid: region[rid]->pix_id) {
                         const float* pix = (float*) color_mat.data + pid * K;
+                        //Vec3f pix = color_mat.at<Vec3f>(pid / width_, pid % width_);
                         for (auto c = 0; c < K; ++c) {
-                            int bid = (pix[c] - chn_offset_[c])/ bin_unit_[c] +
+                            int bid = (pix[c] - chn_offset_[c]) / bin_unit_[c] +
                                       dim_offset[c];
                             CHECK_GE(bid, 0);
                             CHECK_LT(bid, getDim());
@@ -95,7 +96,7 @@ namespace dynamic_stereo{
                 float sum = std::accumulate(raw_hist[rid].begin(), raw_hist[rid].end(), 0.0);
                 if(sum > numeric_limits<float>::epsilon()){
                     for(auto& h: raw_hist[rid]){
-                        h /= sum * 255;
+                        h = h / sum * 255;
                     }
                 }
                 for(auto c=0; c<getDim(); ++c){
@@ -151,6 +152,73 @@ namespace dynamic_stereo{
             transition_pattern_->computeFromPixelFeature(region_features, output);
         }
 
+
+
+
+        RegionCombinedFeature::RegionCombinedFeature(const std::vector<std::shared_ptr<RegionFeatureExtractorBase> > extractors,
+                                                     const std::vector<double>& weights,
+                                                     const std::vector<std::shared_ptr<DistanceMetricBase> >* sub_comparators):
+                temporal_extractors_(extractors), weights_(weights){
+            CHECK_EQ(temporal_extractors_.size(), weights_.size());
+
+            FeatureBase::dim_ = 0;
+            for(auto i=0; i<temporal_extractors_.size(); ++i){
+                FeatureBase::dim_ += CHECK_NOTNULL(temporal_extractors_[i].get())->getDim();
+            }
+            sub_comparators_.resize(temporal_extractors_.size());
+            if(sub_comparators != nullptr){
+                CHECK_EQ(sub_comparators->size(), temporal_extractors_.size());
+                for(auto i=0; i<sub_comparators->size(); ++i){
+                    sub_comparators_[i] = (*sub_comparators)[i];
+                }
+            }else{
+                for(auto i=0; i<sub_comparators_.size(); ++i){
+                    sub_comparators_[i] = temporal_extractors_[i]->getDefaultComparatorSmartPointer();
+                    CHECK(sub_comparators_[i].get() != nullptr) << "Extractor " << i << " does not have a valid comparator";
+                }
+            }
+
+            offset_.resize(temporal_extractors_.size(), 0);
+            for(auto i=1; i<temporal_extractors_.size(); ++i){
+                offset_[i] = temporal_extractors_[i-1]->getDim() + offset_[i-1];
+            }
+
+            vector<size_t> splits(weights_.size() - 1);
+            for(auto i=0; i<splits.size(); ++i){
+                splits[i] = static_cast<size_t>(offset_[i+1]);
+            }
+            comparator_.reset(new DistanceCombinedWeighting(splits, weights_, sub_comparators_));
+        }
+
+        void RegionCombinedFeature::ExtractFromPixelFeatureArray(const std::vector<std::vector<cv::Mat> >& pixel_features,
+                                                                 const std::vector<Region*>& region,
+                                                                 cv::OutputArray output) const{
+            CHECK(!pixel_features.empty());
+            CHECK_EQ(pixel_features.size(), temporal_extractors_.size());
+
+            output.create((int)region.size(), getDim(), CV_8UC1);
+            Mat output_mat = output.getMat();
+
+#pragma omp parallel for
+            for(auto comid = 0; comid < temporal_extractors_.size(); ++comid){
+                Mat feature_component;
+                temporal_extractors_[comid]->ExtractFromPixelFeatures(pixel_features[comid], region, feature_component);
+                CHECK_EQ(feature_component.type(), output_mat.type());
+                feature_component.copyTo(output_mat.colRange(offset_[comid], offset_[comid] + temporal_extractors_[comid]->getDim()));
+            }
+
+        }
+
+        void RegionCombinedFeature::printFeature(const cv::InputArray input) const{
+            const Mat feat = input.getMat();
+            CHECK_EQ(feat.cols, getDim());
+            for(auto rid=0; rid < feat.rows; ++rid){
+                for(auto comid=0; comid < temporal_extractors_.size(); ++comid){
+                    temporal_extractors_[comid]->printFeature(
+                            feat.row(rid).colRange(offset_[comid], offset_[comid]+temporal_extractors_[comid]->getDim()));
+                }
+            }
+        }
     }//namespace video_segment
 
 }//namespace dynamic_stereo

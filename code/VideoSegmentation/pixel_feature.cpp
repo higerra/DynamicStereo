@@ -149,11 +149,10 @@ namespace dynamic_stereo{
                     cvtColor(float_mat, color_mat, CV_BGR2Lab);
                 }
 
-#pragma omp parallel for
-                for (auto y = 0; y < height_; ++y) {
-                    for (auto x = 0; x < width_; ++x) {
-                        for (auto dx = -R_; dx <= R_; ++dx) {
-                            for (auto dy = -R_; dy <= R_; ++dy) {
+                for (int y = 0; y < height_; ++y) {
+                    for (int x = 0; x < width_; ++x) {
+                        for (int dx = -R_; dx <= R_; ++dx) {
+                            for (int dy = -R_; dy <= R_; ++dy) {
                                 int cur_x = x + dx, cur_y = y + dy;
                                 if (cur_x >= 0 && cur_x < width_ && cur_y >= 0 && cur_y < height_) {
                                     for (auto c = 0; c < K; ++c) {
