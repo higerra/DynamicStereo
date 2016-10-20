@@ -117,7 +117,6 @@ namespace dynamic_stereo{
             pixelFeatures.getMatVector(pixel_feature_array);
 
             const int kPix = pixel_feature_array[0].rows;
-            CHECK_EQ(width_ * height_, kPix);
             const int K = pixel_feature_array[0].cols;
             CHECK_EQ(K, bin_unit_.size());
             const int N = pixel_feature_array.size();

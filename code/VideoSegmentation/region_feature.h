@@ -63,7 +63,24 @@ namespace dynamic_stereo{
         };
 
         class RegionColorHist: public RegionFeatureExtractorBase{
+        public:
+            RegionColorHist(const ColorHistogram::ColorSpace cspace, const std::vector<int>& kBin,
+                            const int width, const int height);
+            virtual void ExtractFromPixelFeatures(const cv::InputArray pixel_features,
+                                                  const std::vector<Region*>& region,
+                                                  const cv::OutputArray output) const;
 
+            virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
+                                         const cv::OutputArray merged) const{}
+
+        private:
+            std::vector<int> kBin_;
+            std::vector<float> bin_unit_;
+            std::vector<float> chn_offset_;
+
+            const int width_;
+            const int height_;
+            ColorHistogram::ColorSpace cspace_;
         };
 
         class CombinedRegionExtractor: public RegionFeatureExtractorBase{
@@ -75,7 +92,6 @@ namespace dynamic_stereo{
 
             virtual void MergeDescriptor(const cv::InputArray desc1, const cv::InputArray desc2,
                                          const cv::OutputArray merged) const;
-
             virtual void printFeature(const cv::InputArray input) const;
         private:
         };
