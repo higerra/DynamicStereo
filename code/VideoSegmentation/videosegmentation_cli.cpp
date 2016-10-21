@@ -14,7 +14,9 @@ using namespace dynamic_stereo;
 DEFINE_double(c, 20.0, "parameter c");
 DEFINE_double(theta, 100, "parameter theta");
 DEFINE_bool(run_pixel, true, "run pixel pixel level segmentation");
-DEFINE_bool(run_region, true, "run region level segmentation");
+DEFINE_bool(run_region, false, "run region level segmentation");
+
+DEFINE_double(wa, 0.001, "weight for appearance");
 
 int main(int argc, char** argv){
     if(argc < 2){
@@ -71,6 +73,9 @@ int main(int argc, char** argv){
             video_segment::VideoSegmentOption option(FLAGS_c);
             option.refine = false;
             option.temporal_feature_type = video_segment::COMBINED;
+            //option.temporal_feature_type = video_segment::TRANSITION_PATTERN;
+            option.w_appearance = (float)FLAGS_wa;
+            option.w_transition = 1.0 - (float)FLAGS_wa;
             int num_segments = video_segment::segment_video(images, segment, option);
             printf("Done, number of segments: %d\n", num_segments);
             Mat segment_vis = video_segment::visualizeSegmentation(segment);
@@ -89,6 +94,8 @@ int main(int argc, char** argv){
             printf("Region based video segmentation...\n");
             video_segment::VideoSegmentOption option(FLAGS_c);
             option.refine = false;
+            option.temporal_feature_type = video_segment::COMBINED;
+            option.pixel_feture_type = video_segment::PIXEL_VALUE;
             option.region_temporal_feature_type = video_segment::COMBINED;
             vector<float> level_list{0.25, 0.5, 0.75};
             vector<Mat> segments;
@@ -105,7 +112,6 @@ int main(int argc, char** argv){
                         filename.substr(0, filename.find_last_of(".")).c_str(), FLAGS_c);
                 printf("Writing %s\n", buffer);
                 imwrite(buffer, blended);
-
             }
         }
     }

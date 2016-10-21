@@ -70,6 +70,16 @@ namespace dynamic_stereo{
         }
     };
 
+    class DistanceCorrelation: public DistanceMetricBase{
+    public:
+        virtual double evaluate(const cv::InputArray a1, const cv::InputArray a2) const {
+            cv::Mat a1_f, a2_f;
+            a1.getMat().convertTo(a1_f, CV_32F);
+            a2.getMat().convertTo(a2_f, CV_32F);
+            return 1.0 - cv::compareHist(a1_f, a2_f, CV_COMP_CORREL);
+        }
+    };
+
     class DistanceCombinedWeighting: public DistanceMetricBase{
     public:
         DistanceCombinedWeighting(const std::vector<size_t> splits,
@@ -102,17 +112,19 @@ namespace dynamic_stereo{
             CHECK_GE(ranges_.back().second, ranges_.back().first);
 
             for(auto i=0; i<ranges_.size(); ++i){
+                double sub_dis = 0;
                 if(a1m.rows == 1) {
-                    distance += weights_[i] * CHECK_NOTNULL(comparators_[i].get())->evaluate(
-                                        a1m.colRange(ranges_[i].first, ranges_[i].second),
-                                        a2m.colRange(ranges_[i].first, ranges_[i].second));
+                    sub_dis = CHECK_NOTNULL(comparators_[i].get())->evaluate(
+                            a1m.colRange(ranges_[i].first, ranges_[i].second),
+                            a2m.colRange(ranges_[i].first, ranges_[i].second));
+                    distance += weights_[i] * sub_dis;
                 }else{
-                    distance += weights_[i] * CHECK_NOTNULL(comparators_[i].get())->evaluate(
+                    sub_dis = CHECK_NOTNULL(comparators_[i].get())->evaluate(
                             a1m.rowRange(ranges_[i].first, ranges_[i].second),
                             a2m.rowRange(ranges_[i].first, ranges_[i].second));
+                    distance += weights_[i] * sub_dis;
                 }
             }
-
             return distance;
         }
 
