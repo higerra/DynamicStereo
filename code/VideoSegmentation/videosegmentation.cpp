@@ -107,10 +107,10 @@ namespace dynamic_stereo {
             }
 
             CHECK_EQ(featuresMat.rows, width * height);
-#if false
+#if true
             {
                 //debug, inspect some of the feature
-                const int dx1 = 92, dy1 = 183, dx2 = 92, dy2 = 184;
+                const int dx1 = 1068, dy1 = 193, dx2 = 1068, dy2 = 191;
                 printf("(%d,%d):\n", dx1, dy1);
                 temporal_extractor->printFeature(featuresMat.row(dy1*width+dx1));
                 printf("(%d,%d):\n", dx2, dy2);
