@@ -52,8 +52,7 @@ namespace dynamic_stereo {
         void BuildEdgeMap(const std::vector<Region*>& regions, std::vector<segment_gb::edge> & edge_map,
                           const int width, const int height);
 
-        int HierarchicalSegmentation(const std::vector<cv::Mat>& input, const std::vector<float>& level_list,
-                                     std::vector<cv::Mat>& output, const VideoSegmentOption& option);
+        int HierarchicalSegmentation(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const VideoSegmentOption& option);
 
         //Multi-frame multi-label grabcut algorithm
         //mask: for both input and output, with type CV_32SC1, the number indicates label id

@@ -73,7 +73,7 @@ namespace dynamic_stereo {
                                                                pixel_extractor->getDefaultComparator()));
             }else if(option.temporal_feature_type == TemporalFeature::COMBINED) {
                 const vector<int> kBins{8,8,8};
-                constexpr int R = 1;
+                constexpr int R = 0;
                 std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > component_extractors(2);
                 component_extractors[0].reset(new ColorHistogram(ColorHistogram::HSV, kBins, width, height, R));
                 //component_extractors[0].reset(new TemporalAverage());
@@ -110,7 +110,7 @@ namespace dynamic_stereo {
 #if false
             {
                 //debug, inspect some of the feature
-                const int dx1 = 764, dy1 = 244, dx2 = 765, dy2 = 244;
+                const int dx1 = 92, dy1 = 183, dx2 = 92, dy2 = 184;
                 printf("(%d,%d):\n", dx1, dy1);
                 temporal_extractor->printFeature(featuresMat.row(dy1*width+dx1));
                 printf("(%d,%d):\n", dx2, dy2);
@@ -263,8 +263,7 @@ namespace dynamic_stereo {
             }
         }
 
-        int HierarchicalSegmentation(const std::vector<cv::Mat>& input, const std::vector<float>& level_list,
-                                     std::vector<cv::Mat>& output, const VideoSegmentOption& option){
+        int HierarchicalSegmentation(const std::vector<cv::Mat>& input, std::vector<cv::Mat>& output, const VideoSegmentOption& option){
             CHECK(!input.empty());
             //first perform dense segment
             const int width = input[0].cols;
@@ -296,7 +295,7 @@ namespace dynamic_stereo {
             const DistanceMetricBase* temporal_comparator = region_temporal_extractor->getDefaultComparator();
 
             VideoSegmentOption dense_option = option;
-            dense_option.threshold = 0.02;
+            dense_option.threshold = 0.1;
 
             LOG(INFO) << "Computing dense segment";
             Mat iter_segment;
@@ -306,17 +305,6 @@ namespace dynamic_stereo {
             CHECK_EQ(iter_segment.rows, height);
             CHECK_EQ(iter_segment.type(), CV_32SC1);
             int* iter_segment_ptr = (int*) iter_segment.data;
-
-            imwrite("dense.jpg", segment_gb::visualizeSegmentation(iter_segment));
-
-            //save_iter: the set of iterations in which the result should be recorded
-            vector<int> save_iters(level_list.size());
-            for(auto i=0; i<level_list.size(); ++i){
-                CHECK_GE(level_list[i], 0.0f);
-                CHECK_LE(level_list[i], 1.0f);
-                save_iters[i] = num_segments * level_list[i];
-            }
-
             LOG(INFO) << "Extracting pixel features";
             vector<Mat> pixel_features(input.size());
 
@@ -326,7 +314,17 @@ namespace dynamic_stereo {
             }
 
             float hier_min_size = (float)option.min_size;
-            float hier_threshold = option.threshold;
+            float hier_threshold = dense_option.threshold;
+
+            auto get_center = [&](const std::vector<int>& pix_id){
+                Vec2d center(0,0);
+                for(auto pid: pix_id){
+                    center[0] += pid % width;
+                    center[1] += pid / width;
+                }
+                center /= (double)pix_id.size();
+                return center;
+            };
 
             char buffer[128] = {};
             for(auto iter = 0; iter < option.hier_iter || option.hier_iter < 0; ++iter){
@@ -360,6 +358,7 @@ namespace dynamic_stereo {
                 LOG(INFO) << "Building edge maps";
                 vector<segment_gb::edge> edge_map;
                 BuildEdgeMap(region_ptr, edge_map, width, height);
+
                 CHECK(!edge_map.empty());
                 for(auto i=0; i<edge_map.size(); ++i){
                     edge_map[i].w = temporal_comparator->
@@ -367,8 +366,8 @@ namespace dynamic_stereo {
                 }
 
                 //update min_size and threshold
-                hier_min_size = hier_min_size * 1.1;
-                hier_threshold *= 1.1;
+                hier_min_size = hier_min_size * 1.5;
+                hier_threshold *= 1.5;
 
                 LOG(INFO) << "Running grph segmentation";
                 std::unique_ptr<segment_gb::universe> graph(segment_gb::segment_graph((int)region_ptr.size(), edge_map, hier_threshold));
@@ -402,13 +401,8 @@ namespace dynamic_stereo {
                     CHECK_GE(iter_segment_ptr[i], 0);
                 }
                 num_segments = compressSegment(iter_segment);
-                if(std::find(save_iters.begin(), save_iters.end(), iter) != save_iters.end()){
-                    output.push_back(iter_segment.clone());
-                }
+                output.push_back(iter_segment.clone());
                 LOG(INFO) << "Iteration " << iter << " done, number of segments: " << num_segments;
-
-                sprintf(buffer, "region_iter%05d.jpg", iter);
-                imwrite(buffer, segment_gb::visualizeSegmentation(iter_segment));
             }
             return num_segments;
         }

@@ -76,6 +76,7 @@ int main(int argc, char** argv){
             //option.temporal_feature_type = video_segment::TRANSITION_PATTERN;
             option.w_appearance = (float)FLAGS_wa;
             option.w_transition = 1.0 - (float)FLAGS_wa;
+            option.threshold = FLAGS_c;
             int num_segments = video_segment::segment_video(images, segment, option);
             printf("Done, number of segments: %d\n", num_segments);
             Mat segment_vis = video_segment::visualizeSegmentation(segment);
@@ -97,19 +98,19 @@ int main(int argc, char** argv){
             option.temporal_feature_type = video_segment::COMBINED;
             option.pixel_feture_type = video_segment::PIXEL_VALUE;
             option.region_temporal_feature_type = video_segment::COMBINED;
-            vector<float> level_list{0.25, 0.5, 0.75};
+            option.w_appearance = (float)FLAGS_wa;
+            option.w_transition = 1.0 - (float)FLAGS_wa;
+
             vector<Mat> segments;
-            int num_segments = video_segment::HierarchicalSegmentation(images, level_list, segments, option);
-            CHECK_EQ(segments.size(), level_list.size());
+            int num_segments = video_segment::HierarchicalSegmentation(images, segments, option);
             printf("Done\n");
-            for(auto i=0; i<level_list.size(); ++i) {
+            for(auto i=0; i<segments.size(); ++i) {
                 Mat segment_vis = video_segment::visualizeSegmentation(segments[i]);
                 Mat blended;
                 const double blend_weight = 0.1;
                 cv::addWeighted(images[0], blend_weight, segment_vis, 1.0 - blend_weight, 0.0, blended);
-
-                sprintf(buffer, "%s/%s_result_region_l%05.1f.png", out_path.c_str(),
-                        filename.substr(0, filename.find_last_of(".")).c_str(), FLAGS_c);
+                sprintf(buffer, "%s/%s_result_region_l%05d.png", out_path.c_str(),
+                        filename.substr(0, filename.find_last_of(".")).c_str(), i);
                 printf("Writing %s\n", buffer);
                 imwrite(buffer, blended);
             }
