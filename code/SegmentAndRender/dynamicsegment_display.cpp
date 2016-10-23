@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{0.4,0.6,0.7,0.8,0.9};
+            const vector<float> levelList{5.0, 8.0, 10.0, 15.0};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -56,20 +56,34 @@ namespace dynamic_stereo{
             sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
             cv::FileStorage segmentIn(buffer, FileStorage::READ);
             if(segmentIn.isOpened()){
-                int num_level = 0;
-                segmentIn["kLevel"] >> num_level;
-                segments.resize(num_level);
-                for(int i=0; i<num_level; ++i){
+                Mat levelMat;
+                segmentIn["levelList"] >> levelMat;
+                if(levelMat.rows!= levelList.size()){
+                    run_segmentation = true;
+                }else{
+                    for(auto i=0; i<levelList.size(); ++i){
+                        if(levelMat.at<float>(i,0) != levelList[i]){
+                            run_segmentation = true;
+                            break;
+                        }
+                    }
+                }
+                segments.resize(levelList.size());
+                for(int i=0; i<levelList.size(); ++i){
                     segmentIn["level"+std::to_string(i)] >> segments[i];
                 }
                 run_segmentation = false;
             }
             if(run_segmentation) {
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, cv::noArray(), segments);
+                CHECK_EQ(segments.size(), levelList.size());
                 cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
                 CHECK(segmentOut.isOpened());
-                segmentOut << "levelList" << (int)segments.size();
-                for(int i=0; i<segments.size(); ++i)
+                Mat levelMat(levelList.size(),1,CV_32FC1);
+                for(auto i=0; i<levelList.size(); ++i)
+                    levelMat.at<float>(i,0) = levelList[i];
+                segmentOut << "levelList" << levelMat;
+                for(int i=0; i<levelList.size(); ++i)
                     segmentOut << "level"+std::to_string(i) << segments[i];
             }else{
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
@@ -78,10 +92,8 @@ namespace dynamic_stereo{
             //dump out segmentation result
             for(auto i=0; i<segments.size(); ++i){
                 Mat segVis = video_segment::visualizeSegmentation(segments[i]);
-                Mat blended;
-                cv::addWeighted(input[input.size()/2], 0.1, segVis, 0.9, 0.0, blended);
                 sprintf(buffer, "%s/temp/videosegment%05d_%.1f.png", file_io.getDirectory().c_str(), anchor, levelList[i]);
-                imwrite(buffer, blended);
+                imwrite(buffer, segVis);
             }
 
             sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
