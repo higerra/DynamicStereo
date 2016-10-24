@@ -503,6 +503,7 @@ namespace dynamic_stereo {
         CHECK_EQ(pix_flashy.size(), ranges_flashy.size());
         CHECK_EQ(pix_display.size(), segments_display.size());
         CHECK_EQ(pix_flashy.size(), segments_flashy.size());
+
         output.resize((size_t) kFrames);
         for (auto i = 0; i < kFrames; ++i) {
             output[i] = background.clone();

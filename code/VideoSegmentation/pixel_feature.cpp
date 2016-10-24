@@ -107,8 +107,8 @@ namespace dynamic_stereo{
             }
 
             FeatureBase::dim_ = std::accumulate(kBin.begin(), kBin.end(), 0);
-            FeatureBase::comparator_.reset(new DistanceChi2());
-            //FeatureBase::comparator_.reset(new DistanceCorrelation());
+            //FeatureBase::comparator_.reset(new DistanceChi2());
+            FeatureBase::comparator_.reset(new DistanceCorrelation());
         }
 
         void ColorHistogram::computeFromPixelFeature(const cv::_InputArray &pixelFeatures,

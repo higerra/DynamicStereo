@@ -75,7 +75,7 @@ namespace dynamic_stereo {
                 const vector<int> kBins{8,8,8};
                 constexpr int R = 0;
                 std::vector<std::shared_ptr<TemporalFeatureExtractorBase> > component_extractors(2);
-                component_extractors[0].reset(new ColorHistogram(ColorHistogram::HSV, kBins, width, height, R));
+                component_extractors[0].reset(new ColorHistogram(ColorHistogram::LAB, kBins, width, height, R));
                 //component_extractors[0].reset(new TemporalAverage());
                 component_extractors[1].reset(new TransitionPattern(input.size(), option.stride1, option.stride2, option.theta,
                                                                     pixel_extractor->getDefaultComparator()));
@@ -109,14 +109,19 @@ namespace dynamic_stereo {
             CHECK_EQ(featuresMat.rows, width * height);
 #if true
             {
+                DistanceCorrelation dis_cor;
                 //debug, inspect some of the feature
-                const int dx1 = 1068, dy1 = 193, dx2 = 1068, dy2 = 191;
+                const int dx1 = 1007, dy1 = 200, dx2 = 1007, dy2 = 199;
                 printf("(%d,%d):\n", dx1, dy1);
                 temporal_extractor->printFeature(featuresMat.row(dy1*width+dx1));
                 printf("(%d,%d):\n", dx2, dy2);
                 temporal_extractor->printFeature(featuresMat.row(dy2*width+dx2));
-                printf("Distance: %.3f\n",
-                       feature_comparator->evaluate(featuresMat.row(dy1*width+dx1), featuresMat.row(dy2*width+dx2)));
+                const double edgeness = edgeMap.at<float>(dy2, dx2);
+                const double appearance = dis_cor.evaluate(featuresMat.row(dy1*width+dx1).colRange(0,24),
+                                                           featuresMat.row(dy2*width+dx2).colRange(0,24));
+                const double raw_dis = feature_comparator->evaluate(featuresMat.row(dy1*width+dx1), featuresMat.row(dy2*width+dx2));
+                printf("Distance: edge: %.5f, raw: %.5f, overall: %.5f\n", edgeness, raw_dis, edgeness * raw_dis);
+                printf("Appearance distance: %.5f\n", appearance);
             }
 #endif
             // build graph
@@ -124,10 +129,12 @@ namespace dynamic_stereo {
             edges.reserve((size_t) width * height);
 
             LOG(INFO) << "Segmenting";
+            constexpr float base_edgeness = 0;
             //8 neighbor
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    float edgeness = edgeMap.at<float>(y, x);
+                    //float edgeness = edgeMap.at<float>(y, x);
+                    float edgeness = base_edgeness + edgeMap.at<float>(y, x) * (1 - base_edgeness);
                     //float edgeness = 1.0;
                     if (x < width - 1) {
                         segment_gb::edge curEdge;

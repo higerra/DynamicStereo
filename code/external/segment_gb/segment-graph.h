@@ -38,6 +38,7 @@ namespace segment_gb {
  * edges: array of edges.
  * c: constant for treshold function.
  */
-	universe *segment_graph(int num_vertices, std::vector<edge>& edges, float c);
+	universe *segment_graph(int num_vertices, std::vector<edge>& edges, float c,
+							const int width = -1, const bool debug = false);
 }
 #endif
