@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{0.5,0.6,0.7,0.8};
+            const vector<float> levelList{0.5,0.65,0.8};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -77,11 +77,14 @@ namespace dynamic_stereo{
             }
 
             //dump out segmentation result
-            for(auto i=0; i<segments.size(); ++i){
-                Mat segVis = video_segment::visualizeSegmentation(segments[i]);
+            for(auto i=0; i<levelList.size(); ++i){
+                int lid = segments.size() * levelList[i];
+                CHECK_GE(lid, 0);
+                CHECK_LT(lid, segments.size());
+                Mat segVis = video_segment::visualizeSegmentation(segments[lid]);
                 Mat blended;
                 cv::addWeighted(input[input.size()/2], 0.1, segVis, 0.9, 0.0, blended);
-                sprintf(buffer, "%s/temp/videosegment%05d_%.1f.png", file_io.getDirectory().c_str(), anchor, levelList[i]);
+                sprintf(buffer, "%s/temp/videosegment%05d_%.3f.png", file_io.getDirectory().c_str(), anchor, levelList[i]);
                 imwrite(buffer, blended);
             }
 

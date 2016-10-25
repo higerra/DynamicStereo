@@ -437,10 +437,17 @@ namespace dynamic_stereo {
             const int width = images[0].cols;
             const int height = images[0].rows;
 
-            Mat resultMask(height, width, CV_8UC1, Scalar::all(0));
+
+            //morphological operation
+            const cv::Size erode_R(5,5);
+            const cv::Size dilate_R(7,7);
+
+            Mat eroded, dilated;
+            cv::erode(mask, eroded, cv::getStructuringElement(cv::MORPH_ELLIPSE, erode_R));
+            cv::dilate(eroded, dilated, cv::getStructuringElement(cv::MORPH_ELLIPSE, dilate_R));
 
             Mat labels, stats, centroid;
-            int nLabel = cv::connectedComponentsWithStats(mask, labels, stats, centroid);
+            int nLabel = cv::connectedComponentsWithStats(dilated, labels, stats, centroid);
             const int* pLabel = (int*) labels.data;
 
             const int min_area = 50;
@@ -451,6 +458,7 @@ namespace dynamic_stereo {
             const int testL = -1;
 
             const int localMargin = std::min(width, height) / 10;
+            Mat resultMask(height, width, CV_8UC1, Scalar::all(0));
             for(auto l=1; l<nLabel; ++l){
                 if(testL > 0 && l != testL)
                     continue;

@@ -503,9 +503,38 @@ namespace dynamic_stereo {
         CHECK_EQ(pix_flashy.size(), ranges_flashy.size());
         CHECK_EQ(pix_display.size(), segments_display.size());
         CHECK_EQ(pix_flashy.size(), segments_flashy.size());
+
+        const int width = background.cols;
+        const int height = background.rows;
+
         output.resize((size_t) kFrames);
         for (auto i = 0; i < kFrames; ++i) {
             output[i] = background.clone();
+        }
+
+        //create alpha blending mask
+        constexpr int blend_R = 10;
+        Mat mask_all_segments(background.size(), CV_8UC1, Scalar::all(0));
+        Mat blend_weight(background.size(), CV_32FC1, Scalar::all(0.0f));
+        for(const auto& segment: segments_display){
+            for(const auto& pid: segment){
+                mask_all_segments.at<uchar>(pid[1],pid[0]) = (uchar)255;
+                blend_weight.at<float>(pid[1], pid[0]) = 1.0f;
+            }
+        }
+        for(auto i=0; i<blend_R; ++i){
+            Mat eroded;
+            cv::erode(mask_all_segments, eroded, cv::getStructuringElement(cv::MORPH_RECT,cv::Size(3,3)));
+            Mat contour = mask_all_segments - eroded;
+            for(auto y=0; y<height; ++y){
+                for(auto x=0; x<width; ++x){
+                    if(contour.at<uchar>(y,x) > (uchar)200){
+                        blend_weight.at<float>(y,x) = (float)i * 1.0 / (float)blend_R;
+                    }
+                }
+            }
+            mask_all_segments.release();
+            mask_all_segments = eroded.clone();
         }
 
         //render display: back-forth
@@ -517,8 +546,12 @@ namespace dynamic_stereo {
                     fid = 2 * kSegLength - fid;
                 }
                 for (auto pid = 0; pid < segments_display[sid].size(); ++pid) {
-                    output[output_index].at<Vec3b>(segments_display[sid][pid][1], segments_display[sid][pid][0]) =
-                            pix_display[sid].at<Vec3b>(fid, pid);
+                    const Vector2i& loc = segments_display[sid][pid];
+                    const float alpha = blend_weight.at<float>(loc[1], loc[0]);
+                    Vec3f pix = (Vec3f) background.at<Vec3b>(loc[1], loc[0]) * (1 - alpha) +
+                                (Vec3f) pix_display[sid].at<Vec3b>(fid, pid) * alpha;
+                    output[output_index].at<Vec3b>(loc[1], loc[0]) = (Vec3b) pix;
+
                 }
             }
         }

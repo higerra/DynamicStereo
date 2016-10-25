@@ -65,8 +65,8 @@ int main(int argc, char** argv) {
     Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
     LOG(INFO) << "Segmenting display...";
     segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-    LOG(INFO) << "Segmenting flashy...";
-    segmentFlashy(file_io, FLAGS_testFrame, mid_input, seg_result_flashy);
+//    LOG(INFO) << "Segmenting flashy...";
+//    segmentFlashy(file_io, FLAGS_testFrame, mid_input, seg_result_flashy);
 
     CHECK_EQ(seg_result_display.cols, kFrameSize.width);
     CHECK_EQ(seg_result_display.rows, kFrameSize.height);
@@ -94,11 +94,11 @@ int main(int argc, char** argv) {
     //2. Geometric stablization by grid warping
     //3. Apply RPCA to smooth transition and remove high frequency noise
 
-    LOG(INFO) << "Step 1: Fill holes by poisson smoothing";
-    const double small_poisson = 0.01;
-    regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
-    mid_input.swap(mid_output);
-    mid_output.clear();
+//    LOG(INFO) << "Step 1: Fill holes by poisson smoothing";
+//    const double small_poisson = 0.01;
+//    regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
+//    mid_input.swap(mid_output);
+//    mid_output.clear();
 
     //The flashy segments will not pass stabilization and regularization, so create the pixel mat now
     vector<Mat> pixel_mat_flashy(segmentsFlashy.size());
@@ -106,46 +106,46 @@ int main(int argc, char** argv) {
         CreatePixelMat(mid_input, segmentsFlashy[i], rangesFlashy[i], pixel_mat_flashy[i]);
     }
 
-    LOG(INFO) << "Step 2: geometric stablization";
-    float stab_t = (float)cv::getTickCount();
-    stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, anchor_frame, FLAGS_param_stab, StabAlg::HOMOGRAPHY);
-    LOG(INFO) << "Done. Time usage: " << ((float)getTickCount() - stab_t) / (float)getTickFrequency() << "s";
-    mid_input.swap(mid_output);
-    mid_output.clear();
-
-    sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
-    CHECK(stabilizedOutput.isOpened()) << buffer;
-    for (auto i = 0; i < mid_input.size(); ++i) {
-        stabilizedOutput << mid_input[i];
-    }
-    stabilizedOutput.release();
-
-    LOG(INFO) << "Step 3: Color regularization";
-    float reg_t = (float)cv::getTickCount();
-    if(FLAGS_regularization == "median"){
-        const int medianR = 5;
-        printf("Running regularization with median filter, r: %d\n", medianR);
-        temporalMedianFilter(mid_input, segmentsDisplay, mid_output, medianR);
-    }else if(FLAGS_regularization == "RPCA"){
-        const double regular_lambda = 0.01;
-        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
-        regularizationRPCA(mid_input, segmentsDisplay, mid_output, regular_lambda);
-    }else if(FLAGS_regularization == "anisotropic"){
-        const double ws = 0.6;
-        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
-        regularizationAnisotropic(mid_input, segmentsDisplay, mid_output, ws);
-    }else if(FLAGS_regularization == "poisson"){
-        const double ws = 0.1, wt = 0.5;
-        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
-        regularizationPoisson(mid_input, segmentsDisplay, mid_output, ws, wt);
-    }else{
-        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
-        return 1;
-    }
-    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
-    mid_input.swap(mid_output);
-    mid_output.clear();
+//    LOG(INFO) << "Step 2: geometric stablization";
+//    float stab_t = (float)cv::getTickCount();
+//    stabilizeSegments(mid_input, mid_output, segmentsDisplay, rangesDisplay, anchor_frame, FLAGS_param_stab, StabAlg::HOMOGRAPHY);
+//    LOG(INFO) << "Done. Time usage: " << ((float)getTickCount() - stab_t) / (float)getTickFrequency() << "s";
+//    mid_input.swap(mid_output);
+//    mid_output.clear();
+//
+//    sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
+//    CHECK(stabilizedOutput.isOpened()) << buffer;
+//    for (auto i = 0; i < mid_input.size(); ++i) {
+//        stabilizedOutput << mid_input[i];
+//    }
+//    stabilizedOutput.release();
+//
+//    LOG(INFO) << "Step 3: Color regularization";
+//    float reg_t = (float)cv::getTickCount();
+//    if(FLAGS_regularization == "median"){
+//        const int medianR = 5;
+//        printf("Running regularization with median filter, r: %d\n", medianR);
+//        temporalMedianFilter(mid_input, segmentsDisplay, mid_output, medianR);
+//    }else if(FLAGS_regularization == "RPCA"){
+//        const double regular_lambda = 0.01;
+//        printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
+//        regularizationRPCA(mid_input, segmentsDisplay, mid_output, regular_lambda);
+//    }else if(FLAGS_regularization == "anisotropic"){
+//        const double ws = 0.6;
+//        printf("Running regularization with anisotropic diffusion, ws: %.3f\n", ws);
+//        regularizationAnisotropic(mid_input, segmentsDisplay, mid_output, ws);
+//    }else if(FLAGS_regularization == "poisson"){
+//        const double ws = 0.1, wt = 0.5;
+//        printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.3f\n", ws, wt);
+//        regularizationPoisson(mid_input, segmentsDisplay, mid_output, ws, wt);
+//    }else{
+//        cerr << "Invalid regularization algorithm. Choose between {median, RPCA, anisotropic, poisson}" << endl;
+//        return 1;
+//    }
+//    printf("Done, time usage: %.2fs\n", ((float)cv::getTickCount() -reg_t)/(float)cv::getTickFrequency());
+//    mid_input.swap(mid_output);
+//    mid_output.clear();
 
     //create pixel mat for display
     vector<Mat> pixel_mat_display(segmentsDisplay.size());
