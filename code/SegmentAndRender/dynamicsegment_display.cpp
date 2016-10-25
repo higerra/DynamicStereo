@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{0.4,0.6,0.7,0.8,0.9};
+            const vector<float> levelList{0.5,0.6,0.7,0.8};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -62,13 +62,14 @@ namespace dynamic_stereo{
                 for(int i=0; i<num_level; ++i){
                     segmentIn["level"+std::to_string(i)] >> segments[i];
                 }
+                LOG(INFO) << "Segmentation file loaded";
                 run_segmentation = false;
             }
             if(run_segmentation) {
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, cv::noArray(), segments);
                 cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
                 CHECK(segmentOut.isOpened());
-                segmentOut << "levelList" << (int)segments.size();
+                segmentOut << "kLevel" << (int)segments.size();
                 for(int i=0; i<segments.size(); ++i)
                     segmentOut << "level"+std::to_string(i) << segments[i];
             }else{
@@ -88,7 +89,7 @@ namespace dynamic_stereo{
             imwrite(buffer, preSeg);
         }
 
-        sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());
+        sprintf(buffer, "%s/temp/segment_display%05d.jpg", file_io.getDirectory().c_str(), anchor);
         imwrite(buffer, preSeg);
         result = video_segment::localRefinement(input, preSeg);
     }

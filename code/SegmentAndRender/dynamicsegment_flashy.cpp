@@ -102,7 +102,7 @@ namespace dynamic_stereo{
 		cv::dilate(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
 		cv::erode(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
 
-		sprintf(buffer, "%s/temp/segment_flashy.jpg", file_io.getDirectory().c_str());
+		sprintf(buffer, "%s/temp/segment_flashy%05d.jpg", file_io.getDirectory().c_str());
 		imwrite(buffer, preSeg);
         //result = video_segment::localRefinement(input, preSeg);
 		result = video_segment::localRefinement(input, preSeg);

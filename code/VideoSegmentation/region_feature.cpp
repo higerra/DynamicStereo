@@ -152,9 +152,6 @@ namespace dynamic_stereo{
             transition_pattern_->computeFromPixelFeature(region_features, output);
         }
 
-
-
-
         RegionCombinedFeature::RegionCombinedFeature(const std::vector<std::shared_ptr<RegionFeatureExtractorBase> > extractors,
                                                      const std::vector<double>& weights,
                                                      const std::vector<std::shared_ptr<DistanceMetricBase> >* sub_comparators):

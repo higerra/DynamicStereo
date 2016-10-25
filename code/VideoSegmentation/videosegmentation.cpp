@@ -295,7 +295,7 @@ namespace dynamic_stereo {
             const DistanceMetricBase* temporal_comparator = region_temporal_extractor->getDefaultComparator();
 
             VideoSegmentOption dense_option = option;
-            dense_option.threshold = 0.1;
+            dense_option.threshold = 0.2;
 
             LOG(INFO) << "Computing dense segment";
             Mat iter_segment;

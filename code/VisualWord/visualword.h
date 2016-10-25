@@ -44,8 +44,7 @@ namespace dynamic_stereo {
         void detectVideo(const std::vector<cv::Mat> &images, cv::Ptr<cv::ml::StatModel> classifier, const cv::Mat &codebook,
                          const std::vector<float> &levelList, cv::Mat &output, const VisualWordOption &option,
                          cv::InputArrayOfArrays inputSegments = cv::noArray(),
-                         cv::OutputArrayOfArrays rawSegments = cv::noArray(),
-                         const std::string& save_path = std::string());
+                         cv::OutputArrayOfArrays rawSegments = cv::noArray());
 
         double testClassifier(const cv::Ptr<cv::ml::TrainData> testPtr, const cv::Ptr<cv::ml::StatModel> classifier);
     }//namespace VisualWord

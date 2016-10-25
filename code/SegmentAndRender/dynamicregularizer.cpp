@@ -302,7 +302,7 @@ namespace dynamic_stereo {
             }
         };
 
-        const int num_thread = 1;
+        const int num_thread = 6;
         vector<thread_guard> threads(num_thread);
         for (auto tid = 0; tid < num_thread; ++tid) {
             std::thread t(threadFunc, tid, num_thread);
