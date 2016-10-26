@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{5.0, 8.0, 10.0, 15.0};
+            const vector<float> levelList{0.5,0.65,0.8};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -72,6 +72,7 @@ namespace dynamic_stereo{
                 for(int i=0; i<levelList.size(); ++i){
                     segmentIn["level"+std::to_string(i)] >> segments[i];
                 }
+                LOG(INFO) << "Segmentation file loaded";
                 run_segmentation = false;
             }
             if(run_segmentation) {
@@ -79,28 +80,30 @@ namespace dynamic_stereo{
                 CHECK_EQ(segments.size(), levelList.size());
                 cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
                 CHECK(segmentOut.isOpened());
-                Mat levelMat(levelList.size(),1,CV_32FC1);
-                for(auto i=0; i<levelList.size(); ++i)
-                    levelMat.at<float>(i,0) = levelList[i];
-                segmentOut << "levelList" << levelMat;
-                for(int i=0; i<levelList.size(); ++i)
+                segmentOut << "kLevel" << (int)segments.size();
+                for(int i=0; i<segments.size(); ++i)
                     segmentOut << "level"+std::to_string(i) << segments[i];
             }else{
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
             }
 
             //dump out segmentation result
-            for(auto i=0; i<segments.size(); ++i){
-                Mat segVis = video_segment::visualizeSegmentation(segments[i]);
-                sprintf(buffer, "%s/temp/videosegment%05d_%.1f.png", file_io.getDirectory().c_str(), anchor, levelList[i]);
-                imwrite(buffer, segVis);
+            for(auto i=0; i<levelList.size(); ++i){
+                int lid = segments.size() * levelList[i];
+                CHECK_GE(lid, 0);
+                CHECK_LT(lid, segments.size());
+                Mat segVis = video_segment::visualizeSegmentation(segments[lid]);
+                Mat blended;
+                cv::addWeighted(input[input.size()/2], 0.1, segVis, 0.9, 0.0, blended);
+                sprintf(buffer, "%s/temp/videosegment%05d_%.3f.png", file_io.getDirectory().c_str(), anchor, levelList[i]);
+                imwrite(buffer, blended);
             }
 
             sprintf(buffer, "%s/midres/classification%05d.png", file_io.getDirectory().c_str(), anchor);
             imwrite(buffer, preSeg);
         }
 
-        sprintf(buffer, "%s/temp/segment_display.jpg", file_io.getDirectory().c_str());
+        sprintf(buffer, "%s/temp/segment_display%05d.jpg", file_io.getDirectory().c_str(), anchor);
         imwrite(buffer, preSeg);
         result = video_segment::localRefinement(input, preSeg);
     }

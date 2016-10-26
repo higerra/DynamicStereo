@@ -302,7 +302,7 @@ namespace dynamic_stereo {
             const DistanceMetricBase* temporal_comparator = region_temporal_extractor->getDefaultComparator();
 
             VideoSegmentOption dense_option = option;
-            dense_option.threshold = 0.1;
+            dense_option.threshold = 0.2;
 
             LOG(INFO) << "Computing dense segment";
             Mat iter_segment;
@@ -444,13 +444,22 @@ namespace dynamic_stereo {
             const int width = images[0].cols;
             const int height = images[0].rows;
 
-            Mat resultMask(height, width, CV_8UC1, Scalar::all(0));
+
+            //morphological operation
+            const cv::Size erode_R(5,5);
+            const cv::Size dilate_R(7,7);
+
+            Mat eroded, dilated;
+            cv::erode(mask, eroded, cv::getStructuringElement(cv::MORPH_ELLIPSE, erode_R));
+            cv::dilate(eroded, dilated, cv::getStructuringElement(cv::MORPH_ELLIPSE, dilate_R));
 
             Mat labels, stats, centroid;
-            int nLabel = cv::connectedComponentsWithStats(mask, labels, stats, centroid);
+            int nLabel = cv::connectedComponentsWithStats(dilated, labels, stats, centroid);
             const int* pLabel = (int*) labels.data;
 
             const int min_area = 50;
+            const int max_area = width * height / 8;
+
             const double maxRatioOcclu = 0.3;
 
             int kOutputLabel = 1;
@@ -458,6 +467,7 @@ namespace dynamic_stereo {
             const int testL = -1;
 
             const int localMargin = std::min(width, height) / 10;
+            Mat resultMask(height, width, CV_8UC1, Scalar::all(0));
             for(auto l=1; l<nLabel; ++l){
                 if(testL > 0 && l != testL)
                     continue;
@@ -471,6 +481,10 @@ namespace dynamic_stereo {
                 printf("label:%d/%d, centroid:(%d,%d), area:%d\n", l, nLabel, cx, cy, area);
                 if(area < min_area) {
                     printf("Area too small\n");
+                    continue;
+                }
+                if(area > max_area){
+                    printf("Area too large\n");
                     continue;
                 }
 

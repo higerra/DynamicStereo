@@ -66,7 +66,6 @@ namespace dynamic_stereo {
             vector<Mat> segments;
             if (!inputSegments.empty()) {
                 inputSegments.getMatVector(segments);
-                CHECK_EQ(segments.size(), levelList.size());
             }
 
             vector<Mat> classification_level(levelList.size());
@@ -75,23 +74,34 @@ namespace dynamic_stereo {
              * Note: There are some memory inefficient operations inside region descriptor, so there won't be enough
              * memory for parallel execution.
              */
+
+            if(segments.empty()){
+                video_segment::VideoSegmentOption hier_option(0.2);
+                hier_option.refine = false;
+                hier_option.w_appearance = 0.1;
+                hier_option.temporal_feature_type = video_segment::COMBINED;
+                hier_option.region_temporal_feature_type = video_segment::COMBINED;
+                video_segment::HierarchicalSegmentation(images, segments, hier_option);
+            }
+            vector<Mat> segment_hierarchy;
+            for(auto i=0; i<levelList.size(); ++i){
+                int sid = levelList[i] * segments.size();
+                CHECK_GE(sid, 0);
+                CHECK_LT(sid, segments.size());
+                segment_hierarchy.push_back(segments[sid]);
+            }
+            if(rawSegments.needed()){
+                rawSegments.create(segments.size(), 1, CV_32S);
+                for(auto i=0; i<segments.size(); ++i){
+                    rawSegments.create(images[0].size(), CV_32SC1, i);
+                    segments[i].copyTo(rawSegments.getMat(i));
+                }
+            }
+
+            CHECK_EQ(segment_hierarchy.size(), levelList.size());
 //#pragma omp parallel for
             for (int lid=0; lid<levelList.size(); ++lid) {
-                Mat segment;
-                if (!segments.empty()) {
-                    segment = segments[lid];
-                    CHECK_EQ(segment.size(), images[0].size());
-                } else {
-                    video_segment::VideoSegmentOption option(levelList[lid]);
-                    option.refine = false;
-                    option.temporal_feature_type = video_segment::COMBINED;
-                    LOG(INFO) << "Segmenting at " << levelList[lid];
-                    video_segment::segment_video(images, segment, option);
-                }
-
-                if (rawSegments.needed())
-                    segment.copyTo(rawSegments.getMat(lid));
-
+                Mat segment = segment_hierarchy[lid];
                 vector<ML::PixelGroup> pixelGroup;
                 const int kSeg = ML::regroupSegments(segment, pixelGroup);
                 vector<vector<KeyPoint> > segmentKeypoints((size_t) kSeg);
@@ -144,7 +154,7 @@ namespace dynamic_stereo {
 
             for (auto y = 0; y < segmentVote.rows; ++y) {
                 for (auto x = 0; x < segmentVote.cols; ++x) {
-                    if (segmentVote.at<float>(y, x) > (float) levelList.size() / 2)
+                    if (segmentVote.at<float>(y, x) > 1)
                         output.at<uchar>(y, x) = (uchar) 255;
                 }
             }
