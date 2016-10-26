@@ -451,6 +451,8 @@ namespace dynamic_stereo {
             const int* pLabel = (int*) labels.data;
 
             const int min_area = 50;
+            const int max_area = width * height / 8;
+
             const double maxRatioOcclu = 0.3;
 
             int kOutputLabel = 1;
@@ -472,6 +474,10 @@ namespace dynamic_stereo {
                 printf("label:%d/%d, centroid:(%d,%d), area:%d\n", l, nLabel, cx, cy, area);
                 if(area < min_area) {
                     printf("Area too small\n");
+                    continue;
+                }
+                if(area > max_area){
+                    printf("Area too large\n");
                     continue;
                 }
 
