@@ -16,7 +16,7 @@ DEFINE_double(theta, 100, "parameter theta");
 DEFINE_bool(run_pixel, true, "run pixel pixel level segmentation");
 DEFINE_bool(run_region, false, "run region level segmentation");
 
-DEFINE_double(wa, 0.001, "weight for appearance");
+DEFINE_double(wa, 0.1, "weight for appearance");
 
 int main(int argc, char** argv){
     if(argc < 2){
