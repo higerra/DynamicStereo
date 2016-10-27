@@ -29,7 +29,8 @@ for data in datasets:
     name = data.split()[0]
     data_path = data_root + name + '/'
 
-    cmd = '{} {}/{}'.format(segmentation_exec, data_root, name)
+    cmd = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/hang/lib'
+    cmd += ';{} {}/{}'.format(segmentation_exec, data_root, name)
 
     TaskAttribute = {'CommandLine': cmd,  'MinCores': '4', 'MaxCores': '8'}
     SubElement(task_node, 'Task', TaskAttribute)
