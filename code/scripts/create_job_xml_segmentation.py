@@ -15,8 +15,6 @@ args = parser.parse_args()
 segmentation_exec = '~/hang/bin/VideoSegmentation'
 
 data_root = '~/hang/data/traindata/samples/'
-data_rootw = 'Z:/data/traindata/samples/'
-
 listfile = open(args.list)
 datasets = listfile.readlines()
 
