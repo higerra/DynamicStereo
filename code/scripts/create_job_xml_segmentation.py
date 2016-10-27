@@ -8,7 +8,7 @@ parser.add_argument('list')
 parser.add_argument('--data_root', default='~/hang/data/working/')
 parser.add_argument('--binPath', default='~/hang/bin/')
 parser.add_argument('--priority', default='Highest')
-parser.add_argument('--output', default='z:/jobs/job.xml')
+parser.add_argument('--output', default='z:/jobs/job_segmentation.xml')
 
 args = parser.parse_args()
 
