@@ -13,8 +13,8 @@ using namespace dynamic_stereo;
 
 DEFINE_double(c, 20.0, "parameter c");
 DEFINE_double(theta, 100, "parameter theta");
-DEFINE_bool(run_pixel, true, "run pixel pixel level segmentation");
-DEFINE_bool(run_region, false, "run region level segmentation");
+DEFINE_bool(run_pixel, false, "run pixel pixel level segmentation");
+DEFINE_bool(run_region, true, "run region level segmentation");
 
 DEFINE_double(wa, 0.1, "weight for appearance");
 
@@ -105,7 +105,8 @@ int main(int argc, char** argv){
             int num_segments = video_segment::HierarchicalSegmentation(images, segments, option);
             printf("Done\n");
 
-
+            sprintf(buffer, "%s/segment_%s.yml", out_path.c_str(), filename.c_str());
+            video_segment::SaveHierarchicalSegmentation(string(buffer), segments);
 
 //            for(auto i=0; i<segments.size(); ++i) {
 //                Mat segment_vis = video_segment::visualizeSegmentation(segments[i]);
