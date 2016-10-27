@@ -52,37 +52,11 @@ namespace dynamic_stereo{
 
             //load or compute segmentation
             vector<Mat> segments;
-            bool run_segmentation = true;
             sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
-            cv::FileStorage segmentIn(buffer, FileStorage::READ);
-            if(segmentIn.isOpened()){
-                Mat levelMat;
-                segmentIn["levelList"] >> levelMat;
-                if(levelMat.rows!= levelList.size()){
-                    run_segmentation = true;
-                }else{
-                    for(auto i=0; i<levelList.size(); ++i){
-                        if(levelMat.at<float>(i,0) != levelList[i]){
-                            run_segmentation = true;
-                            break;
-                        }
-                    }
-                }
-                segments.resize(levelList.size());
-                for(int i=0; i<levelList.size(); ++i){
-                    segmentIn["level"+std::to_string(i)] >> segments[i];
-                }
-                LOG(INFO) << "Segmentation file loaded";
-                run_segmentation = false;
-            }
-            if(run_segmentation) {
+            if(!video_segment::LoadHierarchicalSegmentation(string(buffer), segments)){
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, cv::noArray(), segments);
                 CHECK_EQ(segments.size(), levelList.size());
-                cv::FileStorage segmentOut(buffer, FileStorage::WRITE);
-                CHECK(segmentOut.isOpened());
-                segmentOut << "kLevel" << (int)segments.size();
-                for(int i=0; i<segments.size(); ++i)
-                    segmentOut << "level"+std::to_string(i) << segments[i];
+                video_segment::SaveHierarchicalSegmentation(string(buffer), segments);
             }else{
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
             }

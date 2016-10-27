@@ -104,16 +104,19 @@ int main(int argc, char** argv){
             vector<Mat> segments;
             int num_segments = video_segment::HierarchicalSegmentation(images, segments, option);
             printf("Done\n");
-            for(auto i=0; i<segments.size(); ++i) {
-                Mat segment_vis = video_segment::visualizeSegmentation(segments[i]);
-                Mat blended;
-                const double blend_weight = 0.1;
-                cv::addWeighted(images[0], blend_weight, segment_vis, 1.0 - blend_weight, 0.0, blended);
-                sprintf(buffer, "%s/%s_result_region_l%05d.png", out_path.c_str(),
-                        filename.substr(0, filename.find_last_of(".")).c_str(), i);
-                printf("Writing %s\n", buffer);
-                imwrite(buffer, blended);
-            }
+
+
+
+//            for(auto i=0; i<segments.size(); ++i) {
+//                Mat segment_vis = video_segment::visualizeSegmentation(segments[i]);
+//                Mat blended;
+//                const double blend_weight = 0.1;
+//                cv::addWeighted(images[0], blend_weight, segment_vis, 1.0 - blend_weight, 0.0, blended);
+//                sprintf(buffer, "%s/%s_result_region_l%05d.png", out_path.c_str(),
+//                        filename.substr(0, filename.find_last_of(".")).c_str(), i);
+//                printf("Writing %s\n", buffer);
+//                imwrite(buffer, blended);
+//            }
         }
     }
     return 0;

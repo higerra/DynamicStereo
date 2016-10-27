@@ -159,27 +159,17 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
         else
             cv::vconcat(descriptors, curDescriptor, descriptors);
 
+        //run hierarchical segmentation
+        vector<Mat> segments_all;
+        sprintf(buffer, "%s/segment_%s.yml", FLAGS_segmentationPath.c_str(), filename.c_str());
+        CHECK(video_segment::LoadHierarchicalSegmentation(string(buffer), segments_all)) << "Run video segmentation first";
+
         //load segment
-        for (auto level: levelList) {
-            Mat segments;
-            sprintf(buffer, "%s/segment_%s_c%.1f.yml", FLAGS_segmentationPath.c_str(), filename.c_str(), level);
-            cv::FileStorage segmentIn(buffer, cv::FileStorage::READ);
-            if(segmentIn.isOpened()){
-                segmentIn["segment"] >> segments;
-            }else {
-                video_segment::VideoSegmentOption option(level);
-                option.refine = false;
-                option.temporal_feature_type = video_segment::COMBINED;
-                video_segment::segment_video(images, segments, option);
-                if(!FLAGS_segmentationPath.empty()){
-                    cv::FileStorage segmentOut(buffer, cv::FileStorage::WRITE);
-                    if(segmentOut.isOpened())
-                        segmentOut << "segment" << segments;
-                }
-            }
+        for (int level=0; level < segments_all.size(); ++level){
+            Mat segments = segments_all[level];
             vector<ML::PixelGroup> pixelGroup;
             ML::regroupSegments(segments, pixelGroup);
-            printf("Level %.2f, %d segments\n", level, (int) pixelGroup.size());
+            printf("Level %d, %d segments\n", level, (int) pixelGroup.size());
             vector<int> curResponse;
             printf("Assigning segment label...\n");
             ML::assignSegmentLabel(pixelGroup, gt, curResponse);

@@ -407,8 +407,11 @@ namespace dynamic_stereo {
                 for(auto i=0; i<width * height; ++i){
                     CHECK_GE(iter_segment_ptr[i], 0);
                 }
-                num_segments = compressSegment(iter_segment);
-                output.push_back(iter_segment.clone());
+                int new_segments = compressSegment(iter_segment);
+                if(new_segments < num_segments) {
+                    output.push_back(iter_segment.clone());
+                    num_segments = new_segments;
+                }
                 LOG(INFO) << "Iteration " << iter << " done, number of segments: " << num_segments;
             }
             return num_segments;
@@ -520,5 +523,30 @@ namespace dynamic_stereo {
             cv::connectedComponents(resultMask, result);
             return result;
         }
+
+        bool LoadHierarchicalSegmentation(const std::string& filename, std::vector<cv::Mat>& segments){
+            cv::FileStorage segmentIn(filename, FileStorage::READ);
+            if(!segmentIn.isOpened()){
+                return false;
+            }
+            int num_level = 0;
+            segmentIn["kLevel"] >> num_level;
+            segments.resize(num_level);
+            for(int i=0; i<num_level; ++i){
+                segmentIn["level"+std::to_string(i)] >> segments[i];
+            }
+            LOG(INFO) << "Segmentation file loaded";
+            return true;
+        }
+
+        void SaveHierarchicalSegmentation(const std::string& filename, const std::vector<cv::Mat>& segments){
+            cv::FileStorage segmentOut(filename, FileStorage::WRITE);
+            CHECK(segmentOut.isOpened());
+            segmentOut << "kLevel" << (int)segments.size();
+            for(int i=0; i<segments.size(); ++i) {
+                segmentOut << "level" + std::to_string(i) << segments[i];
+            }
+        }
+
     }//video_segment
 }//namespace dynamic_stereo

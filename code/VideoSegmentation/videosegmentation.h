@@ -62,6 +62,10 @@ namespace dynamic_stereo {
         cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);
 
         cv::Mat visualizeSegmentation(const cv::Mat &input);
+
+        bool LoadHierarchicalSegmentation(const std::string& filename, std::vector<cv::Mat>& segments);
+
+        void SaveHierarchicalSegmentation(const std::string& filename, const std::vector<cv::Mat>& segments);
     }//namespace video_segment
 }//namespace dynamic_stereo
 
