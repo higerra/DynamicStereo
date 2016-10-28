@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{0.5,0.65,0.8};
+            const vector<float> levelList{0.5,0.6,0.7};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -36,7 +36,6 @@ namespace dynamic_stereo{
 
             int pixeldesc = (int)codebookIn["pixeldesc"];
             int classifiertype = (int)codebookIn["classifiertype"];
-            printf("pixeldesc: %d, classifiertype: %d\n", pixeldesc, classifiertype);
             vw_option.pixDesc = (VisualWord::PixelDescriptor) pixeldesc;
             vw_option.classifierType = (VisualWord::ClassifierType) classifiertype;
             if(classifiertype == VisualWord::RANDOM_FOREST) {

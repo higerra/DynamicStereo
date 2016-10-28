@@ -28,6 +28,7 @@ DEFINE_int32(sigma_s, 12, "spatial window size");
 DEFINE_int32(sigma_r, 24, "temporal window size");
 DEFINE_int32(numTree, 30, "number of trees");
 DEFINE_int32(treeDepth, -1, "max depth of trees");
+DEFINE_double(prior_positive, 0.5, "Prior probability of positive samples. Used for correct imbalanced data");
 //svm
 DEFINE_string(svmKernel, "chi2", "svm kernel type");
 DEFINE_double(svmC, 1.0, "C parameter in svm");
@@ -267,14 +268,28 @@ cv::Ptr<cv::ml::StatModel> run_train(cv::Ptr<ml::TrainData> traindata, const Vis
     if(classifier_path.empty()){
         classifier_path =  "model";
     }
+
     if(vw_option.classifierType == RANDOM_FOREST){
         classifier_path.append(".rf");
         classifier = ml::RTrees::create();
         if(FLAGS_treeDepth > 0)
             classifier.dynamicCast<ml::RTrees>()->setMaxDepth(FLAGS_treeDepth);
-        if(FLAGS_numTree > 0)
+        if(FLAGS_numTree > 0) {
             classifier.dynamicCast<ml::RTrees>()->
-                    setTermCriteria(cv::TermCriteria(TermCriteria::MAX_ITER, FLAGS_numTree, std::numeric_limits<double>::min()));
+                    setTermCriteria(
+                    cv::TermCriteria(TermCriteria::MAX_ITER, FLAGS_numTree, std::numeric_limits<double>::min()));
+        }
+
+        classifier.dynamicCast<ml::RTrees>()->setCalculateVarImportance(true);
+
+        if(FLAGS_prior_positive > 0){
+            Mat prior(2,1,CV_32FC1, Scalar::all(0));
+            prior.at<float>(0,0) = 1.0 - FLAGS_prior_positive;
+            prior.at<float>(1,0) = FLAGS_prior_positive;
+            cout << "Prior probability: " << endl;
+            cout << prior << endl;
+            classifier.dynamicCast<ml::RTrees>()->setPriors(prior);
+        }
     }else if(vw_option.classifierType == BOOSTED_TREE) {
         classifier_path.append(".bt");
         classifier = ml::Boost::create();
@@ -315,6 +330,19 @@ cv::Ptr<cv::ml::StatModel> run_train(cv::Ptr<ml::TrainData> traindata, const Vis
     printf("%d samples in total: %d potive, %d negative\n", kPos+kNeg, kPos, kNeg);
     
     CHECK_NOTNULL(classifier.get())->train(traindata);
+
+    if(vw_option.classifierType == RANDOM_FOREST){
+        Mat var_importance = classifier.dynamicCast<ml::RTrees>()->getVarImportance();
+        cout << "Variable importance:" << endl;
+        for(auto i=0; i<var_importance.rows; ++i){
+            printf("var%03d\t", i);
+        }
+        cout << endl;
+        for(auto i=0; i<var_importance.rows; ++i){
+            printf("%.5f\t", var_importance.at<float>(i,0));
+        }
+        cout << endl;
+    }
 
     double acc = testClassifier(traindata, classifier);
     printf("Saving %s\n", classifier_path.c_str());

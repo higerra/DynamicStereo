@@ -22,6 +22,10 @@ DEFINE_int32(kFrames, 300, "Number of frames in cinemagraph");
 DEFINE_int32(downsample, 2, "downsample ratio");
 DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_new.rf", "Path to classifier");
 DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
+
+//DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/code/build/VisualWord/model_hier2.rf", "Path to classifier");
+//DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/code/build/VisualWord/metainfo_hier_cluster00050.yml", "path to codebook");
+
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic}");
 
 DEFINE_double(param_stab, 2.0, "parameter for geometric stabilization");
@@ -65,8 +69,8 @@ int main(int argc, char** argv) {
     Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
     LOG(INFO) << "Segmenting display...";
     segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-    LOG(INFO) << "Segmenting flashy...";
-    segmentFlashy(file_io, FLAGS_testFrame, mid_input, seg_result_flashy);
+    //LOG(INFO) << "Segmenting flashy...";
+    //segmentFlashy(file_io, FLAGS_testFrame, mid_input, seg_result_flashy);
 
     CHECK_EQ(seg_result_display.cols, kFrameSize.width);
     CHECK_EQ(seg_result_display.rows, kFrameSize.height);
@@ -94,11 +98,11 @@ int main(int argc, char** argv) {
     //2. Geometric stablization by grid warping
     //3. Apply RPCA to smooth transition and remove high frequency noise
 
-    LOG(INFO) << "Step 1: Fill holes by poisson smoothing";
-    const double small_poisson = 0.01;
-    regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
-    mid_input.swap(mid_output);
-    mid_output.clear();
+    //LOG(INFO) << "Step 1: Fill holes by poisson smoothing";
+    //const double small_poisson = 0.01;
+    //regularizationPoisson(mid_input, segmentsDisplay, mid_output, small_poisson, small_poisson);
+    //mid_input.swap(mid_output);
+    //mid_output.clear();
 
     //The flashy segments will not pass stabilization and regularization, so create the pixel mat now
     vector<Mat> pixel_mat_flashy(segmentsFlashy.size());
