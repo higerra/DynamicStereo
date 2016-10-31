@@ -33,7 +33,7 @@ namespace dynamic_stereo{
 		//build intensity map. Pixel with low intensities should not be considered flashing
 		Mat intensity_map(height, width, CV_8UC1, Scalar::all(0));
 		{
-			const size_t kth = 0.8 * N;
+			const size_t kth = 0.9 * N;
 			vector<vector<uchar> > intensity_array(width * height);
 			for(auto& ia: intensity_array){
 				ia.resize(N, (uchar)0);
@@ -57,7 +57,7 @@ namespace dynamic_stereo{
         const int kInt = 10;
         const int minInt = kInt / 2;
         const int interval = N / kInt;
-		const uchar intensity_threshold = static_cast<uchar>(255.0*0.5);
+		const uchar intensity_threshold = static_cast<uchar>(255.0*0.3);
 
 #pragma omp parallel for
 		for(auto y=0; y<height; ++y){
@@ -113,7 +113,7 @@ namespace dynamic_stereo{
 		Depth frequency;
 		computeFrequencyConfidence(input, frequency);
 		printf("Done\n");
-        sprintf(buffer, "%s/temp/conf_frquency%05d.jpg", file_io.getDirectory().c_str(), anchor);
+        sprintf(buffer, "%s/temp/conf_frquency_average%05d.jpg", file_io.getDirectory().c_str(), anchor);
         frequency.saveImage(string(buffer), 255);
 
 		double freThreshold = 0.5;
@@ -129,7 +129,7 @@ namespace dynamic_stereo{
 		sprintf(buffer, "%s/temp/segment_flashy%05d.jpg", file_io.getDirectory().c_str(), anchor);
 		imwrite(buffer, preSeg);
         //result = video_segment::localRefinement(input, preSeg);
-		result = video_segment::localRefinement(input, preSeg);
+		result = video_segment::localRefinement(input, 3, 5, preSeg);
 
 	}
 

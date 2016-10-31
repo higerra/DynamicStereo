@@ -59,7 +59,7 @@ namespace dynamic_stereo {
         void mfGrabCut(const std::vector<cv::Mat>& images, cv::Mat& mask,
                        const bool hasInvalid_ = false, const int iterCount = 3);
 
-        cv::Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask);
+        cv::Mat localRefinement(const std::vector<cv::Mat>& images, const int R_erode, const int R_dilate, cv::Mat& mask);
 
         cv::Mat visualizeSegmentation(const cv::Mat &input);
 

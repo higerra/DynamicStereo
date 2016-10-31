@@ -513,7 +513,7 @@ namespace dynamic_stereo {
         }
 
         //create alpha blending mask
-        constexpr int blend_R = 10;
+        constexpr int blend_R = 3;
         Mat mask_all_segments(background.size(), CV_8UC1, Scalar::all(0));
         Mat blend_weight(background.size(), CV_32FC1, Scalar::all(0.0f));
         for(const auto& segment: segments_display){

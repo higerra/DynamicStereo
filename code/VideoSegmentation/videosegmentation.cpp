@@ -442,15 +442,15 @@ namespace dynamic_stereo {
             return index;
         }
 
-        Mat localRefinement(const std::vector<cv::Mat>& images, cv::Mat& mask){
+        Mat localRefinement(const std::vector<cv::Mat>& images, const int R_erode, const int R_dilate, cv::Mat& mask){
             CHECK(!images.empty());
             const int width = images[0].cols;
             const int height = images[0].rows;
 
 
             //morphological operation
-            const cv::Size erode_R(5,5);
-            const cv::Size dilate_R(7,7);
+            const cv::Size erode_R(2*R_erode+1,2*R_erode+1);
+            const cv::Size dilate_R(2*R_dilate+1,2*R_dilate+1);
 
             Mat eroded, dilated;
             cv::erode(mask, eroded, cv::getStructuringElement(cv::MORPH_ELLIPSE, erode_R));

@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{0.5,0.6,0.7};
+            const vector<float> levelList{0.5,0.65,0.8};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -78,7 +78,7 @@ namespace dynamic_stereo{
 
         sprintf(buffer, "%s/temp/segment_display%05d.jpg", file_io.getDirectory().c_str(), anchor);
         imwrite(buffer, preSeg);
-        result = video_segment::localRefinement(input, preSeg);
+        result = video_segment::localRefinement(input, 5, 11, preSeg);
     }
 
     void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments){

@@ -126,6 +126,23 @@ int main(int argc, char** argv) {
     }
     stabilizedOutput.release();
 
+    Mat background = imread(file_io.getImage(FLAGS_testFrame));
+    vector<Mat> pixel_mat_display_unregulared(segmentsDisplay.size());
+    for(auto i=0; i<segmentsDisplay.size(); ++i){
+        CreatePixelMat(mid_input, segmentsDisplay[i], rangesDisplay[i], pixel_mat_display_unregulared[i]);
+    }
+    vector<Mat> cinemagraph_unregulared;
+    RenderCinemagraph(background, FLAGS_kFrames, segmentsDisplay, segmentsFlashy, pixel_mat_display_unregulared,
+                      pixel_mat_flashy, rangesDisplay, rangesFlashy, cinemagraph_unregulared);
+    sprintf(buffer, "%s/temp/unregulared%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+    VideoWriter unregulared_vw(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
+    CHECK(unregulared_vw.isOpened());
+    for(const auto& img: cinemagraph_unregulared){
+        unregulared_vw << img;
+    }
+    unregulared_vw.release();
+
+
     LOG(INFO) << "Step 3: Color regularization";
     float reg_t = (float)cv::getTickCount();
     if(FLAGS_regularization == "median"){
@@ -133,7 +150,7 @@ int main(int argc, char** argv) {
         printf("Running regularization with median filter, r: %d\n", medianR);
         temporalMedianFilter(mid_input, segmentsDisplay, mid_output, medianR);
     }else if(FLAGS_regularization == "RPCA"){
-        const double regular_lambda = 0.01;
+        const double regular_lambda = 0.0095;
         printf("Running regularizaion with RPCA, lambda: %.3f\n", regular_lambda);
         regularizationRPCA(mid_input, segmentsDisplay, mid_output, regular_lambda);
     }else if(FLAGS_regularization == "anisotropic"){
@@ -163,7 +180,7 @@ int main(int argc, char** argv) {
     warping.reset();
 
     //final rendering
-    Mat background = imread(file_io.getImage(FLAGS_testFrame));
+
     CHECK(background.data);
     vector<Mat> cinemagraph;
     LOG(INFO) << "Rendering cinemagraph";
