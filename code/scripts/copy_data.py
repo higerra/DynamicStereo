@@ -19,19 +19,19 @@ for data in datasets:
     print command
     subprocess.call(command, shell=True)
 
-    command = 'scp {}:{}/{}/midres/depth*.depth {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
-                                                                      args.local_root, name)
-    print command
-    subprocess.call(command, shell=True)
+    # command = 'scp {}:{}/{}/midres/depth*.depth {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
+    #                                                                   args.local_root, name)
+    # print command
+    # subprocess.call(command, shell=True)
 
     command = 'scp {}:{}/{}/midres/classification* {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
                                                                       args.local_root, name)
     print command
     subprocess.call(command, shell=True)
 
-    command = 'scp {}:{}/{}/midres/segment*.yml {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
-                                                                         args.local_root, name)
-    print command
-    subprocess.call(command, shell=True)
+    # command = 'scp {}:{}/{}/midres/segment*.yml {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
+    #                                                                      args.local_root, name)
+    # print command
+    # subprocess.call(command, shell=True)
 
 
