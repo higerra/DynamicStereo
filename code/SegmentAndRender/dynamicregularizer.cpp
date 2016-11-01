@@ -104,8 +104,10 @@ namespace dynamic_stereo {
             outputPtr[i] = output[i].data;
 
         //prepare output
+        int d_seg = 3;
 
-        const double huber_theta = 10;
+        const double huber_data = 4;
+        const double huber_temporal = 1;
         auto threadFun = [&](const int tid, const int num_thread) {
             vector<vector<double> > DP(N);
             for (auto &d: DP)
@@ -114,6 +116,9 @@ namespace dynamic_stereo {
             for (auto &b: backTrack)
                 b.resize(256, 0);
             for (auto sid = tid; sid < segments.size(); sid += num_thread) {
+                if(d_seg >= 0 && sid != d_seg){
+                    continue;
+                }
                 printf("Smoothing segment %d on thread %d, kPix:%d\n", sid, tid, (int) segments[sid].size());
                 for (auto i = 0; i < segments[sid].size(); ++i) {
                     const int x = segments[sid][i][0];
@@ -132,19 +137,19 @@ namespace dynamic_stereo {
                         //start DP
                         for (auto p = 0; p < 256; ++p)
                             DP[0][p] = math_util::huberNorm((double) inputPtr[0][pixId] - (double) p,
-                                                            huber_theta);
+                                                            huber_data);
                         for (auto v = 1; v < input.size(); ++v) {
                             for (auto p = 0; p < 256; ++p) {
                                 DP[v][p] = numeric_limits<double>::max();
                                 double mdata;
                                 if (input[v].at<Vec3b>(y, x) != Vec3b(0, 0, 0)) {
                                     mdata = math_util::huberNorm((double) inputPtr[v][pixId] - (double) p,
-                                                                 huber_theta);
+                                                                 huber_data);
                                 } else
                                     mdata = 0;
                                 for (auto pf = 0; pf < 256; ++pf) {
                                     double curv = DP[v - 1][pf] + mdata + weight_smooth * math_util::huberNorm(
-                                            (double) pf - (double) p, huber_theta);
+                                            (double) pf - (double) p, huber_temporal);
                                     if (curv < DP[v][p]) {
                                         DP[v][p] = curv;
                                         backTrack[v][p] = pf;
@@ -325,9 +330,13 @@ namespace dynamic_stereo {
         if (lambda < 0)
             lambda = std::sqrt((double) input.size());
 
+        int d_seg = 3;
         const int numThread = 6;
         auto threadFunc = [&](int tid, int nt) {
             for (auto sid = tid; sid < segments.size(); sid += nt) {
+                if(d_seg >= 0 && sid != d_seg){
+                    continue;
+                }
                 printf("Running RPCA for segment %d on thread %d\n", sid, tid);
                 for (auto c = 0; c < 3; ++c) {
                     MatrixXd pixelMat((int) input.size(), (int) segments[sid].size());
@@ -479,17 +488,7 @@ namespace dynamic_stereo {
         fout.close();
     }
 
-    void CreatePixelMat(const std::vector<cv::Mat> &warped, const std::vector<Eigen::Vector2i> &segment,
-                        const Eigen::Vector2i &range, cv::Mat &output) {
-        CHECK(!warped.empty());
-        CHECK(!segment.empty());
-        output.create(range[1] - range[0] + 1, (int) segment.size(), warped[0].type());
-        for (auto i = 0; i < segment.size(); ++i) {
-            for (auto v = range[0]; v <= range[1]; ++v) {
-                output.at<Vec3b>(v - range[0], i) = warped[v].at<Vec3b>(segment[i][1], segment[i][0]);
-            }
-        }
-    }
+
 
     void RenderCinemagraph(const cv::Mat &background, const int kFrames,
                            const std::vector<std::vector<Eigen::Vector2i> > &segments_display,

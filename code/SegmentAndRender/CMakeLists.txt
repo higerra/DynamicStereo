@@ -13,7 +13,8 @@ include_directories(/usr/local/include/eigen3 /usr/include/suitesparse ${CMAKE_C
 #link_directories(/usr/local/lib /usr/lib/x86_64-linux-gnu)
 add_executable(SegmentAndRender ${SEGMENT} ${REGULARIZATION} ${STABILIZATION} segment_render_cli.cpp)
 
-target_link_libraries(SegmentAndRender opencv_videoio base RPCA GeometryModule VideoSegmentModule VisualWordModule SubspaceStab)
+target_link_libraries(SegmentAndRender opencv_videoio base RPCA GeometryModule
+        VideoSegmentModule VisualWordModule SubspaceStab CinemagraphModule)
 target_link_libraries(SegmentAndRender gflags glog  MRF cholmod spqr ${CERES_LIBRARIES})
 
 #add test

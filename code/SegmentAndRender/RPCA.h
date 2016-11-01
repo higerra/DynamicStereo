@@ -21,7 +21,7 @@ namespace dynamic_stereo{
         double eta;
         double mu;
         bool verbose;
-        RPCAOption(): lambda(-1), maxIter(1000), tol(1e-7), lineSearhFlag(false), continuationFlag(true),
+        RPCAOption(): lambda(-1), maxIter(10000), tol(1e-7), lineSearhFlag(false), continuationFlag(true),
                       eta(0.9), mu(1e-3), verbose(false){}
     };
 

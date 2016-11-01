@@ -26,8 +26,7 @@ namespace dynamic_stereo {
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments);
 
-	void CreatePixelMat(const std::vector<cv::Mat>& warped, const std::vector<Eigen::Vector2i>& segment,
-						const Eigen::Vector2i& range, cv::Mat& output);
+
 
 	void RenderCinemagraph(const cv::Mat& background, const int kFrames,
 						   const std::vector<std::vector<Eigen::Vector2i> >& segments_display,

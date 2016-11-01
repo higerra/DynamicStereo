@@ -55,7 +55,7 @@ add_subdirectory(${ROOT_DIRECTORY}/SegmentAndRender)
 add_subdirectory(${ROOT_DIRECTORY}/test)
 #add_subdirectory(${ROOT_DIRECTORY}/TrainData)
 #add_subdirectory(${ROOT_DIRECTORY}/RandomForest)
-
+add_subdirectory(${ROOT_DIRECTORY}/Cinemagraph)
 add_subdirectory(${ROOT_DIRECTORY}/VisualWord)
 #add_subdirectory(${ROOT_DIRECTORY}/extractFeature)
 #add_subdirectory(${ROOT_DIRECTORY}/classifier)
