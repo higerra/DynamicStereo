@@ -17,25 +17,16 @@
 
 namespace dynamic_stereo {
 
-	void computeFrequencyConfidence(const std::vector<cv::Mat>& input, Depth& result);
+	void computeFrequencyConfidence(const std::vector<cv::Mat>& input, const float threshold, Depth& result, cv::Mat& frq_range);
 
-	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input, cv::Mat& result);
+	void segmentFlashy(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input,
+					   std::vector<std::vector<Eigen::Vector2i> >& segments_flashy,
+					   std::vector<Eigen::Vector2i>& ranges);
 
 	void segmentDisplay(const FileIO& file_io, const int anchor, const std::vector<cv::Mat>& input,
 						const std::string& classifierPath, const std::string& codebookPath, cv::Mat& result);
 
 	void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments);
-
-
-
-	void RenderCinemagraph(const cv::Mat& background, const int kFrames,
-						   const std::vector<std::vector<Eigen::Vector2i> >& segments_display,
-						   const std::vector<std::vector<Eigen::Vector2i> >& segments_flashy,
-						   const std::vector<cv::Mat>& pix_display,
-						   const std::vector<cv::Mat>& pix_flashy,
-						   const std::vector<Eigen::Vector2i>& ranges_display,
-						   const std::vector<Eigen::Vector2i>& ranges_flashy,
-						   std::vector<cv::Mat>& output);
 
 }//namespace dynamic_stereo
 

@@ -14,11 +14,14 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 
-	void computeFrequencyConfidence(const std::vector<cv::Mat> &warppedImg, Depth &result){
+	void computeFrequencyConfidence(const std::vector<cv::Mat> &warppedImg, const float threshold, Depth &result, cv::Mat& frq_ranges){
 		CHECK(!warppedImg.empty());
 		const int width = warppedImg[0].cols;
 		const int height = warppedImg[0].rows;
 		result.initialize(width, height, 0.0);
+        frq_ranges.create(height, width, CV_32SC2);
+        frq_ranges.setTo(cv::Scalar::all(0));
+
 		const double alpha = 2, beta = 2.5;
 		const int min_frq = 5;
 		const int tx = -1, ty= -1;
@@ -59,6 +62,9 @@ namespace dynamic_stereo{
         const int interval = N / kInt;
 		const uchar intensity_threshold = static_cast<uchar>(255.0*0.3);
 
+        auto sigmoid = [&](const double x){
+            return 1 / (1 + std::exp(-1*alpha*(x - beta)));
+        };
 #pragma omp parallel for
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
@@ -80,7 +86,7 @@ namespace dynamic_stereo{
                     sumMat.col(i) = sumMat.col(i-1) + colorArray.col(i-1);
 
                 //start searching
-                vector<double> frqConfs;
+                double frqConf = -1;
                 for(auto sid =0; sid < minInt * interval; sid += interval){
                     for(auto eid = sid + minInt * interval; eid < N; eid += interval){
                         Mat curArray;
@@ -88,12 +94,17 @@ namespace dynamic_stereo{
                         Mat meanColor = (sumMat.col(eid+1) - sumMat.col(sid)) / (float)(eid-sid+1);
                         for(auto i=0; i<curArray.cols; ++i)
                             curArray.col(i) -= meanColor;
-                        double curConf = utility::getFrequencyScore(curArray, min_frq);
-                        frqConfs.push_back(curConf);
+                        double curConf = sigmoid(utility::getFrequencyScore(curArray, min_frq));
+                        if(curConf > frqConf){
+                            frqConf = curConf;
+                        }
+                        if(curConf > threshold){
+                            frq_ranges.at<Vec2i>(y,x)[0] = std::min(frq_ranges.at<Vec2i>(y,x)[0], sid);
+                            frq_ranges.at<Vec2i>(y,x)[1] = std::max(frq_ranges.at<Vec2i>(y,x)[1], eid);
+                        }
                     }
                 }
-                double frqConf = *std::max_element(frqConfs.begin(), frqConfs.end());
-                result(x,y) = 1 / (1 + std::exp(-1*alpha*(frqConf - beta)));
+                result(x,y) = frqConf;
 			}
 		}
 
@@ -101,37 +112,51 @@ namespace dynamic_stereo{
 
 
 	void segmentFlashy(const FileIO& file_io, const int anchor,
-	                   const std::vector<cv::Mat> &input, cv::Mat &result){
-		char buffer[1024] = {};
+	                   const std::vector<cv::Mat> &input,
+                       std::vector<std::vector<Eigen::Vector2i> >& segments_flashy,
+                       std::vector<Eigen::Vector2i>& ranges) {
+        char buffer[1024] = {};
+        const int width = input[0].cols;
+        const int height = input[0].rows;
 
-		const int width = input[0].cols;
-		const int height = input[0].rows;
-
-		Mat preSeg(height, width, CV_8UC1, Scalar::all(0));
-		//repetative pattern
-		printf("Computing frequency confidence...\n");
-		Depth frequency;
-		computeFrequencyConfidence(input, frequency);
-		printf("Done\n");
+        Mat preSeg(height, width, CV_8UC1, Scalar::all(0));
+        //repetative pattern
+        printf("Computing frequency confidence...\n");
+        double freThreshold = 0.5;
+        Depth frequency;
+        Mat frq_range;
+        computeFrequencyConfidence(input, freThreshold, frequency, frq_range);
+        printf("Done\n");
         sprintf(buffer, "%s/temp/conf_frquency_average%05d.jpg", file_io.getDirectory().c_str(), anchor);
         frequency.saveImage(string(buffer), 255);
 
-		double freThreshold = 0.5;
+        for (auto i = 0; i < width * height; ++i) {
+            if (frequency[i] > freThreshold)
+                preSeg.data[i] = (uchar) 255;
+        }
 
-		for(auto i=0; i<width * height; ++i){
-			if(frequency[i] > freThreshold)
-				preSeg.data[i] = (uchar)255;
-		}
-		const int rh = 5;
-		cv::dilate(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
-		cv::erode(preSeg,preSeg,cv::getStructuringElement(MORPH_ELLIPSE,cv::Size(rh,rh)));
+        const int rh = 6;
+        const int rl = 2;
+        Mat processed;
+        cv::erode(preSeg, processed, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rl, rl)));
+        cv::dilate(processed, processed, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
+        sprintf(buffer, "%s/temp/segment_flashy%05d.jpg", file_io.getDirectory().c_str(), anchor);
+        imwrite(buffer, processed);
 
-		sprintf(buffer, "%s/temp/segment_flashy%05d.jpg", file_io.getDirectory().c_str(), anchor);
-		imwrite(buffer, preSeg);
-        //result = video_segment::localRefinement(input, preSeg);
-		result = video_segment::localRefinement(input, 3, 5, preSeg);
+        Mat labels;
+        cv::connectedComponents(processed, labels);
+        groupPixel(labels, segments_flashy);
+        ranges.resize(segments_flashy.size(), Vector2i(-1,input.size()));
 
-	}
+        for(auto sid=0; sid<segments_flashy.size(); ++sid){
+            for(const auto& pid: segments_flashy[sid]){
+                if(preSeg.at<uchar>(pid[1], pid[0]) > (uchar)200){
+                    ranges[sid][0] = std::max(ranges[sid][0], frq_range.at<Vec2i>(pid[1], pid[0])[0]);
+                    ranges[sid][1] = std::min(ranges[sid][1], frq_range.at<Vec2i>(pid[1], pid[0])[1]);
+                }
+            }
+        }
+    }
 
 
 

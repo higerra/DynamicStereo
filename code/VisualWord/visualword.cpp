@@ -47,6 +47,8 @@ namespace dynamic_stereo {
             else if (vw_option.pixDesc == COLOR3D)
                 descriptorExtractor.reset(new CVColor3D(vw_option.sigma_s, vw_option.sigma_r));
 
+            const int max_area = images[0].cols * images[0].rows / 8;
+
             vector<Mat> featureImages;
             descriptorExtractor.dynamicCast<CV3DDescriptor>()->prepareImage(images, featureImages);
             vector<cv::KeyPoint> keypoints;
@@ -138,8 +140,10 @@ namespace dynamic_stereo {
                 for (auto y = 0; y < classification_level[lid].rows; ++y) {
                     for (auto x = 0; x < classification_level[lid].cols; ++x) {
                         int sid = segment.at<int>(y, x);
-                        if (response.at<float>(sid, 0) > 0.5)
-                            classification_level[lid].at<float>(y, x) += 1.0f;
+                        if(pixelGroup[sid].size() < max_area ) {
+                            if (response.at<float>(sid, 0) > 0.5)
+                                classification_level[lid].at<float>(y, x) += 1.0f;
+                        }
                     }
                 }
             }

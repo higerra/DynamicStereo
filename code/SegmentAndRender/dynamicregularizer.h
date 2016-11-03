@@ -15,6 +15,8 @@ namespace dynamic_stereo {
 
     class Depth;
 
+    float GetRPCAWeight(const cv::Mat& pixels, const int stride = 4, const int theta = 30);
+
     void getSegmentRange(const std::vector<cv::Mat>& visMaps,
                          const std::vector<std::vector<Eigen::Vector2i> >& segments,
                          std::vector<Eigen::Vector2i>& ranges);
@@ -28,8 +30,8 @@ namespace dynamic_stereo {
                       const std::vector<Eigen::Vector2i>& ranges, std::vector<cv::Mat>& output);
 
     void regularizationAnisotropic(const std::vector<cv::Mat> &input,
-                               const std::vector<std::vector<Eigen::Vector2i> > &segments,
-                               std::vector<cv::Mat> &output, const double weight_smooth);
+                                   const std::vector<std::vector<Eigen::Vector2i> > &segments,
+                                   std::vector<cv::Mat> &output, const double weight_smooth);
 
     void regularizationPoisson(const std::vector<cv::Mat> &input,
                                const std::vector<std::vector<Eigen::Vector2i> > &segments,
@@ -45,7 +47,8 @@ namespace dynamic_stereo {
 
     void regularizationRPCA(const std::vector<cv::Mat> &input,
                             const std::vector<std::vector<Eigen::Vector2i> > &segments,
-                            std::vector<cv::Mat> &output, double lambda = -1);
+                            const std::vector<float>& lambdas,
+                            std::vector<cv::Mat> &output);
 
     void dumpOutSegment(const std::vector<cv::Mat>& images,
                         const std::vector<Eigen::Vector2d>& segment,

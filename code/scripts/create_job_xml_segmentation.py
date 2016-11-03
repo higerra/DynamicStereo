@@ -37,5 +37,3 @@ for data in datasets:
 
 tree = ElementTree(job_node)
 tree.write(args.output)
-
-

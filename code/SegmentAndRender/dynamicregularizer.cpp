@@ -17,6 +17,7 @@ using namespace Eigen;
 
 namespace dynamic_stereo {
 
+
     void getSegmentRange(const vector<Mat> &visMaps,
                          const std::vector<std::vector<Eigen::Vector2i> > &segments,
                          std::vector<Eigen::Vector2i> &ranges) {
@@ -47,6 +48,26 @@ namespace dynamic_stereo {
                     break;
                 }
             }
+        }
+    }
+
+    void getFlashyRange(const std::vector<std::vector<Eigen::Vector2i> >& segments,
+                        const cv::Mat& frq_range,
+                        std::vector<Eigen::Vector2i>& ranges){
+        CHECK(frq_range.data);
+        CHECK_EQ(frq_range.type(), CV_32SC2);
+        ranges.resize(segments.size());
+#pragma omp parallel for
+        for(auto sid=0; sid < segments.size(); ++sid){
+            int startid = -1;
+            int endid = numeric_limits<int>::max();
+            for(const auto& pid: segments[sid]){
+                Vec2i r = frq_range.at<Vec2i>(pid[1], pid[0]);
+                startid = std::max(startid, r[0]);
+                endid = std::min(endid, r[1]);
+            }
+            ranges[sid][0] = startid;
+            ranges[sid][1] = endid;
         }
     }
 
@@ -104,7 +125,7 @@ namespace dynamic_stereo {
             outputPtr[i] = output[i].data;
 
         //prepare output
-        int d_seg = 3;
+        int d_seg = -1;
 
         const double huber_data = 4;
         const double huber_temporal = 1;
@@ -317,27 +338,50 @@ namespace dynamic_stereo {
             t.join();
     }
 
+    float GetRPCAWeight(const cv::Mat& pixels, const int stride, const int theta){
+        CHECK(!pixels.empty());
+        CHECK_EQ(pixels.type(), CV_8UC3);
+        const float low = 0.005;
+        const float high = 0.015;
+        Mat average;
+        cv::reduce(pixels, average, 1, CV_REDUCE_AVG);
+        float num_static = 0.0f, num_dynamic = 0.0f;
+        for(auto i=0; i<average.rows - stride; i+=stride){
+            double dis = cv::norm(average.row(i).reshape(1), average.row(i+stride).reshape(1));
+            if(dis > theta){
+                num_dynamic += 1.0f;
+            }else{
+                num_static += 1.0;
+            }
+        }
+        if(num_dynamic + num_static < numeric_limits<float>::epsilon()){
+            return low;
+        }
+        float ratio_dynamic = num_dynamic / (num_dynamic + num_static);
+        return low + ratio_dynamic * (high - low);
+    }
+
     void regularizationRPCA(const std::vector<cv::Mat> &input,
                             const std::vector<std::vector<Eigen::Vector2i> > &segments,
-                            std::vector<cv::Mat> &output, double lambda) {
+                            const std::vector<float>& lambdas,
+                            std::vector<cv::Mat> &output) {
         CHECK(!input.empty());
+        CHECK_EQ(lambdas.size(), segments.size());
         const int width = input[0].cols;
         const int height = input[0].rows;
 
         output.resize(input.size());
         for (auto v = 0; v < input.size(); ++v)
             output[v] = input[v].clone();
-        if (lambda < 0)
-            lambda = std::sqrt((double) input.size());
 
-        int d_seg = 3;
+        int d_seg = -1;
         const int numThread = 6;
         auto threadFunc = [&](int tid, int nt) {
             for (auto sid = tid; sid < segments.size(); sid += nt) {
                 if(d_seg >= 0 && sid != d_seg){
                     continue;
                 }
-                printf("Running RPCA for segment %d on thread %d\n", sid, tid);
+                printf("Running RPCA for segment %d on thread %d, lambda %.5f\n", sid, tid, lambdas[sid]);
                 for (auto c = 0; c < 3; ++c) {
                     MatrixXd pixelMat((int) input.size(), (int) segments[sid].size());
                     for (auto v = 0; v < input.size(); ++v) {
@@ -351,7 +395,7 @@ namespace dynamic_stereo {
                     MatrixXd res, error;
                     int numIter;
                     RPCAOption option;
-                    option.lambda = lambda;
+                    option.lambda = lambdas[sid];
                     solveRPCA(pixelMat, res, error, numIter, option);
 
                     for (auto v = 0; v < output.size(); ++v) {

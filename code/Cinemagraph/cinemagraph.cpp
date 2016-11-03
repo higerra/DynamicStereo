@@ -25,7 +25,8 @@ namespace dynamic_stereo{
         }
 
         void ComputeBlendMap(const std::vector<std::vector<Eigen::Vector2i> >& segments,
-                             const int width, const int height, const int blend_R, cv::Mat& blend_map){
+                             const int width, const int height, const int blend_R, const int min_size,
+                             cv::Mat& blend_map){
             Mat mask_all_segments(height, width, CV_8UC1, Scalar::all(0));
             blend_map.create(height, width, CV_32FC1);
             blend_map.setTo(cv::Scalar::all(0));
@@ -53,6 +54,14 @@ namespace dynamic_stereo{
                 }
                 mask_all_segments.release();
                 mask_all_segments = eroded.clone();
+            }
+
+            for(const auto& segment: segments){
+                if(segment.size() < min_size) {
+                    for (const auto &pid: segment) {
+                        blend_map.at<float>(pid[1], pid[0]) = 1.0f;
+                    }
+                }
             }
         }
 
@@ -99,19 +108,75 @@ namespace dynamic_stereo{
                 for (auto output_index = 0; output_index < output.size(); ++output_index) {
                     int fid = output_index % kSegLength;
                     for (auto pid = 0; pid < cinemagraph.pixel_loc_flashy[sid].size(); ++pid) {
-                        output[output_index].at<Vec3b>(cinemagraph.pixel_loc_flashy[sid][pid][1], cinemagraph.pixel_loc_flashy[sid][pid][0]) =
-                                cinemagraph.pixel_mat_flashy[sid].at<Vec3b>(fid, pid);
+                        const Vector2i& loc = cinemagraph.pixel_loc_flashy[sid][pid];
+                        float alpha = 1.0;
+                        if(cinemagraph.blend_map.data){
+                            alpha = cinemagraph.blend_map.at<float>(loc[1], loc[0]);
+                        }
+                        Vec3f pix = (Vec3f) cinemagraph.background.at<Vec3b>(loc[1], loc[0]) * (1 - alpha) +
+                                    (Vec3f) cinemagraph.pixel_mat_flashy[sid].at<Vec3b>(fid, pid) * alpha;
+                        output[output_index].at<Vec3b>(loc[1], loc[0]) = (Vec3b) pix;
                     }
                 }
             }
         }
 
-        bool ReadCinemagraph(const std::string &path) {
+        bool ReadCinemagraph(const std::string &path, Cinemagraph& output) {
 
         }
 
-        void SaveCinemagraph(const std::string &path, Cinemagraph &output) {
+        void SaveCinemagraph(const std::string &path, const Cinemagraph &output) {
+            CHECK(check_cinemagraph(output));
 
+            const int width = output.background.cols;
+            const int height = output.background.rows;
+            ofstream fout(path.c_str(), ios::binary);
+            CHECK(fout.is_open()) << "Can not open file to write " << path;
+            fout << output.reference << endl;
+            fout << width << ' ' << height << endl;
+            fout << output.pixel_loc_display.size() << ' ' << output.pixel_loc_flashy.size() << endl;
+            fout << "location" << endl;
+            for(int i=0; i<output.pixel_loc_display.size(); ++i){
+                fout << output.pixel_loc_display[i].size() << endl;
+                for(const auto& loc: output.pixel_loc_display[i]){
+                    fout << loc[1] * width + loc[0] << ' ';
+                }
+                fout << endl;
+            }
+            for(auto i=0; i<output.pixel_loc_flashy.size(); ++i){
+                fout << output.pixel_loc_flashy[i].size() << endl;
+                for(const auto& loc: output.pixel_loc_flashy){
+                    fout << loc[1] * width + loc[0] << ' ';
+                }
+                fout << endl;
+            }
+
+            fout << "range" << endl;
+            for(auto i=0; i<output.ranges_display.size(); ++i){
+                fout << output.ranges_display[i][0] << ' ' << output.ranges_display[i][1] << endl;
+            }
+            for(auto i=0; i<output.ranges_flashy.size(); ++i){
+                fout << output.ranges_flashy[i][0] << ' ' << output.ranges_flashy[i][1] << endl;
+            }
+
+            fout << "pixel" << endl;
+            for(auto i=0; i<output.pixel_mat_display.size(); ++i){
+                Mat cur_mat = output.pixel_mat_display[i];
+                CHECK(cur_mat.isContinuous());
+                CHECK_EQ(cur_mat.type(), CV_8UC3);
+                fout << cur_mat.cols << ' ' << cur_mat.rows << endl;
+                fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
+                fout << endl;
+            }
+
+            for(auto i=0; i<output.pixel_mat_flashy.size(); ++i){
+                Mat cur_mat = output.pixel_mat_flashy[i];
+                CHECK(cur_mat.isContinuous());
+                CHECK_EQ(cur_mat.type(), CV_8UC3);
+                fout << cur_mat.cols << ' ' << cur_mat.rows << endl;
+                fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
+                fout << endl;
+            }
         }
 
     }//namespace Cinemagraph

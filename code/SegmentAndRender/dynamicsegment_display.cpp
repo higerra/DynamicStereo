@@ -54,7 +54,6 @@ namespace dynamic_stereo{
             sprintf(buffer, "%s/midres/segment%05d.yml", file_io.getDirectory().c_str(), anchor);
             if(!video_segment::LoadHierarchicalSegmentation(string(buffer), segments)){
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, cv::noArray(), segments);
-                CHECK_EQ(segments.size(), levelList.size());
                 video_segment::SaveHierarchicalSegmentation(string(buffer), segments);
             }else{
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
@@ -78,7 +77,7 @@ namespace dynamic_stereo{
 
         sprintf(buffer, "%s/temp/segment_display%05d.jpg", file_io.getDirectory().c_str(), anchor);
         imwrite(buffer, preSeg);
-        result = video_segment::localRefinement(input, 5, 11, preSeg);
+        result = video_segment::localRefinement(input, 1, 5, 200, preSeg);
     }
 
     void groupPixel(const cv::Mat& labels, std::vector<std::vector<Eigen::Vector2i> >& segments){

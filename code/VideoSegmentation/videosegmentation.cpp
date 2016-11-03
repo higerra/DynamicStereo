@@ -442,7 +442,7 @@ namespace dynamic_stereo {
             return index;
         }
 
-        Mat localRefinement(const std::vector<cv::Mat>& images, const int R_erode, const int R_dilate, cv::Mat& mask){
+        Mat localRefinement(const std::vector<cv::Mat>& images, const int R_erode, const int R_dilate, const int min_area, cv::Mat& mask){
             CHECK(!images.empty());
             const int width = images[0].cols;
             const int height = images[0].rows;
@@ -460,7 +460,6 @@ namespace dynamic_stereo {
             int nLabel = cv::connectedComponentsWithStats(dilated, labels, stats, centroid);
             const int* pLabel = (int*) labels.data;
 
-            const int min_area = 50;
             const int max_area = width * height / 8;
 
             const double maxRatioOcclu = 0.3;
