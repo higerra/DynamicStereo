@@ -341,8 +341,9 @@ namespace dynamic_stereo {
     float GetRPCAWeight(const cv::Mat& pixels, const int stride, const int theta){
         CHECK(!pixels.empty());
         CHECK_EQ(pixels.type(), CV_8UC3);
-        const float low = 0.005;
-        const float high = 0.015;
+        const float low = 0.006;
+        const float high = 0.02;
+
         Mat average;
         cv::reduce(pixels, average, 1, CV_REDUCE_AVG);
         float num_static = 0.0f, num_dynamic = 0.0f;

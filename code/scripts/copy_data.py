@@ -14,6 +14,8 @@ datasets = list_file.readlines()
 
 for data in datasets:
     info = data.split()
+    if len(info) == 0:
+        break
     name = info[0]
     command = 'scp -r {}:{}/{}/temp {}/{}/'.format(args.source_ip, args.remote_root, name, args.local_root, name)
     print command

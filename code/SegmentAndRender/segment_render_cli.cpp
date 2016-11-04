@@ -75,8 +75,8 @@ int main(int argc, char** argv) {
     Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
     LOG(INFO) << "Segmenting display...";
     segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-    LOG(INFO) << "Segmenting flashy...";
-    segmentFlashy(file_io, FLAGS_testFrame, mid_input, cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy);
+//    LOG(INFO) << "Segmenting flashy...";
+//    segmentFlashy(file_io, FLAGS_testFrame, mid_input, cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy);
 
     CHECK_EQ(seg_result_display.cols, kFrameSize.width);
     CHECK_EQ(seg_result_display.rows, kFrameSize.height);
@@ -147,20 +147,20 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Step 3: Color regularization";
     float reg_t = (float)cv::getTickCount();
     if(FLAGS_regularization == "median"){
-        const int medianR = 5;
+        const int medianR = 10;
         printf("Running regularization with median filter, r: %d\n", medianR);
         temporalMedianFilter(mid_input, cinemagraph.pixel_loc_display, mid_output, medianR);
     }else if(FLAGS_regularization == "RPCA"){
         //use adaptive weighting
-        vector<float> adaptive_lambdas(cinemagraph.pixel_loc_display.size(), 0.0);
-        for(auto i=0; i<cinemagraph.pixel_mat_display.size(); ++i){
-            adaptive_lambdas[i] = GetRPCAWeight(cinemagraph.pixel_mat_display[i]);
-        }
+        vector<float> adaptive_lambdas(cinemagraph.pixel_loc_display.size(), 0.005);
+//        for(auto i=0; i<cinemagraph.pixel_mat_display.size(); ++i){
+//            adaptive_lambdas[i] = GetRPCAWeight(cinemagraph.pixel_mat_display[i]);
+//        }
 
         printf("Running regularizaion with RPCA with adaptive lambda\n");
         regularizationRPCA(mid_input, cinemagraph.pixel_loc_display, adaptive_lambdas, mid_output);
     }else if(FLAGS_regularization == "anisotropic"){
-        const double ws = 50;
+        const double ws = 10;
         printf("Running regularization with anisotropic diffusion, ws: %.5f\n", ws);
         regularizationAnisotropic(mid_input, cinemagraph.pixel_loc_display, mid_output, ws);
     }else if(FLAGS_regularization == "poisson"){

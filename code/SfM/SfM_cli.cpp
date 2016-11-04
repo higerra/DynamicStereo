@@ -406,7 +406,7 @@ int main(int argc, char *argv[]) {
         //colorize reconstruction
         CHECK(theia::WriteReconstruction(*res, file_io.getReconstruction())) << "Cannot write reconstruction file";
     }
-    theia::ColorizeReconstruction(file_io.getDirectory()+"/images_input/", FLAGS_num_threads, res);
+    theia::ColorizeReconstruction(file_io.getDirectory()+"/images_input/", 1, res);
     CHECK(theia::WritePlyFile(output_ply, *(res), 3)) << "Cannot write ply file";
 
 
