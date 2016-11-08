@@ -61,21 +61,21 @@ int main(int argc, char **argv) {
 		const int tf1 = FLAGS_testFrame;
 		Mat imgRef = imread(file_io.getImage(tf1));
 //			//In original scale
-		Vector2d pt(-1, -1);
+		Vector2d pt(969, 777);
 		stereo.dbtx = pt[0];
 		stereo.dbty = pt[1];
-//			//Vector2d pt(794, 294);
-//			//Vector2d pt(1077, 257);
-//				sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
-//				cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0, 0, 255), 2);
-//				imwrite(buffer, imgRef);
-//				for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
-//					Mat imgL, imgR;
-//					utility::verifyEpipolarGeometry(file_io, stereo.getSfMModel(), tf1, tf2, pt, imgL, imgR);
-//					sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
-//					imwrite(buffer, imgR);
+		//Vector2d pt(794, 294);
+		//Vector2d pt(1077, 257);
+		sprintf(buffer, "%s/temp/epipolar%05d_ref.jpg", file_io.getDirectory().c_str(), tf1);
+		cv::circle(imgRef, cv::Point(pt[0], pt[1]), 2, cv::Scalar(0, 0, 255), 2);
+		imwrite(buffer, imgRef);
+		for (auto tf2 = stereo.getOffset(); tf2 < stereo.getOffset() + stereo.gettWindow(); ++tf2) {
+			Mat imgL, imgR;
+			utility::verifyEpipolarGeometry(file_io, stereo.getSfMModel(), tf1, tf2, pt, imgL, imgR);
+			sprintf(buffer, "%s/temp/epipolar%05dto%05d.jpg", file_io.getDirectory().c_str(), tf1, tf2);
+			imwrite(buffer, imgR);
+		}
 	}
-
 	Depth depth;
 	Mat depthMask;
 	sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
@@ -95,11 +95,11 @@ int main(int argc, char **argv) {
 	vector<Mat> prewarp;
 	warpping->preWarping(prewarp);
 
-    sprintf(buffer, "%s/midres/prewarp/prewarpb%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    cv::VideoWriter vwriter(buffer, CV_FOURCC('x','2','6','4'), 30, cv::Size(prewarp[0].cols, prewarp[0].rows));
+	sprintf(buffer, "%s/midres/prewarp/prewarpb%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+	cv::VideoWriter vwriter(buffer, CV_FOURCC('x','2','6','4'), 30, cv::Size(prewarp[0].cols, prewarp[0].rows));
 	for(auto i=0; i<prewarp.size(); ++i){
-        vwriter << prewarp[i];
+		vwriter << prewarp[i];
 	}
-    vwriter.release();
+	vwriter.release();
 	return 0;
 }
