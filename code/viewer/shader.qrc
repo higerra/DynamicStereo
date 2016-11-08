@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/">
+        <file>frame.frag</file>
+        <file>frame.vert</file>
+        <file>blend.vert</file>
+        <file>blend.frag</file>
+        <file>video_blend.vert</file>
+        <file>video_blend.frag</file>
+    </qresource>
+</RCC>
