@@ -54,14 +54,14 @@ namespace dynamic_stereo{
         inline std::string getDepthFile(const int id) const {
             CHECK_LT(id, getTotalNum());
             char buffer[1024] = {};
-            sprintf(buffer, "%s/depth/depth%05d.depth", directory.c_str(), id + startid);
+            sprintf(buffer, "%s/midres/depth%05d.depth", directory.c_str(), id + startid);
             return std::string(buffer);
         }
 
         inline std::string getDepthImage(const int id) const {
             CHECK_LT(id, getTotalNum());
             char buffer[1024] = {};
-            sprintf(buffer, "%s/depth/depth%05d.jpg", directory.c_str(), id + startid);
+            sprintf(buffer, "%s/midres/depth%05d.jpg", directory.c_str(), id + startid);
             return std::string(buffer);
         }
 

@@ -1,7 +1,4 @@
 #include "main_widget.h"
-#include "navigation.h"
-#include "../base/frame.h"
-#include "../base/camera.h"
 #include "animation.h"
 #include <fstream>
 #include <iostream>
@@ -27,9 +24,9 @@ MainWidget::MainWidget(const string& data_directory,const QGLFormat& fmt, QWidge
     navigation(data_directory),
     is_recording(false)
 {
-    printf("Initializing...\n");
-    scenes.resize(navigation.getNumScenes());
-    frame_recorder = shared_ptr<FrameRecorder>(new FrameRecorder(path));
+    cout << "Initializeing" << endl;
+    scenes.resize(navigation.getNumFrames());
+//    frame_recorder = shared_ptr<FrameRecorder>(new FrameRecorder(path));
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
 
@@ -42,7 +39,7 @@ MainWidget::MainWidget(const string& data_directory,const QGLFormat& fmt, QWidge
 
 MainWidget::~MainWidget(){
     freeResource();
-    frame_recorder->exit();
+//    frame_recorder->exit();
 }
 
 
@@ -127,7 +124,7 @@ void MainWidget::allocateResource(){
 //    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, blendindexBuffer);
 //    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4*sizeof(GLuint), blendindex_data, GL_STATIC_DRAW);
 
-    for(int i=0; i<navigation.getNumScenes(); i++){
+    for(int i=0; i<navigation.getNumFrames(); i++){
         printf("Initializing scene %d\n", i);
         scenes[i] = shared_ptr<Scene>(new Scene(external_textures));
         if(!scenes[i]->initialize(path, i, navigation)){
@@ -237,54 +234,54 @@ void MainWidget::open_external_video(){
 }
 
 void MainWidget::switch_to_internal(){
-    const pair<int,int>& f = navigation.getCurrentFrame();
-    scenes[f.first]->getVideoRenderer()
-            ->changeSource(f.second, contextx, contexty, videoRenderer::INTERNAL);
-    this->setFocus();
+//    const pair<int,int>& f = navigation.getCurrentFrame();
+//    scenes[f.first]->getVideoRenderer()
+//            ->changeSource(f.second, contextx, contexty, videoRenderer::INTERNAL);
+//    this->setFocus();
 }
 
 void MainWidget::switch_to_external(int id){
-    const pair<int,int>& f = navigation.getCurrentFrame();
-    scenes[f.first]->getVideoRenderer()
-            ->changeSource(f.second, contextx, contexty, videoRenderer::EXTERNAL,id);
-    this->setFocus();
+//    const pair<int,int>& f = navigation.getCurrentFrame();
+//    scenes[f.first]->getVideoRenderer()
+//            ->changeSource(f.second, contextx, contexty, videoRenderer::EXTERNAL,id);
+//    this->setFocus();
 }
 
 void MainWidget::shut_down_display(){
-    const pair<int,int>& f = navigation.getCurrentFrame();
-    scenes[f.first]->getVideoRenderer()
-            ->changeSource(f.second, contextx, contexty, videoRenderer::STATIC);
-    this->setFocus();
+//    const pair<int,int>& f = navigation.getCurrentFrame();
+//    scenes[f.first]->getVideoRenderer()
+//            ->changeSource(f.second, contextx, contexty, videoRenderer::STATIC);
+//    this->setFocus();
 }
 
 void MainWidget::paintGL(){
-    pair<int,int> current_frame = navigation.getCurrentFrame();
-    pair<int,int> next_frame = navigation.getNextFrame();
+    const int current_frame = navigation.getCurrentFrame();
+    const int next_frame = navigation.getNextFrame();
 
     float percent = navigation.getFrameWeight();
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     if(navigation.getStatus() == Navigation::STATIC){
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-        scenes[current_frame.first]->render(current_frame.second, navigation);
+        scenes[current_frame]->render(navigation);
     }else{
         glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[0]);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-        scenes[current_frame.first]->render(current_frame.second, navigation);
+        scenes[current_frame]->render(navigation);
 
         glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[1]);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-        scenes[next_frame.first]->render(next_frame.second, navigation);
+        scenes[next_frame]->render(navigation);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         blendFrames(percent);;
     }
-    if(is_recording){
-        glReadBuffer(GL_FRONT);
-        shared_ptr<QImage> curimg(new QImage(width(), height(), QImage::Format_RGB888));
-        glReadPixels(0,0,width(), height(), GL_RGB, GL_UNSIGNED_BYTE, curimg->bits());
-        frame_recorder->submitFrame(curimg);
-    }
+//    if(is_recording){
+//        glReadBuffer(GL_FRONT);
+//        shared_ptr<QImage> curimg(new QImage(width(), height(), QImage::Format_RGB888));
+//        glReadPixels(0,0,width(), height(), GL_RGB, GL_UNSIGNED_BYTE, curimg->bits());
+//        frame_recorder->submitFrame(curimg);
+//    }
     glPopAttrib();
     glFlush();
 }
@@ -385,14 +382,14 @@ void MainWidget::mousePressEvent(QMouseEvent * e){
 }
 
 void MainWidget::mouseMoveEvent(QMouseEvent* e){
-    if(track_mouse){
-        mousex = e->x();
-        mousey = e->y();
-        const pair<int,int>& f = navigation.getCurrentFrame();
-        if(navigation.getStatus() == Navigation::STATIC)
-            scenes[f.first]->getVideoRenderer()
-                    ->setHighlight(f.second, mousex, mousey);
-    }
+//    if(track_mouse){
+//        mousex = e->x();
+//        mousey = e->y();
+//        const pair<int,int>& f = navigation.getCurrentFrame();
+//        if(navigation.getStatus() == Navigation::STATIC)
+//            scenes[f.first]->getVideoRenderer()
+//                    ->setHighlight(f.second, mousex, mousey);
+//    }
 }
 
 void MainWidget::mouseDoubleClickEvent(QMouseEvent *e){
@@ -414,32 +411,32 @@ void MainWidget::timerEvent(QTimerEvent* event){
 }
 
 void MainWidget::contextMenuEvent(QContextMenuEvent *e){
-    const pair<int,int>& f = navigation.getCurrentFrame();
-    const shared_ptr<videoRenderer>& vr = scenes[f.first]->getVideoRenderer();
-    if(vr->getDisplayID(f.second, e->x(), e->y()) == -1)
-        return;
-
-    std::shared_ptr<QMenu> context_menu(new QMenu(tr("context menu"),this));
-    std::shared_ptr<QMenu> external_menu(new QMenu(tr("External video"), this));
-    contextx = e->x();
-    contexty = e->y();
-    videoRenderer::VideoSource s = vr->getCurrentSource(f.second, contextx, contexty);
-    if(s == videoRenderer::STATIC){
-        context_menu->addAction(action_internal.get());
-        context_menu->exec(e->globalPos());
-        return;
-    }
-
-    vector<shared_ptr<QAction> > channels(external_textures.size());
-    for(int i=0; i<external_textures.size(); i++){
-        channels[i] = shared_ptr<QAction>(new QAction(QString("Channel %1").arg(QString::number(i)),this));
-        connect(channels[i].get(), &QAction::triggered, [=](){this->switch_to_external(i);});
-        external_menu->addAction(channels[i].get());
-    }
-    context_menu->addAction(action_internal.get());
-    context_menu->addMenu(external_menu.get());
-    context_menu->addAction(action_shut.get());
-    context_menu->exec(e->globalPos());
+//    const pair<int,int>& f = navigation.getCurrentFrame();
+//    const shared_ptr<videoRenderer>& vr = scenes[f.first]->getVideoRenderer();
+//    if(vr->getDisplayID(f.second, e->x(), e->y()) == -1)
+//        return;
+//
+//    std::shared_ptr<QMenu> context_menu(new QMenu(tr("context menu"),this));
+//    std::shared_ptr<QMenu> external_menu(new QMenu(tr("External video"), this));
+//    contextx = e->x();
+//    contexty = e->y();
+//    videoRenderer::VideoSource s = vr->getCurrentSource(f.second, contextx, contexty);
+//    if(s == videoRenderer::STATIC){
+//        context_menu->addAction(action_internal.get());
+//        context_menu->exec(e->globalPos());
+//        return;
+//    }
+//
+//    vector<shared_ptr<QAction> > channels(external_textures.size());
+//    for(int i=0; i<external_textures.size(); i++){
+//        channels[i] = shared_ptr<QAction>(new QAction(QString("Channel %1").arg(QString::number(i)),this));
+//        connect(channels[i].get(), &QAction::triggered, [=](){this->switch_to_external(i);});
+//        external_menu->addAction(channels[i].get());
+//    }
+//    context_menu->addAction(action_internal.get());
+//    context_menu->addMenu(external_menu.get());
+//    context_menu->addAction(action_shut.get());
+//    context_menu->exec(e->globalPos());
 }
 
 }

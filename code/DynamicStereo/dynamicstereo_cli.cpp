@@ -78,28 +78,32 @@ int main(int argc, char **argv) {
 	}
 	Depth depth;
 	Mat depthMask;
-	sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	if((!depth.readDepthFromFile(string(buffer)))) {
+	if((!depth.readDepthFromFile(file_io.getDepthFile(FLAGS_testFrame)))) {
 		printf("Running stereo for frame %d\n", FLAGS_testFrame);
 		stereo.runStereo(depth, depthMask);
 		depth.saveDepthFile(string(buffer));
+
 	}else{
 		Depth tempdepth;
 		Mat tempMask;
 		stereo.runStereo(tempdepth, tempMask, true);
 	}
 
-	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution));
-	const int warpping_offset = warpping->getOffset();
-
-	vector<Mat> prewarp;
-	warpping->preWarping(prewarp);
-
-	sprintf(buffer, "%s/midres/prewarp/prewarpb%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-	cv::VideoWriter vwriter(buffer, CV_FOURCC('x','2','6','4'), 30, cv::Size(prewarp[0].cols, prewarp[0].rows));
-	for(auto i=0; i<prewarp.size(); ++i){
-		vwriter << prewarp[i];
+	if(!depth.getRawData().empty()){
+		depth.saveImage(file_io.getDepthImage(FLAGS_testFrame), -1);
 	}
-	vwriter.release();
+
+//	shared_ptr<DynamicWarpping> warpping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution));
+//	const int warpping_offset = warpping->getOffset();
+//
+//	vector<Mat> prewarp;
+//	warpping->preWarping(prewarp);
+//
+//	sprintf(buffer, "%s/midres/prewarp/prewarpb%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+//	cv::VideoWriter vwriter(buffer, CV_FOURCC('x','2','6','4'), 30, cv::Size(prewarp[0].cols, prewarp[0].rows));
+//	for(auto i=0; i<prewarp.size(); ++i){
+//		vwriter << prewarp[i];
+//	}
+//	vwriter.release();
 	return 0;
 }

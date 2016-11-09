@@ -18,30 +18,35 @@ SOURCES += main.cpp \
     main_widget.cpp \
     ../base/depth.cpp \
     ../base/utility.cpp\
+    ../GeometryModule/stereomodel.cpp\
     navigation.cpp \
-    videorenderer.cpp \
-    scene.cpp \
-    framerecorder.cpp
+    scene.cpp\
 
 HEADERS += \
     main_widget.h \
     ../base/depth.h \
     ../base/file_io.h \
     ../base/utility.h\
+    ../GeometryModule/stereomodel.h\
     navigation.h \
     animation.h \
-    videorenderer.h \
-    scene.h \
-    framerecorder.h
-
+    scene.h\
 
 INCLUDEPATH += '/usr/local/include/eigen3'
+INCLUDEPATH += '/usr/include/suitesparse'
+INCLUDEPATH += '/usr/local/include/theia/libraries/'
+INCLUDEPATH += '/usr/local/include/theia/libraries/statx'
+INCLUDEPATH += '/usr/local/include/theia/libraries/optimo'
+INCLUDEPATH += '/usr/local/include/theia/libraries/vlfeat'
+INCLUDEPATH += '/usr/local/include/theia/libraries/cereal'
+INCLUDEPATH += '/usr/local/include/theia/libraries/visual_sfm'
+
 INCLUDEPATH += '/usr/local/include'
 
 LIBS += -L/usr/local/lib/ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_highgui -lopencv_videoio -ltheia
 
 unix:!macx{
-    LIBS += -L/usr/lib/x86_64-linux-gnu/ -lGLU
+    LIBS += -L/usr/lib/x86_64-linux-gnu/ -lGLU -lglog -lgflags
 }
 
 RESOURCES += \

@@ -23,11 +23,8 @@
 #include <QPoint>
 #include <QContextMenuEvent>
 #include <vector>
-#include "../base/frame.h"
 #include "../base/file_io.h"
 #include "navigation.h"
-#include "videorenderer.h"
-#include "framerecorder.h"
 #include "scene.h"
 #include <memory>
 
@@ -96,7 +93,6 @@ private:
     std::shared_ptr<QAction> action_internal;
     std::shared_ptr<QAction> action_shut;
 
-    std::shared_ptr<FrameRecorder> frame_recorder;
     bool is_recording;
 
     void InitializeShader();

@@ -75,8 +75,8 @@ int main(int argc, char** argv) {
     Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
     LOG(INFO) << "Segmenting display...";
     segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-//    LOG(INFO) << "Segmenting flashy...";
-//    segmentFlashy(file_io, FLAGS_testFrame, mid_input, cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy);
+    LOG(INFO) << "Segmenting flashy...";
+    segmentFlashy(file_io, FLAGS_testFrame, mid_input, cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy);
 
     CHECK_EQ(seg_result_display.cols, kFrameSize.width);
     CHECK_EQ(seg_result_display.rows, kFrameSize.height);

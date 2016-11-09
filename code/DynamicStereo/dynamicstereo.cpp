@@ -126,11 +126,6 @@ namespace dynamic_stereo{
 
 
 //		Depth depth_firstOrder;
-        printf("Saving depth to point cloud...\n");
-        disparityToDepth(result_firstOrder, depth_firstOrder);
-        sprintf(buffer, "%s/temp/depth%05d.jpg", file_io.getDirectory().c_str(), anchor);
-        depth_firstOrder.saveImage(string(buffer), -1);
-
         //masking out invalid region
         //remove pixel where half disparity project outof half frames
 //		const theia::Camera& refCam = sfmModel.getCamera(anchor);
