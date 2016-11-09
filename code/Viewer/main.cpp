@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     CHECK_GE(argc, 2) << "Usage: ./Viewer <path-to-directory>";
 
     QApplication a(argc, argv);
-    a.setApplicationName("Dynamic Renderer");
+    a.setApplicationName("Cinemagraph Viewer");
 
 #ifndef QT_NO_OPENGL
     QWidget window;

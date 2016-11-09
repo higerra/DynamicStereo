@@ -19,8 +19,8 @@ namespace dynamic_stereo{
         file_io = make_shared<FileIO>(FileIO(path));
 
         CHECK_LT(frame_id_, file_io->getTotalNum());
-        CHECK(background_.load(QString::fromStdString(file_io->getImage(frame_id_))));
-        CHECK(depth_.readDepthFromFile(file_io->getDepthFile(frame_id_)));
+        CHECK(background_.load(QString::fromStdString(file_io->getImage(frame_id_)))) << file_io->getImage(frame_id_);
+        CHECK(depth_.readDepthFromFile(file_io->getDepthFile(frame_id_))) << file_io->getDepthFile(frame_id_);
         depth_downsample_ = (double)background_.width() / (double)depth_.getWidth();
         camera_ = navigation.GetCameraFromGlobalIndex(frame_id_);
 
@@ -37,6 +37,7 @@ namespace dynamic_stereo{
                 }
             }
         }
+
         background_texture_ = shared_ptr<QOpenGLTexture>(new QOpenGLTexture(background_));
         glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
@@ -125,21 +126,20 @@ namespace dynamic_stereo{
     }
 
     void Scene::render(const Navigation &navigation){
-        if(!shader->bind()){
-            cerr << "Scene::render(): can not bind shader"<< endl;
-            return;
-        }
+        CHECK(shader->bind()) << "Scene::render(): can not bind shader";
+
         glPushAttrib(GL_ALL_ATTRIB_BITS);
         const QMatrix4x4& modelview = navigation.getRenderCamera();
         const QMatrix4x4& projection = navigation.getProjectionMatrix();
+
         shader->setUniformValue("mv_mat", modelview);
         shader->setUniformValue("mp_mat", projection);
         shader->setUniformValue("weight", (GLfloat)1.0);
 
         glEnable(GL_TEXTURE_2D);
         background_texture_->bind();
-        if(!background_texture_->isBound())
-            cerr << "Scene::render(): can not bind texture "<< endl;
+        CHECK(background_texture_->isBound()) << "Scene::render(): can not bind texture ";
+
         shader->setUniformValue("tex_sampler", 0);
         shader->setUniformValue("weight", (GLfloat)1.0);
 

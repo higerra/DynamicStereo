@@ -42,6 +42,10 @@ public:
 
     const theia::Camera& GetCameraFromGlobalIndex(const int idx) const;
 
+    inline const std::vector<int>& GetFrameIdx() const{
+        return frame_ids_;
+    }
+
     inline const int getNumFrames() const{return kNumFrames;}
 
     const theia::Camera& getCamera(const int frameid)const{
@@ -67,14 +71,9 @@ public:
     void processMouseEvent(MouseEventType type, int dx, int dy);
     void updateNavigation();
 private:
-    QMatrix4x4 getModelViewMatrix(const size_t frameid1,
-                                  const size_t frameid2,
-                                  const double percent);
     QMatrix4x4 getModelViewMatrix(const int currentframe,
                                    const int nextframe,
-                                   const double percent){
-        return getModelViewMatrix(currentframe, nextframe, percent);
-    }
+                                   const double percent) const;
 
     int getNextScene(const int base_frame, Direction direction) const;
     bool MoveFrame(Direction direction);
@@ -109,7 +108,6 @@ private:
     std::vector<Eigen::Vector3d> vdirs_;
     std::vector<Eigen::Vector3d> updirs_;
     std::vector<Eigen::Vector3d> camcenters_;
-    std::vector<int> frame_map_;
 
     std::vector<std::vector<float> > look_at_table_;
     RenderMode cameraStatus;

@@ -9,8 +9,7 @@
 #include <QJsonArray>
 
 #include "../base/file_io.h"
-#include "../base/plane3D.h"
-
+#include "../base/depth.h"
 
 #define PI 3.1415927
 
@@ -26,7 +25,7 @@ namespace dynamic_stereo{
     const int Navigation::speed_move_scene = 2;
 
     Navigation::Navigation(const string& path):
-            fov(35.0),
+            fov(32.0),
             cx(-1),
             cy(-1),
             cameraStatus(STATIC),
@@ -39,22 +38,19 @@ namespace dynamic_stereo{
             kbdirection(1.0),
             blendweight_frame(1.0){
 
+        FileIO file_io(path);
         //read sfm model
         SfMModel sfm_model;
         char buffer[1024];
         sprintf(buffer, "%s/sfm/reconstruction.recon", path.c_str());
-        sfm_model.init(string(path));
+        sfm_model.init(string(buffer));
 
         //read configuration file and get reference frames
         sprintf(buffer, "%s/conf.json", path.c_str());
         ReadConfiguration(string(buffer));
 
         kNumFrames = frame_ids_.size();
-        cameras_.resize(kNumFrames);
-        vdirs_.resize(kNumFrames);
-        updirs_.resize(kNumFrames);
-        camcenters_.resize(kNumFrames);
-        extrinsics_.resize(kNumFrames);
+        LOG(INFO) << "Number of frames: " << kNumFrames;
 
         string tempstring;
         Matrix3d iden3 = Matrix3d::Identity();
@@ -66,6 +62,7 @@ namespace dynamic_stereo{
                 cx = curcam.PrincipalPointX();
                 cy = curcam.PrincipalPointY();
             }
+
             cameras_.push_back(curcam);
             camcenters_.push_back(curcam.GetPosition());
             Vector3d vdir = curcam.PixelToUnitDepthRay(Vector2d(cx,cy));
@@ -74,27 +71,27 @@ namespace dynamic_stereo{
 
             theia::Matrix3x4d extrinsic;
             theia::ComposeProjectionMatrix(iden3, curcam.GetOrientationAsAngleAxis(), curcam.GetPosition(), &extrinsic);
-            extrinsics_.push_back(extrinsic);
-            Vector3d updir = extrinsic * Vector4d(0.0, -1.0, 0.0, 1.0) - curcam.GetPosition();
+            Vector3d updir = extrinsic * Vector4d(0.0, -1.0, 0.0, 1.0) - extrinsic * Vector4d(0,0,0,1.0);
+//            Vector3d updir = curcam.PixelToUnitDepthRay(Vector2d(cx,0)) - curcam.GetPosition();
+//            Vector3d updir(0,-1,0);
             updir.normalize();
             updirs_.push_back(updir);
+        }
 
-//            //fill in the look at table
-//            look_at_table_[i].resize(9);
-//            for(int j=0; j<3; ++j){
-//                look_at_table_[i][j] = static_cast<float>(camcenters[i][j]);
-//            }
-//            for(int j=3; j<6; ++j){
-//                look_at_table_[i][j] = static_cast<float>(camcenters[i][j-3] + vdirs[i][j-3] * kFarDepth);
-//            }
-//            for(int j=6; j<9; ++j){
-//                look_at_table_[i][j] = static_cast<float>(updirs[i][j-6]);
-//            }
+        double far_plane = -1, near_plane = -1;
+        for(const auto fid: frame_ids_){
+            Depth cur_depth;
+            cur_depth.readDepthFromFile(file_io.getDepthFile(fid));
+            cur_depth.updateStatics();
+            far_plane = std::max(far_plane, cur_depth.getMaxDepth());
+            if(near_plane < 0 || cur_depth.getMinDepth() < near_plane){
+                near_plane = cur_depth.getMinDepth();
+            }
         }
 
         //set initial camera
         projectionMatrix.setToIdentity();
-        projectionMatrix.perspective(fov, (float)cx / (float) cy, 0.0, 100);
+        projectionMatrix.perspective(fov, (float)cx / (float) cy, near_plane, far_plane);
         renderCamera = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
     }
 
@@ -103,6 +100,7 @@ namespace dynamic_stereo{
     }
 
     void Navigation::ReadConfiguration(const std::string& json_path){
+        LOG(INFO) << "Reading " << json_path;
         QFile json_file(QString::fromStdString(json_path));
         CHECK(json_file.open(QIODevice::ReadOnly));
 
@@ -127,9 +125,9 @@ namespace dynamic_stereo{
         CHECK(true) << "Index not found " << idx;
     }
 
-    QMatrix4x4 Navigation::getModelViewMatrix(const size_t frameid1,
-                                              const size_t frameid2,
-                                              const double percent){
+    QMatrix4x4 Navigation::getModelViewMatrix(const int frameid1,
+                                              const int frameid2,
+                                              const double percent) const{
         CHECK_LT(frameid1, kNumFrames);
         CHECK_LT(frameid2, kNumFrames);
 
@@ -143,6 +141,7 @@ namespace dynamic_stereo{
 
         Vector3d camcenter = percent * center1 + (1.0-percent) * center2;
         Vector3d updir = interpolateVector3D(updir1, updir2, 1 - percent);
+        //Vector3d updir(0,-1,0);
         Vector3d vdir = interpolateVector3D(vdir1, vdir2, 1 - percent);
         Vector3d framecenter = vdir + camcenter;
 
@@ -196,11 +195,19 @@ namespace dynamic_stereo{
         //search optimal next frame by ray tracing
 
         //toy implementation
-        if(direction == MOVE_FORWARD && base_frame < kNumFrames - 1){
-            return base_frame + 1;
+        if(direction == MOVE_FORWARD){
+            if(base_frame < kNumFrames - 1) {
+                return base_frame + 1;
+            }else{
+                return 0;
+            }
         }
-        if(direction == MOVE_BACKWARD && base_frame > 0){
-            return base_frame - 1;
+        if(direction == MOVE_BACKWARD){
+            if(base_frame > 0) {
+                return base_frame - 1;
+            }else{
+                return kNumFrames - 1;
+            }
         }
 
 
@@ -239,7 +246,7 @@ namespace dynamic_stereo{
 
     bool Navigation::MoveFrame(Direction direction){
         int temp_next = getNextScene(current_frame_,direction);
-        if(temp_next) {
+        if(temp_next < 0) {
             return false;
         }
         current_frame_ = next_frame_;
