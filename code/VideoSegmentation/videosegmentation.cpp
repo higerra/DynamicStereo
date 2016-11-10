@@ -107,7 +107,7 @@ namespace dynamic_stereo {
             }
 
             CHECK_EQ(featuresMat.rows, width * height);
-#if true
+#if false
             {
                 DistanceCorrelation dis_cor;
                 //debug, inspect some of the feature

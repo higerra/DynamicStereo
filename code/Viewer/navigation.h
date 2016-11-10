@@ -35,10 +35,9 @@ public:
     //read configuration file and return frame ids
     void ReadConfiguration(const std::string& json_path);
 
-    inline const QMatrix4x4& getRenderCamera()const {return renderCamera;}
-    inline const QMatrix4x4& getProjectionMatrix()const{
-        return projectionMatrix;
-    }
+    inline const QMatrix4x4& getRenderCamera()const {return render_camera_;}
+    inline const QMatrix4x4& getProjection()const {return project_camera_;}
+
 
     const theia::Camera& GetCameraFromGlobalIndex(const int idx) const;
 
@@ -47,6 +46,21 @@ public:
     }
 
     inline const int getNumFrames() const{return kNumFrames;}
+
+    inline const double GetCX() const{
+        return cx;
+    }
+    inline const double GetCY() const{
+        return cy;
+    }
+
+    inline const int GetFrameWidth() const{
+        return frame_width_;
+    }
+
+    inline const int GetFrameHeight() const{
+        return frame_height_;
+    }
 
     const theia::Camera& getCamera(const int frameid)const{
         CHECK_LT(frameid, cameras_.size());
@@ -71,20 +85,28 @@ public:
     void processMouseEvent(MouseEventType type, int dx, int dy);
     void updateNavigation();
 private:
-    QMatrix4x4 getModelViewMatrix(const int currentframe,
-                                   const int nextframe,
+    QMatrix4x4 getModelViewMatrix(const int frameid1,
+                                   const int frameid2,
+                                   const double percent) const;
+
+    QMatrix4x4 getProjectionMatrix(const int frameid1,
+                                   const int frameid2,
                                    const double percent) const;
 
     int getNextScene(const int base_frame, Direction direction) const;
     bool MoveFrame(Direction direction);
 
     int kNumFrames;
-    QMatrix4x4 projectionMatrix;
-    QMatrix4x4 renderCamera;
+    QMatrix4x4 render_camera_;
+    QMatrix4x4 project_camera_;
 
-    double fov;
+    double fov_;
     double cx;
     double cy;
+    int frame_width_;
+    int frame_height_;
+    double near_plane_;
+    double far_plane_;
 
     //for animation
     static const int animation_stride;

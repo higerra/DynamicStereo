@@ -277,6 +277,24 @@ namespace dynamic_stereo{
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             blendFrames(percent);;
         }
+
+
+//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+//        scenes[current_frame]->render(navigation);
+
+//        glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[0]);
+//        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+//        scenes[current_frame]->render(navigation);
+//
+//        glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[1]);
+//        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+//        scenes[next_frame]->render(navigation);
+//
+//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//        blendFrames(percent);;
+
+
 //    if(is_recording){
 //        glReadBuffer(GL_FRONT);
 //        shared_ptr<QImage> curimg(new QImage(width(), height(), QImage::Format_RGB888));
@@ -295,18 +313,16 @@ namespace dynamic_stereo{
             close();
         }
         glEnable(GL_TEXTURE_2D);
-        glViewport(0,0,width(), height());
         QMatrix4x4 modelview, projection;
         modelview.setToIdentity();
         projection.setToIdentity();
-        projection.ortho(QRectF(0,0,(float)width(), (float)height()));
+        //projection.ortho(QRectF(0,0,navigation.GetFrameWidth(), navigation.GetFrameHeight()));
+        projection.ortho(QRectF(0,0,width(), height()));
 
 
         blend_program->setUniformValue("mat_mv", modelview);
         blend_program->setUniformValue("mat_mp", projection);
         blend_program->setUniformValue("weight", percent);
-
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
         blend_program->setUniformValue("tex0",0);
         glActiveTexture(GL_TEXTURE0);
@@ -328,8 +344,9 @@ namespace dynamic_stereo{
         glLoadIdentity();
         gluOrtho2D(0, width(), 0, height());
 
-        glBegin(GL_QUADS);
         glDisable(GL_DEPTH_TEST);
+        glBegin(GL_QUADS);
+        //glDisable(GL_DEPTH);
         glTexCoord2f(0.0f, 0.0f);
         glVertex3f(0.0f, 0.0f, 0.0f);
 

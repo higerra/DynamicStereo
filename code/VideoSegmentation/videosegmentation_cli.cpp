@@ -28,6 +28,18 @@ int main(int argc, char** argv){
 
     char buffer[128] = {};
 
+    {
+        Mat tmp = imread(
+                "/home/yanhang/Documents/research/DynamicStereo/data/working/data_vegas22/images/image00120.jpg");
+        Mat graph_seg;
+        vector<vector<int> > segs;
+        segment_gb::segment_image(tmp, graph_seg, segs, 3, 800, 50);
+        Mat graph_seg_vis = segment_gb::visualizeSegmentation(graph_seg);
+        Mat graph_seg_out;
+        cv::addWeighted(tmp, 0.2, graph_seg_vis, 0.8, 0.0, graph_seg_out);
+        imwrite("graph_seg_vegas22_00120.png", graph_seg_out);
+    }
+
     string strArg(argv[1]);
     string subfix = strArg.substr(strArg.find_last_of("."));
     string dir;
@@ -108,16 +120,16 @@ int main(int argc, char** argv){
             sprintf(buffer, "%s/segment_%s.yml", out_path.c_str(), filename.c_str());
             video_segment::SaveHierarchicalSegmentation(string(buffer), segments);
 
-//            for(auto i=0; i<segments.size(); ++i) {
-//                Mat segment_vis = video_segment::visualizeSegmentation(segments[i]);
-//                Mat blended;
-//                const double blend_weight = 0.1;
-//                cv::addWeighted(images[0], blend_weight, segment_vis, 1.0 - blend_weight, 0.0, blended);
-//                sprintf(buffer, "%s/%s_result_region_l%05d.png", out_path.c_str(),
-//                        filename.substr(0, filename.find_last_of(".")).c_str(), i);
-//                printf("Writing %s\n", buffer);
-//                imwrite(buffer, blended);
-//            }
+            for(auto i=0; i<segments.size(); ++i) {
+                Mat segment_vis = video_segment::visualizeSegmentation(segments[i]);
+                Mat blended;
+                const double blend_weight = 0.1;
+                cv::addWeighted(images[images.size() / 2], blend_weight, segment_vis, 1.0 - blend_weight, 0.0, blended);
+                sprintf(buffer, "%s/%s_result_region_l%05d.png", out_path.c_str(),
+                        filename.substr(0, filename.find_last_of(".")).c_str(), i);
+                printf("Writing %s\n", buffer);
+                imwrite(buffer, blended);
+            }
         }
     }
     return 0;

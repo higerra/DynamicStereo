@@ -31,10 +31,10 @@ DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic, none}");
 
 DEFINE_double(param_stab, 2.0, "parameter for geometric stabilization");
-DECLARE_string(flagfile);
+DECLARE_string(log_dir);
 
 int main(int argc, char** argv) {
-    char buffer[1024] = {};
+    char buffer[128] = {};
     if(argc < 2){
         cerr << "Usage: ./SegmentAndRender <path-to-data>" << endl;
 
@@ -45,13 +45,17 @@ int main(int argc, char** argv) {
 
     google::InitGoogleLogging(argv[1]);
     google::ParseCommandLineFlags(&argc, &argv, true);
-    LOG(INFO) << "testFrame:" << FLAGS_testFrame <<  " tWindow:" << FLAGS_tWindow;
+    FLAGS_log_dir = file_io.getDirectory() + "/temp";
+
+    printf("Data: %s, anchor: %d\n", argv[1], FLAGS_testFrame);
+    LOG(INFO) << "data:" << argv[1];
+    LOG(INFO) << "anchor: " << FLAGS_testFrame;
 
     const double depthSmooth = 0.1;
     std::shared_ptr<DynamicWarpping> warping(new DynamicWarpping(file_io, FLAGS_testFrame, FLAGS_tWindow, FLAGS_resolution, depthSmooth));
     const int anchor_frame = FLAGS_testFrame - warping->getOffset();
 
-    LOG(INFO) << "Warping..";
+    cout << "Warping.." << endl;
     vector <Mat> mid_input, mid_output, visMaps;
     warping->preWarping(mid_input, true, &visMaps);
     const cv::Size kFrameSize(mid_input[0].cols, mid_input[0].rows);
@@ -71,11 +75,11 @@ int main(int argc, char** argv) {
     cinemagraph.reference = FLAGS_testFrame;
 
     //Segmentation
-    LOG(INFO) <<"Segmenting...";
+    cout <<"Segmenting..." << endl;
     Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
-    LOG(INFO) << "Segmenting display...";
+    cout << "Segmenting display..." << endl;
     segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-    LOG(INFO) << "Segmenting flashy...";
+    cout << "Segmenting flashy..." << endl;
     segmentFlashy(file_io, FLAGS_testFrame, mid_input, cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy);
 
     CHECK_EQ(seg_result_display.cols, kFrameSize.width);
@@ -100,8 +104,10 @@ int main(int argc, char** argv) {
     //1. Apply a small poisson smoothing, fill in holes
     //2. Geometric stablization by grid warping
     //3. Apply RPCA to smooth transition and remove high frequency noise
+    cinemagraph.background = imread(file_io.getImage(FLAGS_testFrame));
+    CHECK(cinemagraph.background.data);
 
-    LOG(INFO) << "Step 1: Fill holes by poisson smoothing";
+    cout  << "Step 1: Fill holes by poisson smoothing" << endl;
     const double small_poisson = 0.01;
     regularizationPoisson(mid_input, cinemagraph.pixel_loc_display, mid_output, small_poisson, small_poisson);
     mid_input.swap(mid_output);
@@ -113,23 +119,20 @@ int main(int argc, char** argv) {
         Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_flashy[i], cinemagraph.ranges_flashy[i], cinemagraph.pixel_mat_flashy[i]);
     }
 
-    LOG(INFO) << "Step 2: geometric stablization";
+    cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
+    vector<Mat> cenimagraph_unstabilized;
+    for(auto i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
+        Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i], cinemagraph.ranges_display[i], cinemagraph.pixel_mat_display[i]);
+    }
+
+    cout << "Step 2: geometric stablization" << endl;
     float stab_t = (float)cv::getTickCount();
     stabilizeSegments(mid_input, mid_output, cinemagraph.pixel_loc_display, cinemagraph.ranges_display, anchor_frame, FLAGS_param_stab, StabAlg::HOMOGRAPHY);
     LOG(INFO) << "Done. Time usage: " << ((float)getTickCount() - stab_t) / (float)getTickFrequency() << "s";
     mid_input.swap(mid_output);
     mid_output.clear();
 
-    sprintf(buffer, "%s/temp/stabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-    VideoWriter stabilizedOutput(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
-    CHECK(stabilizedOutput.isOpened()) << buffer;
-    for (auto i = 0; i < mid_input.size(); ++i) {
-        stabilizedOutput << mid_input[i];
-    }
-    stabilizedOutput.release();
-
-    cinemagraph.background = imread(file_io.getImage(FLAGS_testFrame));
-
+    cinemagraph.pixel_mat_display.clear();
     cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
     for(auto i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
         Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i], cinemagraph.ranges_display[i], cinemagraph.pixel_mat_display[i]);
@@ -144,28 +147,31 @@ int main(int argc, char** argv) {
     }
     unregulared_vw.release();
 
-    LOG(INFO) << "Step 3: Color regularization";
+    cout << "Step 3: Color regularization" << endl;
     float reg_t = (float)cv::getTickCount();
     if(FLAGS_regularization == "median"){
         const int medianR = 10;
         printf("Running regularization with median filter, r: %d\n", medianR);
+        LOG(INFO) << "Running regularization with median filter, r:" << medianR;
         temporalMedianFilter(mid_input, cinemagraph.pixel_loc_display, mid_output, medianR);
     }else if(FLAGS_regularization == "RPCA"){
         //use adaptive weighting
         vector<float> adaptive_lambdas(cinemagraph.pixel_loc_display.size(), 0.005);
-//        for(auto i=0; i<cinemagraph.pixel_mat_display.size(); ++i){
-//            adaptive_lambdas[i] = GetRPCAWeight(cinemagraph.pixel_mat_display[i]);
-//        }
+        for(auto i=0; i<cinemagraph.pixel_mat_display.size(); ++i){
+            adaptive_lambdas[i] = GetRPCAWeight(cinemagraph.pixel_mat_display[i]);
+        }
 
         printf("Running regularizaion with RPCA with adaptive lambda\n");
         regularizationRPCA(mid_input, cinemagraph.pixel_loc_display, adaptive_lambdas, mid_output);
     }else if(FLAGS_regularization == "anisotropic"){
         const double ws = 10;
         printf("Running regularization with anisotropic diffusion, ws: %.5f\n", ws);
+        LOG(INFO) << "Running regularization with anisotropic diffusion, ws: " << ws;
         regularizationAnisotropic(mid_input, cinemagraph.pixel_loc_display, mid_output, ws);
     }else if(FLAGS_regularization == "poisson"){
         const double ws = 0.1, wt = 0.5;
         printf("Running regularization with poisson smoothing, ws: %.3f, wt: %.5f\n", ws, wt);
+        LOG(INFO) << "Running regularization with poisson smoothing, ws: " << ws << " wt: " << wt;
         regularizationPoisson(mid_input, cinemagraph.pixel_loc_display, mid_output, ws, wt);
     }else if(FLAGS_regularization == "none"){
         mid_output = mid_input;
@@ -179,6 +185,7 @@ int main(int argc, char** argv) {
     mid_output.clear();
 
     //create pixel mat for display
+    cinemagraph.pixel_mat_display.clear();
     cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
     for(auto i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
         Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i],
@@ -189,14 +196,12 @@ int main(int argc, char** argv) {
     mid_input.clear();
     warping.reset();
 
-    //final rendering
-    CHECK(cinemagraph.background.data);
     //compute blending weight
-    constexpr int blend_R = 5;
-    constexpr int min_segment_size = 50;
+    constexpr int blend_R = 3;
+    constexpr int min_segment_size = 300;
 //    Cinemagraph::ComputeBlendMap(cinemagraph.pixel_loc_display, cinemagraph.background.cols, cinemagraph.background.rows,
 //                                 blend_R, cinemagraph.blend_map);
-    Cinemagraph::ComputeBlendMap(segments_all, cinemagraph.background.cols, cinemagraph.background.rows,
+    Cinemagraph::ComputeBlendMap(cinemagraph.pixel_loc_display, cinemagraph.background.cols, cinemagraph.background.rows,
                                  blend_R, min_segment_size, cinemagraph.blend_map);
 
     vector<Mat> rendered;

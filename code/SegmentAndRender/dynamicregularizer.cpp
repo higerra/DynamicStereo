@@ -375,6 +375,7 @@ namespace dynamic_stereo {
         for (auto v = 0; v < input.size(); ++v)
             output[v] = input[v].clone();
 
+        char buffer[128] = {};
         int d_seg = -1;
         const int numThread = 6;
         auto threadFunc = [&](int tid, int nt) {
@@ -382,7 +383,9 @@ namespace dynamic_stereo {
                 if(d_seg >= 0 && sid != d_seg){
                     continue;
                 }
-                printf("Running RPCA for segment %d on thread %d, lambda %.5f\n", sid, tid, lambdas[sid]);
+                sprintf(buffer, "Running RPCA for segment %d on thread %d, lambda %.5f", sid, tid, lambdas[sid]);
+                LOG(INFO) << buffer;
+                cout << buffer << endl;
                 for (auto c = 0; c < 3; ++c) {
                     MatrixXd pixelMat((int) input.size(), (int) segments[sid].size());
                     for (auto v = 0; v < input.size(); ++v) {

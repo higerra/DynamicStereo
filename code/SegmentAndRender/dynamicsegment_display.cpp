@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{0.5,0.65,0.8};
+            const vector<float> levelList{0.65, 0.80};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;

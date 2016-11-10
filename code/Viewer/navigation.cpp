@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QImage>
 
 #include "../base/file_io.h"
 #include "../base/depth.h"
@@ -25,9 +26,13 @@ namespace dynamic_stereo{
     const int Navigation::speed_move_scene = 2;
 
     Navigation::Navigation(const string& path):
-            fov(32.0),
+            fov_(35.0),
             cx(-1),
             cy(-1),
+            frame_width_(-1),
+            frame_height_(-1),
+            near_plane_(-1),
+            far_plane_(-1),
             cameraStatus(STATIC),
             current_frame_(0),
             next_frame_(0),
@@ -45,54 +50,49 @@ namespace dynamic_stereo{
         sprintf(buffer, "%s/sfm/reconstruction.recon", path.c_str());
         sfm_model.init(string(buffer));
 
+        QImage sample_img(QString::fromStdString(file_io.getImage(0)));
+        CHECK(sample_img.bits());
+        frame_width_ = sample_img.width();
+        frame_height_ = sample_img.height();
         //read configuration file and get reference frames
         sprintf(buffer, "%s/conf.json", path.c_str());
         ReadConfiguration(string(buffer));
+
+        cx = sfm_model.getCamera(0).PrincipalPointX();
+        cy = sfm_model.getCamera(0).PrincipalPointY();
 
         kNumFrames = frame_ids_.size();
         LOG(INFO) << "Number of frames: " << kNumFrames;
 
         string tempstring;
         Matrix3d iden3 = Matrix3d::Identity();
-        const double kFarDepth = 10.0;
         //read scene transformation
         for(int i=0; i<kNumFrames; i++) {
             theia::Camera curcam = sfm_model.getCamera(frame_ids_[i]);
-            if(cx < 0 || cy < 0){
-                cx = curcam.PrincipalPointX();
-                cy = curcam.PrincipalPointY();
-            }
-
             cameras_.push_back(curcam);
             camcenters_.push_back(curcam.GetPosition());
-            Vector3d vdir = curcam.PixelToUnitDepthRay(Vector2d(cx,cy));
-            vdir.normalize();
+            Vector3d vdir = curcam.PixelToUnitDepthRay(Vector2d(cx, cy));
             vdirs_.push_back(vdir);
 
-            theia::Matrix3x4d extrinsic;
-            theia::ComposeProjectionMatrix(iden3, curcam.GetOrientationAsAngleAxis(), curcam.GetPosition(), &extrinsic);
-            Vector3d updir = extrinsic * Vector4d(0.0, -1.0, 0.0, 1.0) - extrinsic * Vector4d(0,0,0,1.0);
-//            Vector3d updir = curcam.PixelToUnitDepthRay(Vector2d(cx,0)) - curcam.GetPosition();
-//            Vector3d updir(0,-1,0);
+            Vector3d updir = curcam.PixelToUnitDepthRay(Vector2d(frame_width_/2, 0)) -
+                    curcam.PixelToUnitDepthRay(Vector2d(frame_width_/2, frame_height_/2));
             updir.normalize();
+
             updirs_.push_back(updir);
         }
 
-        double far_plane = -1, near_plane = -1;
         for(const auto fid: frame_ids_){
             Depth cur_depth;
             cur_depth.readDepthFromFile(file_io.getDepthFile(fid));
             cur_depth.updateStatics();
-            far_plane = std::max(far_plane, cur_depth.getMaxDepth());
-            if(near_plane < 0 || cur_depth.getMinDepth() < near_plane){
-                near_plane = cur_depth.getMinDepth();
+            far_plane_ = std::max(far_plane_, cur_depth.getMaxDepth());
+            if(near_plane_ < 0 || cur_depth.getMinDepth() < near_plane_){
+                near_plane_ = cur_depth.getMinDepth();
             }
         }
-
         //set initial camera
-        projectionMatrix.setToIdentity();
-        projectionMatrix.perspective(fov, (float)cx / (float) cy, near_plane, far_plane);
-        renderCamera = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
+        render_camera_ = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
+        project_camera_ = getProjectionMatrix(current_frame_, next_frame_, blendweight_frame);
     }
 
     Navigation::~Navigation(){
@@ -131,32 +131,40 @@ namespace dynamic_stereo{
         CHECK_LT(frameid1, kNumFrames);
         CHECK_LT(frameid2, kNumFrames);
 
-        const Vector3d& center1 = camcenters_[frameid1];
-        const Vector3d& center2 = camcenters_[frameid2];
-
-        const Vector3d& updir1 = updirs_[frameid1];
-        const Vector3d& updir2 = updirs_[frameid2];
-        const Vector3d& vdir1 = vdirs_[frameid1];
-        const Vector3d& vdir2 = vdirs_[frameid2];
-
-        Vector3d camcenter = percent * center1 + (1.0-percent) * center2;
-        Vector3d updir = interpolateVector3D(updir1, updir2, 1 - percent);
-        //Vector3d updir(0,-1,0);
-        Vector3d vdir = interpolateVector3D(vdir1, vdir2, 1 - percent);
-        Vector3d framecenter = vdir + camcenter;
+        Vector3d camcenter = percent * camcenters_[frameid1] + (1.0-percent) * camcenters_[frameid2];
+        Vector3d updir = interpolateVector3D(updirs_[frameid1], updirs_[frameid2], 1.0 - percent);
+        Vector3d framecenter = (vdirs_[frameid1] + camcenters_[frameid1]) * percent +
+                               (1-percent) * (vdirs_[frameid2] + camcenters_[frameid2]);
 
         QMatrix4x4 m;
         m.setToIdentity();
         m.lookAt(QVector3D(camcenter[0], camcenter[1], camcenter[2]),
                  QVector3D(framecenter[0], framecenter[1], framecenter[2]),
                  QVector3D(updir[0], updir[1], updir[2]));
+
         return m;
+    }
+
+    QMatrix4x4 Navigation::getProjectionMatrix(const int frameid1, const int frameid2, const double percent) const{
+        CHECK_LT(frameid1, kNumFrames);
+        CHECK_LT(frameid2, kNumFrames);
+
+        const double focal1 = cameras_[frameid1].FocalLength();
+        const double focal2 = cameras_[frameid2].FocalLength();
+        double fov = std::atan(1/((focal1 * percent + (1 - percent) * focal2))) /
+                     std::atan(1/cameras_[0].FocalLength()) *
+                     fov_;
+
+        QMatrix4x4 cur_proj;
+        cur_proj.setToIdentity();
+        cur_proj.perspective(fov, (float)frame_width_ / (float)frame_height_, near_plane_/2, far_plane_ * 2);
+        return cur_proj;
     }
 
     Vector3d Navigation::interpolateVector3D(const Vector3d &v1,
                                              const Vector3d &v2,
                                              double percent){
-        const double epsilon = 0.001;
+        const double epsilon = std::numeric_limits<double>::epsilon();
         if(percent < epsilon) return v1;
         if(percent > 1-epsilon) return v2;
         double theta = percent * std::acos(v1.dot(v2));
@@ -170,21 +178,20 @@ namespace dynamic_stereo{
     void Navigation::updateNavigation() {
         if (cameraStatus == TRANSITION_FRAME) {
             animation_counter++;
-            if (animation_counter >= animation_blendNum - 1) {
+            if (animation_counter >= animation_blendNum) {
                 cameraStatus = STATIC;
                 animation_counter = 0;
                 blendweight_frame = 1.0;
                 current_frame_ = next_frame_;
-                renderCamera = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
+                render_camera_ = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
+                project_camera_ = getProjectionMatrix(current_frame_, next_frame_, blendweight_frame);
             } else {
-                if (cameraStatus == TRANSITION_FRAME)
-                    blendweight_frame = animation::getFramePercent(animation_counter, animation_blendNum);
-                else
-                    blendweight_frame = animation::getFramePercent(animation_counter, animation_blendNum);
+                blendweight_frame = animation::getFramePercent(animation_counter, animation_blendNum);
                 if (blendweight_frame < 0.001) {
                     printf("blendweight_frame:%.4f\n", blendweight_frame);
                 }
-                renderCamera = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
+                render_camera_ = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
+                project_camera_ = getProjectionMatrix(current_frame_, next_frame_, blendweight_frame);
             }
         }
     }
@@ -195,21 +202,21 @@ namespace dynamic_stereo{
         //search optimal next frame by ray tracing
 
         //toy implementation
-        if(direction == MOVE_FORWARD){
+        if(direction == MOVE_FORWARD || direction == MOVE_RIGHT){
             if(base_frame < kNumFrames - 1) {
                 return base_frame + 1;
             }else{
                 return 0;
             }
         }
-        if(direction == MOVE_BACKWARD){
+        if(direction == MOVE_BACKWARD || direction == MOVE_LEFT){
             if(base_frame > 0) {
                 return base_frame - 1;
             }else{
                 return kNumFrames - 1;
             }
         }
-
+        return base_frame;
 
 
 //        Vector3d ray_dir;

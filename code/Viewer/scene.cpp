@@ -21,6 +21,8 @@ namespace dynamic_stereo{
         CHECK_LT(frame_id_, file_io->getTotalNum());
         CHECK(background_.load(QString::fromStdString(file_io->getImage(frame_id_)))) << file_io->getImage(frame_id_);
         CHECK(depth_.readDepthFromFile(file_io->getDepthFile(frame_id_))) << file_io->getDepthFile(frame_id_);
+        //depth_.fillholeAndSmooth(0.1);
+
         depth_downsample_ = (double)background_.width() / (double)depth_.getWidth();
         camera_ = navigation.GetCameraFromGlobalIndex(frame_id_);
 
@@ -130,7 +132,7 @@ namespace dynamic_stereo{
 
         glPushAttrib(GL_ALL_ATTRIB_BITS);
         const QMatrix4x4& modelview = navigation.getRenderCamera();
-        const QMatrix4x4& projection = navigation.getProjectionMatrix();
+        const QMatrix4x4& projection = navigation.getProjection();
 
         shader->setUniformValue("mv_mat", modelview);
         shader->setUniformValue("mp_mat", projection);
