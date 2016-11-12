@@ -35,7 +35,7 @@ namespace segment_gb {
 	int segment_image(const cv::Mat& input, cv::Mat& output, std::vector<std::vector<int> >& seg,
 	                   const int smoothSize, float c, int min_size);
 
-
+	int compressSegment(cv::Mat& segment);
 	cv::Mat visualizeSegmentation(const cv::Mat& input);
 }
 #endif

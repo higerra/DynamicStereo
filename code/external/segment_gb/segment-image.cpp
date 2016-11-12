@@ -99,6 +99,30 @@ namespace segment_gb{
 		return nLabel;
 	}
 
+	int compressSegment(cv::Mat& segment){
+		CHECK(segment.data);
+		CHECK_EQ(segment.type(), CV_32SC1);
+		double minL, maxL;
+		cv::minMaxLoc(segment, &minL, &maxL);
+		int kSeg = (int)maxL + 1;
+		std::vector<int> labelMap((size_t)kSeg, -1);
+		int index = 0;
+		for(auto y=0; y<segment.rows; ++y){
+			for(auto x=0; x<segment.cols; ++x){
+				const int lid = segment.at<int>(y,x);
+				if(labelMap[lid] < 0)
+					labelMap[lid] = index++;
+			}
+		}
+		for(auto y=0; y<segment.rows; ++y){
+			for(auto x=0; x<segment.cols; ++x){
+				const int lid = segment.at<int>(y,x);
+				segment.at<int>(y,x) = labelMap[lid];
+			}
+		}
+		return index;
+	}
+
 	cv::Mat visualizeSegmentation(const cv::Mat& input){
 		CHECK(input.data);
 		CHECK_EQ(input.type(), CV_32SC1);

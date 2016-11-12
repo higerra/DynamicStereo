@@ -33,9 +33,8 @@ namespace dynamic_stereo {
         sfmModel.reset(new SfMModel());
         CHECK_NOTNULL(sfmModel.get())->init(file_io.getReconstruction());
 
-        sprintf(buffer, "%s/midres/depth%05d.depth", file_io.getDirectory().c_str(), anchor);
         refDepth.reset(new Depth());
-        CHECK_NOTNULL(refDepth.get())->readDepthFromFile(string(buffer));
+        CHECK_NOTNULL(refDepth.get())->readDepthFromFile(file_io.getDepthFile(anchor));
         CHECK(!refDepth->getRawData().empty());
 
         Mat refImage = imread(file_io.getImage(anchor));

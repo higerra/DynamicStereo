@@ -85,9 +85,13 @@ namespace dynamic_stereo{
                 const int kSegLength = cinemagraph.ranges_display[sid][1] - cinemagraph.ranges_display[sid][0];
                 for (auto output_index = 0; output_index < output.size(); ++output_index) {
                     int fid = output_index % (kSegLength * 2);
+                    if(start_from_reference){
+                        fid = (output_index + cinemagraph.tWindow / 2 - cinemagraph.ranges_display[sid][0]) % (kSegLength * 2);
+                    }
                     if (fid >= kSegLength) {
                         fid = 2 * kSegLength - fid;
                     }
+
                     for (auto pid = 0; pid < cinemagraph.pixel_loc_display[sid].size(); ++pid) {
                         const Vector2i& loc = cinemagraph.pixel_loc_display[sid][pid];
                         float alpha = 1.0;
@@ -122,7 +126,71 @@ namespace dynamic_stereo{
         }
 
         bool ReadCinemagraph(const std::string &path, Cinemagraph& output) {
+            ifstream in(path.c_str(), ios::binary);
+            CHECK(in.is_open()) << "Can not open file to read: " << path;
+            output.clear();
+            in >> output.reference >> output.tWindow;
+            int width, height;
+            in >> width >> height;
+            int kDisplay, kFlashy;
+            in >> kDisplay >> kFlashy;
+            output.pixel_loc_display.resize(kDisplay);
+            output.pixel_loc_flashy.resize(kFlashy);
 
+            string token;
+            in >> token;
+            CHECK_EQ(token, string("location"));
+            for(auto i=0; i<output.pixel_loc_display.size(); ++i){
+                int kPix, pid;
+                in >> kPix;
+                output.pixel_loc_display[i].resize(kPix, Vector2i(0,0));
+                for(int j=0; j<kPix; ++j){
+                    in >> pid;
+                    output.pixel_loc_display[i][j][0] = pid % width;
+                    output.pixel_loc_display[i][j][1] = pid / width;
+                }
+            }
+            for(auto i=0; i<output.pixel_loc_flashy.size(); ++i){
+                int kPix, pid;
+                in >> kPix;
+                output.pixel_loc_flashy[i].resize(kPix, Vector2i(0,0));
+                for(int j=0; j<kPix; ++j){
+                    in >> pid;
+                    output.pixel_loc_flashy[i][j][0] = pid % width;
+                    output.pixel_loc_flashy[i][j][1] = pid / width;
+                }
+            }
+
+            in >> token;
+            CHECK_EQ(token, string("range"));
+            output.ranges_display.resize(kDisplay);
+            for(int i=0; i<output.ranges_display.size(); ++i){
+                in >> output.ranges_display[i][0] >> output.ranges_display[i][1];
+            }
+            output.ranges_flashy.resize(kFlashy);
+            for(int i=0; i<output.ranges_flashy.size(); ++i){
+                in >> output.ranges_flashy[i][0] >> output.ranges_flashy[i][1];
+            }
+
+            in >> token;
+            CHECK_EQ(token, string("pixel"));
+            output.pixel_mat_display.resize(kDisplay);
+            for(int i=0; i<output.pixel_mat_display.size(); ++i){
+                int kCol, kRow;
+                in >> kCol >> kRow;
+                output.pixel_mat_display[i].create(kRow, kCol, CV_8UC3);
+                in.read((char*)output.pixel_mat_display[i].data, kCol * kRow * output.pixel_mat_display[i].channels() * sizeof(uchar));
+            }
+
+            output.pixel_mat_flashy.resize(kFlashy);
+            for(int i=0; i<output.pixel_mat_flashy.size(); ++i){
+                int kCol, kRow;
+                in >> kCol >> kRow;
+                output.pixel_mat_flashy[i].create(kRow, kCol, CV_8UC3);
+                in.read((char*)output.pixel_mat_flashy[i].data, kCol * kRow * output.pixel_mat_flashy[i].channels() * sizeof(uchar));
+            }
+            in >> token;
+            CHECK_EQ(token, string("END"));
         }
 
         void SaveCinemagraph(const std::string &path, const Cinemagraph &output) {
@@ -132,7 +200,7 @@ namespace dynamic_stereo{
             const int height = output.background.rows;
             ofstream fout(path.c_str(), ios::binary);
             CHECK(fout.is_open()) << "Can not open file to write " << path;
-            fout << output.reference << endl;
+            fout << output.reference << ' ' << output.tWindow << endl;
             fout << width << ' ' << height << endl;
             fout << output.pixel_loc_display.size() << ' ' << output.pixel_loc_flashy.size() << endl;
             fout << "location" << endl;
@@ -166,7 +234,6 @@ namespace dynamic_stereo{
                 CHECK_EQ(cur_mat.type(), CV_8UC3);
                 fout << cur_mat.cols << ' ' << cur_mat.rows << endl;
                 fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
-                fout << endl;
             }
 
             for(auto i=0; i<output.pixel_mat_flashy.size(); ++i){
@@ -175,8 +242,8 @@ namespace dynamic_stereo{
                 CHECK_EQ(cur_mat.type(), CV_8UC3);
                 fout << cur_mat.cols << ' ' << cur_mat.rows << endl;
                 fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
-                fout << endl;
             }
+            fout << "END" << endl;
         }
 
     }//namespace Cinemagraph

@@ -123,7 +123,7 @@ namespace dynamic_stereo{
         FirstOrderOptimize optimizer_firstorder(file_io, (int)images.size(), model);
         Depth result_firstOrder;
         optimizer_firstorder.optimize(result_firstOrder, 100);
-
+        disparityToDepth(result_firstOrder, depth_firstOrder);
 
 //		Depth depth_firstOrder;
         //masking out invalid region

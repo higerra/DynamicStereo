@@ -20,6 +20,17 @@ namespace dynamic_stereo {
             cv::Mat background;
             cv::Mat blend_map;
 
+            inline void clear(){
+                background.release();
+                blend_map.release();
+                pixel_loc_display.clear();
+                pixel_loc_flashy.clear();
+                pixel_mat_display.clear();
+                pixel_mat_flashy.clear();
+                ranges_display.clear();
+                ranges_flashy.clear();
+            }
+
             std::vector<cv::Mat> pixel_mat_display;
             std::vector<cv::Mat> pixel_mat_flashy;
             std::vector<std::vector<Eigen::Vector2i> > pixel_loc_display;
@@ -28,6 +39,7 @@ namespace dynamic_stereo {
             std::vector<Eigen::Vector2i> ranges_flashy;
 
             int reference;
+            int tWindow;
         };
 
         inline bool check_cinemagraph(const Cinemagraph& input){

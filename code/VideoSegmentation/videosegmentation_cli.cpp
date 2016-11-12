@@ -15,7 +15,7 @@ DEFINE_double(c, 20.0, "parameter c");
 DEFINE_double(theta, 100, "parameter theta");
 DEFINE_bool(run_pixel, false, "run pixel pixel level segmentation");
 DEFINE_bool(run_region, true, "run region level segmentation");
-
+DEFINE_string(input_segment, "", "input segmentation");
 DEFINE_double(wa, 0.1, "weight for appearance");
 
 int main(int argc, char** argv){
@@ -30,15 +30,19 @@ int main(int argc, char** argv){
 
     {
         Mat tmp = imread(
-                "/home/yanhang/Documents/research/DynamicStereo/data/working/data_vegas22/images/image00120.jpg");
+                "/home/yanhang/Documents/research/DynamicStereo/data/working/data_newyork3/images/image00140.jpg");
         Mat graph_seg;
         vector<vector<int> > segs;
         segment_gb::segment_image(tmp, graph_seg, segs, 3, 800, 50);
+        FileStorage graph_seg_file("graph_seg_newyork3_00140.yml", FileStorage::WRITE);
+        graph_seg_file << "level0" << graph_seg;
+
         Mat graph_seg_vis = segment_gb::visualizeSegmentation(graph_seg);
         Mat graph_seg_out;
         cv::addWeighted(tmp, 0.2, graph_seg_vis, 0.8, 0.0, graph_seg_out);
-        imwrite("graph_seg_vegas22_00120.png", graph_seg_out);
+        imwrite("graph_seg_newyork3_00140.png", graph_seg_out);
     }
+
 
     string strArg(argv[1]);
     string subfix = strArg.substr(strArg.find_last_of("."));
@@ -65,7 +69,18 @@ int main(int argc, char** argv){
             filenames.push_back(temp);
     }
 
+//    if(!FLAGS_input_segment.empty()){
+//        vector<Mat> segments;
+//        video_segment::LoadHierarchicalSegmentation(FLAGS_input_segment, segments);
+//        FileStorage seg_out(string(buffer), FileStorage::WRITE);
+//        int write_id = (int)((float)segments.size() * 0.8);
+//        printf("Writing %d level\n", write_id);
+//        seg_out << "level0" << segments[write_id];
+//    }
+
+
     for(const auto& filename: filenames) {
+
         //load video
         printf("=================================\n");
         printf("Processing video %s\n", filename.c_str());
@@ -103,6 +118,8 @@ int main(int argc, char** argv){
             imwrite(buffer, blended);
         }
 
+
+
         if(FLAGS_run_region){
             printf("Region based video segmentation...\n");
             video_segment::VideoSegmentOption option(FLAGS_c);
@@ -116,9 +133,16 @@ int main(int argc, char** argv){
             vector<Mat> segments;
             int num_segments = video_segment::HierarchicalSegmentation(images, segments, option);
             printf("Done\n");
-
             sprintf(buffer, "%s/segment_%s.yml", out_path.c_str(), filename.c_str());
             video_segment::SaveHierarchicalSegmentation(string(buffer), segments);
+
+            int write_id = (int)((float)segments.size() * 0.8);
+            sprintf(buffer, "%s/segment_%s_%d.yml", out_path.c_str(), filename.c_str(), write_id);
+            FileStorage level_out(string(buffer), FileStorage::WRITE);
+            printf("Writing %d level\n", write_id);
+            level_out << "kLevel" << 1;
+            level_out << "level0" << segments[write_id];
+
 
             for(auto i=0; i<segments.size(); ++i) {
                 Mat segment_vis = video_segment::visualizeSegmentation(segments[i]);

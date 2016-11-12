@@ -81,7 +81,8 @@ int main(int argc, char **argv) {
 	if((!depth.readDepthFromFile(file_io.getDepthFile(FLAGS_testFrame)))) {
 		printf("Running stereo for frame %d\n", FLAGS_testFrame);
 		stereo.runStereo(depth, depthMask);
-		depth.saveDepthFile(string(buffer));
+        printf("Writing depth file %s\n", file_io.getDepthFile(FLAGS_testFrame).c_str());
+		depth.saveDepthFile(file_io.getDepthFile(FLAGS_testFrame));
 
 	}else{
 		Depth tempdepth;

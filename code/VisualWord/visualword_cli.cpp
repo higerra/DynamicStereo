@@ -356,10 +356,10 @@ void run_test(int argc, char** argv){
 }
 void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
     if(argc < 2){
-        CHECK(true) <<  "Usage: ./VisualWord --mode=detect <path-to-video>";
+        CHECK(true) <<  "Usage: ./VisualWord --mode=detect <path-to-video> <output-path>";
     }
 
-    char buffer[256] = {};
+    char buffer[128] = {};
 
     cv::Ptr<ml::StatModel> classifier;
     if(vw_option.classifierType == RANDOM_FOREST){
@@ -384,7 +384,7 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
         images.push_back(frame);
     }
     CHECK(!images.empty());
-    Mat refImage = images[0].clone();
+    Mat refImage = images[images.size() / 2].clone();
     Mat codebook;
     string model_name = FLAGS_model.substr(0, FLAGS_model.find_last_of("."));
     string path_codebook;
@@ -397,31 +397,22 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
     CHECK(codebookIn.isOpened()) << "Can not load code book: " << path_codebook;
     codebookIn["codebook"] >> codebook;
 
-    vector<Mat> segments;
-    bool run_segment = true;
-    if(!FLAGS_segmentationPath.empty()){
-        FileStorage segmentIn(FLAGS_segmentationPath, FileStorage::READ);
-        if(segmentIn.isOpened()){
-            Mat levelMat;
-            segmentIn["levelList"] >> levelMat;
-            if(levelMat.rows == levelList.size()){
-                segments.resize(levelList.size());
-                for(int i=0; i<levelList.size(); ++i) {
-                    segmentIn["level" + to_string(i)] >> segments[i];
-                }
-                CHECK_EQ(segments[0].size(), images[0].size());
-                run_segment = false;
-            }
-        }
-    }
+    vector<Mat> segments(1);
+    FileStorage segment_in(FLAGS_segmentationPath, FileStorage::READ);
+    CHECK(segment_in.isOpened());
+    segment_in["level0"] >> segments[0];
+    CHECK_EQ(segments[0].size(), refImage.size());
+
+    const double blend_weight = 0.2;
+    Mat segment_vis = video_segment::visualizeSegmentation(segments[0]);
+    Mat segment_overlay;
+    addWeighted(refImage, blend_weight, segment_vis, 1.0 - blend_weight, 0.0, segment_overlay);
+    imshow("segment_vis", segment_overlay);
+    waitKey(0);
 
     Mat detection;
-    if(run_segment)
-        detectVideo(images, classifier, codebook, levelList, detection, vw_option, noArray(), segments);
-    else
-        detectVideo(images, classifier, codebook, levelList, detection, vw_option, segments, noArray());
-
-    imwrite("binary.png", detection);
+    printf("Detecting...\n");
+    detectVideo(images, classifier, codebook, {0}, detection, vw_option, segments, noArray());
 
     Mat mask(detection.size(), CV_8UC3, Scalar(255,0,0));
     for (auto y = 0; y < mask.rows; ++y) {
@@ -430,7 +421,7 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
                 mask.at<Vec3b>(y, x) = Vec3b(0, 0, 255);
         }
     }
-    const double blend_weight = 0.4;
+
     Mat vis;
     cv::addWeighted(refImage, blend_weight, mask, 1.0 - blend_weight, 0.0, vis);
 
