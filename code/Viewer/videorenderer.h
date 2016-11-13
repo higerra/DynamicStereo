@@ -1,77 +1,83 @@
 #ifndef VIDEORENDERER_H
 #define VIDEORENDERER_H
+
+#include "../base/depth.h"
+
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLTexture>
 #include <QImage>
-#include <QColor>
-#include <QString>
-#include <QMatrix4x4>
 #include <vector>
 #include <fstream>
 #include <memory>
+
 #include <opencv2/opencv.hpp>
+#include <Eigen/Eigen>
+
 #include "navigation.h"
-#include "../base/file_io.h"
 
 namespace dynamic_stereo{
-class videoRenderer: protected QOpenGLFunctions {
-public:
-    enum VideoSource{INTERNAL, EXTERNAL, STATIC};
-    videoRenderer(const std::shared_ptr<FileIO> file_io,
-                  const std::vector<Frame>& frames,
-                  const std::vector< std::vector<std::shared_ptr<QOpenGLTexture> > >& externaltextures_);
-    void render(const int frameid,
-                const Navigation &navigation);
-    void changeSource(int frameid, int x, int y,
-                      const VideoSource& new_source,
-                      int channel = 0);
-    int getDisplayID(int frameid, int x, int y);
-    void setHighlight(int frameid, int x, int y);
-    inline VideoSource getCurrentSource(int frameid, int x, int y){
-        int tid = getDisplayID(frameid, x, y);
-        if(tid == -1)
-            return STATIC;
-        return source[tid];
-    }
+    class VideoRenderer: protected QOpenGLFunctions {
+    public:
+        enum VideoSource{INTERNAL, EXTERNAL, STATIC};
+        VideoRenderer(const std::string& name, const QImage& background, const Depth& ref_depth, const theia::Camera& camera,
+                      const std::vector<Eigen::Vector2d>& loc, const cv::Mat& pixels,
+                      const std::vector<std::shared_ptr<QOpenGLTexture> >* external_texture);
 
-private:
-    static void initializeShader();
-    void renderInternal(const int frameid, const int tid, const Navigation &navigation);
-    void renderExternal(const int frameid, const int tid);
-    void renderStatic(const int frameid, const int tid);
+        void render(const int frameid,
+                    const Navigation &navigation);
+//    void changeSource(int frameid, int x, int y,
+//                      const VideoSource& new_source,
+//                      int channel = 0);
+//    int getDisplayID(int frameid, int x, int y);
+//    void setHighlight(int frameid, int x, int y);
 
-    std::vector<VideoSource> source;
-    int kNumTracks;
-    std::vector<std::vector<Quad> > quads;
-    std::vector<std::vector<std::shared_ptr<QOpenGLTexture> > > videotextures;
-    const std::vector<std::vector<std::shared_ptr<QOpenGLTexture> > >& externaltextures;
-    std::vector<std::shared_ptr<QOpenGLTexture> > statictexture;
+//    inline VideoSource getCurrentSource(int frameid, int x, int y){
+//        int tid = getDisplayID(frameid, x, y);
+//        if(tid == -1)
+//            return STATIC;
+//        return source[tid];
+//    }
 
-    std::vector<std::vector<std::vector<GLfloat> > > vertex_data;
-    std::vector<std::vector<GLuint> > videoVertexBuffer;
+        inline VideoSource GetCurrentSource() const{
+            return source_;
+        }
 
-    std::vector<GLfloat> texcoord_data;
-    GLuint texcoordBuffer;
+    private:
+        static void initializeShader();
+        void renderInternal(const Navigation &navigation);
+//    void renderExternal(const int frameid, const int tid);
+//    void renderStatic(const int frameid, const int tid);
 
-    std::vector<GLuint> index_data;
-    GLuint indexBuffer;
+        const std::string identifier_;
 
-    static std::shared_ptr<QOpenGLShaderProgram> shader;
-    static bool is_shader_init;
-    std::vector<int> startid, endid;
-    std::vector<int> video_counter;
-    std::vector<int> external_counter;
-    std::vector<int> channel_counter;
+        VideoSource source_;
 
-    int blend_counter;
-    static const int video_rate;
+        std::vector<std::shared_ptr<QOpenGLTexture> > video_textures_;
+        const std::vector<std::shared_ptr<QOpenGLTexture> >* external_textures_;
+        //std::vector<std::shared_ptr<QOpenGLTexture> > static_texture_;
 
-    std::vector<GLfloat> highlight_weight;
-    static GLfloat highlight_stride;
-    static const GLfloat highlight_mag;
-    std::vector<GLfloat> highlight_direction;
-};
+        std::vector<GLfloat> vertex_data_;
+        GLuint video_vertex_buffer_;
+
+        std::vector<GLfloat> texcoord_data_;
+        GLuint texcoord_buffer_;
+
+        std::vector<GLuint> index_data_;
+        GLuint index_buffer_;
+
+        static std::shared_ptr<QOpenGLShaderProgram> shader_;
+        static bool is_shader_init_;
+
+        int render_counter_;
+        int external_counter_;
+        int blend_counter_;
+
+//    std::vector<GLfloat> highlight_weight_;
+//    static GLfloat highlight_stride_;
+//    static const GLfloat highlight_mag_;
+//    std::vector<GLfloat> highlight_direction_;
+    };
 
 }//namespace dynamic_stereo
 #endif // VIDEORENDERER_H

@@ -11,8 +11,8 @@ find_package(OpenCV REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets OpenGL)
 
 include_directories(/usr/local/include/eigen3 ${THEIA_INCLUDE_DIRS})
-set(SOURCE_FILE main.cpp main_widget.cpp navigation.cpp scene.cpp)
-set(HEADER_FILE animation.h main_widget.h navigation.h scene.h)
+set(SOURCE_FILE main.cpp main_widget.cpp navigation.cpp scene.cpp videorenderer.cpp)
+set(HEADER_FILE animation.h main_widget.h navigation.h scene.h videorenderer.h)
 set(RESOURCE_FILE shader.qrc)
 add_executable(Viewer ${SOURCE_FILE} ${HEADER_FILE} ${RESOURCE_FILE})
 

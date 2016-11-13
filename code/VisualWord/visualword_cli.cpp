@@ -23,7 +23,7 @@ DEFINE_string(segmentationPath, "", "path to segmentation");
 
 //hyperparameter
 //trees
-DEFINE_int32(kCluster, 50, "number of clusters");
+DEFINE_int32(kCluster, 100, "number of clusters");
 DEFINE_int32(sigma_s, 12, "spatial window size");
 DEFINE_int32(sigma_r, 24, "temporal window size");
 DEFINE_int32(numTree, 30, "number of trees");
@@ -45,7 +45,7 @@ void run_multiExtract(const std::vector<int>& kClusters, int argc, char** argv, 
 
 VisualWordOption setOption();
 
-static const vector<float> levelList{5.0, 8.0, 10.0, 15.0};
+//static const vector<float> levelList{5.0, 8.0, 10.0, 15.0};
 static const int minSize = 200;
 static const float theta = 100;
 
@@ -165,8 +165,8 @@ cv::Ptr<cv::ml::TrainData> run_extract(int argc, char** argv, const VisualWordOp
         sprintf(buffer, "%s/segment_%s.yml", FLAGS_segmentationPath.c_str(), filename.c_str());
         CHECK(video_segment::LoadHierarchicalSegmentation(string(buffer), segments_all)) << "Run video segmentation first";
 
-        //load segment
-        for (int level=0; level < segments_all.size(); ++level){
+        //load segment, extract at hierarchy > 33%
+        for (int level=segments_all.size() / 3; level < segments_all.size(); ++level){
             Mat segments = segments_all[level];
             vector<ML::PixelGroup> pixelGroup;
             ML::regroupSegments(segments, pixelGroup);

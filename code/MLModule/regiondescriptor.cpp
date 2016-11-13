@@ -279,8 +279,8 @@ namespace dynamic_stereo{
 
 
         void computeShape(const PixelGroup& pg, const int width, const int height, std::vector<float>& desc){
-			//shape descriptor: [area|convexity|rectangleness|number of polygons]
-			desc.resize(4, 0.0f);
+			//shape descriptor: [area|convexity|rectangleness|min_edge|max_edge|aspect ratio|number of polygons]
+			desc.resize(7, 0.0f);
             //area
             desc[0] = (float)pg.size() / (float)(width * height);
             Mat binMat(height, width, CV_8UC1, Scalar::all(0));
@@ -308,6 +308,16 @@ namespace dynamic_stereo{
                 desc[2] = 0;
             else
                 desc[2] = (float)pg.size() / mrArea;
+			float min_len = std::min(minRect.size.width, minRect.size.height);
+			float max_len = std::max(minRect.size.width, minRect.size.height);
+
+			desc[3] = min_len / (float)std::min(width, height);
+			desc[4] = max_len / (float)std::min(width, height);
+			if(min_len == 0){
+				desc[5] = 0;
+			}else{
+				desc[5] = max_len / min_len;
+			}
 
             //number of edge is approximated polygon
             const double approxEpsilon = (double)std::min(width, height) / 150.0;
@@ -315,18 +325,34 @@ namespace dynamic_stereo{
             vector<cv::Point> approxContour;
             cv::findContours(binMat, oriContour, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 			if(oriContour.empty())
-				desc[3] = 0.0;
+				desc[6] = 0.0;
 			else {
 				cv::approxPolyDP(oriContour[0], approxContour, approxEpsilon, true);
-				desc[3] = (float) approxContour.size();
+				desc[6] = (float) approxContour.size();
 			}
 		}
 
 		void computePosition(const PixelGroup& pg, const int width, const int height, std::vector<float>& desc){
-			desc.resize(2, 0.0f);
+			//centroid x, centroid y, min x, max x, min y, max y
+			desc.resize(6, 0.0f);
+			desc[2] = -1; desc[3] = -1; desc[4] = -1; desc[5] = -1;
 			for(auto pid: pg){
-				desc[0] += (double)(pid % width) / (double)width;
-				desc[1] += (double)(pid / width) / (double)height;
+				const float x = (double)(pid % width) / (double)width;
+				const float y = (double)(pid / width) / (double)height;
+				desc[0] += x;
+				desc[1] += y;
+				if(desc[2] < 0 || x < desc[2]){
+					desc[2] = x;
+				}
+				if(desc[3] < 0 || x > desc[3]){
+					desc[3] = x;
+				}
+				if(desc[4] < 0 || y < desc[4]){
+					desc[4] = y;
+				}
+				if(desc[5] < 0 || y > desc[5]){
+					desc[5] = y;
+				}
 			}
 			desc[0] /= (float)pg.size();
 			desc[1] /= (float)pg.size();
