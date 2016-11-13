@@ -158,7 +158,7 @@ namespace dynamic_stereo {
 
             for (auto y = 0; y < segmentVote.rows; ++y) {
                 for (auto x = 0; x < segmentVote.cols; ++x) {
-                    if (segmentVote.at<float>(y, x) > 1)
+                    if (segmentVote.at<float>(y, x) > std::numeric_limits<float>::epsilon())
                         output.at<uchar>(y, x) = (uchar) 255;
                 }
             }

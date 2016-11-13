@@ -16,6 +16,7 @@ DEFINE_double(theta, 100, "parameter theta");
 DEFINE_bool(run_pixel, false, "run pixel pixel level segmentation");
 DEFINE_bool(run_region, true, "run region level segmentation");
 DEFINE_string(input_segment, "", "input segmentation");
+DEFINE_int32(write_level, -1, "write level");
 DEFINE_double(wa, 0.1, "weight for appearance");
 
 int main(int argc, char** argv){
@@ -30,17 +31,17 @@ int main(int argc, char** argv){
 
     {
         Mat tmp = imread(
-                "/home/yanhang/Documents/research/DynamicStereo/data/working/data_newyork3/images/image00140.jpg");
+                "/home/yanhang/Documents/research/DynamicStereo/data/working/data_vegas22/images/image00120.jpg");
         Mat graph_seg;
         vector<vector<int> > segs;
         segment_gb::segment_image(tmp, graph_seg, segs, 3, 800, 50);
-        FileStorage graph_seg_file("graph_seg_newyork3_00140.yml", FileStorage::WRITE);
+        FileStorage graph_seg_file("graph_seg_vegas22_00120.yml", FileStorage::WRITE);
         graph_seg_file << "level0" << graph_seg;
 
         Mat graph_seg_vis = segment_gb::visualizeSegmentation(graph_seg);
         Mat graph_seg_out;
         cv::addWeighted(tmp, 0.2, graph_seg_vis, 0.8, 0.0, graph_seg_out);
-        imwrite("graph_seg_newyork3_00140.png", graph_seg_out);
+        imwrite("graph_seg_vegas22_00120.png", graph_seg_out);
     }
 
 
@@ -75,6 +76,9 @@ int main(int argc, char** argv){
         FileStorage seg_out(argv[2], FileStorage::WRITE);
         CHECK(seg_out.isOpened());
         int write_id = (int)((float)segments.size() * 0.7);
+        if(FLAGS_write_level > 0){
+            write_id = FLAGS_write_level;
+        }
         printf("Writing %d level to %s\n", write_id, argv[2]);
         seg_out << "kLevel" << 1;
         seg_out << "level0" << segments[write_id];

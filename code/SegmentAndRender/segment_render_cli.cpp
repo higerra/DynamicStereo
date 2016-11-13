@@ -79,8 +79,8 @@ int main(int argc, char** argv) {
     Mat seg_result_display(kFrameSize, CV_32SC1, Scalar::all(0)), seg_result_flashy(kFrameSize, CV_32SC1, Scalar::all(0));
     cout << "Segmenting display..." << endl;
     segmentDisplay(file_io, FLAGS_testFrame, mid_input, FLAGS_classifierPath, FLAGS_codebookPath ,seg_result_display);
-//    cout << "Segmenting flashy..." << endl;
-//    segmentFlashy(file_io, FLAGS_testFrame, mid_input, cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy);
+    cout << "Segmenting flashy..." << endl;
+    segmentFlashy(file_io, FLAGS_testFrame, mid_input, cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy);
 
     CHECK_EQ(seg_result_display.cols, kFrameSize.width);
     CHECK_EQ(seg_result_display.rows, kFrameSize.height);
@@ -145,36 +145,36 @@ int main(int argc, char** argv) {
 
 
     cout  << "Step 1: Fill holes by poisson smoothing" << endl;
-//    const double small_poisson = 0.01;
-//    regularizationPoisson(mid_input, cinemagraph.pixel_loc_display, mid_output, small_poisson, small_poisson);
-//    mid_input.swap(mid_output);
-//    mid_output.clear();
-//
-//    {
-//        cinemagraph.pixel_mat_flashy.clear();
-//        cinemagraph.pixel_mat_flashy.resize(cinemagraph.pixel_loc_flashy.size());
-//        for (auto i = 0; i < cinemagraph.pixel_loc_flashy.size(); ++i) {
-//            Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_flashy[i], cinemagraph.ranges_flashy[i],
-//                                        cinemagraph.pixel_mat_flashy[i]);
-//        }
-//
-//        cinemagraph.pixel_mat_display.clear();
-//        cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
-//        vector<Mat> cenimagraph_unstabilized;
-//        for (auto i = 0; i < cinemagraph.pixel_loc_display.size(); ++i) {
-//            Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i], cinemagraph.ranges_display[i],
-//                                        cinemagraph.pixel_mat_display[i]);
-//        }
-//        vector<Mat> cinemagraph_unstabilized;
-//        Cinemagraph::RenderCinemagraph(cinemagraph, cinemagraph_unstabilized, FLAGS_kFrames, true);
-//        sprintf(buffer, "%s/temp/unstabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
-//        VideoWriter vw_writer(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
-//        CHECK(vw_writer.isOpened());
-//        for(const auto& img: cinemagraph_unstabilized){
-//            vw_writer << img;
-//        }
-//        vw_writer.release();
-//    }
+    const double small_poisson = 0.01;
+    regularizationPoisson(mid_input, cinemagraph.pixel_loc_display, mid_output, small_poisson, small_poisson);
+    mid_input.swap(mid_output);
+    mid_output.clear();
+
+    {
+        cinemagraph.pixel_mat_flashy.clear();
+        cinemagraph.pixel_mat_flashy.resize(cinemagraph.pixel_loc_flashy.size());
+        for (auto i = 0; i < cinemagraph.pixel_loc_flashy.size(); ++i) {
+            Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_flashy[i], cinemagraph.ranges_flashy[i],
+                                        cinemagraph.pixel_mat_flashy[i]);
+        }
+
+        cinemagraph.pixel_mat_display.clear();
+        cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
+        vector<Mat> cenimagraph_unstabilized;
+        for (auto i = 0; i < cinemagraph.pixel_loc_display.size(); ++i) {
+            Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i], cinemagraph.ranges_display[i],
+                                        cinemagraph.pixel_mat_display[i]);
+        }
+        vector<Mat> cinemagraph_unstabilized;
+        Cinemagraph::RenderCinemagraph(cinemagraph, cinemagraph_unstabilized, FLAGS_kFrames, true);
+        sprintf(buffer, "%s/temp/unstabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
+        VideoWriter vw_writer(string(buffer), CV_FOURCC('x','2','6','4'), 30, kFrameSize);
+        CHECK(vw_writer.isOpened());
+        for(const auto& img: cinemagraph_unstabilized){
+            vw_writer << img;
+        }
+        vw_writer.release();
+    }
 
     cout << "Step 2: geometric stablization" << endl;
     float stab_t = (float)cv::getTickCount();
