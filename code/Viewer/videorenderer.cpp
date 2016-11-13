@@ -105,9 +105,9 @@ namespace dynamic_stereo{
     void VideoRenderer::initializeShader() {
         if (is_shader_init_)
             return;
-        CHECK(!shader_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/video_blend.vert"))
+        CHECK(!shader_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/frame.vert"))
         << "videoRenderer: can not add vertex shader!";
-        CHECK(!shader_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/video_blend.frag"))
+        CHECK(!shader_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/frame.frag"))
         << "can not add vertex shader!";
         CHECK(!shader_->link()) << "videoRenderer: can not link shader!";
         CHECK(!shader_->bind()) << "videoRenderer: can not bind shader!";
@@ -116,63 +116,6 @@ namespace dynamic_stereo{
         shader_->release();
         is_shader_init_ = true;
     }
-
-//    void VideoRenderer::changeSource(int frameid, int x, int y, const VideoSource &new_source, int channel){
-//        if(new_source == EXTERNAL && externaltextures.size() == 0){
-//            printf("No external texture loaded\n");
-//            return;
-//        }
-//        int tid = getDisplayID(frameid, x, y);
-//        if(tid == -1)
-//            return;
-//        if(new_source == source[tid])
-//            return;
-//        printf("Changing source of track%d to %d, channel:%d\n", tid, new_source, channel);
-//        source[tid] = new_source;
-//        if(new_source == EXTERNAL){
-//            if(channel >= externaltextures.size()){
-//                cerr << "videoRenderer::changeSource: channel out of range" <<endl;
-//                source[tid] = INTERNAL;
-//                return;
-//            }
-//            channel_counter[tid] = channel;
-//            external_counter[tid] = 0;
-//        }
-//    }
-//
-//    void VideoRenderer::setHighlight(int frameid, int x, int y){
-//        int tid = getDisplayID(frameid, x, y);
-//        if(tid < 0){
-//            for(int i=0; i<kNumTracks; i++){
-//                highlight_weight[i] = -1.0;
-//            }
-//            return;
-//        }
-//        if(highlight_weight[tid] < -0.5){
-//            highlight_weight[tid] = 0.0;
-//            highlight_direction[tid] = 1.0;
-//        }
-//        for(int i=0; i<kNumTracks; i++){
-//            if(i == tid)
-//                continue;
-//            highlight_weight[i] = -1.0;
-//        }
-//
-//    }
-
-//    int VideoRenderer::getDisplayID(int frameid, int x, int y){
-//        for(int tid=0; tid<quads.size(); ++tid){
-//            for(int qid=0; qid<quads[tid].size(); ++qid){
-//                if(quads[tid][qid].frameid == frameid){
-//                    Vector2d p((double)x, (double)y);
-//                    if(CGHelper::isInsidePolygon(p, quads[tid][qid].cornerpt)){
-//                        return tid;
-//                    }
-//                }
-//            }
-//        }
-//        return -1;
-//    }
 
     void VideoRenderer::render(const int frameid,
                                const Navigation& navigation){
@@ -183,6 +126,7 @@ namespace dynamic_stereo{
         const QMatrix4x4& projection = navigation.getProjection();
         shader_->setUniformValue("mv_mat", modelview);
         shader_->setUniformValue("mp_mat", projection);
+        shader_->setUniformValue("weight", (GLfloat) 1.0);
 
         switch(source_){
             case INTERNAL:
@@ -197,41 +141,21 @@ namespace dynamic_stereo{
         glPopAttrib();
     }
 
-    void VideoRenderer::renderInternal(const int frameid, const int tid,const Navigation& navigation){
-        //const float dynamic_weight = navigation.getDynamicWeight();
-        const float dynamic_weight = 1.0;
-
+    void VideoRenderer::renderInternal(const Navigation& navigation){
         glActiveTexture(GL_TEXTURE0);
-        int cur_frame = render_counter_;
-        int next_frame = (render_counter[tid]+1) % videotextures[tid].size();
-        videotextures[tid][cur_frame]->bind();
-        if(!videotextures[tid][cur_frame]->isBound()){
-            cerr << "videoRenderer::render: can not bind texture: tid: "<<tid<<" frameid:"<<frameid<<endl;
+        video_textures_[render_counter_]->bind();
+        if(!video_textures_[render_counter_]->isBound()){
+            cerr << "videoRenderer::render: can not bind texture " << render_counter_;
             return;
         }
-        glActiveTexture(GL_TEXTURE1);
-        videotextures[tid][next_frame]->bind();
-        if(!videotextures[tid][next_frame]->isBound()){
-            cerr << "videoRenderer::render: can not bind texture: tid: "<<tid<<" frameid:"<<frameid<<endl;
-            return;
-        }
-        //printf("frameid %d, track %d, blend_counter:%d cur_frame:%d next_frame:%d weight:%.4f\n",frameid, tid, blend_counter, cur_frame, next_frame,
-        //       navigation.getDynamicWeight());
-        if(dynamic_weight <= 0.01){
-            //   printf("video_counter[tid]=next_frame:%d\n", next_frame);
-            video_counter[tid] = next_frame;
-        }
-        shader->setUniformValue("tex0",0);
-        shader->setUniformValue("tex1",1);
-        shader->setUniformValue("weight", dynamic_weight);
-        //shader->setUniformValue("weight", (GLfloat)0.5);
+        shader_->setUniformValue("tex0",0);
 
-        glBindBuffer(GL_ARRAY_BUFFER, videoVertexBuffer[tid][frameid-startid[tid]]);
-        shader->setAttributeBuffer("vPosition", GL_FLOAT, 0, 3);
-        glBindBuffer(GL_ARRAY_BUFFER, texcoordBuffer);
-        shader->setAttributeBuffer("texcoord", GL_FLOAT, 0, 2);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-        glDrawElements(GL_TRIANGLES, (GLsizei)index_data.size(), GL_UNSIGNED_INT, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, video_vertex_buffer_);
+        shader_->setAttributeBuffer("vPosition", GL_FLOAT, 0, 3);
+        glBindBuffer(GL_ARRAY_BUFFER, texcoord_buffer_);
+        shader_->setAttributeBuffer("texcoord", GL_FLOAT, 0, 2);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_);
+        glDrawElements(GL_TRIANGLES, (GLsizei)index_data_.size(), GL_UNSIGNED_INT, 0);
     }
 
 //    void videoRenderer::renderStatic(const int frameid, const int tid){
