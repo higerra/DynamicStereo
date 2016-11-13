@@ -126,7 +126,7 @@ namespace dynamic_stereo{
         }
 
         bool ReadCinemagraph(const std::string &path, Cinemagraph& output) {
-            ifstream in(path.c_str(), ios::binary);
+            ifstream in(path.c_str());
             CHECK(in.is_open()) << "Can not open file to read: " << path;
             output.clear();
             in >> output.reference >> output.tWindow;
@@ -176,18 +176,38 @@ namespace dynamic_stereo{
             CHECK_EQ(token, string("pixel"));
             output.pixel_mat_display.resize(kDisplay);
             for(int i=0; i<output.pixel_mat_display.size(); ++i){
-                int kCol, kRow;
-                in >> kCol >> kRow;
+                const int kCol = output.pixel_loc_display[i].size();
+                const int kRow = output.ranges_display[i][1] - output.ranges_display[i][0] + 1;
                 output.pixel_mat_display[i].create(kRow, kCol, CV_8UC3);
-                in.read((char*)output.pixel_mat_display[i].data, kCol * kRow * output.pixel_mat_display[i].channels() * sizeof(uchar));
+                Mat& cur_mat = output.pixel_mat_display[i];
+                int temp;
+                for(auto y=0; y<cur_mat.rows; ++y){
+                    for(auto x=0; x<cur_mat.cols; ++x){
+                        for(auto c=0; c<cur_mat.channels(); ++c){
+                            in >> temp;
+                            cur_mat.at<Vec3b>(y,x)[c] = (uchar)temp;
+                        }
+                    }
+                }
+                //in.read((char*)output.pixel_mat_display[i].data, kCol * kRow * output.pixel_mat_display[i].channels() * sizeof(uchar));
             }
 
             output.pixel_mat_flashy.resize(kFlashy);
             for(int i=0; i<output.pixel_mat_flashy.size(); ++i){
-                int kCol, kRow;
-                in >> kCol >> kRow;
+                const int kCol = output.pixel_loc_flashy[i].size();
+                const int kRow = output.ranges_flashy[i][1] - output.ranges_flashy[i][0] + 1;
                 output.pixel_mat_flashy[i].create(kRow, kCol, CV_8UC3);
-                in.read((char*)output.pixel_mat_flashy[i].data, kCol * kRow * output.pixel_mat_flashy[i].channels() * sizeof(uchar));
+                Mat& cur_mat = output.pixel_mat_flashy[i];
+                int temp;
+                for(auto y=0; y<cur_mat.rows; ++y){
+                    for(auto x=0; x<cur_mat.cols; ++x){
+                        for(auto c=0; c<cur_mat.channels(); ++c){
+                            in >> temp;
+                            cur_mat.at<Vec3b>(y,x)[c] = (uchar)temp;
+                        }
+                    }
+                }
+                //in.read((char*)output.pixel_mat_flashy[i].data, kCol * kRow * output.pixel_mat_flashy[i].channels() * sizeof(uchar));
             }
             in >> token;
             CHECK_EQ(token, string("END"));
@@ -198,7 +218,7 @@ namespace dynamic_stereo{
 
             const int width = output.background.cols;
             const int height = output.background.rows;
-            ofstream fout(path.c_str(), ios::binary);
+            ofstream fout(path.c_str());
             CHECK(fout.is_open()) << "Can not open file to write " << path;
             fout << output.reference << ' ' << output.tWindow << endl;
             fout << width << ' ' << height << endl;
@@ -232,16 +252,33 @@ namespace dynamic_stereo{
                 Mat cur_mat = output.pixel_mat_display[i];
                 CHECK(cur_mat.isContinuous());
                 CHECK_EQ(cur_mat.type(), CV_8UC3);
-                fout << cur_mat.cols << ' ' << cur_mat.rows << endl;
-                fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
+                CHECK_EQ(cur_mat.cols, output.pixel_loc_display[i].size());
+                CHECK_EQ(cur_mat.rows, output.ranges_display[i][1] - output.ranges_display[i][0] + 1);
+                for(auto y=0; y<cur_mat.rows; ++y){
+                    for(auto x=0; x<cur_mat.cols; ++x){
+                        for(auto c=0; c<cur_mat.channels(); ++c){
+                            fout << (int)cur_mat.at<Vec3b>(y,x)[c] << ' ';
+                        }
+                    }
+                }
+                fout << endl;
+                //fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
             }
-
             for(auto i=0; i<output.pixel_mat_flashy.size(); ++i){
                 Mat cur_mat = output.pixel_mat_flashy[i];
                 CHECK(cur_mat.isContinuous());
                 CHECK_EQ(cur_mat.type(), CV_8UC3);
-                fout << cur_mat.cols << ' ' << cur_mat.rows << endl;
-                fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
+                CHECK_EQ(cur_mat.cols, output.pixel_loc_flashy[i].size());
+                CHECK_EQ(cur_mat.rows, output.ranges_flashy[i][1] - output.ranges_flashy[i][0] + 1);
+                for(auto y=0; y<cur_mat.rows; ++y){
+                    for(auto x=0; x<cur_mat.cols; ++x){
+                        for(auto c=0; c<cur_mat.channels(); ++c){
+                            fout << (int)cur_mat.at<Vec3b>(y,x)[c] << ' ';
+                        }
+                    }
+                }
+                fout << endl;
+                //fout.write((char*) cur_mat.data, cur_mat.cols * cur_mat.rows * cur_mat.channels() * sizeof(uchar));
             }
             fout << "END" << endl;
         }

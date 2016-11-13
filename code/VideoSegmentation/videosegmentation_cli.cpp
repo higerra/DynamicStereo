@@ -69,14 +69,17 @@ int main(int argc, char** argv){
             filenames.push_back(temp);
     }
 
-//    if(!FLAGS_input_segment.empty()){
-//        vector<Mat> segments;
-//        video_segment::LoadHierarchicalSegmentation(FLAGS_input_segment, segments);
-//        FileStorage seg_out(string(buffer), FileStorage::WRITE);
-//        int write_id = (int)((float)segments.size() * 0.8);
-//        printf("Writing %d level\n", write_id);
-//        seg_out << "level0" << segments[write_id];
-//    }
+    if(!FLAGS_input_segment.empty()){
+        vector<Mat> segments;
+        video_segment::LoadHierarchicalSegmentation(FLAGS_input_segment, segments);
+        FileStorage seg_out(argv[2], FileStorage::WRITE);
+        CHECK(seg_out.isOpened());
+        int write_id = (int)((float)segments.size() * 0.7);
+        printf("Writing %d level to %s\n", write_id, argv[2]);
+        seg_out << "kLevel" << 1;
+        seg_out << "level0" << segments[write_id];
+        return 0;
+    }
 
 
     for(const auto& filename: filenames) {
@@ -136,7 +139,7 @@ int main(int argc, char** argv){
             sprintf(buffer, "%s/segment_%s.yml", out_path.c_str(), filename.c_str());
             video_segment::SaveHierarchicalSegmentation(string(buffer), segments);
 
-            int write_id = (int)((float)segments.size() * 0.8);
+            int write_id = (int)((float)segments.size() * 0.7);
             sprintf(buffer, "%s/segment_%s_%d.yml", out_path.c_str(), filename.c_str(), write_id);
             FileStorage level_out(string(buffer), FileStorage::WRITE);
             printf("Writing %d level\n", write_id);
