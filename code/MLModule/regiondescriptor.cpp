@@ -202,7 +202,7 @@ namespace dynamic_stereo{
 
 			const int kPix = mask.cols * mask.rows;
 			const uchar *pMask = mask.data;
-			const float posRatio = 0.5f;
+			const float posRatio = 0.8f;
 			for (auto sid = 0; sid < pixelGroup.size(); ++sid) {
 				float total = 0.0f, pos = 0.0f;
 				for (const int pid: pixelGroup[sid]) {

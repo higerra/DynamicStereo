@@ -22,11 +22,15 @@ DEFINE_int32(tWindow, 100, "tWindow");
 DEFINE_int32(kFrames, 300, "Number of frames in cinemagraph");
 
 DEFINE_int32(downsample, 2, "downsample ratio");
-DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_new.rf", "Path to classifier");
-DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
+// DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_new.rf", "Path to classifier");
+// DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_new_cluster00050.yml", "path to codebook");
 
-//DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/code/build/VisualWord/model_hier2.rf", "Path to classifier");
-//DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/code/build/VisualWord/metainfo_hier_cluster00050.yml", "path to codebook");
+//DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_hier_ar.rf", "Path to classifier");
+//DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_hier_ar_cluster00100.yml", "path to codebook");
+
+DEFINE_string(classifierPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/model_all_v3.rf", "Path to classifier");
+DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data/traindata/visualword/metainfo_all_v3_cluster00100.yml", "path to codebook");
+
 
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic, none}");
 

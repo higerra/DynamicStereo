@@ -26,7 +26,7 @@ namespace dynamic_stereo{
         Mat preSeg = imread(buffer, false);
 
         if(!preSeg.data) {
-            const vector<float> levelList{0.65, 0.80};
+            const vector<float> levelList{0.60, 0.70, 0.80};
             cv::Ptr<ml::StatModel> classifier;
             Mat codebook;
             VisualWord::VisualWordOption vw_option;
@@ -58,7 +58,7 @@ namespace dynamic_stereo{
             }else{
                 VisualWord::detectVideo(input, classifier, codebook, levelList, preSeg, vw_option, segments, cv::noArray());
             }
-
+            cout << "Done" << endl;
             //dump out segmentation result
             for(auto i=0; i<levelList.size(); ++i){
                 int lid = segments.size() * levelList[i];
@@ -75,8 +75,18 @@ namespace dynamic_stereo{
             imwrite(buffer, preSeg);
         }
 
+        Mat display_mask(preSeg.rows, preSeg.cols, CV_8UC3, cv::Scalar(255,0,0));
+        for(auto y=0; y<preSeg.rows; ++y){
+            for(auto x=0; x<preSeg.cols; ++x){
+                if(preSeg.at<uchar>(y,x) > (uchar)200){
+                    display_mask.at<Vec3b>(y,x) = Vec3b(0,0,255);
+                }
+            }
+        }
+        Mat display_overlay;
+        cv::addWeighted(input[input.size()/2], 0.2, display_mask, 0.8, 0.0, display_overlay);
         sprintf(buffer, "%s/temp/segment_display%05d.jpg", file_io.getDirectory().c_str(), anchor);
-        imwrite(buffer, preSeg);
+        imwrite(buffer, display_overlay);
         result = video_segment::localRefinement(input, 1, 5, 200, preSeg);
     }
 

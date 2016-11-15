@@ -57,6 +57,7 @@ namespace dynamic_stereo {
             cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce");
             cv::BOWImgDescriptorExtractor extractor(descriptorExtractor, matcher);
             extractor.setVocabulary(codebook);
+	    printf("Descriptor size: %d\n", extractor.descriptorSize());
             char buffer[128] = {};
 
             if (rawSegments.needed()) {
@@ -116,6 +117,7 @@ namespace dynamic_stereo {
                 vector<vector<float> > regionFeature;
                 ML::extractSegmentFeature(images, pixelGroup, regionFeature);
 
+		printf("Computing bow feature...\n");
                 for (auto sid = 0; sid < kSeg; ++sid) {
                     if (!segmentKeypoints[sid].empty()) {
                         Mat bow;
@@ -132,6 +134,7 @@ namespace dynamic_stereo {
                 }
 
                 Mat response;
+		printf("Predicting...\n");
                 classifier->predict(featureMat, response);
                 CHECK_EQ(response.rows, kSeg);
 

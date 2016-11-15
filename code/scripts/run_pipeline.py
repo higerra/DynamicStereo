@@ -35,7 +35,7 @@ for data in datasets:
             conf = json.load(f)
 
     global_stereo = ''
-    global_render = ''
+    global_render = '--regularization=none '
     if 'global_stereo' in conf:
         global_stereo += conf['global_stereo']
     if 'global_render' in conf:
