@@ -399,17 +399,17 @@ void run_detect(int argc, char** argv, const VisualWordOption& vw_option){
 
     vector<Mat> segments(1);
     FileStorage segment_in(FLAGS_segmentationPath, FileStorage::READ);
-    CHECK(segment_in.isOpened());
+    CHECK(segment_in.isOpened()) << FLAGS_segmentationPath;
     segment_in["level0"] >> segments[0];
     CHECK_EQ(segments[0].size(), refImage.size());
 
     const double blend_weight = 0.2;
-    Mat segment_vis = video_segment::visualizeSegmentation(segments[0]);
-    Mat segment_overlay;
-    addWeighted(refImage, blend_weight, segment_vis, 1.0 - blend_weight, 0.0, segment_overlay);
-    imshow("segment_vis", segment_overlay);
-    waitKey(0);
-
+    // Mat segment_vis = video_segment::visualizeSegmentation(segments[0]);
+    // Mat segment_overlay;
+    // addWeighted(refImage, blend_weight, segment_vis, 1.0 - blend_weight, 0.0, segment_overlay);
+    // imshow("segment_vis", segment_overlay);
+    // waitKey(0);
+    
     Mat detection;
     printf("Detecting...\n");
     detectVideo(images, classifier, codebook, {0}, detection, vw_option, segments, noArray());

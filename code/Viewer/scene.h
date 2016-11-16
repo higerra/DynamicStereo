@@ -18,6 +18,7 @@
 #include <memory>
 #include "navigation.h"
 #include "animation.h"
+#include "videorenderer.h"
 #include "../base/file_io.h"
 #include "../base/depth.h"
 
@@ -44,6 +45,8 @@ namespace dynamic_stereo{
         QImage background_;
         Depth depth_;
         theia::Camera camera_;
+
+        std::vector<std::shared_ptr<VideoRenderer> > video_renderers_;
 
         std::vector<GLfloat> vertex_data_;
         std::vector<GLuint> index_data_;

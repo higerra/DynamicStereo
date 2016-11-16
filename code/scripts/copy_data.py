@@ -17,24 +17,24 @@ for data in datasets:
     if len(info) == 0:
         break
     name = info[0]
-    # command = 'scp -r {}:{}/{}/temp {}/{}/'.format(args.source_ip, args.remote_root, name, args.local_root, name)
-    # print command
-    # subprocess.call(command, shell=True)
+    command = 'scp -r {}:{}/{}/temp/* {}/{}/temp/'.format(args.remote_ip, args.remote_root, name, args.local_root, name)
+    print command
+    subprocess.call(command, shell=True)
 
-    # command = 'scp {}:{}/{}/midres/depth*.depth {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
+    # command = 'scp {}:{}/{}/midres/depth*.depth {}/{}/midres/'.format(args.remote_ip, args.remote_root, name,
     #                                                                   args.local_root, name)
     # print command
     # subprocess.call(command, shell=True)
 
-    # command = 'scp {}:{}/{}/midres/classification* {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
+    # command = 'scp {}:{}/{}/midres/classification* {}/{}/midres/'.format(args.remote_ip, args.remote_root, name,
     #                                                                   args.local_root, name)
     # print command
 
-    command = 'scp {}/{}/conf.json {}:{}/{}/'.format(args.local_root, name, args.remote_ip, args.remote_root, name)
-    subprocess.call(command, shell=True)
-
-    command = 'scp {}/{}/midres/classi* {}:{}/{}/midres/'.format(args.local_root, name, args.remote_ip, args.remote_root, name)
-    subprocess.call(command, shell=True)
+    # command = 'scp {}/{}/conf.json {}:{}/{}/'.format(args.local_root, name, args.remote_ip, args.remote_root, name)
+    # subprocess.call(command, shell=True)
+    #
+    # command = 'scp {}/{}/midres/classi* {}:{}/{}/midres/'.format(args.local_root, name, args.remote_ip, args.remote_root, name)
+    # subprocess.call(command, shell=True)
 
     # command = 'scp {}:{}/{}/midres/segment*.yml {}/{}/midres/'.format(args.source_ip, args.remote_root, name,
     #                                                                      args.local_root, name)

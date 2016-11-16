@@ -51,24 +51,28 @@ namespace dynamic_stereo {
         }
     }
 
-    void getFlashyRange(const std::vector<std::vector<Eigen::Vector2i> >& segments,
-                        const cv::Mat& frq_range,
-                        std::vector<Eigen::Vector2i>& ranges){
-        CHECK(frq_range.data);
-        CHECK_EQ(frq_range.type(), CV_32SC2);
-        ranges.resize(segments.size());
-#pragma omp parallel for
-        for(auto sid=0; sid < segments.size(); ++sid){
-            int startid = -1;
-            int endid = numeric_limits<int>::max();
-            for(const auto& pid: segments[sid]){
-                Vec2i r = frq_range.at<Vec2i>(pid[1], pid[0]);
-                startid = std::max(startid, r[0]);
-                endid = std::min(endid, r[1]);
+    void SearchFlashyLoop(cv::Mat& pixel_mat, Eigen::Vector2i& range) {
+        CHECK_EQ(pixel_mat.rows, range[1] - range[0] + 1);
+        double best_score = 999999;
+        Vector2i optimal_interval = range;
+        for (auto startid = range[0]; startid < (range[0] + range[1]) / 2; ++startid) {
+            for (int endid = (range[0] + range[1]) / 2; endid <= range[1]; ++endid) {
+                Mat pixel_start = pixel_mat.row(startid - range[0]);
+                Mat pixel_end = pixel_mat.row(endid - range[0]);
+                double dis = 0.0;
+                for(auto j=0; j<pixel_start.cols; ++j){
+                    dis += cv::norm(pixel_start.col(j), pixel_end.col(j), cv::NORM_L2);
+                }
+                dis /= (double) pixel_start.cols;
+                if(dis < best_score){
+                    optimal_interval[0] = startid;
+                    optimal_interval[1] = endid;
+                }
             }
-            ranges[sid][0] = startid;
-            ranges[sid][1] = endid;
         }
+        Mat new_pixel_mat = pixel_mat.rowRange(optimal_interval[0]-range[0], optimal_interval[1]-range[0]+1).clone();
+        pixel_mat = new_pixel_mat.clone();
+        range = optimal_interval;
     }
 
     void filterShortSegments(std::vector<std::vector<Eigen::Vector2i> > &segments,
@@ -141,6 +145,7 @@ namespace dynamic_stereo {
                     continue;
                 }
                 printf("Smoothing segment %d on thread %d, kPix:%d\n", sid, tid, (int) segments[sid].size());
+//#pragma omp parallel for
                 for (auto i = 0; i < segments[sid].size(); ++i) {
                     const int x = segments[sid][i][0];
                     const int y = segments[sid][i][1];

@@ -16,5 +16,5 @@ set(HEADER_FILE animation.h main_widget.h navigation.h scene.h videorenderer.h)
 set(RESOURCE_FILE shader.qrc)
 add_executable(Viewer ${SOURCE_FILE} ${HEADER_FILE} ${RESOURCE_FILE})
 
-target_link_libraries(Viewer ${THEIA_LIBRARIES} ${OpenCV_LIBS} base GeometryModule
+target_link_libraries(Viewer ${THEIA_LIBRARIES} ${OpenCV_LIBS} base GeometryModule CinemagraphModule
         Qt5::Widgets Qt5::OpenGL Qt5::Core Qt5::Gui glog gflags GLU GL)

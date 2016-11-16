@@ -23,7 +23,7 @@ namespace dynamic_stereo{
         frq_ranges.setTo(cv::Scalar::all(0));
 
 		const double alpha = 2, beta = 2.5;
-		const int min_frq = 5;
+		const int min_frq = 6;
 		const int tx = -1, ty= -1;
 
         const int N = (int)warppedImg.size();
@@ -36,7 +36,7 @@ namespace dynamic_stereo{
 		//build intensity map. Pixel with low intensities should not be considered flashing
 		Mat intensity_map(height, width, CV_8UC1, Scalar::all(0));
 		{
-			const size_t kth = 0.9 * N;
+			const size_t kth = 0.8 * N;
 			vector<vector<uchar> > intensity_array(width * height);
 			for(auto& ia: intensity_array){
 				ia.resize(N, (uchar)0);
@@ -60,7 +60,7 @@ namespace dynamic_stereo{
         const int kInt = 10;
         const int minInt = kInt / 2;
         const int interval = N / kInt;
-		const uchar intensity_threshold = static_cast<uchar>(255.0*0.3);
+		const uchar intensity_threshold = static_cast<uchar>(255.0*0.5);
 
         auto sigmoid = [&](const double x){
             return 1 / (1 + std::exp(-1*alpha*(x - beta)));
@@ -122,7 +122,7 @@ namespace dynamic_stereo{
         Mat preSeg(height, width, CV_8UC1, Scalar::all(0));
         //repetative pattern
         printf("Computing frequency confidence...\n");
-        double freThreshold = 0.5;
+        double freThreshold = 0.6;
         Depth frequency;
         Mat frq_range;
         computeFrequencyConfidence(input, freThreshold, frequency, frq_range);

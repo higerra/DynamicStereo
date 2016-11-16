@@ -1,4 +1,5 @@
 #include "scene.h"
+#include "../Cinemagraph/cinemagraph.h"
 
 using namespace std;
 using namespace Eigen;
@@ -26,6 +27,7 @@ namespace dynamic_stereo{
         depth_downsample_ = (double)background_.width() / (double)depth_.getWidth();
         camera_ = navigation.GetCameraFromGlobalIndex(frame_id_);
 
+        LOG(INFO) << "Initializing static model";
         allocateResource();
 
         //read background image
@@ -45,6 +47,28 @@ namespace dynamic_stereo{
         glDisable(GL_TEXTURE_2D);
 
         initializeShader();
+
+        //read cinemagraph
+        LOG(INFO) << "Initializing dynamic renderers";
+        char buffer[128] = {};
+        sprintf(buffer, "%s/temp/cinemagraph_%05d_RPCA.cg", file_io->getDirectory().c_str(), frame_id_);
+        Cinemagraph::Cinemagraph cinemagraph;
+        Cinemagraph::ReadCinemagraph(string(buffer), cinemagraph);
+        for(int i=0; i<cinemagraph.pixel_loc_flashy.size(); ++i){
+            sprintf(buffer, "flashy_%03d", i);
+            std::shared_ptr<VideoRenderer> dynamic_renderer(
+                    new VideoRenderer(string(buffer), background_, depth_, camera_,
+                    cinemagraph.pixel_loc_flashy[i], cinemagraph.pixel_mat_flashy[i], {}, nullptr));
+            video_renderers_.push_back(dynamic_renderer);
+        }
+//        for(int i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
+//            sprintf(buffer, "flashy_%03d", i);
+//            std::shared_ptr<VideoRenderer> dynamic_renderer(
+//                    new VideoRenderer(string(buffer), background_, depth_, camera_,
+//                                      cinemagraph.pixel_loc_display[i], cinemagraph.pixel_mat_display[i], nullptr));
+//            video_renderers_.push_back(dynamic_renderer);
+//        }
+
         return true;
     }
 
@@ -157,8 +181,12 @@ namespace dynamic_stereo{
         glDisable(GL_TEXTURE_2D);
         shader->release();
 
+        for(const auto video_renderer: video_renderers_){
+            video_renderer->render(navigation);
+        }
         glFlush();
         glPopAttrib();
+
     }
 
 } //namespace dynamic_rendering

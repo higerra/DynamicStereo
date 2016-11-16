@@ -18,9 +18,9 @@ namespace dynamic_stereo{
 
 
     VideoRenderer::VideoRenderer(const std::string& name, const QImage& background, const Depth& ref_depth, const theia::Camera& camera,
-                                 const std::vector<Eigen::Vector2d>& loc, const cv::Mat& pixels,
+                                 const std::vector<Eigen::Vector2i>& loc, const cv::Mat& pixels, const std::vector<int>& corners,
                                  const std::vector<std::shared_ptr<QOpenGLTexture> >* external_texture):
-            identifier_(name), source_(INTERNAL), external_textures_(external_texture), render_counter_(0), external_counter_(0), blend_counter_(0) {
+            identifier_(name), source_(INTERNAL), corners_(corners), external_textures_(external_texture), render_counter_(0), external_counter_(0), blend_counter_(0) {
         //compute the bounding box
         //x_min, x_max, y_min, y_max
         LOG(INFO) << "Initializing dynamic region: " << name;
@@ -44,6 +44,7 @@ namespace dynamic_stereo{
 
         //fill texture data
         video_textures_.resize(kFrame);
+        glEnable(GL_TEXTURE_2D);
         for (auto i = 0; i < video_textures_.size(); ++i) {
             QImage sub_img = background.copy(roi_rect);
             for (auto pid = 0; pid < loc.size(); ++pid) {
@@ -54,6 +55,8 @@ namespace dynamic_stereo{
                 video_textures_[i].reset(new QOpenGLTexture(sub_img));
             }
         }
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glDisable(GL_TEXTURE_2D);
 
         //fill vertex data
         for (int y = roi_rect.top(); y < roi_rect.bottom(); ++y) {
@@ -117,8 +120,7 @@ namespace dynamic_stereo{
         is_shader_init_ = true;
     }
 
-    void VideoRenderer::render(const int frameid,
-                               const Navigation& navigation){
+    void VideoRenderer::render(const Navigation& navigation){
         glPushAttrib(GL_ALL_ATTRIB_BITS);
         glEnable(GL_TEXTURE_2D);
         shader_->bind();
@@ -147,6 +149,10 @@ namespace dynamic_stereo{
         if(!video_textures_[render_counter_]->isBound()){
             cerr << "videoRenderer::render: can not bind texture " << render_counter_;
             return;
+        }
+        render_counter_++;
+        if(render_counter_ >= video_textures_.size()){
+            render_counter_ = 0;
         }
         shader_->setUniformValue("tex0",0);
 

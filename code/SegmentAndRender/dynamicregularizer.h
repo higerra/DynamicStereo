@@ -21,6 +21,8 @@ namespace dynamic_stereo {
                          const std::vector<std::vector<Eigen::Vector2i> >& segments,
                          std::vector<Eigen::Vector2i>& ranges);
 
+    void SearchFlashyLoop(cv::Mat& pixel_mat, Eigen::Vector2i& range);
+
     void filterShortSegments(std::vector<std::vector<Eigen::Vector2i> >& segments,
                              std::vector<Eigen::Vector2i>& ranges,
                              const int minFrame);

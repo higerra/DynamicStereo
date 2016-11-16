@@ -12,6 +12,7 @@ using namespace dynamic_stereo;
 
 DEFINE_int32(testFrame, 0, "test frame");
 DEFINE_int32(kFrame, 200, "output frames");
+DEFINE_string(alg, "RPCA", "algorithm for regularization");
 
 int main(int argc, char** argv){
     google::ParseCommandLineFlags(&argc, &argv, true);
@@ -20,7 +21,7 @@ int main(int argc, char** argv){
 
     char buffer[128] = {};
     FileIO file_io(argv[1]);
-    sprintf(buffer, "%s/temp/cinemagraph_%05d_median.cg", file_io.getDirectory().c_str(), FLAGS_testFrame);
+    sprintf(buffer, "%s/temp/cinemagraph_%05d_%s.cg", file_io.getDirectory().c_str(), FLAGS_testFrame, FLAGS_alg.c_str());
     Cinemagraph::Cinemagraph cinemagraph;
     printf("Reading %s\n", buffer);
     Cinemagraph::ReadCinemagraph(string(buffer), cinemagraph);

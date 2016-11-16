@@ -95,29 +95,31 @@ namespace dynamic_stereo{
                     for (auto pid = 0; pid < cinemagraph.pixel_loc_display[sid].size(); ++pid) {
                         const Vector2i& loc = cinemagraph.pixel_loc_display[sid][pid];
                         float alpha = 1.0;
-                        if(cinemagraph.blend_map.data){
-                            alpha = cinemagraph.blend_map.at<float>(loc[1], loc[0]);
+                        if(cinemagraph.blend_map_display.data){
+                            alpha = cinemagraph.blend_map_display.at<float>(loc[1], loc[0]);
                         }
                         Vec3f pix = (Vec3f) cinemagraph.background.at<Vec3b>(loc[1], loc[0]) * (1 - alpha) +
                                     (Vec3f) cinemagraph.pixel_mat_display[sid].at<Vec3b>(fid, pid) * alpha;
                         output[output_index].at<Vec3b>(loc[1], loc[0]) = (Vec3b) pix;
-
                     }
                 }
             }
 
             //render flashy: direct
             for (auto sid = 0; sid < cinemagraph.pixel_loc_flashy.size(); ++sid) {
-                const int kSegLength = cinemagraph.ranges_flashy[sid][1] - cinemagraph.ranges_flashy[sid][0] + 1;
+                const int kSegLength = cinemagraph.ranges_flashy[sid][1] - cinemagraph.ranges_flashy[sid][0];
                 for (auto output_index = 0; output_index < output.size(); ++output_index) {
                     int fid = output_index % kSegLength;
                     for (auto pid = 0; pid < cinemagraph.pixel_loc_flashy[sid].size(); ++pid) {
                         const Vector2i& loc = cinemagraph.pixel_loc_flashy[sid][pid];
                         float alpha = 1.0;
-                        if(cinemagraph.blend_map.data){
-                            alpha = cinemagraph.blend_map.at<float>(loc[1], loc[0]);
+                        if(cinemagraph.blend_map_flashy.data){
+                            alpha = cinemagraph.blend_map_flashy.at<float>(loc[1], loc[0]);
                         }
-                        Vec3f pix = (Vec3f) cinemagraph.background.at<Vec3b>(loc[1], loc[0]) * (1 - alpha) +
+                        if(cinemagraph.blend_map_display.data){
+                            alpha = 1 - cinemagraph.blend_map_display.at<float>(loc[1], loc[0]);
+                        }
+                        Vec3f pix = (Vec3f) output[output_index].at<Vec3b>(loc[1], loc[0]) * (1 - alpha) +
                                     (Vec3f) cinemagraph.pixel_mat_flashy[sid].at<Vec3b>(fid, pid) * alpha;
                         output[output_index].at<Vec3b>(loc[1], loc[0]) = (Vec3b) pix;
                     }
@@ -135,6 +137,7 @@ namespace dynamic_stereo{
             int kDisplay, kFlashy;
             in >> kDisplay >> kFlashy;
             output.pixel_loc_display.resize(kDisplay);
+            output.corners.resize(kDisplay);
             output.pixel_loc_flashy.resize(kFlashy);
 
             string token;
@@ -144,6 +147,10 @@ namespace dynamic_stereo{
                 int kPix, pid;
                 in >> kPix;
                 output.pixel_loc_display[i].resize(kPix, Vector2i(0,0));
+                output.corners[i].resize(8, -1);
+                for(auto j=0; j<8; ++j){
+                    in >> output.corners[i][j];
+                }
                 for(int j=0; j<kPix; ++j){
                     in >> pid;
                     output.pixel_loc_display[i][j][0] = pid % width;
@@ -214,7 +221,7 @@ namespace dynamic_stereo{
         }
 
         void SaveCinemagraph(const std::string &path, const Cinemagraph &output) {
-            CHECK(check_cinemagraph(output));
+            CHECK(check_cinemagraph(output)) << "Broken cinemagraph";
 
             const int width = output.background.cols;
             const int height = output.background.rows;
@@ -226,6 +233,10 @@ namespace dynamic_stereo{
             fout << "location" << endl;
             for(int i=0; i<output.pixel_loc_display.size(); ++i){
                 fout << output.pixel_loc_display[i].size() << endl;
+                for(auto j=0; j<8; ++j){
+                    fout << output.corners[i][j] << ' ';
+                }
+                fout << endl;
                 for(const auto& loc: output.pixel_loc_display[i]){
                     fout << loc[1] * width + loc[0] << ' ';
                 }
@@ -233,7 +244,7 @@ namespace dynamic_stereo{
             }
             for(auto i=0; i<output.pixel_loc_flashy.size(); ++i){
                 fout << output.pixel_loc_flashy[i].size() << endl;
-                for(const auto& loc: output.pixel_loc_flashy){
+                for(const auto& loc: output.pixel_loc_flashy[i]){
                     fout << loc[1] * width + loc[0] << ' ';
                 }
                 fout << endl;

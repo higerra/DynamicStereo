@@ -18,11 +18,14 @@ namespace dynamic_stereo {
 
         struct Cinemagraph {
             cv::Mat background;
-            cv::Mat blend_map;
+            cv::Mat blend_map_display;
+            cv::Mat blend_map_flashy;
 
             inline void clear(){
                 background.release();
-                blend_map.release();
+                blend_map_display.release();
+                blend_map_flashy.release();
+
                 pixel_loc_display.clear();
                 pixel_loc_flashy.clear();
                 pixel_mat_display.clear();
@@ -32,6 +35,8 @@ namespace dynamic_stereo {
             }
 
             std::vector<cv::Mat> pixel_mat_display;
+            std::vector<std::vector<int> > corners;
+
             std::vector<cv::Mat> pixel_mat_flashy;
             std::vector<std::vector<Eigen::Vector2i> > pixel_loc_display;
             std::vector<std::vector<Eigen::Vector2i> > pixel_loc_flashy;
@@ -43,21 +48,32 @@ namespace dynamic_stereo {
         };
 
         inline bool check_cinemagraph(const Cinemagraph& input){
-            if(!input.background.data){
-                return false;
-            }
-            if(input.pixel_loc_display.size() != input.pixel_mat_display.size()){
-                return false;
-            }
-            if(input.pixel_loc_display.size() != input.ranges_display.size()){
-                return false;
-            }
-            if(input.pixel_loc_flashy.size() != input.pixel_mat_flashy.size()){
-                return false;
-            }
-            if(input.pixel_loc_flashy.size() != input.ranges_flashy.size()){
-                return false;
-            }
+//            if(!input.background.data){
+//                return false;
+//            }
+//            if(input.pixel_loc_display.size() != input.pixel_mat_display.size()){
+//                return false;
+//            }
+//            if(input.corners.size() != input.pixel_loc_display.size()){
+//                return false;
+//            }
+//            if(input.pixel_loc_display.size() != input.ranges_display.size()){
+//                return false;
+//            }
+//            if(input.pixel_loc_flashy.size() != input.pixel_mat_flashy.size()){
+//                return false;
+//            }
+//            if(input.pixel_loc_flashy.size() != input.ranges_flashy.size()){
+//                return false;
+//            }
+
+            CHECK(input.background.data);
+
+            CHECK_EQ(input.pixel_loc_display.size(), input.pixel_mat_display.size());
+            CHECK_EQ(input.corners.size(), input.pixel_loc_display.size());
+            CHECK_EQ(input.pixel_loc_display.size(), input.ranges_display.size());
+            CHECK_EQ(input.pixel_loc_flashy.size(), input.pixel_mat_flashy.size());
+            CHECK_EQ(input.pixel_loc_flashy.size(), input.ranges_flashy.size());
             return true;
         }
 

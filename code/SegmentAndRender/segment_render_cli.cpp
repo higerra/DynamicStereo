@@ -101,8 +101,13 @@ int main(int argc, char** argv) {
     filterShortSegments(cinemagraph.pixel_loc_display, cinemagraph.ranges_display, minFrame);
     filterShortSegments(cinemagraph.pixel_loc_flashy, cinemagraph.ranges_flashy, minFrame);
 
-    vector<vector<Vector2i> > segments_all = cinemagraph.pixel_loc_display;
-    segments_all.insert(segments_all.end(), cinemagraph.pixel_loc_flashy.begin(), cinemagraph.pixel_loc_flashy.end());
+    //initialize cinemagraph structure
+    cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
+    cinemagraph.pixel_mat_flashy.resize(cinemagraph.pixel_loc_flashy.size());
+    cinemagraph.corners.resize(cinemagraph.pixel_loc_display.size());
+    for(auto& c: cinemagraph.corners){
+        c.resize(8, -1);
+    }
 
     //three step regularization:
     //1. Apply a small poisson smoothing, fill in holes
@@ -117,25 +122,20 @@ int main(int argc, char** argv) {
 //    Cinemagraph::ComputeBlendMap(cinemagraph.pixel_loc_display, cinemagraph.background.cols, cinemagraph.background.rows,
 //                                 blend_R, cinemagraph.blend_map);
     Cinemagraph::ComputeBlendMap(cinemagraph.pixel_loc_display, cinemagraph.background.cols, cinemagraph.background.rows,
-                                 blend_R, min_segment_size, cinemagraph.blend_map);
+                                 blend_R, min_segment_size, cinemagraph.blend_map_display);
 
 
     {
         //dump out raw cinemagraph
-        cinemagraph.pixel_mat_flashy.clear();
-        cinemagraph.pixel_mat_flashy.resize(cinemagraph.pixel_loc_flashy.size());
         for (auto i = 0; i < cinemagraph.pixel_loc_flashy.size(); ++i) {
             Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_flashy[i], cinemagraph.ranges_flashy[i],
                                         cinemagraph.pixel_mat_flashy[i]);
         }
-
-        cinemagraph.pixel_mat_display.clear();
-        cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
-        vector<Mat> cenimagraph_unstabilized;
         for (auto i = 0; i < cinemagraph.pixel_loc_display.size(); ++i) {
             Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i], cinemagraph.ranges_display[i],
                                         cinemagraph.pixel_mat_display[i]);
         }
+
         vector<Mat> cinemagraph_no_processed;
         Cinemagraph::RenderCinemagraph(cinemagraph, cinemagraph_no_processed, FLAGS_kFrames, true);
         sprintf(buffer, "%s/temp/raw%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
@@ -151,24 +151,22 @@ int main(int argc, char** argv) {
     cout  << "Step 1: Fill holes by poisson smoothing" << endl;
     const double small_poisson = 0.01;
     regularizationPoisson(mid_input, cinemagraph.pixel_loc_display, mid_output, small_poisson, small_poisson);
+    regularizationPoisson(mid_input, cinemagraph.pixel_loc_flashy, mid_output, small_poisson, small_poisson);
     mid_input.swap(mid_output);
     mid_output.clear();
 
     {
-        cinemagraph.pixel_mat_flashy.clear();
-        cinemagraph.pixel_mat_flashy.resize(cinemagraph.pixel_loc_flashy.size());
         for (auto i = 0; i < cinemagraph.pixel_loc_flashy.size(); ++i) {
             Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_flashy[i], cinemagraph.ranges_flashy[i],
                                         cinemagraph.pixel_mat_flashy[i]);
+            SearchFlashyLoop(cinemagraph.pixel_mat_flashy[i], cinemagraph.ranges_flashy[i]);
         }
 
-        cinemagraph.pixel_mat_display.clear();
-        cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
-        vector<Mat> cenimagraph_unstabilized;
         for (auto i = 0; i < cinemagraph.pixel_loc_display.size(); ++i) {
             Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i], cinemagraph.ranges_display[i],
                                         cinemagraph.pixel_mat_display[i]);
         }
+
         vector<Mat> cinemagraph_unstabilized;
         Cinemagraph::RenderCinemagraph(cinemagraph, cinemagraph_unstabilized, FLAGS_kFrames, true);
         sprintf(buffer, "%s/temp/unstabilized%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
@@ -188,12 +186,11 @@ int main(int argc, char** argv) {
     mid_output.clear();
 
     {
-        cinemagraph.pixel_mat_display.clear();
-        cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
         for (auto i = 0; i < cinemagraph.pixel_loc_display.size(); ++i) {
             Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i], cinemagraph.ranges_display[i],
                                         cinemagraph.pixel_mat_display[i]);
         }
+
         vector<Mat> cinemagraph_unregulared;
         Cinemagraph::RenderCinemagraph(cinemagraph, cinemagraph_unregulared, FLAGS_kFrames);
         sprintf(buffer, "%s/temp/unregulared%05d.avi", file_io.getDirectory().c_str(), FLAGS_testFrame);
@@ -243,8 +240,6 @@ int main(int argc, char** argv) {
     mid_output.clear();
 
     //create pixel mat for display
-    cinemagraph.pixel_mat_display.clear();
-    cinemagraph.pixel_mat_display.resize(cinemagraph.pixel_loc_display.size());
     for(auto i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
         Cinemagraph::CreatePixelMat(mid_input, cinemagraph.pixel_loc_display[i],
                                     cinemagraph.ranges_display[i], cinemagraph.pixel_mat_display[i]);

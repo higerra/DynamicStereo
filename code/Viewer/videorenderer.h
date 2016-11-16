@@ -21,11 +21,10 @@ namespace dynamic_stereo{
     public:
         enum VideoSource{INTERNAL, EXTERNAL, STATIC};
         VideoRenderer(const std::string& name, const QImage& background, const Depth& ref_depth, const theia::Camera& camera,
-                      const std::vector<Eigen::Vector2d>& loc, const cv::Mat& pixels,
+                      const std::vector<Eigen::Vector2i>& loc, const cv::Mat& pixels, const std::vector<int>& corners,
                       const std::vector<std::shared_ptr<QOpenGLTexture> >* external_texture);
 
-        void render(const int frameid,
-                    const Navigation &navigation);
+        void render(const Navigation &navigation);
 //    void changeSource(int frameid, int x, int y,
 //                      const VideoSource& new_source,
 //                      int channel = 0);
@@ -54,6 +53,8 @@ namespace dynamic_stereo{
         VideoSource source_;
 
         std::vector<std::shared_ptr<QOpenGLTexture> > video_textures_;
+
+        const std::vector<int> corners_;
         const std::vector<std::shared_ptr<QOpenGLTexture> >* external_textures_;
         //std::vector<std::shared_ptr<QOpenGLTexture> > static_texture_;
 

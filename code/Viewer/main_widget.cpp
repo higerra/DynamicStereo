@@ -24,7 +24,7 @@ namespace dynamic_stereo{
             navigation(data_directory),
             is_recording(false)
     {
-        LOG(INFO) << "Initializeing";
+        LOG(INFO) << "Initializing";
         scenes.resize(navigation.getNumFrames());
 //    frame_recorder = shared_ptr<FrameRecorder>(new FrameRecorder(path));
         setFocusPolicy(Qt::StrongFocus);
@@ -127,7 +127,7 @@ namespace dynamic_stereo{
         const vector<int>& frame_ids = navigation.GetFrameIdx();
         for(int i=0; i<frame_ids.size(); i++){
             printf("Initializing scene %d\n", i);
-            scenes[i] = shared_ptr<Scene>(new Scene(external_textures));
+            scenes[i].reset(new Scene(external_textures));
             if(!scenes[i]->initialize(path, frame_ids[i], navigation)){
                 cerr << "Initalizing scene "<<i<<" failed"<<endl;
             }
