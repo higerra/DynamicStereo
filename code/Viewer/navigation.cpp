@@ -60,6 +60,7 @@ namespace dynamic_stereo{
 
         string tempstring;
         Matrix3d iden3 = Matrix3d::Identity();
+
         //read scene transformation
         for(int i=0; i<kNumFrames; i++) {
             theia::Camera curcam = sfm_model.getCamera(frame_ids_[i]);
@@ -147,10 +148,12 @@ namespace dynamic_stereo{
         CHECK_LT(frameid1, kNumFrames);
         CHECK_LT(frameid2, kNumFrames);
 
+        const double far_depth = 100;
+
         Vector3d camcenter = percent * camcenters_[frameid1] + (1.0-percent) * camcenters_[frameid2];
         Vector3d updir = interpolateVector3D(updirs_[frameid1], updirs_[frameid2], 1.0 - percent);
-        Vector3d framecenter = (vdirs_[frameid1] + camcenters_[frameid1]) * percent +
-                               (1-percent) * (vdirs_[frameid2] + camcenters_[frameid2]);
+        Vector3d framecenter = (vdirs_[frameid1] * far_depth + camcenters_[frameid1]) * percent +
+                               (1-percent) * (vdirs_[frameid2] * far_depth + camcenters_[frameid2]);
 
         QMatrix4x4 m;
         m.setToIdentity();
