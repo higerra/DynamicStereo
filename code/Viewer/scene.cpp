@@ -9,7 +9,7 @@ namespace dynamic_stereo{
         freeResource();
     }
 
-    const double Scene::render_downsample_ = 2.0;
+    const double Scene::render_downsample_ = 1.0;
     shared_ptr<QOpenGLShaderProgram> Scene::shader =
             shared_ptr<QOpenGLShaderProgram>(new QOpenGLShaderProgram());
     bool Scene::is_shader_init = false;
@@ -24,6 +24,9 @@ namespace dynamic_stereo{
         CHECK(depth_.readDepthFromFile(file_io->getDepthFile(frame_id_))) << file_io->getDepthFile(frame_id_);
         //depth_.fillholeAndSmooth(0.1);
 
+        depth_.updateStatics();
+
+
         depth_downsample_ = (double)background_.width() / (double)depth_.getWidth();
         camera_ = navigation.GetCameraFromGlobalIndex(frame_id_);
 
@@ -32,7 +35,7 @@ namespace dynamic_stereo{
 
         //read background image
         glEnable(GL_TEXTURE_2D);
-         for(int y=0; y<background_.height(); ++y){
+        for(int y=0; y<background_.height(); ++y){
             for(int x=0; x<background_.width(); ++x){
                 QRgb curpix = background_.pixel(x,y);
                 QColor curcolor(curpix);
@@ -58,16 +61,17 @@ namespace dynamic_stereo{
             sprintf(buffer, "flashy_%03d", i);
             std::shared_ptr<VideoRenderer> dynamic_renderer(
                     new VideoRenderer(string(buffer), background_, depth_, camera_,
-                    cinemagraph.pixel_loc_flashy[i], cinemagraph.pixel_mat_flashy[i], {}, nullptr));
+                                      cinemagraph.pixel_loc_flashy[i], cinemagraph.pixel_mat_flashy[i], {}, nullptr));
             video_renderers_.push_back(dynamic_renderer);
         }
-//        for(int i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
-//            sprintf(buffer, "flashy_%03d", i);
-//            std::shared_ptr<VideoRenderer> dynamic_renderer(
-//                    new VideoRenderer(string(buffer), background_, depth_, camera_,
-//                                      cinemagraph.pixel_loc_display[i], cinemagraph.pixel_mat_display[i], nullptr));
-//            video_renderers_.push_back(dynamic_renderer);
-//        }
+        for(int i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
+            sprintf(buffer, "display_%03d", i);
+            std::shared_ptr<VideoRenderer> dynamic_renderer(
+                    new VideoRenderer(string(buffer), background_, depth_, camera_,
+                                      cinemagraph.pixel_loc_display[i], cinemagraph.pixel_mat_display[i],
+                                      cinemagraph.corners[i], nullptr));
+            video_renderers_.push_back(dynamic_renderer);
+        }
 
         return true;
     }
@@ -75,22 +79,10 @@ namespace dynamic_stereo{
     void Scene::initializeShader(){
         if(is_shader_init)
             return;
-        if(!shader->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/frame.vert")){
-            cerr << "Scene: can not add vertex shader!" <<endl;
-            exit(-1);
-        }
-        if(!shader->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/frame.frag")){
-            cerr << "Scene: can not add vertex shader!" <<endl;
-            exit(-1);
-        }
-        if(!shader->link()){
-            cerr << "Scene: can not link shader!" <<endl;
-            exit(-1);
-        }
-        if(!shader->bind()){
-            cerr << "Scene: can not bind shader!" <<endl;
-            exit(-1);
-        }
+        CHECK(shader->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/frame.vert")) << "Scene: can not add vertex shader!";
+        CHECK(shader->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/frame.frag")) << "Scene: can not add vertex shader!";
+        CHECK(shader->link()) << "Scene: can not link shader!";
+        CHECK(shader->bind()) << "Scene: can not bind shader!";
         shader->enableAttributeArray("vPosition");
         shader->enableAttributeArray("texcoord");
         shader->release();
@@ -102,6 +94,8 @@ namespace dynamic_stereo{
         const int depthheight = depth_.getHeight();
         const int renderingwidth = depthwidth / render_downsample_;
         const int renderingheight = depthheight / render_downsample_;
+
+        const double max_depth_diff = (depth_.getMaxDepth() - depth_.getMinDepth()) + 1;
 
         for (int y = 0; y < renderingheight; y++) {
             for (int x = 0; x < renderingwidth; x++) {
@@ -121,12 +115,20 @@ namespace dynamic_stereo{
 
         for (int y = 0; y < renderingheight - 1; y++) {
             for (int x = 0; x < renderingwidth - 1; x++) {
-                index_data_.push_back(y * renderingwidth + x);
-                index_data_.push_back(y * renderingwidth + x + 1);
-                index_data_.push_back((y + 1) * renderingwidth + x);
-                index_data_.push_back(y * renderingwidth + x + 1);
-                index_data_.push_back((y + 1) * renderingwidth + x + 1);
-                index_data_.push_back((y + 1) * renderingwidth + x);
+                double d1 = depth_.getDepthAtInt(x * render_downsample_, y * render_downsample_);
+                double d2 = depth_.getDepthAtInt((x + 1) * render_downsample_, y * render_downsample_);
+                double d3 = depth_.getDepthAtInt((x + 1) * render_downsample_, (y + 1) * render_downsample_);
+                double d4 = depth_.getDepthAtInt(x * render_downsample_, (y + 1) * render_downsample_);
+                if(std::fabs(d1 - d2) < max_depth_diff && std::fabs(d1 - d4) < max_depth_diff && std::fabs(d2 - d4) < max_depth_diff) {
+                    index_data_.push_back(y * renderingwidth + x);
+                    index_data_.push_back(y * renderingwidth + x + 1);
+                    index_data_.push_back((y + 1) * renderingwidth + x);
+                }
+                if(std::fabs(d2 - d3) < max_depth_diff && std::fabs(d3 - d4) < max_depth_diff && std::fabs(d2 - d4) < max_depth_diff) {
+                    index_data_.push_back(y * renderingwidth + x + 1);
+                    index_data_.push_back((y + 1) * renderingwidth + x + 1);
+                    index_data_.push_back((y + 1) * renderingwidth + x);
+                }
             }
         }
 

@@ -44,6 +44,20 @@ namespace dynamic_stereo{
 
     private:
         static void initializeShader();
+
+        inline void increment_counter(){
+            render_counter_ += render_direction_ ? 1 : -1;
+            if(identifier_[0] == 'f'){
+                if(render_counter_ == video_textures_.size()){
+                    render_counter_ = 0;
+                }
+            }else {
+                if (render_counter_ == 0 || render_counter_ == video_textures_.size() - 1) {
+                    render_direction_ = !render_direction_;
+                }
+            }
+        }
+
         void renderInternal(const Navigation &navigation);
 //    void renderExternal(const int frameid, const int tid);
 //    void renderStatic(const int frameid, const int tid);
@@ -71,6 +85,7 @@ namespace dynamic_stereo{
         static bool is_shader_init_;
 
         int render_counter_;
+        bool render_direction_;
         int external_counter_;
         int blend_counter_;
 

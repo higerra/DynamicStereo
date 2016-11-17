@@ -19,11 +19,7 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 
-    const int Navigation::animation_stride = 15;
-    const int Navigation::animation_blendNum = 24;
-    const int Navigation::video_rate = 6;
-    const double Navigation::kbspeed = 2.0;
-    const int Navigation::speed_move_scene = 2;
+    const int Navigation::animation_blendNum = 12;
 
     Navigation::Navigation(const string& path):
             fov_(35.0),
@@ -55,11 +51,9 @@ namespace dynamic_stereo{
         frame_width_ = sample_img.width();
         frame_height_ = sample_img.height();
         //read configuration file and get reference frames
-        sprintf(buffer, "%s/conf.json", path.c_str());
+        sprintf(buffer, "%s/render.json", path.c_str());
         ReadConfiguration(string(buffer));
 
-        cx = sfm_model.getCamera(0).PrincipalPointX();
-        cy = sfm_model.getCamera(0).PrincipalPointY();
 
         kNumFrames = frame_ids_.size();
         LOG(INFO) << "Number of frames: " << kNumFrames;
@@ -71,6 +65,13 @@ namespace dynamic_stereo{
             theia::Camera curcam = sfm_model.getCamera(frame_ids_[i]);
             cameras_.push_back(curcam);
             camcenters_.push_back(curcam.GetPosition());
+
+//            cx = sfm_model.getCamera(i).PrincipalPointX();
+//            cy = sfm_model.getCamera(i).PrincipalPointY();
+            cx = frame_width_ / 2;
+            cy = frame_height_ / 2;
+
+
             Vector3d vdir = curcam.PixelToUnitDepthRay(Vector2d(cx, cy));
             vdirs_.push_back(vdir);
 
@@ -90,6 +91,7 @@ namespace dynamic_stereo{
                 near_plane_ = cur_depth.getMinDepth();
             }
         }
+
         //set initial camera
         render_camera_ = getModelViewMatrix(current_frame_, next_frame_, blendweight_frame);
         project_camera_ = getProjectionMatrix(current_frame_, next_frame_, blendweight_frame);
@@ -108,12 +110,26 @@ namespace dynamic_stereo{
         QJsonDocument json_doc = QJsonDocument::fromJson(json_data);
         QJsonObject json_obj = json_doc.object();
 
-        QJsonArray frame_array = json_obj["frames"].toArray();
+        fov_ = json_obj[QString("fov")].toDouble();
+
+        QJsonArray frame_array = json_obj[QString("frames")].toArray();
         for(const auto& frame: frame_array){
             QJsonObject frame_obj = frame.toObject();
-            frame_ids_.push_back(frame_obj["frameid"].toInt());
+            frame_ids_.push_back(frame_obj[QString("frameid")].toInt());
         }
 
+        paths_.resize(frame_ids_.size(), Eigen::Vector4i(-1,-1,-1,-1));
+        int index = 0;
+        QJsonArray path_array = json_obj[QString("paths")].toArray();
+        CHECK_EQ(path_array.size(), frame_ids_.size());
+        for(const auto& path: path_array) {
+            QJsonArray cur_path = path.toArray();
+            CHECK_EQ(cur_path.size(), 4);
+            for (int i = 0; i < 4; ++i) {
+                paths_[index][i] = cur_path[i].toInt();
+            }
+            index++;
+        }
     }
 
     const theia::Camera& Navigation::GetCameraFromGlobalIndex(const int idx) const{
@@ -202,53 +218,32 @@ namespace dynamic_stereo{
         //search optimal next frame by ray tracing
 
         //toy implementation
-        if(direction == MOVE_FORWARD || direction == MOVE_RIGHT){
-            if(base_frame < kNumFrames - 1) {
-                return base_frame + 1;
-            }else{
-                return 0;
-            }
-        }
-        if(direction == MOVE_BACKWARD || direction == MOVE_LEFT){
-            if(base_frame > 0) {
-                return base_frame - 1;
-            }else{
-                return kNumFrames - 1;
-            }
-        }
-        return base_frame;
-
-
-//        Vector3d ray_dir;
-//        if(direction == MOVE_FORWARD){
-//            ray_dir = extrinsics_[base_frame] * Vector4d(0.0, 0.0, 1.0, 0.0);
-//        }else if(direction == MOVE_BACKWARD){
-//            ray_dir = extrinsics_[base_frame] * Vector4d(0.0, 0.0, -1.0, 0.0);
-//        }else if(direction == MOVE_LEFT){
-//            ray_dir = extrinsics_[base_frame] * Vector4d(-1.0, 0.0, 0.0, 0.0);
-//        }else if(direction == MOVE_LEFT){
-//            ray_dir = extrinsics_[base_frame] * Vector4d(1.0, 0.0, 0.0, 0.0);
-//        }
-//
-//        double best_angle = 0.0;
-//        int best_frame = -1;
-//        for(int i=0; i<camcenters_.size(); i++){
-//            if(i == base_frame) {
-//                continue;
-//            }
-//            Vector3d dir1 = camcenters_[i] - camcenters_[base_frame];
-//            dir1.normalize();
-//            double cur_angle = ray_dir.dot(dir1);
-//            if(cur_angle > best_angle){
-//                best_angle = cur_angle;
-//                best_frame = i;
+//        if(direction == MOVE_FORWARD || direction == MOVE_RIGHT){
+//            if(base_frame < kNumFrames - 1) {
+//                return base_frame + 1;
+//            }else{
+//                return 0;
 //            }
 //        }
-//        //printf("base_scene: %d, base_frame: %d best_scene: %d, angle: %.2f\n", base_frame.first, base_frame.second, best_scene, best_angle);
-//        if(best_angle < 0.85)
-//            return -1;
-//        printf("best_frame:%d\n", best_frame);
-//        return best_frame;
+//        if(direction == MOVE_BACKWARD || direction == MOVE_LEFT){
+//            if(base_frame > 0) {
+//                return base_frame - 1;
+//            }else{
+//                return kNumFrames - 1;
+//            }
+//        }
+
+        int next_frame = base_frame;
+        if(direction == MOVE_FORWARD){
+            next_frame = paths_[base_frame][0];
+        }else if(direction == MOVE_BACKWARD){
+            next_frame = paths_[base_frame][1];
+        }else if(direction == MOVE_LEFT){
+            next_frame = paths_[base_frame][2];
+        }else if(direction == MOVE_RIGHT){
+            next_frame = paths_[base_frame][3];
+        }
+        return next_frame;
     }
 
     bool Navigation::MoveFrame(Direction direction){

@@ -35,26 +35,26 @@ namespace dynamic_stereo{
 
 		//build intensity map. Pixel with low intensities should not be considered flashing
 		Mat intensity_map(height, width, CV_8UC1, Scalar::all(0));
-		{
-			const size_t kth = 0.8 * N;
-			vector<vector<uchar> > intensity_array(width * height);
-			for(auto& ia: intensity_array){
-				ia.resize(N, (uchar)0);
-			}
-
-			for(auto v=0; v<N; ++v){
-				Mat gray;
-				cvtColor(smoothed[v], gray, CV_BGR2GRAY);
-				for(auto i=0; i < width * height; ++i){
-					intensity_array[i][v] = gray.data[i];
-				}
-			}
-
-			for(auto i=0; i<width * height; ++i){
-				std::nth_element(intensity_array[i].begin(), intensity_array[i].begin() + kth, intensity_array[i].end());
-				intensity_map.data[i] = intensity_array[i][kth];
-			}
-		}
+//		{
+//			const size_t kth = 0.9 * N;
+//			vector<vector<uchar> > intensity_array(width * height);
+//			for(auto& ia: intensity_array){
+//				ia.resize(N, (uchar)0);
+//			}
+//
+//			for(auto v=0; v<N; ++v){
+//				Mat gray;
+//				cvtColor(smoothed[v], gray, CV_BGR2GRAY);
+//				for(auto i=0; i < width * height; ++i){
+//					intensity_array[i][v] = gray.data[i];
+//				}
+//			}
+//
+//			for(auto i=0; i<width * height; ++i){
+//				std::nth_element(intensity_array[i].begin(), intensity_array[i].begin() + kth, intensity_array[i].end());
+//				intensity_map.data[i] = intensity_array[i][kth];
+//			}
+//		}
 
         //Divide the visible range to kInt intervals, exhaustively search for all ranges
         const int kInt = 10;
@@ -68,10 +68,10 @@ namespace dynamic_stereo{
 #pragma omp parallel for
 		for(auto y=0; y<height; ++y){
 			for(auto x=0; x<width; ++x){
-				if(intensity_map.at<uchar>(y,x) < intensity_threshold){
-					result(x,y) = 0;
-					continue;
-				}
+//				if(intensity_map.at<uchar>(y,x) < intensity_threshold){
+//					result(x,y) = 0;
+//					continue;
+//				}
 				Mat colorArray = Mat(3, N, CV_32FC1, Scalar::all(0));
 				float* pArray = (float*)colorArray.data;
 				for(auto v=0; v<N; ++v) {
@@ -115,14 +115,14 @@ namespace dynamic_stereo{
 	                   const std::vector<cv::Mat> &input,
                        std::vector<std::vector<Eigen::Vector2i> >& segments_flashy,
                        std::vector<Eigen::Vector2i>& ranges) {
-        char buffer[1024] = {};
+        char buffer[128] = {};
         const int width = input[0].cols;
         const int height = input[0].rows;
 
         Mat preSeg(height, width, CV_8UC1, Scalar::all(0));
         //repetative pattern
         printf("Computing frequency confidence...\n");
-        double freThreshold = 0.6;
+        double freThreshold = 0.7;
         Depth frequency;
         Mat frq_range;
         computeFrequencyConfidence(input, freThreshold, frequency, frq_range);
@@ -140,7 +140,7 @@ namespace dynamic_stereo{
         Mat processed;
         cv::erode(preSeg, processed, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rl, rl)));
         cv::dilate(processed, processed, cv::getStructuringElement(MORPH_ELLIPSE, cv::Size(rh, rh)));
-        sprintf(buffer, "%s/temp/segment_flashy%05d.jpg", file_io.getDirectory().c_str(), anchor);
+        sprintf(buffer, "%s/mid/segment_flashy%05d.jpg", file_io.getDirectory().c_str(), anchor);
         imwrite(buffer, processed);
 
         Mat labels;

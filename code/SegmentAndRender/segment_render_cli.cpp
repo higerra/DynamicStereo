@@ -33,6 +33,7 @@ DEFINE_string(codebookPath, "/home/yanhang/Documents/research/DynamicStereo/data
 
 
 DEFINE_string(regularization, "RPCA", "algorithm for regularization, {median, RPCA, poisson, anisotropic, none}");
+DEFINE_bool(blend_flashy, false, "blend flashy");
 
 DEFINE_double(param_stab, 2.0, "parameter for geometric stabilization");
 DECLARE_string(log_dir);
@@ -118,12 +119,15 @@ int main(int argc, char** argv) {
 
     //compute blending weight
     constexpr int blend_R = 3;
-    constexpr int min_segment_size = 300;
+    constexpr int min_segment_size = 100;
 //    Cinemagraph::ComputeBlendMap(cinemagraph.pixel_loc_display, cinemagraph.background.cols, cinemagraph.background.rows,
 //                                 blend_R, cinemagraph.blend_map);
     Cinemagraph::ComputeBlendMap(cinemagraph.pixel_loc_display, cinemagraph.background.cols, cinemagraph.background.rows,
                                  blend_R, min_segment_size, cinemagraph.blend_map_display);
-
+    if(FLAGS_blend_flashy){
+        Cinemagraph::ComputeBlendMap(cinemagraph.pixel_loc_flashy, cinemagraph.background.cols, cinemagraph.background.rows,
+                                     blend_R, min_segment_size, cinemagraph.blend_map_flashy);
+    }
 
     {
         //dump out raw cinemagraph
@@ -151,6 +155,8 @@ int main(int argc, char** argv) {
     cout  << "Step 1: Fill holes by poisson smoothing" << endl;
     const double small_poisson = 0.01;
     regularizationPoisson(mid_input, cinemagraph.pixel_loc_display, mid_output, small_poisson, small_poisson);
+    mid_input.swap(mid_output);
+    mid_output.clear();
     regularizationPoisson(mid_input, cinemagraph.pixel_loc_flashy, mid_output, small_poisson, small_poisson);
     mid_input.swap(mid_output);
     mid_output.clear();

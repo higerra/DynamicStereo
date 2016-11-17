@@ -107,11 +107,14 @@ namespace dynamic_stereo {
             }
 
             CHECK_EQ(featuresMat.rows, width * height);
-#if false
+#if true
             {
                 DistanceCorrelation dis_cor;
                 //debug, inspect some of the feature
-                const int dx1 = 1007, dy1 = 200, dx2 = 1007, dy2 = 199;
+                vector<int> p1{810, 540};
+                vector<int> p2{890, 540};
+                vector<int> p3{1240,650};
+                const int dx1 = p1[0], dy1 = p1[1], dx2 = p3[0], dy2 = p3[1];
                 printf("(%d,%d):\n", dx1, dy1);
                 temporal_extractor->printFeature(featuresMat.row(dy1*width+dx1));
                 printf("(%d,%d):\n", dx2, dy2);

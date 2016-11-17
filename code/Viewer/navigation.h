@@ -109,10 +109,7 @@ private:
     double far_plane_;
 
     //for animation
-    static const int animation_stride;
     static const int animation_blendNum;
-    static const int speed_move_scene;
-    static const int video_rate;
     int animation_counter;
     int video_counter;
 
@@ -130,6 +127,7 @@ private:
     std::vector<Eigen::Vector3d> vdirs_;
     std::vector<Eigen::Vector3d> updirs_;
     std::vector<Eigen::Vector3d> camcenters_;
+    std::vector<Eigen::Vector4i> paths_;
 
     std::vector<std::vector<float> > look_at_table_;
     RenderMode cameraStatus;

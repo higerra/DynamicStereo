@@ -176,7 +176,7 @@ namespace dynamic_stereo{
 
         glViewport(0,0,width(), height());
         int blendNum = navigation.getBlendNum();
-        renderTimer.start(1000.0/(float)blendNum, this);
+        renderTimer.start(500.0/(float)blendNum, this);
     }
 
     void MainWidget::resizeGL(int w, int h){
@@ -261,38 +261,38 @@ namespace dynamic_stereo{
 
         float percent = navigation.getFrameWeight();
         glPushAttrib(GL_ALL_ATTRIB_BITS);
-        if(navigation.getStatus() == Navigation::STATIC){
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-            scenes[current_frame]->render(navigation);
-        }else{
-            glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[0]);
-            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-            scenes[current_frame]->render(navigation);
-
-            glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[1]);
-            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-            scenes[next_frame]->render(navigation);
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            blendFrames(percent);;
-        }
+//        if(navigation.getStatus() == Navigation::STATIC){
+//            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+//            scenes[current_frame]->render(navigation);
+//        }else{
+//            glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[0]);
+//            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+//            scenes[current_frame]->render(navigation);
+//
+//            glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[1]);
+//            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+//            scenes[next_frame]->render(navigation);
+//
+//            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//            blendFrames(percent);;
+//        }
 
 
 //        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 //        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 //        scenes[current_frame]->render(navigation);
 
-//        glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[0]);
-//        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-//        scenes[current_frame]->render(navigation);
-//
-//        glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[1]);
-//        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-//        scenes[next_frame]->render(navigation);
-//
-//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//        blendFrames(percent);;
+        glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[0]);
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+        scenes[current_frame]->render(navigation);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[1]);
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+        scenes[next_frame]->render(navigation);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        blendFrames(percent);;
 
 
 //    if(is_recording){
