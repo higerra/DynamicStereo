@@ -1,3 +1,5 @@
+#include <QJsonArray>
+
 #include "main_widget.h"
 #include "animation.h"
 #include <fstream>
@@ -20,15 +22,30 @@ namespace dynamic_stereo{
             QGLWidget(fmt,parent),
             path(data_directory),
             background(Vector3f(0,0,0)),
+            render_fps_(24),
             track_mouse(true),
-            navigation(data_directory),
             is_recording(false)
     {
         LOG(INFO) << "Initializing";
-        scenes.resize(navigation.getNumFrames());
 //    frame_recorder = shared_ptr<FrameRecorder>(new FrameRecorder(path));
         setFocusPolicy(Qt::StrongFocus);
         setMouseTracking(true);
+
+        //read configuration file
+        QString json_path = QString::fromStdString(data_directory) + QString("/render.json");
+        LOG(INFO) << "Reading " << json_path.toStdString();
+        QFile json_file(json_path);
+        CHECK(json_file.open(QIODevice::ReadOnly));
+
+        QByteArray json_data = json_file.readAll();
+        QJsonDocument json_doc = QJsonDocument::fromJson(json_data);
+        configuration_ = json_doc.object();
+
+        navigation.reset(new Navigation(data_directory, configuration_));
+
+        scenes.resize(navigation->getNumFrames());
+
+
 
         //Init gui
         action_shut = shared_ptr<QAction>(new QAction(tr("Shut Down"), this));
@@ -124,13 +141,24 @@ namespace dynamic_stereo{
 //    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, blendindexBuffer);
 //    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4*sizeof(GLuint), blendindex_data, GL_STATIC_DRAW);
 
-        const vector<int>& frame_ids = navigation.GetFrameIdx();
-        for(int i=0; i<frame_ids.size(); i++){
-            printf("Initializing scene %d\n", i);
-            scenes[i].reset(new Scene(external_textures));
-            if(!scenes[i]->initialize(path, frame_ids[i], navigation)){
-                cerr << "Initalizing scene "<<i<<" failed"<<endl;
+        //read external textures
+        open_external_video();
+
+        char buffer[128] = {};
+        QJsonArray frame_configures = configuration_["frames"].toArray();
+        int index = 0;
+        for(const auto& frame_conf: frame_configures){
+            QJsonObject frame_obj = frame_conf.toObject();
+            printf("Initializing scene %d\n", index);
+            scenes[index].reset(new Scene(external_textures_));
+            std::string cinemagraph_type = "RPCA";
+            if(frame_obj.find(QString("cinemagraph")) != frame_obj.end()){
+                cinemagraph_type = frame_obj["cinemagraph"].toString().toStdString();
             }
+            if(!scenes[index]->initialize(path, cinemagraph_type, frame_obj["frameid"].toInt(), *navigation)){
+                cerr << "Initalizing scene "<<index<<" failed"<<endl;
+            }
+            index++;
         }
     }
 
@@ -175,8 +203,10 @@ namespace dynamic_stereo{
         //open_external_video();
 
         glViewport(0,0,width(), height());
-        int blendNum = navigation.getBlendNum();
-        renderTimer.start(500.0/(float)blendNum, this);
+        int blendNum = navigation->getBlendNum();
+        renderTimer_.start(1000.0/(float)render_fps_, this);
+
+
     }
 
     void MainWidget::resizeGL(int w, int h){
@@ -184,21 +214,27 @@ namespace dynamic_stereo{
     }
 
     void MainWidget::open_external_video(){
+        if(configuration_.find("external_textures") == configuration_.end()){
+            return;
+        }
+
         cout << "Opening external video" << endl;
         cv::Size dsize(400,400);
         const int border = 10;
         const int max_count = 300;
         int i = 0;
         char buffer[100] = {};
-        while(true){
-            sprintf(buffer, "external%03d.mp4", i++);
+
+        QJsonArray external_texture_paths = configuration_["external_textures"].toArray();
+        for(const auto& video_path: external_texture_paths){
             cv::VideoCapture video;
-            video.open(string(buffer));
+            string path_str = path + "/" + video_path.toString().toStdString();
+            cout << "Opening " << path_str << endl;
+            video.open(path_str);
             if(!video.isOpened()){
                 cout << buffer << " not found" << endl;
                 break;
             }
-            cout << "Reading video:"<< buffer <<"..." << flush;
             vector<shared_ptr<QOpenGLTexture> > curtexture;
             int count = 0;
             while(true){
@@ -208,28 +244,31 @@ namespace dynamic_stereo{
                 if(!video.read(frame))
                     break;
                 cv::resize(frame, small, cv::Size(dsize.width-2*border,dsize.height-2*border));
-                cv::Mat teximg(dsize, CV_8UC3);
-                for(int x=0; x<teximg.cols; ++x){
-                    for(int y=0; y<teximg.rows; ++y){
-                        if(x < border || y < border || x > teximg.cols-border || y > teximg.rows-border)
-                            teximg.at<cv::Vec3b>(y,x) = cv::Vec3b(3,3,3);
-                        else{
-                            cv::Vec3b curpix = small.at<cv::Vec3b>(y-border, x-border);
-                            uchar temp = curpix[0];
-                            curpix[0] = curpix[2];
-                            curpix[2] = temp;
-                            if(curpix[0] < 3 && curpix[1] < 3 && curpix[2] < 3)
-                                curpix = cv::Vec3b(3,3,3);
-                            teximg.at<cv::Vec3b>(y,x) = curpix;
-                        }
-                    }
-                }
-                shared_ptr<QOpenGLTexture> curtex(new QOpenGLTexture(
-                        QImage(teximg.data, teximg.cols, teximg.rows, QImage::Format_RGB888)));
-                curtexture.push_back(curtex);
+//                cv::Mat teximg(dsize, CV_8UC3);
+//                for(int x=0; x<teximg.cols; ++x){
+//                    for(int y=0; y<teximg.rows; ++y){
+//                        if(x < border || y < border || x > teximg.cols-border || y > teximg.rows-border)
+//                            teximg.at<cv::Vec3b>(y,x) = cv::Vec3b(3,3,3);
+//                        else{
+//                            cv::Vec3b curpix = small.at<cv::Vec3b>(y-border, x-border);
+//                            uchar temp = curpix[0];
+//                            curpix[0] = curpix[2];
+//                            curpix[2] = temp;
+//                            if(curpix[0] < 3 && curpix[1] < 3 && curpix[2] < 3)
+//                                curpix = cv::Vec3b(3,3,3);
+//                            teximg.at<cv::Vec3b>(y,x) = curpix;
+//                        }
+//                    }
+//                }
+//                shared_ptr<QOpenGLTexture> curtex(new QOpenGLTexture(
+//                        QImage(teximg.data, teximg.cols, teximg.rows, QImage::Format_RGB888)));
+            shared_ptr<QOpenGLTexture> curtex(new QOpenGLTexture(
+                    QImage(small.data, small.cols, small.rows, QImage::Format_RGB888)));
+
+            curtexture.push_back(curtex);
                 count++;
             }
-            external_textures.push_back(curtexture);
+            external_textures_.push_back(curtexture);
             cout<<"complete, frame count:" << count<<endl;
         }
     }
@@ -256,10 +295,10 @@ namespace dynamic_stereo{
     }
 
     void MainWidget::paintGL(){
-        const int current_frame = navigation.getCurrentFrame();
-        const int next_frame = navigation.getNextFrame();
+        const int current_frame = navigation->getCurrentFrame();
+        const int next_frame = navigation->getNextFrame();
 
-        float percent = navigation.getFrameWeight();
+        float percent = navigation->getFrameWeight();
         glPushAttrib(GL_ALL_ATTRIB_BITS);
 //        if(navigation.getStatus() == Navigation::STATIC){
 //            glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -285,11 +324,11 @@ namespace dynamic_stereo{
 
         glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[0]);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-        scenes[current_frame]->render(navigation);
+        scenes[current_frame]->render(*navigation);
 
         glBindFramebuffer(GL_FRAMEBUFFER, blendframebuffer[1]);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-        scenes[next_frame]->render(navigation);
+        scenes[next_frame]->render(*navigation);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         blendFrames(percent);;
@@ -372,11 +411,11 @@ namespace dynamic_stereo{
     void MainWidget::keyPressEvent(QKeyEvent *e){
         switch(e->key()){
             case(Qt::Key_P):{
-                renderTimer.stop();
+                renderTimer_.stop();
                 break;
             }
             case(Qt::Key_S):{
-                renderTimer.start(1000/(float)navigation.getBlendNum(), this);
+                renderTimer_.start(1000/(float)navigation->getBlendNum(), this);
                 break;
             }
             case(Qt::Key_R):{
@@ -388,7 +427,7 @@ namespace dynamic_stereo{
                 break;
             }
             default:
-                navigation.processKeyEvent(e);
+                navigation->processKeyEvent(e);
                 break;
         }
     }
@@ -411,7 +450,7 @@ namespace dynamic_stereo{
     }
 
     void MainWidget::mouseDoubleClickEvent(QMouseEvent *e){
-        navigation.processMouseEvent(Navigation::DOUBLE_CLICK, 0, 0);
+        navigation->processMouseEvent(Navigation::DOUBLE_CLICK, 0, 0);
     }
 
     void MainWidget::mouseReleaseEvent(QMouseEvent* e){
@@ -419,12 +458,12 @@ namespace dynamic_stereo{
         int dy = e->y() - mousey;
         mousex = e->x();
         mousey = e->y();
-        navigation.processMouseEvent(Navigation::MOVE, dx, dy);
+        navigation->processMouseEvent(Navigation::MOVE, dx, dy);
         track_mouse = true;
     }
 
     void MainWidget::timerEvent(QTimerEvent* event){
-        navigation.updateNavigation();
+        navigation->updateNavigation();
         updateGL();
     }
 

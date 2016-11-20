@@ -21,7 +21,7 @@ namespace dynamic_stereo{
 
     const int Navigation::animation_blendNum = 12;
 
-    Navigation::Navigation(const string& path):
+    Navigation::Navigation(const string& path, const QJsonObject& configuration):
             fov_(35.0),
             cx(-1),
             cy(-1),
@@ -51,9 +51,7 @@ namespace dynamic_stereo{
         frame_width_ = sample_img.width();
         frame_height_ = sample_img.height();
         //read configuration file and get reference frames
-        sprintf(buffer, "%s/render.json", path.c_str());
-        ReadConfiguration(string(buffer));
-
+        ParseConfiguration(configuration);
 
         kNumFrames = frame_ids_.size();
         LOG(INFO) << "Number of frames: " << kNumFrames;
@@ -102,18 +100,10 @@ namespace dynamic_stereo{
 
     }
 
-    void Navigation::ReadConfiguration(const std::string& json_path){
-        LOG(INFO) << "Reading " << json_path;
-        QFile json_file(QString::fromStdString(json_path));
-        CHECK(json_file.open(QIODevice::ReadOnly));
+    void Navigation::ParseConfiguration(const QJsonObject &configuration){
+        fov_ = configuration[QString("fov")].toDouble();
 
-        QByteArray json_data = json_file.readAll();
-        QJsonDocument json_doc = QJsonDocument::fromJson(json_data);
-        QJsonObject json_obj = json_doc.object();
-
-        fov_ = json_obj[QString("fov")].toDouble();
-
-        QJsonArray frame_array = json_obj[QString("frames")].toArray();
+        QJsonArray frame_array = configuration[QString("frames")].toArray();
         for(const auto& frame: frame_array){
             QJsonObject frame_obj = frame.toObject();
             frame_ids_.push_back(frame_obj[QString("frameid")].toInt());
@@ -121,7 +111,7 @@ namespace dynamic_stereo{
 
         paths_.resize(frame_ids_.size(), Eigen::Vector4i(-1,-1,-1,-1));
         int index = 0;
-        QJsonArray path_array = json_obj[QString("paths")].toArray();
+        QJsonArray path_array = configuration[QString("paths")].toArray();
         CHECK_EQ(path_array.size(), frame_ids_.size());
         for(const auto& path: path_array) {
             QJsonArray cur_path = path.toArray();
@@ -152,8 +142,12 @@ namespace dynamic_stereo{
 
         Vector3d camcenter = percent * camcenters_[frameid1] + (1.0-percent) * camcenters_[frameid2];
         Vector3d updir = interpolateVector3D(updirs_[frameid1], updirs_[frameid2], 1.0 - percent);
-        Vector3d framecenter = (vdirs_[frameid1] * far_depth + camcenters_[frameid1]) * percent +
-                               (1-percent) * (vdirs_[frameid2] * far_depth + camcenters_[frameid2]);
+
+        Vector3d vdir = interpolateVector3D(vdirs_[frameid1], vdirs_[frameid2], 1.0 - percent);
+//        Vector3d framecenter = (vdirs_[frameid1] * far_depth + camcenters_[frameid1]) * percent +
+//                               (1-percent) * (vdirs_[frameid2] * far_depth + camcenters_[frameid2]);
+//
+        Vector3d framecenter = vdir * far_depth + camcenter;
 
         QMatrix4x4 m;
         m.setToIdentity();

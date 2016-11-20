@@ -22,6 +22,8 @@
 #include <QMenuBar>
 #include <QPoint>
 #include <QContextMenuEvent>
+#include <QJsonObject>
+
 #include <vector>
 #include "../base/file_io.h"
 #include "navigation.h"
@@ -43,6 +45,8 @@ public slots:
     void shut_down_display();
 
 protected:
+    void ParseConfiguration(const QString& path);
+
     void keyPressEvent(QKeyEvent *e) Q_DECL_OVERRIDE;
     void mousePressEvent(QMouseEvent* e) Q_DECL_OVERRIDE;
     void mouseReleaseEvent(QMouseEvent* e) Q_DECL_OVERRIDE;
@@ -57,6 +61,9 @@ protected:
 private:
     void blendFrames(float percent);
     void open_external_video();
+
+    QJsonObject configuration_;
+    std::shared_ptr<Navigation> navigation;
 
     static const int kNumBlendBuffers;
     const Eigen::Vector3f background;
@@ -84,11 +91,10 @@ private:
     int contextx, contexty;
     bool track_mouse;
 
-    Navigation navigation;
-
-    std::vector<std::vector<std::shared_ptr<QOpenGLTexture> > >external_textures;
+    std::vector<std::vector<std::shared_ptr<QOpenGLTexture> > >external_textures_;
     //For animation
-    QBasicTimer renderTimer;
+    const int render_fps_;
+    QBasicTimer renderTimer_;
 
     std::shared_ptr<QAction> action_internal;
     std::shared_ptr<QAction> action_shut;

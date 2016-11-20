@@ -48,32 +48,32 @@ namespace dynamic_stereo {
         };
 
         inline bool check_cinemagraph(const Cinemagraph& input){
-//            if(!input.background.data){
-//                return false;
-//            }
-//            if(input.pixel_loc_display.size() != input.pixel_mat_display.size()){
-//                return false;
-//            }
-//            if(input.corners.size() != input.pixel_loc_display.size()){
-//                return false;
-//            }
-//            if(input.pixel_loc_display.size() != input.ranges_display.size()){
-//                return false;
-//            }
-//            if(input.pixel_loc_flashy.size() != input.pixel_mat_flashy.size()){
-//                return false;
-//            }
-//            if(input.pixel_loc_flashy.size() != input.ranges_flashy.size()){
-//                return false;
-//            }
+            if(!input.background.data){
+                return false;
+            }
+            if(input.pixel_loc_display.size() != input.pixel_mat_display.size()){
+                return false;
+            }
+            if(input.corners.size() != input.pixel_loc_display.size()){
+                return false;
+            }
+            if(input.pixel_loc_display.size() != input.ranges_display.size()){
+                return false;
+            }
+            if(input.pixel_loc_flashy.size() != input.pixel_mat_flashy.size()){
+                return false;
+            }
+            if(input.pixel_loc_flashy.size() != input.ranges_flashy.size()){
+                return false;
+            }
 
-            CHECK(input.background.data);
-
-            CHECK_EQ(input.pixel_loc_display.size(), input.pixel_mat_display.size());
-            CHECK_EQ(input.corners.size(), input.pixel_loc_display.size());
-            CHECK_EQ(input.pixel_loc_display.size(), input.ranges_display.size());
-            CHECK_EQ(input.pixel_loc_flashy.size(), input.pixel_mat_flashy.size());
-            CHECK_EQ(input.pixel_loc_flashy.size(), input.ranges_flashy.size());
+//            CHECK(input.background.data);
+//
+//            CHECK_EQ(input.pixel_loc_display.size(), input.pixel_mat_display.size());
+//            CHECK_EQ(input.corners.size(), input.pixel_loc_display.size());
+//            CHECK_EQ(input.pixel_loc_display.size(), input.ranges_display.size());
+//            CHECK_EQ(input.pixel_loc_flashy.size(), input.pixel_mat_flashy.size());
+//            CHECK_EQ(input.pixel_loc_flashy.size(), input.ranges_flashy.size());
             return true;
         }
 

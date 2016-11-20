@@ -14,18 +14,19 @@ namespace dynamic_stereo{
             shared_ptr<QOpenGLShaderProgram>(new QOpenGLShaderProgram());
     bool Scene::is_shader_init = false;
 
-    bool Scene::initialize(const std::string &path, const int frame_id, const Navigation &navigation){
+    bool Scene::initialize(const std::string &path, const std::string& cinemagraph_type,
+                           const int frame_id, const Navigation &navigation){
         initializeOpenGLFunctions();
         frame_id_ = frame_id;
         file_io = make_shared<FileIO>(FileIO(path));
 
+        printf("frame id: %d, cinemagraph_path: %s\n", frame_id_, cinemagraph_type.c_str());
         CHECK_LT(frame_id_, file_io->getTotalNum());
         CHECK(background_.load(QString::fromStdString(file_io->getImage(frame_id_)))) << file_io->getImage(frame_id_);
         CHECK(depth_.readDepthFromFile(file_io->getDepthFile(frame_id_))) << file_io->getDepthFile(frame_id_);
         //depth_.fillholeAndSmooth(0.1);
 
         depth_.updateStatics();
-
 
         depth_downsample_ = (double)background_.width() / (double)depth_.getWidth();
         camera_ = navigation.GetCameraFromGlobalIndex(frame_id_);
@@ -54,9 +55,10 @@ namespace dynamic_stereo{
         //read cinemagraph
         LOG(INFO) << "Initializing dynamic renderers";
         char buffer[128] = {};
-        sprintf(buffer, "%s/temp/cinemagraph_%05d_RPCA.cg", file_io->getDirectory().c_str(), frame_id_);
+        sprintf(buffer, "%s/temp/cinemagraph_%05d_%s.cg", file_io->getDirectory().c_str(), frame_id_, cinemagraph_type.c_str());
         Cinemagraph::Cinemagraph cinemagraph;
         Cinemagraph::ReadCinemagraph(string(buffer), cinemagraph);
+        Cinemagraph::check_cinemagraph(cinemagraph);
         for(int i=0; i<cinemagraph.pixel_loc_flashy.size(); ++i){
             sprintf(buffer, "flashy_%03d", i);
             std::shared_ptr<VideoRenderer> dynamic_renderer(

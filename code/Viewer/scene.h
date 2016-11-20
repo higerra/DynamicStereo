@@ -26,17 +26,18 @@ namespace dynamic_stereo{
 
     class Scene : protected QOpenGLFunctions{
     public:
-        Scene(const std::vector< std::vector<std::shared_ptr<QOpenGLTexture> > >& external_textures_)
-                :external_textures(external_textures_), frame_id_(0){}
+        Scene(const std::vector< std::vector<std::shared_ptr<QOpenGLTexture> > >& external_textures)
+                :external_textures_(external_textures), frame_id_(0){}
         ~Scene();
-        bool initialize(const std::string& path, const int frame_id, const Navigation& navigation);
+        bool initialize(const std::string& path, const std::string& cinemagraph_type,
+                        const int frame_id, const Navigation& navigation);
 
         void render(const Navigation& navigation);
 
     private:
         static void initializeShader();
 
-        const std::vector<std::vector<std::shared_ptr<QOpenGLTexture> > >& external_textures;
+        const std::vector<std::vector<std::shared_ptr<QOpenGLTexture> > >& external_textures_;
         std::shared_ptr<FileIO> file_io;
         int frame_id_;
         static const double render_downsample_;

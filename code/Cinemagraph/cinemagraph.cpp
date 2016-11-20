@@ -3,6 +3,7 @@
 //
 
 #include "cinemagraph.h"
+#include "cinemagraph_util.h"
 
 using namespace std;
 using namespace cv;
@@ -126,7 +127,6 @@ namespace dynamic_stereo{
                 }
             }
         }
-
         bool ReadCinemagraph(const std::string &path, Cinemagraph& output) {
             ifstream in(path.c_str());
             CHECK(in.is_open()) << "Can not open file to read: " << path;

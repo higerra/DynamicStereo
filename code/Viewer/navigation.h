@@ -29,11 +29,11 @@ public:
     enum MouseEventType{MOVE, CLICK, DOUBLE_CLICK};
     enum Direction{MOVE_FORWARD,MOVE_BACKWARD,MOVE_LEFT,MOVE_RIGHT};
 
-    explicit Navigation(const std::string& path);
+    explicit Navigation(const std::string& path, const QJsonObject& configuration);
     ~Navigation();
 
     //read configuration file and return frame ids
-    void ReadConfiguration(const std::string& json_path);
+    void ParseConfiguration(const QJsonObject& configuration);
 
     inline const QMatrix4x4& getRenderCamera()const {return render_camera_;}
     inline const QMatrix4x4& getProjection()const {return project_camera_;}
