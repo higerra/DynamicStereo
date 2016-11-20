@@ -115,6 +115,37 @@ namespace dynamic_stereo{
         glBindBuffer(GL_ARRAY_BUFFER, texcoord_buffer_);
         glBufferData(GL_ARRAY_BUFFER, texcoord_data_.size() * sizeof(GLfloat), texcoord_data_.data(), GL_STATIC_DRAW);
 
+        if(external_textures_!= nullptr && corners_.size() == 8 &&
+           std::find(corners_.begin(), corners_.end(), -1) == corners_.end()){
+            for(int i=0; i<corners_.size(); i+=2){
+                const int x = corners_[i], y = corners_[i+1];
+                double d = ref_depth.getDepthAt(Eigen::Vector2d((double)x / downsample_depth, (double)y / downsample_depth));
+                Vector3d world_pt = camera.PixelToUnitDepthRay(Vector2d(x,y)) * d + camera.GetPosition();
+                external_vertex_data_.push_back((GLfloat) world_pt[0]);
+                external_vertex_data_.push_back((GLfloat) world_pt[1]);
+                external_vertex_data_.push_back((GLfloat) world_pt[2]);
+            }
+
+            external_texcoord_data_ = {(GLfloat)1.0f, (GLfloat)0.0f,
+                                       (GLfloat)0.0f, (GLfloat)0.0f,
+                                       (GLfloat)0.0f, (GLfloat)1.0f,
+                                       (GLfloat)1.0f, (GLfloat)1.0f};
+            external_index_data_ = {(GLuint)0, (GLuint)1, (GLuint)2,
+                           (GLuint)0, (GLuint)2, (GLuint)3};
+
+            glGenBuffers(1, &external_vertex_buffer_);
+            glBindBuffer(GL_ARRAY_BUFFER, external_vertex_buffer_);
+            glBufferData(GL_ARRAY_BUFFER, external_vertex_data_.size() * sizeof(GLfloat), external_vertex_data_.data(), GL_STATIC_DRAW);
+
+            glGenBuffers(1, &external_texcoord_buffer_);
+            glBindBuffer(GL_ARRAY_BUFFER, external_texcoord_buffer_);
+            glBufferData(GL_ARRAY_BUFFER, external_texcoord_data_.size() * sizeof(GLfloat), external_texcoord_data_.data(), GL_STATIC_DRAW);
+
+            glGenBuffers(1, &external_index_buffer_);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, external_index_buffer_);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, external_index_data_.size() * sizeof(GLuint), external_index_data_.data(), GL_STATIC_DRAW);
+        }
+
         initializeShader();
     }
 
@@ -148,6 +179,11 @@ namespace dynamic_stereo{
             case INTERNAL:
                 renderInternal(navigation);
                 break;
+            case EXTERNAL:
+                renderExternal(navigation);
+                break;
+            case STATIC:
+                renderStatic(navigation);
             default:
                 renderInternal(navigation);
                 break;
@@ -155,10 +191,11 @@ namespace dynamic_stereo{
         shader_->release();
         glDisable(GL_TEXTURE_2D);
         glPopAttrib();
+
+        increment_counter();
     }
 
     void VideoRenderer::renderInternal(const Navigation& navigation){
-        glPushAttrib(GL_ALL_ATTRIB_BITS);
         glActiveTexture(GL_TEXTURE0);
         video_textures_[render_counter_]->bind();
         if(!video_textures_[render_counter_]->isBound()){
@@ -173,55 +210,36 @@ namespace dynamic_stereo{
         shader_->setAttributeBuffer("texcoord", GL_FLOAT, 0, 2);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_);
         glDrawElements(GL_TRIANGLES, (GLsizei)index_data_.size(), GL_UNSIGNED_INT, 0);
-
-        increment_counter();
-
-        glPopAttrib();
     }
 
-//    void videoRenderer::renderStatic(const int frameid, const int tid){
-//        glActiveTexture(GL_TEXTURE0);
-//        statictexture[tid]->bind();
-//        if(!statictexture[tid]->isBound()){
-//            cerr << "videoRenderer::render: can not bind static texture: tid: "<<tid<<" frameid:"<<frameid<<endl;
-//            return;
-//        }
-//        shader->setUniformValue("tex0",0);
-//        shader->setUniformValue("tex1",0);
-//        shader->setUniformValue("weight", (GLfloat)1.0);
-//
-//        glBindBuffer(GL_ARRAY_BUFFER, videoVertexBuffer[tid][frameid-startid[tid]]);
-//        shader->setAttributeBuffer("vPosition", GL_FLOAT, 0, 3);
-//        glBindBuffer(GL_ARRAY_BUFFER, texcoordBuffer);
-//        shader->setAttributeBuffer("texcoord", GL_FLOAT, 0, 2);
-//        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-//        glDrawElements(GL_TRIANGLES, (GLsizei)index_data.size(), GL_UNSIGNED_INT, 0);
-//    }
-//
-//    void videoRenderer::renderExternal(const int frameid,const int tid){
-//        int channel = channel_counter[tid];
-//        int totalnum = (int)externaltextures[channel].size();
-//        if(totalnum == 0)
-//            return;
-//        external_counter[tid]++;
-//        if(external_counter[tid] >= totalnum)
-//            external_counter[tid] = 0;
-//        glActiveTexture(GL_TEXTURE0);
-//        externaltextures[channel][external_counter[tid]]->bind();
-//        if(!externaltextures[channel][external_counter[tid]]->isBound()){
-//            cerr << "videoRenderer::render: can not bind external texture: tid: "<<tid<<" frameid:"<<frameid<<endl;
-//            return;
-//        }
-//        shader->setUniformValue("tex0",0);
-//        shader->setUniformValue("tex1",0);
-//        shader->setUniformValue("weight", (GLfloat)1.0);
-//
-//        glBindBuffer(GL_ARRAY_BUFFER, videoVertexBuffer[tid][frameid-startid[tid]]);
-//        shader->setAttributeBuffer("vPosition", GL_FLOAT, 0, 3);
-//        glBindBuffer(GL_ARRAY_BUFFER, texcoordBuffer);
-//        shader->setAttributeBuffer("texcoord", GL_FLOAT, 0, 2);
-//        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-//        glDrawElements(GL_TRIANGLES, (GLsizei)index_data.size(), GL_UNSIGNED_INT, 0);
-//    }
+    void VideoRenderer::renderStatic(const Navigation& navigation){
+        return;
+    }
+
+
+    void VideoRenderer::renderExternal(const Navigation& navigation){
+        //if no display detected or no external texture, render internal texture
+        if(!external_textures_ || corners_[0] == -1){
+            renderInternal(navigation);
+            return;
+        }
+        glActiveTexture(GL_TEXTURE0);
+        (*external_textures_)[external_counter_]->bind();
+        if(!(*external_textures_)[external_counter_]->isBound()){
+            cerr << "videoRenderer::render: can not bind external texture: "<< identifier_ << "," << external_counter_ << endl;
+            renderInternal(navigation);
+        }
+
+        shader_->setUniformValue("tex0",0);
+
+        glBindBuffer(GL_ARRAY_BUFFER, external_vertex_buffer_);
+        shader_->setAttributeBuffer("vPosition", GL_FLOAT, 0, 3);
+        glBindBuffer(GL_ARRAY_BUFFER, external_texcoord_buffer_);
+        shader_->setAttributeBuffer("texcoord", GL_FLOAT, 0, 2);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, external_index_buffer_);
+        glDrawElements(GL_TRIANGLES, (GLsizei)external_index_data_.size(), GL_UNSIGNED_INT, 0);
+
+
+    }
 }//namespace dynamic_rendering
 

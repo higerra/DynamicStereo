@@ -262,10 +262,11 @@ namespace dynamic_stereo{
 //                }
 //                shared_ptr<QOpenGLTexture> curtex(new QOpenGLTexture(
 //                        QImage(teximg.data, teximg.cols, teximg.rows, QImage::Format_RGB888)));
-            shared_ptr<QOpenGLTexture> curtex(new QOpenGLTexture(
-                    QImage(small.data, small.cols, small.rows, QImage::Format_RGB888)));
+                cv::cvtColor(small, small, CV_BGR2RGB);
+                shared_ptr<QOpenGLTexture> curtex(new QOpenGLTexture(
+                        QImage(small.data, small.cols, small.rows, QImage::Format_RGB888)));
 
-            curtexture.push_back(curtex);
+                curtexture.push_back(curtex);
                 count++;
             }
             external_textures_.push_back(curtexture);
@@ -424,6 +425,16 @@ namespace dynamic_stereo{
                     cout << "Recording on" << endl;
                 else
                     cout << "Recording off" <<endl;
+                break;
+            }
+            case(Qt::Key_E):{
+                int scene_id = navigation->getCurrentFrame();
+                scenes[scene_id]->ChangeSource(VideoRenderer::EXTERNAL);
+                break;
+            }
+            case(Qt::Key_I):{
+                int scene_id = navigation->getCurrentFrame();
+                scenes[scene_id]->ChangeSource(VideoRenderer::INTERNAL);
                 break;
             }
             default:

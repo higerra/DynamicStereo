@@ -25,9 +25,11 @@ namespace dynamic_stereo{
                       const std::vector<std::shared_ptr<QOpenGLTexture> >* external_texture);
 
         void render(const Navigation &navigation);
-//    void changeSource(int frameid, int x, int y,
-//                      const VideoSource& new_source,
-//                      int channel = 0);
+
+        inline void change_source(const VideoSource& new_source){
+            source_ = new_source;
+        }
+
 //    int getDisplayID(int frameid, int x, int y);
 //    void setHighlight(int frameid, int x, int y);
 
@@ -41,6 +43,10 @@ namespace dynamic_stereo{
         inline VideoSource GetCurrentSource() const{
             return source_;
         }
+
+        void renderInternal(const Navigation& navigation);
+        void renderExternal(const Navigation& navigation);
+        void renderStatic(const Navigation& navigation);
 
     private:
         static void initializeShader();
@@ -56,11 +62,13 @@ namespace dynamic_stereo{
                     render_direction_ = !render_direction_;
                 }
             }
+            if(external_textures_) {
+                external_counter_ += 1;
+                if(external_counter_ >= external_textures_->size()){
+                    external_counter_ = 0;
+                }
+            }
         }
-
-        void renderInternal(const Navigation &navigation);
-//    void renderExternal(const int frameid, const int tid);
-//    void renderStatic(const int frameid, const int tid);
 
         const std::string identifier_;
 
@@ -72,6 +80,7 @@ namespace dynamic_stereo{
         const std::vector<std::shared_ptr<QOpenGLTexture> >* external_textures_;
         //std::vector<std::shared_ptr<QOpenGLTexture> > static_texture_;
 
+        //for internal texture
         std::vector<GLfloat> vertex_data_;
         GLuint video_vertex_buffer_;
 
@@ -80,6 +89,16 @@ namespace dynamic_stereo{
 
         std::vector<GLuint> index_data_;
         GLuint index_buffer_;
+
+        //for external texture
+        std::vector<GLfloat> external_vertex_data_;
+        GLuint external_vertex_buffer_;
+
+        std::vector<GLfloat> external_texcoord_data_;
+        GLuint external_texcoord_buffer_;
+
+        std::vector<GLuint> external_index_data_;
+        GLuint external_index_buffer_;
 
         static std::shared_ptr<QOpenGLShaderProgram> shader_;
         static bool is_shader_init_;

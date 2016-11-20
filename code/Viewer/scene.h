@@ -34,6 +34,12 @@ namespace dynamic_stereo{
 
         void render(const Navigation& navigation);
 
+        inline void ChangeSource(const VideoRenderer::VideoSource new_source){
+            for(const auto& vr: video_renderers_){
+                vr->change_source(new_source);
+            }
+        }
+
     private:
         static void initializeShader();
 

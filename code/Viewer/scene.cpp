@@ -68,10 +68,14 @@ namespace dynamic_stereo{
         }
         for(int i=0; i<cinemagraph.pixel_loc_display.size(); ++i){
             sprintf(buffer, "display_%03d", i);
+            const std::vector<std::shared_ptr<QOpenGLTexture> >* cur_ext_texture = nullptr;
+            if(!external_textures_.empty()){
+                cur_ext_texture = &external_textures_[i % (int)external_textures_.size()];
+            }
             std::shared_ptr<VideoRenderer> dynamic_renderer(
                     new VideoRenderer(string(buffer), background_, depth_, camera_,
                                       cinemagraph.pixel_loc_display[i], cinemagraph.pixel_mat_display[i],
-                                      cinemagraph.corners[i], nullptr));
+                                      cinemagraph.corners[i], cur_ext_texture));
             video_renderers_.push_back(dynamic_renderer);
         }
 

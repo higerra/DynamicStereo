@@ -13,16 +13,56 @@ using namespace Eigen;
 namespace dynamic_stereo{
     namespace Cinemagraph{
 
-        struct AreaRatioFunctor{
+        struct AreaRatioFunctor {
         public:
-            AreaRatioFunctor(const std::vector<Eigen::Vector2i>& locs, const double weight):
+            AreaRatioFunctor(const std::vector<Eigen::Vector2i> &locs, const double weight) :
+                    locs_(locs), weight_(weight) {}
+
+            bool operator()(const double *const p1, const double *const p2,
+                            const double *const p3, const double *const p4,
+                            double *residual) const {
+                std::vector<cv::Point> poly{cv::Point(p1[0], p1[1]), cv::Point(p2[0], p2[1]),
+                                            cv::Point(p3[0], p3[1]), cv::Point(p4[0], p4[1])};
+                float num_intersect = 0.0;
+                for (const auto &pt: locs_) {
+                    if (cv::pointPolygonTest(poly, cv::Point2f(pt[0], pt[1]), false)) {
+                        num_intersect += 1.0;
+                    }
+
+                }
+                const float r1 = num_intersect / (float) locs_.size();
+                residual[0] = (1 - r1) * weight_;
+
+                return true;
+            }
+
+        private:
+            const std::vector<Eigen::Vector2i> &locs_;
+            const double weight_;
+        };
+
+        struct FillRatioFunctor{
+        public:
+            FillRatioFunctor(const std::vector<Eigen::Vector2i>& locs, const double weight):
                     locs_(locs), weight_(weight){}
 
-            bool operator() (const double * const x1, const double * const y1,
-                             const double * const x2, const double * const y2,
-                             const double * const x3, const double * const y3,
-                             const double * const x4, const double * const y4, double* residual) const{
-
+            bool operator() (const double * const p1, const double * const p2,
+                             const double * const p3, const double * const p4, double* residual) const{
+                std::vector<cv::Point> poly{cv::Point(p1[0],p1[1]),cv::Point(p2[0],p2[1]),
+                                            cv::Point(p3[0],p3[1]), cv::Point(p4[0], p4[1])};
+                float num_intersect = 0.0;
+                const float contour_area = cv::contourArea(poly);
+                if(contour_area < FLT_EPSILON){
+                    residual[0] = 10;
+                    return true;
+                }
+                for(const auto& pt: locs_){
+                    if(cv::pointPolygonTest(poly, cv::Point2f(pt[0], pt[1]), false)) {
+                        num_intersect += 1.0;
+                    }
+                }
+                const float r2 = num_intersect / contour_area;
+                residual[0] = (1-r2) * weight_;
                 return true;
             }
         private:
@@ -30,7 +70,37 @@ namespace dynamic_stereo{
             const double weight_;
         };
 
+
+
         static void RefineQuadNonLinear(const std::vector<Eigen::Vector2i>& locs, std::vector<cv::Point>& corners){
+            CHECK_EQ(corners.size(), 4);
+            ceres::Problem problem;
+            vector<double> vars{(double)corners[0].x, (double)corners[0].y,
+                                (double)corners[1].x, (double)corners[1].y,
+                                (double)corners[2].x, (double)corners[2].y,
+                                (double)corners[3].x, (double)corners[3].y};
+            const double weight_fill = 0.1;
+            problem.AddResidualBlock(
+                    new ceres::NumericDiffCostFunction<AreaRatioFunctor, ceres::CENTRAL, 1,2,2,2,2>(
+                            new AreaRatioFunctor(locs, 1.0)), nullptr,
+                    &vars[0], &vars[2], &vars[4], &vars[6]
+            );
+            problem.AddResidualBlock(
+                    new ceres::NumericDiffCostFunction<FillRatioFunctor, ceres::CENTRAL, 1,2,2,2,2>(
+                            new FillRatioFunctor(locs, weight_fill)), nullptr,
+                    &vars[0], &vars[2], &vars[4], &vars[6]
+            );
+
+            ceres::Solver::Options options;
+            options.minimizer_progress_to_stdout = true;
+            ceres::Solver::Summary summary;
+            ceres::Solve(options, &problem, &summary);
+            cout << summary.BriefReport() << endl;
+
+            for(auto i=0; i<4; ++i){
+                corners[i].x = (int)vars[i*2];
+                corners[i].y = (int)vars[i*2+1];
+            }
 
         }
 
@@ -40,7 +110,7 @@ namespace dynamic_stereo{
                 output.resize(8, -1);
             }
             const int min_size = 2000;
-            const float max_aspect_ratio = 5;
+            const float max_aspect_ratio = 7;
             const float min_overlap_ratio = 0.90;
             printf("============================\n");
             printf("Size: %d\n", (int)locs.size());
@@ -57,7 +127,7 @@ namespace dynamic_stereo{
             vector<cv::Point> approx_contour;
             double approx_epsilon = 1.0;
             CHECK(!contours.empty());
-            while(approx_epsilon < 50) {
+            while(approx_epsilon < 20) {
                 cv::approxPolyDP(contours[0], approx_contour, approx_epsilon, true);
                 if (approx_contour.size() == 4) {
                     break;
@@ -77,7 +147,7 @@ namespace dynamic_stereo{
             }
 
             if(refine){
-
+                RefineQuadNonLinear(locs, approx_contour);
             }
             //check the overlap region
             int overlap_count = 0;

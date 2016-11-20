@@ -19,7 +19,7 @@ using namespace Eigen;
 
 namespace dynamic_stereo{
 
-    const int Navigation::animation_blendNum = 12;
+    const int Navigation::animation_blendNum = 24;
 
     Navigation::Navigation(const string& path, const QJsonObject& configuration):
             fov_(35.0),
@@ -143,11 +143,10 @@ namespace dynamic_stereo{
         Vector3d camcenter = percent * camcenters_[frameid1] + (1.0-percent) * camcenters_[frameid2];
         Vector3d updir = interpolateVector3D(updirs_[frameid1], updirs_[frameid2], 1.0 - percent);
 
-        Vector3d vdir = interpolateVector3D(vdirs_[frameid1], vdirs_[frameid2], 1.0 - percent);
-//        Vector3d framecenter = (vdirs_[frameid1] * far_depth + camcenters_[frameid1]) * percent +
-//                               (1-percent) * (vdirs_[frameid2] * far_depth + camcenters_[frameid2]);
-//
-        Vector3d framecenter = vdir * far_depth + camcenter;
+//        Vector3d vdir = interpolateVector3D(vdirs_[frameid1], vdirs_[frameid2], 1.0 - percent);
+        Vector3d framecenter = (vdirs_[frameid1] * far_depth + camcenters_[frameid1]) * percent +
+                               (1-percent) * (vdirs_[frameid2] * far_depth + camcenters_[frameid2]);
+//        Vector3d framecenter = vdir * far_depth + camcenter;
 
         QMatrix4x4 m;
         m.setToIdentity();

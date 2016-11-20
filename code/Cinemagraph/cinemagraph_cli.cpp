@@ -15,6 +15,7 @@ using namespace dynamic_stereo;
 DEFINE_int32(testFrame, 0, "test frame");
 DEFINE_int32(kFrame, 200, "output frames");
 DEFINE_string(alg, "RPCA", "algorithm for regularization");
+DEFINE_bool(refine, false, "Run refinedment");
 
 int main(int argc, char** argv){
     google::ParseCommandLineFlags(&argc, &argv, true);
@@ -35,7 +36,7 @@ int main(int argc, char** argv){
 
     //detect display regions
     for(auto i=0; i<cinemagraph.pixel_loc_display.size(); ++i) {
-        Cinemagraph::ApproximateQuad(cinemagraph.pixel_loc_display[i], ref_img.cols, ref_img.rows, cinemagraph.corners[i], false);
+        Cinemagraph::ApproximateQuad(cinemagraph.pixel_loc_display[i], ref_img.cols, ref_img.rows, cinemagraph.corners[i], FLAGS_refine);
     }
 
     sprintf(buffer, "%s/temp/%s", file_io.getDirectory().c_str(), argv[2]);
